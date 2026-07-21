@@ -1,0 +1,14 @@
+# 배포 번들에서 제외 (Vercel 함수/정적 서빙에 불필요)
+*.csv
+*.log
+__pycache__/
+*.pyc
+
+# 로컬 전용 Flask 서버 (Vercel 은 api/update.py 만 사용)
+dashboard_server.py
+
+# 문서/개발 파일
+README.md
+.venv/
+venv/
+.git/

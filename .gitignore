@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Vercel
+.vercel/
+
+# 로컬 개발용 데이터/로그 (배포·저장소 불필요 — 데이터는 /api/update 로만 받음)
+*.csv
+*.log
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.env
+.env.*

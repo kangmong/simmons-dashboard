@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SIMMONS | 해외 매트리스 업계 동향</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <!-- SIMMONS 브랜딩 헤더 -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">SIMMONS</span>
+      <span class="brand-sub">해외 매트리스 업계 동향</span>
+    </div>
+    <div class="header-right">
+      <span class="brand-meta">Global Mattress Market Intelligence</span>
+      <button class="report-btn" id="reportBtn" type="button" title="현재 화면을 PDF로 저장">
+        ⭳ 보고서 다운로드
+      </button>
+    </div>
+  </header>
+
+  <!-- 브랜드 히어로 배너 (자체 제작 SVG — 외부 파일 불필요) -->
+  <section class="hero" aria-label="SIMMONS Factorium">
+    <div class="hero__lockup">
+      <div class="hero__logo">
+        <span class="hero__mark">SIMMONS</span>
+        <span class="hero__factorium">FACTORIUM</span>
+      </div>
+      <span class="hero__rule"></span>
+      <h2 class="hero__title">글로벌 매트리스 시장 인텔리전스</h2>
+      <p class="hero__desc">해외 시장 동향 · 경쟁사 · 업계 뉴스 · 원자재 원가를 한 화면에서</p>
+    </div>
+
+    <svg class="hero__art" viewBox="0 0 360 200" fill="none" aria-hidden="true">
+      <!-- 하늘/해 -->
+      <circle cx="308" cy="44" r="30" fill="var(--accent-soft)" />
+      <circle cx="308" cy="44" r="30" stroke="var(--accent)" stroke-opacity=".25" stroke-width="1.5" />
+      <!-- 지면 -->
+      <line x1="8" y1="170" x2="352" y2="170" stroke="var(--line)" stroke-width="2" />
+      <!-- 소나무 (팩토리움 숲) -->
+      <g stroke="var(--slate)" stroke-width="1.5" stroke-linejoin="round">
+        <polygon points="300,96 286,120 314,120" fill="var(--slate-soft)" />
+        <polygon points="300,112 282,140 318,140" fill="var(--slate-soft)" />
+        <polygon points="300,128 278,162 322,162" fill="var(--slate-soft)" />
+        <rect x="296" y="162" width="8" height="8" fill="var(--slate)" stroke="none" />
+      </g>
+      <g stroke="var(--slate)" stroke-width="1.5" stroke-linejoin="round">
+        <polygon points="336,120 326,138 346,138" fill="var(--slate-soft)" />
+        <polygon points="336,132 320,158 352,158" fill="var(--slate-soft)" />
+        <rect x="332" y="158" width="8" height="12" fill="var(--slate)" stroke="none" />
+      </g>
+      <!-- 낮은 본관 (유리 파사드) -->
+      <rect x="36" y="100" width="176" height="70" rx="4" fill="var(--card)" stroke="var(--slate)" stroke-width="2" />
+      <rect x="32" y="93" width="184" height="9" rx="2" fill="var(--slate)" />
+      <g stroke="var(--line)" stroke-width="1.5">
+        <line x1="60" y1="104" x2="60" y2="169" /><line x1="84" y1="104" x2="84" y2="169" />
+        <line x1="108" y1="104" x2="108" y2="169" /><line x1="156" y1="104" x2="156" y2="169" />
+        <line x1="180" y1="104" x2="180" y2="169" /><line x1="36" y1="136" x2="212" y2="136" />
+      </g>
+      <!-- 정문 -->
+      <rect x="120" y="140" width="24" height="30" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5" />
+      <!-- 타워동 (크림슨 캡) -->
+      <rect x="206" y="70" width="48" height="100" rx="4" fill="var(--ink)" />
+      <rect x="206" y="70" width="48" height="15" rx="4" fill="var(--accent)" />
+      <g fill="var(--card)" fill-opacity=".85">
+        <rect x="214" y="96" width="14" height="11" rx="1" /><rect x="232" y="96" width="14" height="11" rx="1" />
+        <rect x="214" y="116" width="14" height="11" rx="1" /><rect x="232" y="116" width="14" height="11" rx="1" />
+        <rect x="214" y="136" width="14" height="11" rx="1" /><rect x="232" y="136" width="14" height="11" rx="1" />
+      </g>
+    </svg>
+  </section>
+
+  <div class="layout">
+    <!-- 좌측 네비게이션 + 상시 업로드 위젯 -->
+    <nav class="tabs" id="tabs">
+      <button class="nav-item is-active" data-view="dashboard">
+        <span class="tab-num tab-num--home">⌂</span>대시보드
+      </button>
+      <button class="nav-item" data-view="market">
+        <span class="tab-num">2</span>해외 시장 동향
+      </button>
+      <button class="nav-item" data-view="competitor">
+        <span class="tab-num">3</span>경쟁사 분석
+      </button>
+      <button class="nav-item" data-view="news">
+        <span class="tab-num">4</span>업계 주요 뉴스
+      </button>
+      <button class="nav-item" data-view="material">
+        <span class="tab-num">5</span>원자재 원가 동향
+      </button>
+      <button class="nav-item" data-view="fx">
+        <span class="tab-num">6</span>환율
+      </button>
+      <button class="nav-item" data-view="insights">
+        <span class="tab-num">7</span>AI 인사이트
+      </button>
+
+      <div class="sidebar-fill"></div>
+
+      <!-- 상시 실시간 업데이트 위젯 (어느 화면에서든 항상 표시) -->
+      <div class="upload-widget" id="uploadWidget">
+        <div class="uw-title">데이터 업데이트</div>
+        <div class="uw-actions">
+          <button class="uw-update" id="updateBtn" type="button">업데이트</button>
+          <button class="uw-reset" id="clearBtn" type="button" title="화면 값을 초기 상태로 되돌립니다">초기화</button>
+        </div>
+        <div class="uw-updated" id="lastUpdated">아직 업데이트하지 않았습니다</div>
+        <div class="uw-note">World Bank 핑크시트 · 월간 원자재 가격</div>
+      </div>
+    </nav>
+
+    <!-- 컨텐츠: 대시보드(그리드) ↔ 개별 섹션(포커스) -->
+    <main class="content" id="content" data-view="dashboard">
+      <button class="focus-back" id="focusBack" type="button">‹ 대시보드로</button>
+
+      <div class="dash-header" id="dashHeader">
+        <div class="dash-title">
+          <h2>Global Mattress Industry Intelligence Dashboard</h2>
+          <p>해외 시장·경쟁사·업계 뉴스·원자재 원가를 한눈에</p>
+        </div>
+        <div class="dash-meta">
+          <span class="dash-ctl">마지막 업데이트 <b id="dashUpdated">—</b></span>
+        </div>
+      </div>
+
+      <div class="dash-grid" id="dashGrid">
+        <section class="dash-card" data-section="market">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">해외 시장 현황</h3>
+            <button class="more-link" data-view="market" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-market">
+            <div class="wb-note">매트리스 수요 잠재력 — 소비시장 규모 기준 (World Bank 지표 활용, 실제 매트리스 시장 규모 아님)</div>
+            <div class="mkt-toggle" id="wbToggle"></div>
+            <div class="wb-map" id="wbMap"></div>
+            <div class="comp-caption">출처: World Bank Open Data</div>
+          </div>
+        </section>
+
+        <section class="dash-card" data-section="news">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">업계 주요 뉴스</h3>
+            <button class="more-link" data-view="news" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-news">
+            <div class="news-list" id="newsList"></div>
+            <div class="news-ai" id="newsAI"></div>
+          </div>
+        </section>
+
+        <section class="dash-card" data-section="competitor">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">경쟁사 분석</h3>
+            <button class="more-link" data-view="competitor" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-competitor">
+            <div id="compBars"></div>
+            <div id="compCards"></div>
+            <div id="compCaption"></div>
+          </div>
+        </section>
+
+        <section class="dash-card" data-section="material">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">원자재 · 원가 동향</h3>
+            <button class="more-link" data-view="material" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-material">
+            <h2 class="subhead">최신 가격 · 전월대비</h2>
+            <div class="material-cards" id="materialCards"></div>
+            <div id="materialChart"></div>
+          </div>
+        </section>
+
+        <section class="dash-card" data-section="fx">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">환율 (USD/KRW)</h3>
+            <button class="more-link" data-view="fx" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-fx"></div>
+        </section>
+
+        <section class="dash-card" data-section="insights">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">AI 인사이트 (Impact 분석)</h3>
+            <button class="more-link" data-view="insights" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-insights"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

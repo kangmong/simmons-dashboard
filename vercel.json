@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/update.py", "use": "@vercel/python" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "app.js", "use": "@vercel/static" },
+    { "src": "styles.css", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/update", "methods": ["GET", "POST"], "dest": "/api/update.py" },
+    { "handle": "filesystem" },
+    { "src": "/", "dest": "/index.html" }
+  ]
+}
