@@ -1316,8 +1316,8 @@ function renderMaterialCards() {
     if (!cur || r.date.localeCompare(cur.date) >= 0) latest.set(r.material, r);
   });
 
-  // 환율(fx) 재사용 — 없거나 실패면 원화 환산 생략
-  const fxRate = (_fx && _fx.rate != null) ? _fx.rate : null;
+  // 환율(fx) 재사용 — USD/KRW 쌍일 때만 원화 환산(그 외 쌍이면 환산 불가 → 생략)
+  const fxRate = (_fx && _fx.pair === 'USD/KRW' && _fx.rate != null) ? _fx.rate : null;
   // "USD/배럴" → "원/배럴" (단위 뒷부분 그대로 유지)
   const krwUnit = (unit) => {
     const parts = String(unit || '').split('/');
@@ -1644,8 +1644,9 @@ function initNews() {
   });
 }
 
-/* ── 환율 (USD/KRW) ── */
-let _fx = null; // { pair, rate, change_pct, date }
+/* ── 환율 (EUR/USD) ── */
+let _fx = null; // { pair, rate, change_pct, date, series:{dates,values} }
+let _fxChart = null; // 추이 차트 hover 캐시
 
 /** 응답의 fx 저장 후 환율 카드 갱신 */
 function applyFxUpdate(data) {
@@ -1656,28 +1657,125 @@ function applyFxUpdate(data) {
   renderFx();
 }
 
-/** 환율 카드 렌더 */
+/** 환율 카드 렌더 (현재값 + 전일대비 + 최근 5년 추이) */
 function renderFx() {
   const el = document.getElementById('body-fx');
   if (!el) return;
-  const note = '<div class="fx-note">원자재는 달러로 거래되므로, 환율이 오르면 원화 수입 원가가 커집니다.</div>';
+  const note = '<div class="fx-note">유로화 대비 달러 가치. 유럽산 원자재·설비 수입 시 환율 부담을 가늠할 수 있습니다.</div>';
   if (!_fx || _fx.rate == null) {
     el.innerHTML = emptyState('환율 데이터 준비중') + note;
     return;
   }
-  const rateStr = Number(_fx.rate).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const rateStr = Number(_fx.rate).toFixed(4); // EUR/USD 소수 4자리
   const c = _fx.change_pct;
   const chgHtml = (c == null)
     ? '<div class="fx-change fx-flat">전일 대비 —</div>'
     : `<div class="fx-change ${c > 0 ? 'up' : c < 0 ? 'down' : 'fx-flat'}">${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${Math.abs(c).toFixed(2)}% <span class="fx-change__lbl">전일 대비</span></div>`;
   el.innerHTML = `
     <div class="fx-card">
-      <div class="fx-rate">${rateStr}<span class="fx-unit">원</span></div>
+      <div class="fx-rate">${rateStr}<span class="fx-unit">USD</span></div>
       ${chgHtml}
       <div class="fx-date">기준일 ${escapeHtml(_fx.date || '—')}</div>
     </div>
     ${note}
+    <div id="fxChart"></div>
     <div class="comp-caption">출처: Frankfurter (ECB 기반)</div>`;
+  renderFxChart();
+}
+
+/** 최근 5년 추이 선그래프 (원자재 추이와 같은 톤: 크림슨 선 + 크로스헤어 툴팁) */
+function renderFxChart() {
+  const host = document.getElementById('fxChart');
+  if (!host) return;
+  const s = _fx && _fx.series;
+  if (!s || !Array.isArray(s.dates) || !s.dates.length) { host.innerHTML = ''; _fxChart = null; return; }
+
+  const dates = s.dates, values = s.values;
+  const n = dates.length;
+  const W = 520, H = 210, padL = 48, padR = 14, padT = 18, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const color = 'var(--accent)'; // 크림슨 계열
+
+  // y축 자동 스케일 (0부터 시작 아님)
+  const vals = values.filter((v) => v != null);
+  let ymin = Math.min(...vals), ymax = Math.max(...vals);
+  if (ymin === ymax) { const dd = Math.abs(ymin) * 0.1 || 0.01; ymin -= dd; ymax += dd; }
+  const yp = (ymax - ymin) * 0.12; ymin -= yp; ymax += yp;
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = [0, 0.5, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t;
+    const y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${val.toFixed(4)}</text>`;
+  }).join('');
+
+  // x축 라벨: 연-월, ~6개로 솎기
+  const xStep = Math.max(1, Math.ceil(n / 6));
+  const xticks = dates.map((d, i) => {
+    if (!(i % xStep === 0 || i === n - 1)) return '';
+    const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
+  }).join('');
+
+  let path = '', pen = false;
+  values.forEach((v, i) => {
+    if (v == null) { pen = false; return; }
+    const x = X(i), y = Y(v);
+    path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `;
+    pen = true;
+  });
+  const line = path ? `<path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+
+  _fxChart = { dates, values, color, geom: { X, Y, n, W, padL } };
+
+  host.innerHTML = `<div class="viz-root viz-figure">
+    <div class="viz-head"><div class="viz-title">최근 5년 추이 (EUR/USD)</div></div>
+    <svg class="fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="EUR/USD 최근 5년 추이">
+      ${grid}${xticks}${line}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="fx-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="fx-dots"></g>
+      <rect class="fx-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>
+    <div class="viz-tooltip" id="fxTooltip"></div>
+  </div>`;
+
+  wireFxInteraction();
+}
+
+/** 추이 차트 크로스헤어 + 툴팁 (날짜 · 값) */
+function wireFxInteraction() {
+  const fig = document.querySelector('#fxChart .viz-figure');
+  const tip = document.getElementById('fxTooltip');
+  if (!fig || !tip || !_fxChart) return;
+  const svg = fig.querySelector('.fx-svg');
+  const overlay = svg.querySelector('.fx-overlay');
+  const cross = svg.querySelector('.fx-cross');
+  const dots = svg.querySelector('.fx-dots');
+  const c = _fxChart, g = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  overlay.addEventListener('mousemove', (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+    const v = c.values[i];
+    if (v == null) { clear(); return; }
+    const cx = g.X(i), cy = g.Y(v);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${c.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>
+      <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>EUR/USD</span><span class="viz-tt-val">${v.toFixed(4)} USD</span></div>`;
+    const fr = fig.getBoundingClientRect();
+    let left = evt.clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  });
+  overlay.addEventListener('mouseleave', clear);
 }
 
 /** 데이터 변경 시 데이터 의존 섹션 재렌더 */
@@ -1792,6 +1890,7 @@ function resetDashboard() {
   _liveNews = null;     // 실시간 뉴스 비우기
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
   _fx = null;           // 환율 비우기
+  _fxChart = null;      // 환율 추이 차트 캐시 비우기
   // "마지막 업데이트" 텍스트 되돌리기
   const lbl = document.getElementById('lastUpdated');
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';

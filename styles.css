@@ -659,6 +659,10 @@ body {
 .fx-change__lbl { font-size: 12px; font-weight: 500; color: var(--muted); }
 .fx-date { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fx-note { margin-top: 14px; font-size: 13px; color: var(--text); line-height: 1.55; }
+#fxChart { margin-top: 14px; }
+#fxChart .viz-figure { position: relative; }
+.fx-svg { display: block; width: 100%; height: auto; }
+.fx-overlay { cursor: crosshair; }
 
 /* ============================================================
    6) AI 인사이트 (Impact 분석)
