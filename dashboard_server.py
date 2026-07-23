@@ -460,19 +460,19 @@ def update_competitors():
     return {"status": "ok", "companies": companies}
 
 
-# ── 환율 EUR/USD — Frankfurter(ECB 기반, 무료·무키) ──────────────────────
+# ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────
 def update_fx():
-    """EUR/USD 최신 환율 + 전일(직전 영업일) 대비 변화율 + 최근 5년 월별 추이.
+    """EUR/KRW 최신 환율 + 전일(직전 영업일) 대비 변화율 + 최근 5년 월별 추이.
        현재값 실패 시 error. 추이(series)만 실패하면 현재값은 그대로 반환."""
     base = "https://api.frankfurter.app"
     hdr = {"User-Agent": "Mozilla/5.0"}
 
-    # 1) 현재값 + 기준일 (기준통화 EUR, 대상통화 USD)
+    # 1) 현재값 + 기준일 (기준통화 EUR, 대상통화 KRW)
     try:
-        lj = requests.get(base + "/latest?from=EUR&to=USD", timeout=20, headers=hdr)
+        lj = requests.get(base + "/latest?from=EUR&to=KRW", timeout=20, headers=hdr)
         lj.raise_for_status()
         lj = lj.json()
-        rate = lj["rates"]["USD"]
+        rate = lj["rates"]["KRW"]
         date = lj["date"]
     except Exception as e:  # noqa: BLE001
         return {"status": "error", "reason": "환율 조회 실패: %s" % e}
@@ -482,12 +482,12 @@ def update_fx():
     try:
         start = (datetime.datetime.strptime(date, "%Y-%m-%d").date()
                  - datetime.timedelta(days=7)).isoformat()
-        ser = requests.get(base + "/%s..%s?from=EUR&to=USD" % (start, date), timeout=20, headers=hdr)
+        ser = requests.get(base + "/%s..%s?from=EUR&to=KRW" % (start, date), timeout=20, headers=hdr)
         ser.raise_for_status()
         rates = ser.json().get("rates", {})
         days = sorted(rates.keys())
         if len(days) >= 2:
-            prev = rates[days[-2]].get("USD")
+            prev = rates[days[-2]].get("KRW")
             if prev:
                 change = round((rate - prev) / prev * 100.0, 2)
     except Exception:  # noqa: BLE001 — 변화율만 실패해도 최신값은 반환
@@ -498,26 +498,26 @@ def update_fx():
     try:
         end = datetime.datetime.strptime(date, "%Y-%m-%d").date()
         start5 = (end - datetime.timedelta(days=365 * 5)).isoformat()
-        sr = requests.get(base + "/%s..%s?from=EUR&to=USD" % (start5, end.isoformat()),
+        sr = requests.get(base + "/%s..%s?from=EUR&to=KRW" % (start5, end.isoformat()),
                           timeout=30, headers=hdr)
         sr.raise_for_status()
         rr = sr.json().get("rates", {})
         monthly = {}  # 'YYYY-MM' → (날짜, 값). 오름차순 순회이므로 뒤 값이 그 달의 최신
         for d in sorted(rr.keys()):
-            v = rr[d].get("USD")
+            v = rr[d].get("KRW")
             if v is not None:
                 monthly[d[:7]] = (d, v)
         dates, values = [], []
         for ym in sorted(monthly.keys()):
             d, v = monthly[ym]
             dates.append(d)
-            values.append(round(v, 4))
+            values.append(round(v, 2))
         if dates:
             series = {"dates": dates, "values": values}
     except Exception:  # noqa: BLE001 — 추이만 실패해도 현재값은 반환
         series = None
 
-    out = {"status": "ok", "pair": "EUR/USD", "rate": round(rate, 4),
+    out = {"status": "ok", "pair": "EUR/KRW", "rate": round(rate, 2),
            "change_pct": change, "date": date}
     if series:
         out["series"] = series

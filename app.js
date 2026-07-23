@@ -1661,19 +1661,19 @@ function applyFxUpdate(data) {
 function renderFx() {
   const el = document.getElementById('body-fx');
   if (!el) return;
-  const note = '<div class="fx-note">유로화 대비 달러 가치. 유럽산 원자재·설비 수입 시 환율 부담을 가늠할 수 있습니다.</div>';
+  const note = '<div class="fx-note">유로화 대비 원화 가치. 유럽산 원자재·설비 수입 시 원화 부담을 가늠할 수 있습니다.</div>';
   if (!_fx || _fx.rate == null) {
     el.innerHTML = emptyState('환율 데이터 준비중') + note;
     return;
   }
-  const rateStr = Number(_fx.rate).toFixed(4); // EUR/USD 소수 4자리
+  const rateStr = Number(_fx.rate).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // 원화: 천단위 콤마 + 소수 2자리
   const c = _fx.change_pct;
   const chgHtml = (c == null)
     ? '<div class="fx-change fx-flat">전일 대비 —</div>'
     : `<div class="fx-change ${c > 0 ? 'up' : c < 0 ? 'down' : 'fx-flat'}">${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${Math.abs(c).toFixed(2)}% <span class="fx-change__lbl">전일 대비</span></div>`;
   el.innerHTML = `
     <div class="fx-card">
-      <div class="fx-rate">${rateStr}<span class="fx-unit">USD</span></div>
+      <div class="fx-rate">${rateStr}<span class="fx-unit">원</span></div>
       ${chgHtml}
       <div class="fx-date">기준일 ${escapeHtml(_fx.date || '—')}</div>
     </div>
@@ -1708,7 +1708,7 @@ function renderFxChart() {
     const val = ymin + (ymax - ymin) * t;
     const y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${val.toFixed(4)}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
   }).join('');
 
   // x축 라벨: 연-월(YYYY-MM) 형식으로 통일 + 양 끝 포함해 균등 간격으로만 표시.
@@ -1736,8 +1736,8 @@ function renderFxChart() {
   _fxChart = { dates, values, color, geom: { X, Y, n, W, padL } };
 
   host.innerHTML = `<div class="viz-root viz-figure">
-    <div class="viz-head"><div class="viz-title">최근 5년 추이 (EUR/USD)</div></div>
-    <svg class="fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="EUR/USD 최근 5년 추이">
+    <div class="viz-head"><div class="viz-title">최근 5년 추이 (EUR/KRW)</div></div>
+    <svg class="fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="EUR/KRW 최근 5년 추이">
       ${grid}${xticks}${line}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="fx-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
@@ -1772,7 +1772,7 @@ function wireFxInteraction() {
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
     dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${c.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
     tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>
-      <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>EUR/USD</span><span class="viz-tt-val">${v.toFixed(4)} USD</span></div>`;
+      <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>EUR/KRW</span><span class="viz-tt-val">${v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 원</span></div>`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
