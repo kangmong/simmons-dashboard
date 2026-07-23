@@ -302,6 +302,41 @@ def update_news():
 # 시몬스 제외 국내 매트리스·가구 브랜드. 브랜드명 + (신제품 OR 출시 OR 론칭)으로 검색.
 DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]
 
+# og:image 두 가지 속성 순서(content 앞/뒤) 모두 대응
+_OG_IMAGE_RE = [
+    re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', re.I),
+]
+
+
+# Google News 링크는 자체 뷰어의 일반 로고(lh3.googleusercontent 등)만 노출하므로,
+# 아래 도메인의 이미지는 "대표 이미지 아님"으로 보고 버린다(→ 프런트에서 브랜드 이니셜로 대체).
+_GENERIC_IMG_HOSTS = ("googleusercontent.com", "gstatic.com", "google.com")
+
+
+def _og_image(url):
+    """기사 링크에서 <meta property="og:image"> 값을 추출. 실패/일반로고면 None(에러 내지 않음)."""
+    if not url:
+        return None
+    try:
+        r = requests.get(url, timeout=5, allow_redirects=True,
+                         headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        html = r.text
+        for rx in _OG_IMAGE_RE:
+            m = rx.search(html)
+            if m:
+                img = m.group(1).strip()
+                if not img.startswith("http"):
+                    continue
+                host = urllib.parse.urlparse(img).netloc.lower()
+                if any(h in host for h in _GENERIC_IMG_HOSTS):
+                    return None  # 구글 뷰어 일반 로고 → 대표 이미지로 쓰지 않음
+                return img
+    except Exception:  # noqa: BLE001 — 이미지 실패는 조용히 넘어감
+        pass
+    return None
+
 
 def update_domestic():
     """브랜드별 신제품/출시 뉴스를 모아 전체 최신순 상위 6개 반환.
@@ -337,7 +372,11 @@ def update_domestic():
 
     # 전체 날짜 최신순(YYYY-MM-DD 문자열 정렬) 상위 6개
     collected.sort(key=lambda x: x["date"], reverse=True)
-    return {"status": "ok", "items": collected[:6]}
+    top = collected[:6]
+    # 성능: 상위 6개에 대해서만 대표 이미지(og:image) 추출
+    for it in top:
+        it["image"] = _og_image(it["link"])
+    return {"status": "ok", "items": top}
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────

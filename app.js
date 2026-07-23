@@ -1676,14 +1676,32 @@ function renderDomestic() {
     + '<div class="comp-caption">출처: Google News</div>';
   el.innerHTML = _domestic.map((it) => {
     const url = safeUrl(it.link);
+    const img = safeUrl(it.image);
     const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
+    const brand = String(it.brand || '');
     const meta = [it.source, it.date].filter(Boolean).join(' · ');
+    // 제목: 끝의 " - 언론사" 접미사 제거 → 앞의 중복 브랜드명 제거 → [브랜드] 표기로 통합
+    let title = String(it.title || '');
+    if (it.source && title.endsWith(' - ' + it.source)) title = title.slice(0, -(it.source.length + 3));
+    if (brand) {
+      const bre = new RegExp('^\\s*' + brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,·:\\-]?\\s*');
+      const stripped = title.replace(bre, '').trim();
+      if (stripped) title = stripped; // 전부 지워지면 원제목 유지
+    }
+    // 썸네일: 이미지 위에 브랜드 이니셜을 깔아, 이미지 실패(onerror) 시 이니셜이 드러남
+    const initial = brand ? brand.charAt(0) : '·';
+    const imgTag = img
+      ? `<img class="dom-thumb__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
     const tag = url ? 'a' : 'div';
     const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
     return `<${tag} class="dom-item${url ? '' : ' dom-item--nolink'}"${attrs}>
-      <span class="dom-badge" style="--dom-c:${color}">${escapeHtml(it.brand)}</span>
+      <div class="dom-thumb" style="--dom-c:${color}">
+        <span class="dom-thumb__ini">${escapeHtml(initial)}</span>
+        ${imgTag}
+      </div>
       <div class="dom-item__body">
-        <h3 class="dom-item__title">${escapeHtml(it.title)}</h3>
+        <h3 class="dom-item__title"><span class="dom-brand" style="color:${color}">[${escapeHtml(brand)}]</span> ${escapeHtml(title)}</h3>
         <div class="dom-item__meta">${escapeHtml(meta)}</div>
       </div>
     </${tag}>`;
