@@ -362,6 +362,26 @@ def _og_image(url):
     return None
 
 
+# RSS <item> 안의 이미지 태그(media:content / media:thumbnail / enclosure)
+_MRSS = "{http://search.yahoo.com/mrss/}"
+
+
+def _rss_media(item):
+    """RSS item 의 media:content/thumbnail 또는 이미지 enclosure URL. 없으면 None."""
+    try:
+        for tag in (_MRSS + "content", _MRSS + "thumbnail"):
+            el = item.find(tag)
+            if el is not None and el.get("url", "").startswith("http"):
+                return el.get("url")
+        enc = item.find("enclosure")
+        if enc is not None and enc.get("url", "").startswith("http") \
+                and "image" in (enc.get("type") or "image"):
+            return enc.get("url")
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def _product_name(title, brand, source):
     """기사 제목에서 상품명 추출: 따옴표 안 텍스트 우선 → 없으면 '- 언론사' 제거 + 앞 '브랜드,' 제거."""
     t = (title or "").strip()
@@ -384,6 +404,7 @@ def update_domestic():
     """브랜드별 신제품/출시 뉴스를 모아 전체 최신순 상위 6개 반환.
        한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error."""
     collected = []
+    media_by_link = {}  # link -> RSS 미디어(media:content/enclosure) 이미지 URL
     for brand in DOMESTIC_BRANDS:
         try:
             q = '"%s" (신제품 OR 출시 OR 론칭)' % brand
@@ -403,6 +424,9 @@ def update_domestic():
             pub = item.findtext("pubDate") or ""
             src_el = item.find("source")
             source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+            media = _rss_media(item)  # RSS 안 이미지 태그(og:image 실패 시 폴백)
+            if link and media:
+                media_by_link[link] = media
             collected.append({"brand": brand, "title": title, "source": source,
                               "date": _fmt_pubdate(pub), "link": link,
                               "product_name": _product_name(title, brand, source)})
@@ -413,19 +437,35 @@ def update_domestic():
     if not collected:
         return {"status": "error", "reason": "국내 브랜드 뉴스를 받지 못했습니다"}
 
-    # 전체 날짜 최신순(YYYY-MM-DD 문자열 정렬) 상위 6개
-    collected.sort(key=lambda x: x["date"], reverse=True)
-    top = collected[:6]
-    # 성능: 상위 6개에 대해서만 대표 이미지(og:image) 추출
-    for it in top:
-        it["image"] = _og_image(it["link"])
-    # 대표 상품: 상위 3개를 featured 로 따로 반환(전체 items 는 그대로 유지)
+    collected.sort(key=lambda x: x["date"], reverse=True)  # 날짜 최신순
+
+    # 이미지 해석(링크별 1회 캐시): 최종 기사까지 리다이렉트 추적 og:image → 없으면 RSS 미디어
+    img_cache = {}
+
+    def _resolve_img(link):
+        if link not in img_cache:
+            img_cache[link] = _og_image(link) or media_by_link.get(link)
+        return img_cache[link]
+
+    # 전체 목록: 최신순 상위 6개
+    items = collected[:6]
+    for it in items:
+        it["image"] = _resolve_img(it["link"])
+
+    # 대표 상품(featured): 브랜드당 최신 1건만 → 최신순 → 상위 3개 (브랜드 중복 없음)
+    best = {}
+    for it in collected:  # 이미 최신순이라 브랜드별 첫 등장이 그 브랜드의 최신 기사
+        if it["brand"] not in best:
+            best[it["brand"]] = it
+    reps = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
     featured = [{"brand": it["brand"], "product_name": it.get("product_name"),
-                 "image": it.get("image"), "logo_url": _brand_logo(it["brand"]),
+                 "image": _resolve_img(it["link"]),
+                 "logo_url": _brand_logo(it["brand"]),
                  "logo_fallback": _brand_logo_fallback(it["brand"]),
                  "source": it["source"], "date": it["date"], "link": it["link"]}
-                for it in top[:3]]
-    return {"status": "ok", "items": top, "featured": featured}
+                for it in reps]
+
+    return {"status": "ok", "items": items, "featured": featured}
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
