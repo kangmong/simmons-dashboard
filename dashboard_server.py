@@ -395,7 +395,11 @@ def update_domestic():
     # 성능: 상위 6개에 대해서만 대표 이미지(og:image) 추출
     for it in top:
         it["image"] = _og_image(it["link"])
-    return {"status": "ok", "items": top}
+    # 대표 상품: 상위 3개를 featured 로 따로 반환(전체 items 는 그대로 유지)
+    featured = [{"brand": it["brand"], "product_name": it.get("product_name"),
+                 "image": it.get("image"), "source": it["source"],
+                 "date": it["date"], "link": it["link"]} for it in top[:3]]
+    return {"status": "ok", "items": top, "featured": featured}
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────

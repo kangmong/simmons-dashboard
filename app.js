@@ -1645,7 +1645,8 @@ function initNews() {
 }
 
 /* ── 국내 브랜드 신제품 (Google News RSS 한국어) ── */
-let _domestic = null; // [{ brand, title, source, date, link }]
+let _domestic = null;         // [{ brand, title, source, date, link, image, product_name }]
+let _domesticFeatured = null; // [{ brand, product_name, image, source, date, link }] 대표 상품 3개
 
 // 브랜드별 포인트 색 (배지 강조)
 const DOM_BRAND_COLORS = {
@@ -1659,8 +1660,14 @@ const DOM_BRAND_COLORS = {
 function applyDomesticUpdate(data) {
   const dm = data && data.sections && data.sections.domestic;
   if (!dm) return;
-  if (dm.status === 'error') { _domestic = null; console.warn('[update] domestic error:', dm.reason); }
-  else { _domestic = dm.items || []; }
+  if (dm.status === 'error') {
+    _domestic = null; _domesticFeatured = null;
+    console.warn('[update] domestic error:', dm.reason);
+  } else {
+    _domestic = dm.items || [];
+    // featured 가 오면 사용, 없으면 items 상위 3개로 폴백
+    _domesticFeatured = (dm.featured && dm.featured.length) ? dm.featured : _domestic.slice(0, 3);
+  }
   renderDomestic();
 }
 
@@ -1673,13 +1680,18 @@ function renderDomestic() {
     return;
   }
 
-  // ── 상단: 대표 출시 상품 3개 (사진 + 브랜드 배지 + 상품명) ──
-  const feats = _domestic.slice(0, 3).map((it) => {
+  // ── 상단: 대표 출시 상품 3개 (사진 + 회사명 + 제품명 + 출처·날짜) ──
+  // image 가 null 이어도 브랜드 색 배경으로 카드는 항상 표시된다.
+  const featList = (_domesticFeatured && _domesticFeatured.length)
+    ? _domesticFeatured
+    : (_domestic ? _domestic.slice(0, 3) : []);
+  const feats = featList.map((it) => {
     const url = safeUrl(it.link);
     const img = safeUrl(it.image);
     const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const name = String(it.product_name || it.title || '').trim();
+    const meta = [it.source, it.date].filter(Boolean).join(' · ');
     const imgTag = img
       ? `<img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
@@ -1691,16 +1703,19 @@ function renderDomestic() {
         ${imgTag}
       </div>
       <div class="prod-card__body">
-        <span class="dom-badge2" style="--dom-c:${color}">${escapeHtml(brand)}</span>
+        <div class="prod-card__brand" style="color:${color}">${escapeHtml(brand)}</div>
         <div class="prod-card__name">${escapeHtml(name)}</div>
+        ${meta ? `<div class="prod-card__meta">${escapeHtml(meta)}</div>` : ''}
       </div>
     </${tag}>`;
   }).join('');
-  const feature = `<div class="dom-feature">
-    <div class="dom-feature__head">대표 출시 상품</div>
-    <div class="dom-feature__grid">${feats}</div>
-  </div>
-  <div class="dom-divider"></div>`;
+  const feature = feats
+    ? `<div class="dom-feature">
+        <div class="dom-feature__head">대표 출시 상품</div>
+        <div class="dom-feature__grid">${feats}</div>
+      </div>
+      <div class="dom-divider"></div>`
+    : '';
 
   // ── 하단: 기존 뉴스 목록 ──
   const list = _domestic.map((it) => {
@@ -1993,6 +2008,7 @@ function resetDashboard() {
   _wbMarket = null;     // World Bank 지도 데이터 비우기 (renderMarket 이 지도 제거)
   _liveNews = null;     // 실시간 뉴스 비우기
   _domestic = null;     // 국내 브랜드 신제품 비우기
+  _domesticFeatured = null;
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
