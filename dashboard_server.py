@@ -302,6 +302,29 @@ def update_news():
 # 시몬스 제외 국내 매트리스·가구 브랜드. 브랜드명 + (신제품 OR 출시 OR 론칭)으로 검색.
 DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]
 
+# 브랜드 공식 도메인 → 무료 로고 서비스(Clearbit, 키 불필요)로 로고 URL 생성.
+# 기사 사진이 없을 때 프런트에서 이 주소를 img src 로 바로 사용한다.
+BRAND_DOMAINS = {
+    "에이스침대": "acebed.com",
+    "씰리": "sealy.co.kr",
+    "한샘": "hanssem.com",
+    "이케아": "ikea.com",
+}
+
+
+def _brand_logo(brand):
+    """1순위 로고: Clearbit(무료·무키). ※ 참고: Clearbit 무료 로고 API는 현재
+       DNS가 해석되지 않을 때가 있어, 프런트에서 logo_fallback(구글 파비콘)으로 자동 대체한다."""
+    dom = BRAND_DOMAINS.get(brand)
+    return ("https://logo.clearbit.com/" + dom) if dom else None
+
+
+def _brand_logo_fallback(brand):
+    """폴백 로고: 구글 파비콘 서비스(무료·무키). Clearbit 실패 시 사용."""
+    dom = BRAND_DOMAINS.get(brand)
+    return ("https://www.google.com/s2/favicons?sz=128&domain=" + dom) if dom else None
+
+
 # og:image 두 가지 속성 순서(content 앞/뒤) 모두 대응
 _OG_IMAGE_RE = [
     re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I),
@@ -397,8 +420,10 @@ def update_domestic():
         it["image"] = _og_image(it["link"])
     # 대표 상품: 상위 3개를 featured 로 따로 반환(전체 items 는 그대로 유지)
     featured = [{"brand": it["brand"], "product_name": it.get("product_name"),
-                 "image": it.get("image"), "source": it["source"],
-                 "date": it["date"], "link": it["link"]} for it in top[:3]]
+                 "image": it.get("image"), "logo_url": _brand_logo(it["brand"]),
+                 "logo_fallback": _brand_logo_fallback(it["brand"]),
+                 "source": it["source"], "date": it["date"], "link": it["link"]}
+                for it in top[:3]]
     return {"status": "ok", "items": top, "featured": featured}
 
 

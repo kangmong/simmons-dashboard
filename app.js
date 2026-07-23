@@ -1688,19 +1688,26 @@ function renderDomestic() {
   const feats = featList.map((it) => {
     const url = safeUrl(it.link);
     const img = safeUrl(it.image);
+    const logo = safeUrl(it.logo_url);        // 1순위 로고(Clearbit)
+    const logo2 = safeUrl(it.logo_fallback);  // 폴백 로고(구글 파비콘)
     const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const name = String(it.product_name || it.title || '').trim();
     const meta = [it.source, it.date].filter(Boolean).join(' · ');
+    // 이미지 우선순위: 기사 사진 > 브랜드 로고(Clearbit) > 폴백 로고(파비콘) > 브랜드명 텍스트.
+    // 겹쳐 쌓고(아래=폴백, 위=우선), 위 레이어가 로드 실패(onerror)하면 제거돼 아래가 드러난다.
+    const mkLogo = (u) => u
+      ? `<img class="prod-card__logo" src="${escapeHtml(u)}" alt="${escapeHtml(brand)} 로고" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
     const imgTag = img
-      ? `<img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img class="prod-card__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
     const tag = url ? 'a' : 'div';
     const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
     return `<${tag} class="prod-card"${attrs}>
       <div class="prod-card__photo" style="--dom-c:${color}">
         <span class="prod-card__ph">${escapeHtml(brand)}</span>
-        ${imgTag}
+        ${mkLogo(logo2)}${mkLogo(logo)}${imgTag}
       </div>
       <div class="prod-card__body">
         <div class="prod-card__brand" style="color:${color}">${escapeHtml(brand)}</div>
