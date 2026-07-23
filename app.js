@@ -1711,12 +1711,17 @@ function renderFxChart() {
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${val.toFixed(4)}</text>`;
   }).join('');
 
-  // x축 라벨: 연-월, ~6개로 솎기
-  const xStep = Math.max(1, Math.ceil(n / 6));
-  const xticks = dates.map((d, i) => {
-    if (!(i % xStep === 0 || i === n - 1)) return '';
+  // x축 라벨: 연-월(YYYY-MM) 형식으로 통일 + 양 끝 포함해 균등 간격으로만 표시.
+  // (모든 점마다 찍지 않고 고정 개수만 → 오른쪽 끝 라벨 겹침 방지)
+  const TICKS = Math.min(6, n);
+  const tickIdx = [];
+  for (let k = 0; k < TICKS; k++) {
+    const i = TICKS === 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
+    if (!tickIdx.includes(i)) tickIdx.push(i);
+  }
+  const xticks = tickIdx.map((i) => {
     const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
   }).join('');
 
   let path = '', pen = false;
