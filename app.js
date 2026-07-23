@@ -1664,7 +1664,7 @@ function applyDomesticUpdate(data) {
   renderDomestic();
 }
 
-/** 국내 브랜드 신제품 카드 렌더 (제목 클릭 → 원문 새 탭) */
+/** 국내 브랜드 신제품 카드 렌더: 상단 "대표 출시 상품" 3개 + 하단 뉴스 목록 (클릭 → 원문 새 탭) */
 function renderDomestic() {
   const el = document.getElementById('domesticList');
   if (!el) return;
@@ -1672,9 +1672,38 @@ function renderDomestic() {
     el.innerHTML = emptyState('국내 브랜드 신제품 데이터 준비중');
     return;
   }
-  const foot = '<div class="dom-note">브랜드명으로 뉴스를 검색한 결과로, 신제품 외 기사가 섞일 수 있습니다.</div>'
-    + '<div class="comp-caption">출처: Google News</div>';
-  el.innerHTML = _domestic.map((it) => {
+
+  // ── 상단: 대표 출시 상품 3개 (사진 + 브랜드 배지 + 상품명) ──
+  const feats = _domestic.slice(0, 3).map((it) => {
+    const url = safeUrl(it.link);
+    const img = safeUrl(it.image);
+    const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
+    const brand = String(it.brand || '');
+    const name = String(it.product_name || it.title || '').trim();
+    const imgTag = img
+      ? `<img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
+    const tag = url ? 'a' : 'div';
+    const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
+    return `<${tag} class="prod-card"${attrs}>
+      <div class="prod-card__photo" style="--dom-c:${color}">
+        <span class="prod-card__ph">${escapeHtml(brand)}</span>
+        ${imgTag}
+      </div>
+      <div class="prod-card__body">
+        <span class="dom-badge2" style="--dom-c:${color}">${escapeHtml(brand)}</span>
+        <div class="prod-card__name">${escapeHtml(name)}</div>
+      </div>
+    </${tag}>`;
+  }).join('');
+  const feature = `<div class="dom-feature">
+    <div class="dom-feature__head">대표 출시 상품</div>
+    <div class="dom-feature__grid">${feats}</div>
+  </div>
+  <div class="dom-divider"></div>`;
+
+  // ── 하단: 기존 뉴스 목록 ──
+  const list = _domestic.map((it) => {
     const url = safeUrl(it.link);
     const img = safeUrl(it.image);
     const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
@@ -1705,7 +1734,12 @@ function renderDomestic() {
         <div class="dom-item__meta">${escapeHtml(meta)}</div>
       </div>
     </${tag}>`;
-  }).join('') + foot;
+  }).join('');
+
+  const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
+    + '<div class="comp-caption">출처: Google News</div>';
+
+  el.innerHTML = feature + list + foot;
 }
 
 /* ── 환율 (EUR/KRW) ── */

@@ -338,6 +338,24 @@ def _og_image(url):
     return None
 
 
+def _product_name(title, brand, source):
+    """기사 제목에서 상품명 추출: 따옴표 안 텍스트 우선 → 없으면 '- 언론사' 제거 + 앞 '브랜드,' 제거."""
+    t = (title or "").strip()
+    # 1) 따옴표(' ' " " ‘ ’ “ ”) 안 텍스트
+    m = re.search(r'[\'"‘’“”]([^\'"‘’“”]{2,})[\'"‘’“”]', t)
+    if m:
+        return m.group(1).strip()
+    # 2) 뒤쪽 " - 언론사" 제거
+    if source and t.endswith(" - " + source):
+        t = t[:-(len(source) + 3)]
+    else:
+        t = re.sub(r'\s*[-–—]\s*[^-–—]+$', '', t)
+    # 3) 앞쪽 "브랜드," 제거
+    if brand:
+        t = re.sub(r'^\s*' + re.escape(brand) + r'\s*[,·:\-]?\s*', '', t)
+    return t.strip() or (title or "").strip()
+
+
 def update_domestic():
     """브랜드별 신제품/출시 뉴스를 모아 전체 최신순 상위 6개 반환.
        한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error."""
@@ -362,7 +380,8 @@ def update_domestic():
             src_el = item.find("source")
             source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
             collected.append({"brand": brand, "title": title, "source": source,
-                              "date": _fmt_pubdate(pub), "link": link})
+                              "date": _fmt_pubdate(pub), "link": link,
+                              "product_name": _product_name(title, brand, source)})
             cnt += 1
             if cnt >= 2:  # 브랜드별 최신 1~2개
                 break
