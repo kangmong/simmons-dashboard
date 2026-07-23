@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'market', 'competitor', 'news', 'material', 'fx', 'insights'];
+const VIEWS = ['dashboard', 'market', 'competitor', 'news', 'material', 'domestic', 'fx', 'insights'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -1644,7 +1644,53 @@ function initNews() {
   });
 }
 
-/* ── 환율 (EUR/USD) ── */
+/* ── 국내 브랜드 신제품 (Google News RSS 한국어) ── */
+let _domestic = null; // [{ brand, title, source, date, link }]
+
+// 브랜드별 포인트 색 (배지 강조)
+const DOM_BRAND_COLORS = {
+  '에이스침대': 'var(--blue)',
+  '씰리': 'var(--violet)',
+  '한샘': 'var(--green)',
+  '이케아': 'var(--amber)',
+};
+
+/** 응답의 domestic 저장 후 카드 갱신 */
+function applyDomesticUpdate(data) {
+  const dm = data && data.sections && data.sections.domestic;
+  if (!dm) return;
+  if (dm.status === 'error') { _domestic = null; console.warn('[update] domestic error:', dm.reason); }
+  else { _domestic = dm.items || []; }
+  renderDomestic();
+}
+
+/** 국내 브랜드 신제품 카드 렌더 (제목 클릭 → 원문 새 탭) */
+function renderDomestic() {
+  const el = document.getElementById('domesticList');
+  if (!el) return;
+  if (!_domestic || !_domestic.length) {
+    el.innerHTML = emptyState('국내 브랜드 신제품 데이터 준비중');
+    return;
+  }
+  const foot = '<div class="dom-note">브랜드명으로 뉴스를 검색한 결과로, 신제품 외 기사가 섞일 수 있습니다.</div>'
+    + '<div class="comp-caption">출처: Google News</div>';
+  el.innerHTML = _domestic.map((it) => {
+    const url = safeUrl(it.link);
+    const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
+    const meta = [it.source, it.date].filter(Boolean).join(' · ');
+    const tag = url ? 'a' : 'div';
+    const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
+    return `<${tag} class="dom-item${url ? '' : ' dom-item--nolink'}"${attrs}>
+      <span class="dom-badge" style="--dom-c:${color}">${escapeHtml(it.brand)}</span>
+      <div class="dom-item__body">
+        <h3 class="dom-item__title">${escapeHtml(it.title)}</h3>
+        <div class="dom-item__meta">${escapeHtml(meta)}</div>
+      </div>
+    </${tag}>`;
+  }).join('') + foot;
+}
+
+/* ── 환율 (EUR/KRW) ── */
 let _fx = null; // { pair, rate, change_pct, date, series:{dates,values} }
 let _fxChart = null; // 추이 차트 hover 캐시
 
@@ -1788,6 +1834,7 @@ function refreshSections() {
   renderMarket();
   renderCompetitor();
   renderNews();
+  renderDomestic();
   renderMaterial();
   renderFx();
   renderInsights();
@@ -1893,6 +1940,7 @@ function resetDashboard() {
   _materialCharts = []; // 원자재 미니차트 hover 캐시 비우기
   _wbMarket = null;     // World Bank 지도 데이터 비우기 (renderMarket 이 지도 제거)
   _liveNews = null;     // 실시간 뉴스 비우기
+  _domestic = null;     // 국내 브랜드 신제품 비우기
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
@@ -1928,6 +1976,7 @@ function initUpdate() {
       applyMaterialsUpdate(data);
       applyMarketUpdate(data);
       applyNewsUpdate(data);
+      applyDomesticUpdate(data);
       applyCompetitorsUpdate(data);
     } catch (e) {
       if (lbl) lbl.textContent = '업데이트 실패 — 서버 실행을 확인하세요 (' + (e.message || e) + ')';

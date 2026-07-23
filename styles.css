@@ -659,6 +659,32 @@ body {
 .fx-change__lbl { font-size: 12px; font-weight: 500; color: var(--muted); }
 .fx-date { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fx-note { margin-top: 14px; font-size: 13px; color: var(--text); line-height: 1.55; }
+
+/* ── 국내 브랜드 신제품 ── */
+.dom-list { display: flex; flex-direction: column; gap: 2px; }
+.dom-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 6px; border-bottom: 1px solid var(--line);
+  text-decoration: none; color: inherit; transition: background .12s ease;
+}
+.dom-item:hover { background: var(--field); }
+.dom-item--nolink { cursor: default; }
+.dom-item--nolink:hover { background: transparent; }
+.dom-badge {
+  flex: none; margin-top: 1px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  color: var(--dom-c, var(--accent));
+  background: color-mix(in srgb, var(--dom-c, var(--accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dom-c, var(--accent)) 35%, transparent);
+}
+.dom-item__body { min-width: 0; }
+.dom-item__title {
+  margin: 0; font-size: 14px; font-weight: 600; line-height: 1.45; color: var(--ink);
+}
+.dom-item:hover .dom-item__title { color: var(--accent); }
+.dom-item__meta { margin-top: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dom-note { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
 #fxChart { margin-top: 14px; }
 #fxChart .viz-figure { position: relative; }
 .fx-svg { display: block; width: 100%; height: auto; }

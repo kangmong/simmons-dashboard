@@ -299,6 +299,48 @@ def update_news():
     return {"status": "ok", "items": items}
 
 
+# ── 국내 브랜드 신제품 — Google News RSS (한국어, 무료·무키) ─────────────
+# 시몬스 제외 국내 매트리스·가구 브랜드. 브랜드명 + (신제품 OR 출시 OR 론칭)으로 검색.
+DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]
+
+
+def update_domestic():
+    """브랜드별 신제품/출시 뉴스를 모아 전체 최신순 상위 6개 반환.
+       한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error."""
+    collected = []
+    for brand in DOMESTIC_BRANDS:
+        try:
+            q = '"%s" (신제품 OR 출시 OR 론칭)' % brand
+            url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q)
+                   + "&hl=ko&gl=KR&ceid=KR:ko")
+            resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            root = ET.fromstring(resp.content)
+        except Exception:  # noqa: BLE001 — 한 브랜드 실패해도 계속
+            continue
+        cnt = 0
+        for item in root.iter("item"):
+            title = (item.findtext("title") or "").strip()
+            if not title:
+                continue
+            link = (item.findtext("link") or "").strip()
+            pub = item.findtext("pubDate") or ""
+            src_el = item.find("source")
+            source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+            collected.append({"brand": brand, "title": title, "source": source,
+                              "date": _fmt_pubdate(pub), "link": link})
+            cnt += 1
+            if cnt >= 2:  # 브랜드별 최신 1~2개
+                break
+
+    if not collected:
+        return {"status": "error", "reason": "국내 브랜드 뉴스를 받지 못했습니다"}
+
+    # 전체 날짜 최신순(YYYY-MM-DD 문자열 정렬) 상위 6개
+    collected.sort(key=lambda x: x["date"], reverse=True)
+    return {"status": "ok", "items": collected[:6]}
+
+
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
 # SEC 규칙: data.sec.gov / www.sec.gov 요청에는 반드시 User-Agent 헤더 필요(없으면 403)
 SEC_HEADERS = {"User-Agent": "Simmons Dashboard contact@example.com"}
@@ -530,6 +572,7 @@ FETCHERS = {
     "materials": fetch_materials,
     "market": update_market,
     "news": update_news,
+    "domestic": update_domestic,
     "competitors": update_competitors,
     "fx": update_fx,
 }
