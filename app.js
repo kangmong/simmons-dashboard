@@ -849,23 +849,53 @@ function compGlobalCard(c, i, rate) {
   </div>`;
 }
 
-/** 4개사 분기 매출 막대 (회사별 색) */
-function compRevBars(companies) {
-  const withRev = companies.filter((c) => c.revenue != null && c.revenue > 0);
+/** 분기 매출 막대 (회사별 색). key=값 필드, fmt=포맷터, tkKey=티커/코드 필드 */
+function compRevBars(companies, key, fmt, tkKey) {
+  key = key || 'revenue'; fmt = fmt || fmtUsd; tkKey = tkKey || 'ticker';
+  const withRev = companies.filter((c) => c[key] != null && c[key] > 0);
   if (!withRev.length) return '';
-  const maxV = Math.max(...withRev.map((c) => c.revenue));
+  const maxV = Math.max(...withRev.map((c) => c[key]));
   const bars = companies.map((c, i) => {
     const color = COMP_COLORS[i % COMP_COLORS.length];
-    if (c.revenue == null) {
+    const v = c[key], tk = c[tkKey] || '';
+    if (v == null) {
       return `<div class="gbar"><div class="gbar__head"><span>${escapeHtml(c.name)}</span><span class="gbar__val">—</span></div></div>`;
     }
-    const pct = Math.max(2, (c.revenue / maxV) * 100);
+    const pct = Math.max(2, (v / maxV) * 100);
     return `<div class="gbar">
-      <div class="gbar__head"><span>${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.ticker)})</span></span><span class="gbar__val">${fmtUsd(c.revenue)}</span></div>
+      <div class="gbar__head"><span>${escapeHtml(c.name)} ${tk ? `<span class="gco-tk">(${escapeHtml(tk)})</span>` : ''}</span><span class="gbar__val">${escapeHtml(fmt(v))}</span></div>
       <div class="gbar__track"><div class="gbar__fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
     </div>`;
   }).join('');
   return `<h3 class="subhead">분기 매출 비교</h3><div class="gbars">${bars}</div>`;
+}
+
+/** 국내 회사 카드 (네이버 금융): 로고 + 회사명/코드 + 분기 + 매출/순이익(원화) + YoY */
+function compKoreaCard(c, i) {
+  const color = COMP_COLORS[i % COMP_COLORS.length];
+  const srcs = (Array.isArray(c.logo_urls) ? c.logo_urls : []).map(safeUrl).filter(Boolean);
+  const logoImg = srcs.length
+    ? `<img class="gco-logo__img" src="${escapeHtml(srcs[0])}" alt="${escapeHtml(c.name)}" loading="lazy" referrerpolicy="no-referrer" data-srcs="${escapeHtml(srcs.slice(1).join('|'))}" onerror="cLogoNext(this)">`
+    : '';
+  const krwRow = (label, v, yoy) => `<div class="gco-row">
+    <span class="gco-row__lbl">${label}</span>
+    <span class="gco-row__main"><span class="gco-row__val">${escapeHtml(fmtKrwShort(v) || '—')}</span></span>
+    ${compYoy(yoy)}
+  </div>`;
+  const hasData = c.revenue_krw != null || c.net_income_krw != null;
+  const body = hasData
+    ? krwRow('매출', c.revenue_krw, c.revenue_yoy) + krwRow('순이익', c.net_income_krw, c.net_income_yoy)
+    : '<div class="gco-empty">데이터 없음</div>';
+  return `<div class="gco-card" style="--c:${color}">
+    <div class="gco-head">
+      <div class="gco-logo"><span class="gco-logo__txt">${escapeHtml((c.name || '').slice(0, 2))}</span>${logoImg}</div>
+      <div class="gco-id">
+        <div class="gco-name">${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.code || '')})</span></div>
+        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}</div>
+      </div>
+    </div>
+    <div class="gco-body">${body}</div>
+  </div>`;
 }
 
 /** 경쟁사 분석 전체 렌더 (국외 + 국내) */
@@ -884,6 +914,19 @@ function renderCompetitor() {
        <div class="comp-caption">출처: SEC EDGAR</div>`
     : emptyState('국외 경쟁사 데이터 준비중');
 
+  // 국내: 배열이면 카드+막대, 아니면 준비중/데이터 없음
+  const k = _competitors && _competitors.korea;
+  let koreaHtml;
+  if (Array.isArray(k) && k.length) {
+    koreaHtml = `<div class="gco-grid">${k.map(compKoreaCard).join('')}</div>
+       ${compRevBars(k, 'revenue_krw', fmtKrwShort, 'code')}
+       <div class="comp-caption">출처: 네이버 금융</div>`;
+  } else if (k && k.status && k.status !== '준비중') {
+    koreaHtml = '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> 네이버 금융 조회 실패</div>';
+  } else {
+    koreaHtml = '<div class="comp-todo"><span class="comp-todo__badge">준비중</span> 국내 브랜드 재무 (네이버 금융)</div>';
+  }
+
   el.innerHTML = `
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
@@ -891,7 +934,7 @@ function renderCompetitor() {
     </div>
     <div class="comp-group">
       <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
-      <div class="comp-todo"><span class="comp-todo__badge">준비중</span> 국내 브랜드 재무는 추후 DART로 제공됩니다.</div>
+      ${koreaHtml}
     </div>`;
 }
 

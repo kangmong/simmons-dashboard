@@ -590,9 +590,144 @@ def _usd_krw_rate():
         return None
 
 
+# ── 국내 경쟁사 — 네이버 금융 크롤링 (무키) ──────────────────────────────
+# 종목: 에이스침대 003800, 지누스 013890, 한샘 009240. (도메인은 로고용)
+NAVER_COMPANIES = [
+    ("에이스침대", "003800", "acebed.com"),
+    ("지누스", "013890", "zinus.co.kr"),
+    ("한샘", "009240", "hanssem.com"),
+]
+
+
+def _naver_financials(code):
+    """네이버 금융 종목 페이지의 '기업실적분석' 표에서 최근 분기 매출/순이익(원화) + YoY.
+       금액 단위는 억원 → 원(×1e8)으로 환산. 실패/구조 변경 시 None."""
+    from bs4 import BeautifulSoup  # 지연 임포트 — 미설치여도 서버는 계속 동작
+
+    url = "https://finance.naver.com/item/main.naver?code=%s" % code
+    resp = requests.get(url, timeout=20,
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+    resp.raise_for_status()
+    resp.encoding = resp.apparent_encoding or "utf-8"  # 네이버 금융은 현재 UTF-8
+    soup = BeautifulSoup(resp.text, "html.parser")
+    area = soup.select_one("div.cop_analysis")
+    if not area:
+        return None
+    table = area.select_one("table")
+    if not table:
+        return None
+
+    trs = table.select("thead tr")
+    # 분기 컬럼 수 (상단 헤더 '분기' colspan) — 보통 연간4 + 분기6
+    nq = 4
+    if trs:
+        for th in trs[0].find_all("th"):
+            if "분기" in th.get_text():
+                try:
+                    nq = int(th.get("colspan") or 4)
+                except Exception:  # noqa: BLE001
+                    nq = 4
+    period_ths = trs[1].find_all("th") if len(trs) > 1 else []
+    periods = [th.get_text(strip=True) for th in period_ths
+               if re.match(r"\d{4}\.\d{2}", th.get_text(strip=True))]
+
+    def row_vals(metric, idx):
+        """지표명(우선) 또는 tbody 행 위치(폴백)로 값 목록 반환."""
+        rows = table.select("tbody tr")
+        for tr in rows:
+            th = tr.find("th")
+            if th and metric in th.get_text():
+                return [td.get_text(strip=True) for td in tr.find_all("td")]
+        if idx < len(rows):
+            return [td.get_text(strip=True) for td in rows[idx].find_all("td")]
+        return None
+
+    rev = row_vals("매출액", 0)
+    ni = row_vals("당기순이익", 2)
+    if not rev or not ni or not periods:
+        return None
+
+    q_periods = periods[-nq:]
+
+    def _qslice(v):
+        return v[-nq:] if len(v) >= nq else v
+
+    rev_q, ni_q = _qslice(rev), _qslice(ni)
+
+    def num(s):
+        s = (s or "").replace(",", "").replace("+", "").strip()
+        if s in ("", "-", "N/A"):
+            return None
+        try:
+            return float(s)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def pmap(vals):
+        mp = {}
+        for p, val in zip(q_periods, vals):
+            m = re.match(r"(\d{4})\.(\d{2})", p)
+            if m:
+                x = num(val)
+                if x is not None:
+                    mp[(m.group(1), m.group(2))] = x
+        return mp
+
+    rev_map, ni_map = pmap(rev_q), pmap(ni_q)
+
+    # 최신 실제 분기(추정치 '(E)' 제외, 값 존재)
+    latest = None
+    for i in range(len(q_periods) - 1, -1, -1):
+        if "(E)" in q_periods[i]:
+            continue
+        if i < len(rev_q) and num(rev_q[i]) is not None:
+            latest = i
+            break
+    if latest is None:
+        return None
+    mm = re.match(r"(\d{4})\.(\d{2})", q_periods[latest])
+    y, mo = mm.group(1), mm.group(2)
+
+    def yoy(mp):  # 전년 동기 대비
+        cur, prev = mp.get((y, mo)), mp.get((str(int(y) - 1), mo))
+        if cur is not None and prev not in (None, 0):
+            return round((cur - prev) / abs(prev) * 100.0, 1)
+        return None
+
+    rev_v = num(rev_q[latest])
+    ni_v = num(ni_q[latest]) if latest < len(ni_q) else None
+    qmap = {"03": "Q1", "06": "Q2", "09": "Q3", "12": "Q4"}
+    return {
+        "quarter": "%s %s" % (y, qmap.get(mo, mo)),
+        "revenue_krw": (rev_v * 1e8) if rev_v is not None else None,      # 억원 → 원
+        "revenue_yoy": yoy(rev_map),
+        "net_income_krw": (ni_v * 1e8) if ni_v is not None else None,
+        "net_income_yoy": yoy(ni_map),
+    }
+
+
+def update_domestic_financials():
+    """네이버 금융 크롤링으로 국내 3사 최근 분기 매출·순이익(원화)+YoY.
+       회사별 실패는 건너뛰고, 전부 실패면 {'status':'데이터 없음'}."""
+    out = []
+    for name, code, domain in NAVER_COMPANIES:
+        try:
+            fin = _naver_financials(code)
+        except Exception:  # noqa: BLE001 — 절대 죽지 않게
+            fin = None
+        if not fin or (fin.get("revenue_krw") is None and fin.get("net_income_krw") is None):
+            continue
+        entry = {"name": name, "code": code, "logo_urls": _logo_candidates(domain)}
+        entry.update(fin)
+        out.append(entry)
+    if not out:
+        return {"status": "데이터 없음"}
+    return out
+
+
 def update_competitors():
     """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
-       국내(Korea)는 다음 단계(DART)에서 채우므로 준비중. 한 회사 실패해도 나머지 반환."""
+       국내(Korea)는 네이버 금융 크롤링. 한 회사 실패해도 나머지 반환."""
     try:
         cikmap = _load_cik_map()
     except Exception:  # noqa: BLE001 — 티커 파일 실패해도 폴백 CIK로 진행
@@ -624,7 +759,10 @@ def update_competitors():
             entry["error"] = str(e)
         glob.append(entry)
 
-    korea = {"status": "준비중"}
+    try:
+        korea = update_domestic_financials()
+    except Exception:  # noqa: BLE001
+        korea = {"status": "데이터 없음"}
     if not any_ok:
         return {"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
                 "global": glob, "korea": korea, "usd_krw_rate": usd_krw}
