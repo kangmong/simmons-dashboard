@@ -1111,73 +1111,6 @@ function renderStock() {
   el.innerHTML = `<div class="stk-grid">${cards}</div>`;
 }
 
-/* ── (실시간 추가 2) 검색 관심도(Google Trends) 미니 차트 ── */
-let _trends = null;       // { months:[], series:[{name,keyword,values}] }
-let _trendsError = false;
-
-/** 응답의 trends 저장 후 차트 갱신 */
-function applyTrendsUpdate(data) {
-  const tr = data && data.sections && data.sections.trends;
-  if (!tr) return;
-  if (tr.status === 'error') { _trends = null; _trendsError = true; console.warn('[update] trends error:', tr.reason); }
-  else { _trends = tr; _trendsError = false; }
-  renderTrends();
-}
-
-/** 검색 관심도 추이 렌더 ("매출 추이" 아래). 색상 통일: Sleep Number=파랑, Tempur Sealy=초록 */
-function renderTrends() {
-  const el = document.getElementById('trendsChart');
-  if (!el) return;
-  const head = '<h2 class="subhead">검색 관심도 (최근 12개월)</h2>';
-  if (_trendsError) { el.innerHTML = `${head}<div class="chart-empty">검색 관심도 데이터 없음</div>`; return; }
-  if (!_trends || !_trends.series || !_trends.series.length) { el.innerHTML = ''; return; }
-  el.innerHTML = head + buildTrendsSvg(_trends);
-}
-
-/** Google Trends 2개 키워드 라인 차트 (0~100 지수, x축 연-월) */
-function buildTrendsSvg(tr) {
-  const months = tr.months || [];
-  const series = (tr.series || []).map((s, i) => ({ name: s.name, color: COMP_COLORS[i % COMP_COLORS.length], values: s.values || [] }));
-  const n = months.length;
-  if (!n || !series.length) return '<div class="chart-empty">검색 관심도 데이터가 없습니다.</div>';
-
-  const W = 680, H = 240, padL = 40, padR = 16, padT = 20, padB = 30;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const yMax = 100, yMin = 0;
-  const Y = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
-
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const val = yMin + (yMax - yMin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val)}</text>`;
-  }).join('');
-
-  const TICKS = Math.min(6, n), idx = [];
-  for (let k = 0; k < TICKS; k++) { const i = TICKS === 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1)); if (!idx.includes(i)) idx.push(i); }
-  const xticks = idx.map((i) => {
-    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="10" fill="var(--muted)">${escapeHtml((months[i] || '').slice(0, 7))}</text>`;
-  }).join('');
-
-  const lines = series.map((s) => {
-    let path = '', pen = false;
-    s.values.forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      const x = X(i), y = Y(v);
-      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
-    });
-    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>` : '';
-  }).join('');
-
-  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${escapeHtml(s.name)}</span>`).join('')}</div>`;
-  return `${legend}<svg class="viz-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="브랜드 검색 관심도 추이">
-    ${grid}${xticks}${lines}
-    <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
-  </svg>
-  <div class="comp-caption">출처: Google Trends</div>`;
-}
-
 /* ============================================================
    4) 업계 주요 뉴스 섹션
    ============================================================ */
@@ -2075,7 +2008,6 @@ function refreshSections() {
   renderCompetitor();
   renderQuarterly();
   renderStock();
-  renderTrends();
   renderNews();
   renderDomestic();
   renderMaterial();
@@ -2192,7 +2124,6 @@ function resetDashboard() {
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
   _quarterly = null;        // 분기 실적 비우기
   _stock = null; _stockError = false;       // 실시간 주가 비우기
-  _trends = null; _trendsError = false;     // 검색 관심도 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   // "마지막 업데이트" 텍스트 되돌리기
@@ -2230,7 +2161,6 @@ function initUpdate() {
       applyDomesticUpdate(data);
       applyCompetitorsUpdate(data);
       applyStockUpdate(data);
-      applyTrendsUpdate(data);
     } catch (e) {
       if (lbl) lbl.textContent = '업데이트 실패 — 서버 실행을 확인하세요 (' + (e.message || e) + ')';
       console.warn('[update] 실패:', e);

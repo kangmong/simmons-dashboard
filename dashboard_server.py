@@ -802,38 +802,6 @@ def update_stock():
     return {"status": "ok", "companies": companies}
 
 
-# ── 검색 관심도 — Google Trends (pytrends, 무료·무키) ─────────────────────
-TREND_KEYWORDS = [("Sleep Number", "Sleep Number"), ("Tempur Sealy", "Tempur-Pedic")]
-
-
-def update_trends():
-    """두 브랜드 검색 관심도 최근 12개월(pytrends). 미설치/실패 시 status=error."""
-    try:
-        from pytrends.request import TrendReq
-    except Exception:  # noqa: BLE001 — 미설치 시 서버는 계속 동작
-        return {"status": "error", "reason": "pytrends 미설치 (pip install pytrends)"}
-    kw = [k for _, k in TREND_KEYWORDS]
-    try:
-        py = TrendReq(hl="en-US", tz=360)
-        py.build_payload(kw, timeframe="today 12-m")
-        df = py.interest_over_time()
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "Google Trends 조회 실패: %s" % e}
-    if df is None or df.empty:
-        return {"status": "error", "reason": "Google Trends 데이터가 없습니다"}
-    if "isPartial" in df.columns:
-        df = df.drop(columns=["isPartial"])
-    months = [d.strftime("%Y-%m-%d") for d in df.index]
-    series = []
-    for name, k in TREND_KEYWORDS:
-        if k in df.columns:
-            series.append({"name": name, "keyword": k,
-                           "values": [int(round(v)) for v in df[k].tolist()]})
-    if not series:
-        return {"status": "error", "reason": "키워드 시계열이 비어 있습니다"}
-    return {"status": "ok", "months": months, "series": series}
-
-
 # 섹션별 fetcher — 버튼 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.
 FETCHERS = {
     "materials": fetch_materials,
@@ -843,7 +811,6 @@ FETCHERS = {
     "competitors": update_competitors,
     "fx": update_fx,
     "stock": update_stock,
-    "trends": update_trends,
 }
 
 
