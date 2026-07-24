@@ -1012,6 +1012,127 @@ function renderCompetitor() {
   renderCompCaption();
 }
 
+/* ── (실시간 추가 1) 주가·시가총액·PER 카드 — 페이지 로드 시 + 5분마다 ── */
+let _stock = null;        // [{ ticker, name, status, price, change_pct, market_cap, pe }]
+let _stockError = false;
+
+/** 응답의 stock 저장 후 카드 갱신 */
+function applyStockUpdate(data) {
+  const st = data && data.sections && data.sections.stock;
+  if (!st) return;
+  if (st.status === 'error') { _stock = null; _stockError = true; console.warn('[update] stock error:', st.reason); }
+  else { _stock = st.companies || []; _stockError = false; }
+  renderStock();
+}
+
+/** 주가만 별도 조회(5분 자동 갱신). 서버 없거나 실패하면 '데이터 없음' 표시 */
+function fetchStock() {
+  fetch(API_BASE + '/api/update?section=stock', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(applyStockUpdate)
+    .catch((e) => { _stock = null; _stockError = true; renderStock(); console.warn('[stock] 조회 실패:', e); });
+}
+
+/** 실시간 주가 카드 렌더 (기존 고정값과 구분되도록 '실시간' 뱃지) */
+function renderStock() {
+  const el = document.getElementById('stockCards');
+  if (!el) return;
+  if (_stockError) {
+    el.innerHTML = `<div class="stk-grid"><div class="stk-card">
+      <div class="stk-card__top"><span class="stk-name">실시간 주가</span><span class="stk-live">실시간</span></div>
+      <div class="stk-empty">데이터 없음 — API 키·네트워크를 확인하세요</div></div></div>`;
+    return;
+  }
+  if (!_stock || !_stock.length) { el.innerHTML = ''; return; } // 로드 전
+  const cards = _stock.map((c, i) => {
+    const color = COMP_COLORS[i % COMP_COLORS.length];
+    const head = `<div class="stk-card__top"><span class="stk-name">${escapeHtml(c.name)} <span class="cc-card__sub">(${escapeHtml(c.ticker)})</span></span><span class="stk-live">실시간</span></div>`;
+    if (c.status !== 'ok') {
+      return `<div class="stk-card" style="--stk-c:${color}">${head}<div class="stk-empty">데이터 없음</div></div>`;
+    }
+    const chg = c.change_pct;
+    const chgCls = chg == null ? 'flat' : (chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat');
+    const chgTxt = chg == null ? '—' : `${chg > 0 ? '▲' : chg < 0 ? '▼' : ''} ${Math.abs(chg).toFixed(2)}%`;
+    const price = c.price == null ? '—' : '$' + Number(c.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `<div class="stk-card" style="--stk-c:${color}">
+      ${head}
+      <div class="stk-price">${price} <span class="stk-chg ${chgCls}">${chgTxt}</span></div>
+      <div class="stk-metrics">
+        <span>시가총액 <b>${fmtUsd(c.market_cap)}</b></span>
+        <span>PER <b>${c.pe == null ? '—' : Number(c.pe).toFixed(1)}</b></span>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="stk-grid">${cards}</div>`;
+}
+
+/* ── (실시간 추가 2) 검색 관심도(Google Trends) 미니 차트 ── */
+let _trends = null;       // { months:[], series:[{name,keyword,values}] }
+let _trendsError = false;
+
+/** 응답의 trends 저장 후 차트 갱신 */
+function applyTrendsUpdate(data) {
+  const tr = data && data.sections && data.sections.trends;
+  if (!tr) return;
+  if (tr.status === 'error') { _trends = null; _trendsError = true; console.warn('[update] trends error:', tr.reason); }
+  else { _trends = tr; _trendsError = false; }
+  renderTrends();
+}
+
+/** 검색 관심도 추이 렌더 ("매출 추이" 아래). 색상 통일: Sleep Number=파랑, Tempur Sealy=초록 */
+function renderTrends() {
+  const el = document.getElementById('trendsChart');
+  if (!el) return;
+  const head = '<h2 class="subhead">검색 관심도 (최근 12개월)</h2>';
+  if (_trendsError) { el.innerHTML = `${head}<div class="chart-empty">검색 관심도 데이터 없음</div>`; return; }
+  if (!_trends || !_trends.series || !_trends.series.length) { el.innerHTML = ''; return; }
+  el.innerHTML = head + buildTrendsSvg(_trends);
+}
+
+/** Google Trends 2개 키워드 라인 차트 (0~100 지수, x축 연-월) */
+function buildTrendsSvg(tr) {
+  const months = tr.months || [];
+  const series = (tr.series || []).map((s, i) => ({ name: s.name, color: COMP_COLORS[i % COMP_COLORS.length], values: s.values || [] }));
+  const n = months.length;
+  if (!n || !series.length) return '<div class="chart-empty">검색 관심도 데이터가 없습니다.</div>';
+
+  const W = 680, H = 240, padL = 40, padR = 16, padT = 20, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const yMax = 100, yMin = 0;
+  const Y = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
+
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = yMin + (yMax - yMin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val)}</text>`;
+  }).join('');
+
+  const TICKS = Math.min(6, n), idx = [];
+  for (let k = 0; k < TICKS; k++) { const i = TICKS === 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1)); if (!idx.includes(i)) idx.push(i); }
+  const xticks = idx.map((i) => {
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="10" fill="var(--muted)">${escapeHtml((months[i] || '').slice(0, 7))}</text>`;
+  }).join('');
+
+  const lines = series.map((s) => {
+    let path = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      const x = X(i), y = Y(v);
+      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
+    });
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>` : '';
+  }).join('');
+
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${escapeHtml(s.name)}</span>`).join('')}</div>`;
+  return `${legend}<svg class="viz-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="브랜드 검색 관심도 추이">
+    ${grid}${xticks}${lines}
+    <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+  </svg>
+  <div class="comp-caption">출처: Google Trends</div>`;
+}
+
 /* ============================================================
    4) 업계 주요 뉴스 섹션
    ============================================================ */
@@ -1907,6 +2028,8 @@ function wireFxInteraction() {
 function refreshSections() {
   renderMarket();
   renderCompetitor();
+  renderStock();
+  renderTrends();
   renderNews();
   renderDomestic();
   renderMaterial();
@@ -1934,6 +2057,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
   // 저장된 값/기본 CSV를 자동으로 불러오지 않는다 — 데이터는 오직 [업데이트]로만 채운다.
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
+
+  // 예외: 실시간 주가 카드는 페이지 로드 시 + 5분마다 자동 갱신한다.
+  fetchStock();
+  setInterval(fetchStock, 5 * 60 * 1000);
 });
 
 /** 보고서 다운로드: 브라우저 인쇄(→ PDF로 저장) */
@@ -2017,6 +2144,8 @@ function resetDashboard() {
   _domestic = null;     // 국내 브랜드 신제품 비우기
   _domesticFeatured = null;
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
+  _stock = null; _stockError = false;       // 실시간 주가 비우기
+  _trends = null; _trendsError = false;     // 검색 관심도 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   // "마지막 업데이트" 텍스트 되돌리기
@@ -2053,6 +2182,8 @@ function initUpdate() {
       applyNewsUpdate(data);
       applyDomesticUpdate(data);
       applyCompetitorsUpdate(data);
+      applyStockUpdate(data);
+      applyTrendsUpdate(data);
     } catch (e) {
       if (lbl) lbl.textContent = '업데이트 실패 — 서버 실행을 확인하세요 (' + (e.message || e) + ')';
       console.warn('[update] 실패:', e);

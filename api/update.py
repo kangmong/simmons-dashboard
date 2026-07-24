@@ -16,6 +16,7 @@ SIMMONS 대시보드 — Vercel 서버리스 함수 (/api/update).
   로직을 고칠 때는 두 파일을 함께 맞춰야 한다(로컬 테스트는 dashboard_server.py 사용).
 """
 import io
+import os
 import re
 import json
 import datetime
@@ -694,6 +695,85 @@ def update_fx():
     return out
 
 
+# ── 실시간 주가·시가총액·PER — Financial Modeling Prep (무료 티어, 키는 환경변수) ──
+# ※ API 키는 코드에 하드코딩하지 않는다. 환경변수 FMP_API_KEY 로 주입.
+STOCK_TICKERS = [("SNBR", "Sleep Number"), ("TPX", "Tempur Sealy")]
+
+
+def update_stock():
+    """SNBR·TPX 실시간 주가/등락률/시가총액/PER. 키 미설정·조회 실패 시 status=error."""
+    key = os.environ.get("FMP_API_KEY", "").strip()
+    if not key:
+        return {"status": "error", "reason": "FMP_API_KEY 환경변수가 설정되지 않았습니다"}
+    syms = ",".join(t for t, _ in STOCK_TICKERS)
+    try:
+        url = "https://financialmodelingprep.com/api/v3/quote/%s?apikey=%s" % (syms, key)
+        resp = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "reason": "주가 조회 실패: %s" % e}
+    if not isinstance(data, list) or not data:
+        return {"status": "error", "reason": "주가 데이터가 비어 있습니다"}
+
+    def _rnd(v, nd=2):
+        try:
+            return round(float(v), nd)
+        except Exception:  # noqa: BLE001
+            return None
+
+    by_sym = {str(d.get("symbol", "")).upper(): d for d in data}
+    companies = []
+    for tk, nm in STOCK_TICKERS:
+        d = by_sym.get(tk)
+        if not d:
+            companies.append({"ticker": tk, "name": nm, "status": "missing"})
+            continue
+        mc = d.get("marketCap")
+        companies.append({
+            "ticker": tk, "name": nm, "status": "ok",
+            "price": _rnd(d.get("price")),
+            "change_pct": _rnd(d.get("changesPercentage")),
+            "market_cap": (int(mc) if mc not in (None, "") else None),
+            "pe": _rnd(d.get("pe"), 1),
+        })
+    if not any(c.get("status") == "ok" for c in companies):
+        return {"status": "error", "reason": "유효한 주가 항목이 없습니다"}
+    return {"status": "ok", "companies": companies}
+
+
+# ── 검색 관심도 — Google Trends (pytrends, 무료·무키) ─────────────────────
+TREND_KEYWORDS = [("Sleep Number", "Sleep Number"), ("Tempur Sealy", "Tempur-Pedic")]
+
+
+def update_trends():
+    """두 브랜드 검색 관심도 최근 12개월(pytrends). 미설치/실패 시 status=error."""
+    try:
+        from pytrends.request import TrendReq
+    except Exception:  # noqa: BLE001 — 미설치 시 서버는 계속 동작
+        return {"status": "error", "reason": "pytrends 미설치 (pip install pytrends)"}
+    kw = [k for _, k in TREND_KEYWORDS]
+    try:
+        py = TrendReq(hl="en-US", tz=360)
+        py.build_payload(kw, timeframe="today 12-m")
+        df = py.interest_over_time()
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "reason": "Google Trends 조회 실패: %s" % e}
+    if df is None or df.empty:
+        return {"status": "error", "reason": "Google Trends 데이터가 없습니다"}
+    if "isPartial" in df.columns:
+        df = df.drop(columns=["isPartial"])
+    months = [d.strftime("%Y-%m-%d") for d in df.index]
+    series = []
+    for name, k in TREND_KEYWORDS:
+        if k in df.columns:
+            series.append({"name": name, "keyword": k,
+                           "values": [int(round(v)) for v in df[k].tolist()]})
+    if not series:
+        return {"status": "error", "reason": "키워드 시계열이 비어 있습니다"}
+    return {"status": "ok", "months": months, "series": series}
+
+
 # 섹션별 fetcher — 요청 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.
 FETCHERS = {
     "materials": fetch_materials,
@@ -702,15 +782,19 @@ FETCHERS = {
     "domestic": update_domestic,
     "competitors": update_competitors,
     "fx": update_fx,
+    "stock": update_stock,
+    "trends": update_trends,
 }
 
 
-def build_payload():
-    """모든 fetcher 실행 → dashboard_server.py 와 동일한 응답 dict."""
+def build_payload(only=None):
+    """fetcher 실행 → dashboard_server.py 와 동일한 응답 dict.
+       only 가 FETCHERS 의 키면 해당 섹션만 실행(주가 5분 자동 갱신용)."""
+    names = [only] if only in FETCHERS else list(FETCHERS)
     sections = {}
-    for name, fn in FETCHERS.items():
+    for name in names:
         try:
-            sections[name] = fn()
+            sections[name] = FETCHERS[name]()
         except Exception as e:  # noqa: BLE001
             sections[name] = {"status": "error", "reason": str(e)}
     updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -721,7 +805,9 @@ def build_payload():
 class handler(BaseHTTPRequestHandler):
     def _respond(self):
         try:
-            payload = build_payload()
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            only = (q.get("section") or [None])[0]
+            payload = build_payload(only)
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
         except Exception as e:  # noqa: BLE001 — 최후 방어: 절대 500 raw 로 죽지 않게
