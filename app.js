@@ -771,6 +771,17 @@ function fmtUsd(v) {
   return `${sign}$${Math.round(a).toLocaleString('en-US')}`;
 }
 
+/** 원화 금액을 조/억/만 원 단위로 읽기 좋게(반올림). 음수는 '-' 유지. */
+function fmtKrwShort(v) {
+  if (v == null || !isFinite(v)) return null;
+  const sign = v < 0 ? '-' : '';
+  const a = Math.abs(v);
+  if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(1)}조 원`;
+  if (a >= 1e8) return `${sign}${Math.round(a / 1e8).toLocaleString('ko-KR')}억 원`;
+  if (a >= 1e4) return `${sign}${Math.round(a / 1e4).toLocaleString('ko-KR')}만 원`;
+  return `${sign}${Math.round(a).toLocaleString('ko-KR')}원`;
+}
+
 /** 응답의 competitors 저장 후 섹션 갱신 */
 function applyCompetitorsUpdate(data) {
   const cp = data && data.sections && data.sections.competitors;
@@ -798,8 +809,21 @@ function cLogoNext(img) {
   }
 }
 
-/** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 YoY) */
-function compGlobalCard(c, i) {
+/** 매출/순이익 행: USD(주) + 원화 환산(보조, 회색) + YoY 배지 */
+function compMetricRow(label, usd, yoy, rate) {
+  const krw = (rate != null) ? fmtKrwShort(usd == null ? null : usd * rate) : null;
+  return `<div class="gco-row">
+    <span class="gco-row__lbl">${escapeHtml(label)}</span>
+    <span class="gco-row__main">
+      <span class="gco-row__val">${fmtUsd(usd)}</span>
+      ${krw ? `<span class="gco-row__krw">≈ ${escapeHtml(krw)}</span>` : ''}
+    </span>
+    ${compYoy(yoy)}
+  </div>`;
+}
+
+/** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 USD·KRW + YoY) */
+function compGlobalCard(c, i, rate) {
   const color = COMP_COLORS[i % COMP_COLORS.length];
   // 로고 소스 다중 시도: logo_urls[0]→[1]→[2] 순서로 onerror 체인, 다 깨지면 티커 텍스트.
   const srcs = (Array.isArray(c.logo_urls) ? c.logo_urls : (c.logo_url ? [c.logo_url] : []))
@@ -810,8 +834,8 @@ function compGlobalCard(c, i) {
     : '';
   const hasData = c.revenue != null || c.net_income != null;
   const body = hasData
-    ? `<div class="gco-row"><span class="gco-row__lbl">매출</span><span class="gco-row__val">${fmtUsd(c.revenue)}</span>${compYoy(c.revenue_yoy)}</div>
-       <div class="gco-row"><span class="gco-row__lbl">순이익</span><span class="gco-row__val">${fmtUsd(c.net_income)}</span>${compYoy(c.net_income_yoy)}</div>`
+    ? compMetricRow('매출', c.revenue, c.revenue_yoy, rate)
+      + compMetricRow('순이익', c.net_income, c.net_income_yoy, rate)
     : '<div class="gco-empty">데이터 준비중</div>';
   return `<div class="gco-card" style="--c:${color}">
     <div class="gco-head">
@@ -849,8 +873,13 @@ function renderCompetitor() {
   const el = document.getElementById('compRoot');
   if (!el) return;
   const g = _competitors && _competitors.global;
+  const rate = _competitors && _competitors.usd_krw_rate;
+  const rateNote = (rate != null)
+    ? `<div class="comp-fxnote">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원</div>`
+    : '';
   const globalHtml = (g && g.length)
-    ? `<div class="gco-grid">${g.map(compGlobalCard).join('')}</div>
+    ? `<div class="gco-grid">${g.map((c, i) => compGlobalCard(c, i, rate)).join('')}</div>
+       ${rateNote}
        ${compRevBars(g)}
        <div class="comp-caption">출처: SEC EDGAR</div>`
     : emptyState('국외 경쟁사 데이터 준비중');

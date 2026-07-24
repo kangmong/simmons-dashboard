@@ -579,6 +579,17 @@ def _logo_candidates(domain):
     ]
 
 
+def _usd_krw_rate():
+    """경쟁사 금액(USD) → 원화 환산용 USD/KRW 환율. 실패 시 None(원화 표시 생략)."""
+    try:
+        r = requests.get("https://api.frankfurter.app/latest?from=USD&to=KRW",
+                         timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        return r.json()["rates"]["KRW"]
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def update_competitors():
     """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
        국내(Korea)는 다음 단계(DART)에서 채우므로 준비중. 한 회사 실패해도 나머지 반환."""
@@ -586,6 +597,7 @@ def update_competitors():
         cikmap = _load_cik_map()
     except Exception:  # noqa: BLE001 — 티커 파일 실패해도 폴백 CIK로 진행
         cikmap = {}
+    usd_krw = _usd_krw_rate()  # USD→KRW 환산 환율(없으면 None)
 
     glob, any_ok = [], False
     for name, ticker, fallback, domain in GLOBAL_COMPETITORS:
@@ -615,8 +627,8 @@ def update_competitors():
     korea = {"status": "준비중"}
     if not any_ok:
         return {"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
-                "global": glob, "korea": korea}
-    return {"status": "ok", "global": glob, "korea": korea}
+                "global": glob, "korea": korea, "usd_krw_rate": usd_krw}
+    return {"status": "ok", "global": glob, "korea": korea, "usd_krw_rate": usd_krw}
 
 
 # ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────
