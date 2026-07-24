@@ -753,115 +753,14 @@ function initMarket() {
 }
 
 /* ============================================================
-   3) 경쟁사 분석 섹션 — 매출 비교 막대 + 회사별 카드
-   스키마: company,ticker,region,revenue_usd_bn,revenue_yoy_pct,operating_margin_pct,year,source
+   3) 경쟁사 분석 섹션 — 국외(Global) / 국내(Korea) 두 그룹
+   국외: SEC EDGAR 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
+   국내: 준비중(추후 DART).  ※ 경쟁사 섹션은 .viz-root 밖 → 전역(:root) 색 토큰 사용
    ============================================================ */
-
-/** 경쟁사 CSV 정규화 (빈 값은 null로 유지) */
-function getCompetitorData() {
-  const entry = STORE.competitor;
-  if (!entry || !entry.rows.length) return null;
-  return entry.rows
-    .map((r) => ({
-      company: String(r.company || '').trim(),
-      ticker: String(r.ticker || '').trim(),
-      region: String(r.region || '').trim(),
-      revenue: num(r.revenue_usd_bn),
-      yoy: num(r.revenue_yoy_pct),
-      margin: num(r.operating_margin_pct),
-      year: String(r.year || '').trim(),
-      source: String(r.source || '').trim(),
-    }))
-    .filter((r) => r.company);
-}
-
-/** 상단: 매출 비교 막대 (revenue 내림차순, 1위=100%) */
-function renderCompBars() {
-  const el = document.getElementById('compBars');
-  if (!el) return;
-  const rows = getCompetitorData();
-  if (!rows) { el.innerHTML = emptyState('경쟁사 데이터 준비중'); return; }
-  const withRev = rows.filter((r) => r.revenue != null && r.revenue > 0).sort((a, b) => b.revenue - a.revenue);
-  if (!withRev.length) {
-    el.innerHTML = `<h2 class="subhead">매출 비교</h2><div class="chart-empty">매출 데이터가 없습니다.</div>`;
-    return;
-  }
-  const maxV = withRev[0].revenue;
-  const bars = withRev.map((r) => {
-    const pct = Math.max(2, (r.revenue / maxV) * 100);
-    return `<div class="cbar">
-      <div class="cbar__head">
-        <span class="cbar__name">${escapeHtml(r.company)}</span>
-        <span class="cbar__val">$${r.revenue.toFixed(2)}B</span>
-      </div>
-      <div class="cbar__track"><div class="cbar__fill" style="width:${pct.toFixed(1)}%"></div></div>
-    </div>`;
-  }).join('');
-  el.innerHTML = `<h2 class="subhead">매출 비교</h2><div class="cbars">${bars}</div>`;
-}
-
-/** 하단: 회사별 카드 (3열). 빈 값 항목은 숨김 */
-function renderCompCards() {
-  const el = document.getElementById('compCards');
-  if (!el) return;
-  const rows = getCompetitorData();
-  if (!rows) { el.innerHTML = ''; return; }
-  el.innerHTML = rows.map((r) => {
-    const sub = [r.ticker, r.region].filter(Boolean).join(' · ');
-    const badge = r.source ? renderBadge(r.source) : '';
-
-    let revHtml = '';
-    if (r.revenue != null) {
-      const yoyHtml = r.yoy != null
-        ? `<span class="cc-yoy ${r.yoy >= 0 ? 'up' : 'down'}">${r.yoy >= 0 ? '▲' : '▼'} ${Math.abs(r.yoy).toFixed(1)}%</span>`
-        : '';
-      revHtml = `<div class="cc-metric">
-        <div class="cc-metric__label">매출</div>
-        <div class="cc-metric__value">$${r.revenue.toFixed(2)}B ${yoyHtml}</div>
-      </div>`;
-    }
-    let marginHtml = '';
-    if (r.margin != null) {
-      marginHtml = `<div class="cc-metric">
-        <div class="cc-metric__label">영업이익률</div>
-        <div class="cc-metric__value ${r.margin < 0 ? 'cc-neg' : ''}">${r.margin.toFixed(1)}%</div>
-      </div>`;
-    }
-    const body = (revHtml || marginHtml)
-      ? `<div class="cc-metrics">${revHtml}${marginHtml}</div>`
-      : `<div class="cc-empty">데이터 준비중</div>`;
-
-    return `<div class="cc-card">
-      <div class="cc-card__head">
-        <div class="cc-card__id">
-          <div class="cc-card__name">${escapeHtml(r.company)}</div>
-          ${sub ? `<div class="cc-card__sub">${escapeHtml(sub)}</div>` : ''}
-        </div>
-        ${badge}
-      </div>
-      ${body}
-    </div>`;
-  }).join('');
-}
-
-/** 출처·기준연도 캡션 (year 열에서 연도) */
-function renderCompCaption() {
-  const el = document.getElementById('compCaption');
-  if (!el) return;
-  const rows = getCompetitorData();
-  if (!rows) { el.innerHTML = ''; return; }
-  const years = [...new Set(rows.map((r) => r.year).filter(Boolean))].sort();
-  const srcs = [...new Set(rows.map((r) => r.source).filter(Boolean))];
-  const parts = [];
-  if (srcs.length) parts.push(`출처: ${srcs.join(' · ')}`);
-  if (years.length) parts.push(`${years.join('/')} 연간 기준`);
-  el.innerHTML = parts.length ? `<div class="comp-caption">${escapeHtml(parts.join(' · '))}</div>` : '';
-}
-
-/* ── 실시간 경쟁사 (SEC EDGAR) ── */
-let _liveCompetitors = null;
-// 전역(:root) 토큰 사용 — 경쟁사 섹션은 .viz-root 밖이라 --series-* 는 해석되지 않음
 const COMP_COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--violet)'];
+
+// { global:[{name,ticker,quarter,revenue,revenue_yoy,net_income,net_income_yoy,logo_url}], korea:{status} }
+let _competitors = null;
 
 /** 큰 USD 금액 포맷: $X.XXB / $XXX.XM / $숫자 */
 function fmtUsd(v) {
@@ -872,189 +771,86 @@ function fmtUsd(v) {
   return `${sign}$${Math.round(a).toLocaleString('en-US')}`;
 }
 
-/** 응답의 competitors 저장 후 경쟁사 섹션 갱신 (연간 + 분기) */
+/** 응답의 competitors 저장 후 섹션 갱신 */
 function applyCompetitorsUpdate(data) {
   const cp = data && data.sections && data.sections.competitors;
   if (!cp) return;
-  if (cp.status === 'error') {
-    _liveCompetitors = null; _quarterly = null;
-    console.warn('[update] competitors error:', cp.reason);
-  } else {
-    _liveCompetitors = cp.companies || [];
-    _quarterly = cp.quarterly || [];
-  }
+  _competitors = cp.global ? cp : null;
+  if (cp.status === 'error') console.warn('[update] competitors error:', cp.reason);
   renderCompetitor();
-  renderQuarterly();
 }
 
-/* ── 분기 실적 (최근 10-Q, SEC EDGAR) — 기존 연간 카드와 별개 영역 ── */
-let _quarterly = null; // [{ name, ticker, quarter, revenue, revenue_yoy, net_income, net_income_yoy }]
-
-/** 성장률(YoY) 블록: 오르면 빨강 ▲ / 내리면 초록 ▼, 금액은 $1.85B·$234M 반올림 */
-function qGrowthBlock(label, val, yoy) {
+/** YoY 배지: 오르면 빨강 ▲ / 내리면 초록 ▼ (stk-chg 색상 재사용) */
+function compYoy(yoy) {
   const cls = yoy == null ? 'flat' : (yoy > 0 ? 'up' : yoy < 0 ? 'down' : 'flat');
-  const yTxt = yoy == null ? '—' : `${yoy > 0 ? '▲' : yoy < 0 ? '▼' : ''} ${Math.abs(yoy).toFixed(1)}%`;
-  return `<div class="q-metric">
-    <span class="q-metric__lbl">${escapeHtml(label)}</span>
-    <span class="q-metric__val">${fmtUsd(val)}</span>
-    <span class="stk-chg ${cls}">${yTxt} <span class="q-yoy">YoY</span></span>
+  const txt = yoy == null ? '—' : `${yoy > 0 ? '▲' : yoy < 0 ? '▼' : ''} ${Math.abs(yoy).toFixed(1)}%`;
+  return `<span class="stk-chg ${cls}">${txt} <span class="gco-yoy">YoY</span></span>`;
+}
+
+/** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 YoY) */
+function compGlobalCard(c, i) {
+  const color = COMP_COLORS[i % COMP_COLORS.length];
+  const logo = safeUrl(c.logo_url);
+  // 로고 위에 티커 텍스트를 깔고, 로고 로드 실패(onerror) 시 텍스트가 드러남
+  const logoImg = logo
+    ? `<img class="gco-logo__img" src="${escapeHtml(logo)}" alt="${escapeHtml(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+    : '';
+  const hasData = c.revenue != null || c.net_income != null;
+  const body = hasData
+    ? `<div class="gco-row"><span class="gco-row__lbl">매출</span><span class="gco-row__val">${fmtUsd(c.revenue)}</span>${compYoy(c.revenue_yoy)}</div>
+       <div class="gco-row"><span class="gco-row__lbl">순이익</span><span class="gco-row__val">${fmtUsd(c.net_income)}</span>${compYoy(c.net_income_yoy)}</div>`
+    : '<div class="gco-empty">데이터 준비중</div>';
+  return `<div class="gco-card" style="--c:${color}">
+    <div class="gco-head">
+      <div class="gco-logo"><span class="gco-logo__txt">${escapeHtml(c.ticker || c.name)}</span>${logoImg}</div>
+      <div class="gco-id">
+        <div class="gco-name">${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.ticker)})</span></div>
+        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}</div>
+      </div>
+    </div>
+    <div class="gco-body">${body}</div>
   </div>`;
 }
 
-/** 분기 실적 카드 렌더 (연간 고정값과 구분: "분기·자동 갱신" 표기) */
-function renderQuarterly() {
-  const el = document.getElementById('quarterlyCards');
-  if (!el) return;
-  const head = '<h2 class="subhead">분기 실적 (최근 10-Q) <span class="q-live">분기·자동 갱신</span></h2>';
-  if (!_quarterly || !_quarterly.length) {
-    el.innerHTML = head + emptyState('분기 실적 데이터 준비중');
-    return;
-  }
-  const cards = _quarterly.map((q, i) => {
-    const color = COMP_COLORS[i % COMP_COLORS.length];
-    return `<div class="q-card" style="--stk-c:${color}">
-      <div class="q-card__top">
-        <span class="stk-name">${escapeHtml(q.name)} <span class="cc-card__sub">(${escapeHtml(q.ticker)})</span></span>
-        <span class="q-qtr">${escapeHtml(q.quarter || '—')}</span>
-      </div>
-      <div class="q-metrics">
-        ${qGrowthBlock('매출', q.revenue, q.revenue_yoy)}
-        ${qGrowthBlock('순이익', q.net_income, q.net_income_yoy)}
-      </div>
-    </div>`;
-  }).join('');
-  el.innerHTML = `${head}<div class="q-grid">${cards}</div><div class="comp-caption">출처: SEC EDGAR</div>`;
-}
-
-/** 매출 5년 추이 선그래프 (2개사, 실제 $ 축) */
-function buildCompTrendSvg(companies) {
-  const series = companies
-    .map((c, i) => ({ name: c.name, color: COMP_COLORS[i % COMP_COLORS.length], trend: c.revenue_trend || { years: [], values: [] } }))
-    .filter((s) => s.trend.values && s.trend.values.length);
-  if (!series.length) return '<div class="chart-empty">매출 추이 데이터가 없습니다.</div>';
-
-  const years = [...new Set(series.flatMap((s) => s.trend.years))].sort();
-  series.forEach((s) => { s.byYear = new Map(s.trend.years.map((y, k) => [y, s.trend.values[k]])); });
-  let maxV = 0;
-  series.forEach((s) => s.trend.values.forEach((v) => { if (v > maxV) maxV = v; }));
-  const yMax = niceMax(maxV * 1.1), yMin = 0;
-
-  const W = 680, H = 260, padL = 56, padR = 16, padT = 20, padB = 30;
-  const plotW = W - padL - padR, plotH = H - padT - padB, n = years.length;
-  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const Y = (v) => padT + (1 - (v - yMin) / (yMax - yMin || 1)) * plotH;
-
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
-    const val = yMin + (yMax - yMin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${fmtUsd(val)}</text>`;
-  }).join('');
-  const xticks = years.map((yr, i) => `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--muted)">${escapeHtml(yr)}</text>`).join('');
-
-  const lines = series.map((s) => {
-    let path = '', pen = false; const dots = [], labels = [];
-    years.forEach((yr, i) => {
-      if (!s.byYear.has(yr)) { pen = false; return; }
-      const v = s.byYear.get(yr), x = X(i), y = Y(v);
-      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
-      dots.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`);
-      labels.push(`<text x="${x.toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${s.color}">${fmtUsd(v)}</text>`);
-    });
-    return (path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>` : '') + dots.join('') + labels.join('');
-  }).join('');
-
-  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${escapeHtml(s.name)}</span>`).join('')}</div>`;
-  return `${legend}<svg class="viz-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="경쟁사 매출 추이">
-    ${grid}${xticks}${lines}
-    <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
-  </svg>`;
-}
-
-/** 실시간 경쟁사 렌더: 재무 비교 + 매출 추이 + 공시 피드 */
-function renderCompLive(companies) {
-  const barsEl = document.getElementById('compBars');
-  const cardsEl = document.getElementById('compCards');
-  const capEl = document.getElementById('compCaption');
-
-  // A) 재무 비교 (매출 막대 + 순이익)
-  const withRev = companies.filter((c) => c.revenue != null);
-  const maxRev = Math.max(...withRev.map((c) => c.revenue), 0) || 1;
+/** 4개사 분기 매출 막대 (회사별 색) */
+function compRevBars(companies) {
+  const withRev = companies.filter((c) => c.revenue != null && c.revenue > 0);
+  if (!withRev.length) return '';
+  const maxV = Math.max(...withRev.map((c) => c.revenue));
   const bars = companies.map((c, i) => {
     const color = COMP_COLORS[i % COMP_COLORS.length];
     if (c.revenue == null) {
-      return `<div class="cbar"><div class="cbar__head"><span class="cbar__name">${escapeHtml(c.name)} <span class="cc-card__sub">(${escapeHtml(c.ticker)})</span></span><span class="cbar__val">데이터 준비중</span></div></div>`;
+      return `<div class="gbar"><div class="gbar__head"><span>${escapeHtml(c.name)}</span><span class="gbar__val">—</span></div></div>`;
     }
-    const pct = Math.max(2, (c.revenue / maxRev) * 100);
-    const ni = c.net_income != null ? `순이익 ${fmtUsd(c.net_income)}` : '순이익 —';
-    return `<div class="cbar">
-      <div class="cbar__head"><span class="cbar__name">${escapeHtml(c.name)} <span class="cc-card__sub">(${escapeHtml(c.ticker)})</span></span><span class="cbar__val">${fmtUsd(c.revenue)}</span></div>
-      <div class="cbar__track"><div class="cbar__fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
-      <div class="cbar__sub">${ni} · FY${escapeHtml(c.fy || '—')}</div>
+    const pct = Math.max(2, (c.revenue / maxV) * 100);
+    return `<div class="gbar">
+      <div class="gbar__head"><span>${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.ticker)})</span></span><span class="gbar__val">${fmtUsd(c.revenue)}</span></div>
+      <div class="gbar__track"><div class="gbar__fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
     </div>`;
   }).join('');
-  const fyLabel = (companies.find((c) => c.fy) || {}).fy || '';
-  barsEl.innerHTML = `<h2 class="subhead">재무 요약${fyLabel ? ` (FY${escapeHtml(fyLabel)})` : ''}</h2>
-    <div class="cbars">${bars}</div>
-    <h2 class="subhead">매출 추이 (최근 5년)</h2>
-    ${buildCompTrendSvg(companies)}`;
-
-  // B) 재무 비교 표 (지표별 두 회사 비교, 더 나은 쪽 강조)
-  if (cardsEl) cardsEl.innerHTML = buildCompTable(companies, fyLabel);
-  if (capEl) capEl.innerHTML = '<div class="comp-caption">출처: SEC EDGAR</div>';
+  return `<h3 class="subhead">분기 매출 비교</h3><div class="gbars">${bars}</div>`;
 }
 
-/** 재무 비교 표 — 지표(행) × 회사(열). 더 나은 쪽 강조 */
-function buildCompTable(companies, fyLabel) {
-  const cos = companies;
-  const METRICS = [
-    { key: 'revenue', label: '매출', type: 'money', better: 'high' },
-    { key: 'operating_income', label: '영업이익', type: 'money', better: 'high' },
-    { key: 'net_income', label: '순이익', type: 'money', better: 'high' },
-    { key: 'operating_margin', label: '영업이익률', type: 'pct', better: 'high' },
-    { key: 'net_margin', label: '순이익률', type: 'pct', better: 'high' },
-    { key: 'assets', label: '총자산', type: 'money', better: 'high' },
-    { key: 'liabilities', label: '총부채', type: 'money', better: 'low' },
-    { key: 'equity', label: '자기자본', type: 'money', better: 'high' },
-    { key: 'debt_ratio', label: '부채비율', type: 'pct', better: 'low' },
-    { key: 'eps', label: '주당순이익(EPS)', type: 'eps', better: 'high' },
-  ];
-  const fmtVal = (m, v) => {
-    if (v == null || !isFinite(v)) return '—';
-    if (m.type === 'money') return fmtUsd(v);
-    if (m.type === 'pct') return v.toFixed(1) + '%';
-    if (m.type === 'eps') { const n = Number(v); return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2); }
-    return String(v);
-  };
-  const bestIdx = (m) => {
-    const valid = cos.map((c, i) => ({ v: c[m.key], i })).filter((o) => o.v != null && isFinite(o.v));
-    if (valid.length < 2) return -1; // 비교 불가 → 강조 없음
-    let best = valid[0];
-    valid.forEach((o) => { if (m.better === 'low' ? o.v < best.v : o.v > best.v) best = o; });
-    if (valid.filter((o) => o.v === best.v).length > 1) return -1; // 동점
-    return best.i;
-  };
-  const head = `<tr><th>지표</th>${cos.map((c) =>
-    `<th>${escapeHtml(c.name)}<span class="cmp-tk">${escapeHtml(c.ticker)}</span></th>`).join('')}</tr>`;
-  const body = METRICS.map((m) => {
-    const bi = bestIdx(m);
-    const tds = cos.map((c, i) =>
-      `<td class="${i === bi ? 'cmp-best' : ''}">${escapeHtml(fmtVal(m, c[m.key]))}</td>`).join('');
-    return `<tr><th class="cmp-metric">${escapeHtml(m.label)}</th>${tds}</tr>`;
-  }).join('');
-  return `<h2 class="subhead">재무 비교 표${fyLabel ? ` — FY${escapeHtml(fyLabel)} 연간 기준` : ''}</h2>
-    <div class="comp-fin-wrap"><table class="comp-fin">
-      <thead>${head}</thead><tbody>${body}</tbody>
-    </table></div>`;
-}
-
-/** 섹션 3 전체 렌더: 실시간(SEC) 우선, 없으면 CSV */
+/** 경쟁사 분석 전체 렌더 (국외 + 국내) */
 function renderCompetitor() {
-  const barsEl = document.getElementById('compBars');
-  if (!barsEl) return;
-  if (_liveCompetitors && _liveCompetitors.length) { renderCompLive(_liveCompetitors); return; }
-  renderCompBars();
-  renderCompCards();
-  renderCompCaption();
+  const el = document.getElementById('compRoot');
+  if (!el) return;
+  const g = _competitors && _competitors.global;
+  const globalHtml = (g && g.length)
+    ? `<div class="gco-grid">${g.map(compGlobalCard).join('')}</div>
+       ${compRevBars(g)}
+       <div class="comp-caption">출처: SEC EDGAR</div>`
+    : emptyState('국외 경쟁사 데이터 준비중');
+
+  el.innerHTML = `
+    <div class="comp-group">
+      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
+      ${globalHtml}
+    </div>
+    <div class="comp-group">
+      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
+      <div class="comp-todo"><span class="comp-todo__badge">준비중</span> 국내 브랜드 재무는 추후 DART로 제공됩니다.</div>
+    </div>`;
 }
 
 /* ============================================================
@@ -1830,7 +1626,6 @@ function wireFxInteraction() {
 function refreshSections() {
   renderMarket();
   renderCompetitor();
-  renderQuarterly();
   renderNews();
   renderDomestic();
   renderMaterial();
@@ -1938,8 +1733,7 @@ function resetDashboard() {
   _liveNews = null;     // 실시간 뉴스 비우기
   _domestic = null;     // 국내 브랜드 신제품 비우기
   _domesticFeatured = null;
-  _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
-  _quarterly = null;        // 분기 실적 비우기
+  _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   // "마지막 업데이트" 텍스트 되돌리기

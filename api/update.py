@@ -471,9 +471,14 @@ def update_domestic():
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
 # SEC 규칙: data.sec.gov / www.sec.gov 요청에는 반드시 User-Agent 헤더 필요(없으면 403)
 SEC_HEADERS = {"User-Agent": "Simmons Dashboard contact@example.com"}
-# (표시명, 티커, 폴백 CIK) — company_tickers.json 매칭 실패 시 폴백 사용.
-# 참고: SEC 파일상 Sleep Number 티커는 'SNBRQ', Tempur Sealy는 현재 사명 변경(Somnigroup, CIK 1206264).
-COMPETITOR_TICKERS = [("Sleep Number", "SNBR", 827187), ("Tempur Sealy", "TPX", 1206264)]
+# 국외(Global) 경쟁사: (표시명, 티커, 폴백 CIK, 로고 도메인). CIK 매칭 실패 시 폴백 사용.
+# 참고: SEC 파일상 Sleep Number 티커는 'SNBRQ', Tempur Sealy는 사명 변경(Somnigroup, CIK 1206264).
+GLOBAL_COMPETITORS = [
+    ("Sleep Number", "SNBR", 827187, "sleepnumber.com"),
+    ("Tempur Sealy", "TPX", 1206264, "tempursealy.com"),
+    ("Purple Innovation", "PRPL", 1643953, "purple.com"),
+    ("Leggett & Platt", "LEG", 58492, "leggett.com"),
+]
 REVENUE_KEYS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "Revenues",
@@ -502,46 +507,6 @@ def _load_cik_map():
             pass
     _cik_cache = m
     return m
-
-
-def _annual_series(facts, keys, unit="USD", instant=False):
-    """us-gaap keys 중 존재하는 항목의 연간(FY) 값 {연도:값}.
-       instant=True 이면 재무상태표류(시점값, start 없음)도 허용. unit 은 USD/'USD/shares' 등."""
-    usgaap = facts.get("facts", {}).get("us-gaap", {})
-    for k in keys:
-        node = usgaap.get(k)
-        if not node:
-            continue
-        arr = node.get("units", {}).get(unit)
-        if not arr:
-            continue
-        by_year = {}
-        for d in arr:
-            if d.get("fp") != "FY" or d.get("val") is None:
-                continue
-            end = d.get("end")
-            if not end:
-                continue
-            try:
-                e = datetime.datetime.strptime(end, "%Y-%m-%d").date()
-            except Exception:  # noqa: BLE001
-                continue
-            if not instant:  # 손익류: 약 1년 기간(start~end)만
-                start = d.get("start")
-                if not start:
-                    continue
-                try:
-                    s = datetime.datetime.strptime(start, "%Y-%m-%d").date()
-                except Exception:  # noqa: BLE001
-                    continue
-                if not (330 <= (e - s).days <= 400):
-                    continue
-            # 회계연도: 기간말이 1~3월이면 전년도 회계연도(예: 종료일 2026-01 → FY2025)
-            yr = str(e.year - 1 if e.month <= 3 else e.year)
-            by_year[yr] = d["val"]  # 같은 연도 여러 건이면 뒤 값으로(동일)
-        if by_year:
-            return by_year
-    return {}
 
 
 def _resolve_cik(ticker, cikmap, fallback):
@@ -605,90 +570,43 @@ def _quarter_metric(facts, keys):
 
 
 def update_competitors():
-    """SEC EDGAR 기반 경쟁사(SNBR·TPX) 재무·매출추이. 한 회사/항목 실패해도 나머지 반환."""
+    """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
+       국내(Korea)는 다음 단계(DART)에서 채우므로 준비중. 한 회사 실패해도 나머지 반환."""
     try:
         cikmap = _load_cik_map()
     except Exception:  # noqa: BLE001 — 티커 파일 실패해도 폴백 CIK로 진행
         cikmap = {}
 
-    companies, any_ok, quarterly = [], False, []
-    for name, ticker, fallback in COMPETITOR_TICKERS:
-        entry = {"name": name, "ticker": ticker, "fy": None,
-                 "revenue": None, "operating_income": None, "net_income": None,
-                 "assets": None, "liabilities": None, "equity": None, "eps": None,
-                 "operating_margin": None, "net_margin": None, "debt_ratio": None,
-                 "revenue_trend": {"years": [], "values": []}}
+    glob, any_ok = [], False
+    for name, ticker, fallback, domain in GLOBAL_COMPETITORS:
+        entry = {"name": name, "ticker": ticker, "quarter": None,
+                 "revenue": None, "revenue_yoy": None,
+                 "net_income": None, "net_income_yoy": None,
+                 "logo_url": "https://logo.clearbit.com/%s" % domain}
         cik = _resolve_cik(ticker, cikmap, fallback)
         if cik is None:
             entry["error"] = "CIK 없음"
-            companies.append(entry)
+            glob.append(entry)
             continue
-        cik10 = str(cik).zfill(10)
-
-        # companyfacts: 최근 연간(FY) 지표 + 매출 5년 추이
         try:
-            facts = _sec_get("https://data.sec.gov/api/xbrl/companyfacts/CIK%s.json" % cik10)
-            rev = _annual_series(facts, REVENUE_KEYS)
-            oi = _annual_series(facts, ["OperatingIncomeLoss"])
-            ni = _annual_series(facts, ["NetIncomeLoss"])
-            assets = _annual_series(facts, ["Assets"], instant=True)
-            liab = _annual_series(facts, ["Liabilities"], instant=True)
-            equity = _annual_series(facts, ["StockholdersEquity"], instant=True)
-            eps = _annual_series(facts, ["EarningsPerShareDiluted", "EarningsPerShareBasic"], unit="USD/shares")
-
-            rev_years = sorted(rev.keys())
-            fy = rev_years[-1] if rev_years else (sorted(ni.keys())[-1] if ni else None)
-            entry["fy"] = fy
-
-            def _latest(series):
-                if not series:
-                    return None
-                return series.get(fy, series[sorted(series.keys())[-1]])
-
-            entry["revenue"] = _latest(rev)
-            entry["operating_income"] = _latest(oi)
-            entry["net_income"] = _latest(ni)
-            entry["assets"] = _latest(assets)
-            entry["liabilities"] = _latest(liab)
-            entry["equity"] = _latest(equity)
-            entry["eps"] = _latest(eps)
-
-            if rev:
-                ty = rev_years[-5:]
-                entry["revenue_trend"] = {"years": ty, "values": [rev[y] for y in ty]}
-
-            # 파생 지표 (분모 0/None 방어)
-            r, o, nn, li, eq = (entry["revenue"], entry["operating_income"], entry["net_income"],
-                                entry["liabilities"], entry["equity"])
-            if o is not None and r:
-                entry["operating_margin"] = o / r * 100.0
-            if nn is not None and r:
-                entry["net_margin"] = nn / r * 100.0
-            if li is not None and eq:
-                entry["debt_ratio"] = li / eq * 100.0
-
-            if any(entry[x] is not None for x in ("revenue", "operating_income", "net_income", "assets")):
+            facts = _sec_get("https://data.sec.gov/api/xbrl/companyfacts/CIK%s.json"
+                             % str(cik).zfill(10))
+            qrev, qrev_yoy, qlabel = _quarter_metric(facts, REVENUE_KEYS)
+            qni, qni_yoy, qlabel2 = _quarter_metric(facts, ["NetIncomeLoss"])
+            entry["quarter"] = qlabel or qlabel2
+            entry["revenue"], entry["revenue_yoy"] = qrev, qrev_yoy
+            entry["net_income"], entry["net_income_yoy"] = qni, qni_yoy
+            if qrev is not None or qni is not None:
                 any_ok = True
-
-            # 분기(10-Q) 실적 — 실패해도 연간/나머지에 영향 없음
-            try:
-                qrev, qrev_yoy, qlabel = _quarter_metric(facts, REVENUE_KEYS)
-                qni, qni_yoy, qlabel2 = _quarter_metric(facts, ["NetIncomeLoss"])
-                label = qlabel or qlabel2
-                if label and (qrev is not None or qni is not None):
-                    quarterly.append({"name": name, "ticker": ticker, "quarter": label,
-                                      "revenue": qrev, "revenue_yoy": qrev_yoy,
-                                      "net_income": qni, "net_income_yoy": qni_yoy})
-            except Exception:  # noqa: BLE001
-                pass
         except Exception as e:  # noqa: BLE001
-            entry["error_facts"] = str(e)
+            entry["error"] = str(e)
+        glob.append(entry)
 
-        companies.append(entry)
-
+    korea = {"status": "준비중"}
     if not any_ok:
-        return {"status": "error", "reason": "SEC 데이터를 하나도 받지 못했습니다"}
-    return {"status": "ok", "companies": companies, "quarterly": quarterly}
+        return {"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
+                "global": glob, "korea": korea}
+    return {"status": "ok", "global": glob, "korea": korea}
 
 
 # ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────
