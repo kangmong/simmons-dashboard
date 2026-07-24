@@ -872,13 +872,58 @@ function fmtUsd(v) {
   return `${sign}$${Math.round(a).toLocaleString('en-US')}`;
 }
 
-/** 응답의 competitors 저장 후 경쟁사 섹션 갱신 */
+/** 응답의 competitors 저장 후 경쟁사 섹션 갱신 (연간 + 분기) */
 function applyCompetitorsUpdate(data) {
   const cp = data && data.sections && data.sections.competitors;
   if (!cp) return;
-  if (cp.status === 'error') { _liveCompetitors = null; console.warn('[update] competitors error:', cp.reason); }
-  else { _liveCompetitors = cp.companies || []; }
+  if (cp.status === 'error') {
+    _liveCompetitors = null; _quarterly = null;
+    console.warn('[update] competitors error:', cp.reason);
+  } else {
+    _liveCompetitors = cp.companies || [];
+    _quarterly = cp.quarterly || [];
+  }
   renderCompetitor();
+  renderQuarterly();
+}
+
+/* ── 분기 실적 (최근 10-Q, SEC EDGAR) — 기존 연간 카드와 별개 영역 ── */
+let _quarterly = null; // [{ name, ticker, quarter, revenue, revenue_yoy, net_income, net_income_yoy }]
+
+/** 성장률(YoY) 블록: 오르면 빨강 ▲ / 내리면 초록 ▼, 금액은 $1.85B·$234M 반올림 */
+function qGrowthBlock(label, val, yoy) {
+  const cls = yoy == null ? 'flat' : (yoy > 0 ? 'up' : yoy < 0 ? 'down' : 'flat');
+  const yTxt = yoy == null ? '—' : `${yoy > 0 ? '▲' : yoy < 0 ? '▼' : ''} ${Math.abs(yoy).toFixed(1)}%`;
+  return `<div class="q-metric">
+    <span class="q-metric__lbl">${escapeHtml(label)}</span>
+    <span class="q-metric__val">${fmtUsd(val)}</span>
+    <span class="stk-chg ${cls}">${yTxt} <span class="q-yoy">YoY</span></span>
+  </div>`;
+}
+
+/** 분기 실적 카드 렌더 (연간 고정값과 구분: "분기·자동 갱신" 표기) */
+function renderQuarterly() {
+  const el = document.getElementById('quarterlyCards');
+  if (!el) return;
+  const head = '<h2 class="subhead">분기 실적 (최근 10-Q) <span class="q-live">분기·자동 갱신</span></h2>';
+  if (!_quarterly || !_quarterly.length) {
+    el.innerHTML = head + emptyState('분기 실적 데이터 준비중');
+    return;
+  }
+  const cards = _quarterly.map((q, i) => {
+    const color = COMP_COLORS[i % COMP_COLORS.length];
+    return `<div class="q-card" style="--stk-c:${color}">
+      <div class="q-card__top">
+        <span class="stk-name">${escapeHtml(q.name)} <span class="cc-card__sub">(${escapeHtml(q.ticker)})</span></span>
+        <span class="q-qtr">${escapeHtml(q.quarter || '—')}</span>
+      </div>
+      <div class="q-metrics">
+        ${qGrowthBlock('매출', q.revenue, q.revenue_yoy)}
+        ${qGrowthBlock('순이익', q.net_income, q.net_income_yoy)}
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `${head}<div class="q-grid">${cards}</div><div class="comp-caption">출처: SEC EDGAR</div>`;
 }
 
 /** 매출 5년 추이 선그래프 (2개사, 실제 $ 축) */
@@ -2028,6 +2073,7 @@ function wireFxInteraction() {
 function refreshSections() {
   renderMarket();
   renderCompetitor();
+  renderQuarterly();
   renderStock();
   renderTrends();
   renderNews();
@@ -2144,6 +2190,7 @@ function resetDashboard() {
   _domestic = null;     // 국내 브랜드 신제품 비우기
   _domesticFeatured = null;
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
+  _quarterly = null;        // 분기 실적 비우기
   _stock = null; _stockError = false;       // 실시간 주가 비우기
   _trends = null; _trendsError = false;     // 검색 관심도 비우기
   _fx = null;           // 환율 비우기

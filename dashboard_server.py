@@ -555,6 +555,55 @@ def _resolve_cik(ticker, cikmap, fallback):
     return fallback
 
 
+def _quarterly_series(facts, keys, unit="USD"):
+    """분기(약 3개월, 10-Q) 값. return {(fy:int, fp:str): {'val','end','label'}}.
+       10-Q 이고 기간이 ~90일(단일 분기)인 항목만 사용해 YTD(누적) 값을 배제한다."""
+    usgaap = facts.get("facts", {}).get("us-gaap", {})
+    for k in keys:
+        node = usgaap.get(k)
+        if not node:
+            continue
+        arr = node.get("units", {}).get(unit)
+        if not arr:
+            continue
+        out = {}
+        for d in arr:
+            val, fp, form = d.get("val"), d.get("fp"), d.get("form")
+            start, end, fy = d.get("start"), d.get("end"), d.get("fy")
+            if val is None or not start or not end or form != "10-Q":
+                continue
+            if fp not in ("Q1", "Q2", "Q3", "Q4"):
+                continue
+            try:
+                s = datetime.datetime.strptime(start, "%Y-%m-%d").date()
+                e = datetime.datetime.strptime(end, "%Y-%m-%d").date()
+            except Exception:  # noqa: BLE001
+                continue
+            if not (80 <= (e - s).days <= 100):  # 단일 분기(3개월)만 → YTD 제외
+                continue
+            key = (int(fy) if fy is not None else e.year, fp)
+            if key not in out or e > out[key]["end"]:  # 정정치는 end 최신 우선
+                out[key] = {"val": val, "end": e, "label": "%s %s" % (key[0], fp)}
+        if out:
+            return out
+    return {}
+
+
+def _quarter_metric(facts, keys):
+    """가장 최근 분기의 (값, 전년 동기 대비 %, 라벨). 없으면 (None, None, None)."""
+    qs = _quarterly_series(facts, keys)
+    if not qs:
+        return (None, None, None)
+    latest = max(qs, key=lambda kk: qs[kk]["end"])
+    val = qs[latest]["val"]
+    fy, fp = latest
+    prev = qs.get((fy - 1, fp))  # 전년 동일 분기
+    yoy = None
+    if prev and prev["val"]:
+        yoy = round((val - prev["val"]) / abs(prev["val"]) * 100.0, 1)
+    return (val, yoy, qs[latest]["label"])
+
+
 def update_competitors():
     """SEC EDGAR 기반 경쟁사(SNBR·TPX) 재무·매출추이·공시. 한 회사/항목 실패해도 나머지 반환."""
     try:
@@ -562,7 +611,7 @@ def update_competitors():
     except Exception:  # noqa: BLE001 — 티커 파일 실패해도 폴백 CIK로 진행
         cikmap = {}
 
-    companies, any_ok = [], False
+    companies, any_ok, quarterly = [], False, []
     for name, ticker, fallback in COMPETITOR_TICKERS:
         entry = {"name": name, "ticker": ticker, "fy": None,
                  "revenue": None, "operating_income": None, "net_income": None,
@@ -620,6 +669,18 @@ def update_competitors():
 
             if any(entry[x] is not None for x in ("revenue", "operating_income", "net_income", "assets")):
                 any_ok = True
+
+            # 분기(10-Q) 실적 — 실패해도 연간/나머지에 영향 없음
+            try:
+                qrev, qrev_yoy, qlabel = _quarter_metric(facts, REVENUE_KEYS)
+                qni, qni_yoy, qlabel2 = _quarter_metric(facts, ["NetIncomeLoss"])
+                label = qlabel or qlabel2
+                if label and (qrev is not None or qni is not None):
+                    quarterly.append({"name": name, "ticker": ticker, "quarter": label,
+                                      "revenue": qrev, "revenue_yoy": qrev_yoy,
+                                      "net_income": qni, "net_income_yoy": qni_yoy})
+            except Exception:  # noqa: BLE001
+                pass
         except Exception as e:  # noqa: BLE001
             entry["error_facts"] = str(e)
 
@@ -627,7 +688,7 @@ def update_competitors():
 
     if not any_ok:
         return {"status": "error", "reason": "SEC 데이터를 하나도 받지 못했습니다"}
-    return {"status": "ok", "companies": companies}
+    return {"status": "ok", "companies": companies, "quarterly": quarterly}
 
 
 # ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────

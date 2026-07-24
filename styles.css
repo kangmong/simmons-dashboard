@@ -542,6 +542,24 @@ body {
 .stk-empty { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
 @media (max-width: 560px) { .stk-grid { grid-template-columns: 1fr; } }
 
+/* 분기 실적 (10-Q) — 연간(고정)과 구분되는 "분기·자동 갱신" 라벨 */
+.q-live {
+  margin-left: 8px; font-size: 11px; font-weight: 700; vertical-align: middle;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 2px 8px; border-radius: 999px;
+}
+.q-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 8px; }
+.q-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-1); border-left: 3px solid var(--stk-c, var(--accent)); }
+.q-card__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.q-qtr { flex: none; font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.q-metrics { display: flex; gap: 22px; }
+.q-metric { display: flex; flex-direction: column; gap: 3px; }
+.q-metric__lbl { font-size: 12px; color: var(--muted); }
+.q-metric__val { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.q-metric .stk-chg { font-size: 12px; }
+.q-yoy { font-size: 10px; font-weight: 600; color: var(--muted); }
+@media (max-width: 560px) { .q-grid { grid-template-columns: 1fr; } }
+
 /* 상단 매출 비교 막대 */
 .cbars { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
 .cbar__head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
