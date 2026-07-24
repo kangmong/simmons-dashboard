@@ -532,8 +532,10 @@ body {
 /* 그룹(국외/국내) 헤더 */
 .comp-group { margin-bottom: 24px; }
 .comp-group:last-child { margin-bottom: 0; }
-.comp-group__head { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 14px; }
+.comp-group__head { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
 .comp-group__tag { margin-left: 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); }
+.comp-group__sub { margin-bottom: 14px; font-size: 13px; font-weight: 600; color: var(--text); }
+.comp-group__desc { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--muted); }
 
 /* 국내: 준비중 배지 */
 .comp-todo { font-size: 13px; color: var(--muted); }
