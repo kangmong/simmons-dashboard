@@ -757,44 +757,6 @@ body {
 .fx-overlay { cursor: crosshair; }
 
 /* ============================================================
-   6) AI 인사이트 (Impact 분석)
-   ============================================================ */
-.ai-headline {
-  padding: 18px 20px; border-radius: var(--radius);
-  background: var(--field); border: 1px solid var(--line);
-  border-left: 4px solid var(--slate); margin-bottom: 16px;
-}
-.ai-headline.ai-up { border-left-color: var(--accent); background: var(--accent-soft); }
-.ai-headline.ai-down { border-left-color: var(--green); background: var(--green-soft); }
-.ai-headline__eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.ai-headline__text { font-size: 20px; font-weight: 800; color: var(--ink); margin-top: 4px; letter-spacing: -.01em; }
-.ai-basis { font-size: 12px; color: var(--muted); margin-top: 8px; }
-.ai-basis__tag { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-weight: 700; margin-left: 4px; white-space: nowrap; }
-
-.ai-block { margin-bottom: 16px; }
-.ai-block__title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
-.ai-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.ai-metric { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
-.ai-metric__label { font-size: 12px; font-weight: 600; color: var(--muted); }
-.ai-metric__val { font-size: 16px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums; }
-.ai-metric__src { font-size: 11px; color: var(--muted); margin-top: 4px; }
-/* 값 색상 (원가 상승=경고 크림슨, 하락=초록, 그 외=중립) */
-.ai-metric__val.ai-up, .ai-score .ai-up { color: var(--accent); }
-.ai-metric__val.ai-down { color: var(--green); }
-.ai-metric__val.ai-flat { color: var(--slate); }
-.ai-metric__val.ai-na { color: var(--muted); font-weight: 700; font-size: 14px; }
-
-.ai-overall { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 16px; align-items: start; }
-.ai-score { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
-.ai-score__label { font-size: 12px; font-weight: 600; color: var(--muted); }
-.ai-score__stars { font-size: 26px; color: var(--amber); letter-spacing: 2px; margin: 6px 0; }
-.ai-score__basis { font-size: 11px; color: var(--muted); line-height: 1.5; }
-.ai-actions { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 16px; }
-.ai-actions__title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
-.ai-actions__tag { font-size: 11px; font-weight: 700; color: var(--slate); background: var(--slate-soft); border-radius: 999px; padding: 2px 8px; margin-left: 4px; }
-.ai-actions__list { margin: 0; padding-left: 18px; color: var(--text); font-size: 13px; line-height: 1.7; }
-
-/* ============================================================
    반응형
    ============================================================ */
 @media (max-width: 860px) { .brand-meta { display: none; } .hero__art { max-width: 32%; } }
@@ -827,7 +789,6 @@ body {
 
   .dash-grid { grid-template-columns: 1fr; }
   .ds-grid, .market-cards, .material-cards, #compCards { grid-template-columns: 1fr; }
-  .ai-overall { grid-template-columns: 1fr; }
   .mat-grid { grid-template-columns: 1fr; }
 }
 

@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'market', 'competitor', 'news', 'material', 'domestic', 'fx', 'insights'];
+const VIEWS = ['dashboard', 'market', 'competitor', 'news', 'material', 'domestic', 'fx'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -1555,128 +1555,6 @@ function renderMaterial() {
   renderMaterialChart();
 }
 
-/* ============================================================
-   6) AI 인사이트 (Impact 분석) — 외부 API 없이 규칙 기반 자동 계산
-   근거 없는 수치 금지. 데이터 없으면 "데이터 부족". 모든 수치에 출처 자재명 표기.
-   ============================================================ */
-
-/** 원자재 최신 변동 신호 (자재별 최신 mom_change_pct 중 절대값 최대) */
-function insightMaterialSignal() {
-  const md = getMaterialData();
-  if (!md) return null;
-  const latest = new Map();
-  md.rows.forEach((r) => {
-    if (r.pending || r.change == null) return;
-    const cur = latest.get(r.material);
-    if (!cur || r.date.localeCompare(cur.date) >= 0) latest.set(r.material, r);
-  });
-  const arr = [...latest.values()].filter((r) => r.change != null);
-  if (!arr.length) return null;
-  arr.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
-  return { name: matName(arr[0].material), change: arr[0].change, count: arr.length };
-}
-
-/** 섹션 6 렌더 */
-function renderInsights() {
-  const el = document.getElementById('body-insights');
-  if (!el) return;
-
-  const sig = insightMaterialSignal();
-
-  // 근거 데이터 (뉴스 건수·수입 상위국) — 실데이터만
-  const newsCount = STORE.news && STORE.news.rows ? STORE.news.rows.length : 0;
-  let topImport = null;
-  const gm = getMarketData();
-  if (gm && gm.rows.length) {
-    // 수입(import) 지표만 — 없으면 표시하지 않음 (근거 없는 라벨 방지)
-    const imp = gm.rows
-      .filter((r) => !r.isWorld && r.value > 0 && /import|수입/i.test(String(r.metric)))
-      .sort((a, b) => b.value - a.value);
-    if (imp.length) topImport = imp[0].region;
-  }
-
-  // ── 1) 헤드라인 ──
-  let headline, headClass;
-  if (sig) {
-    const dir = sig.change > 0.05 ? '상승' : sig.change < -0.05 ? '하락' : '보합';
-    headline = `${sig.name} 원자재 가격 ${Math.abs(sig.change).toFixed(1)}% ${dir}`;
-    headClass = sig.change > 0.3 ? 'ai-up' : sig.change < -0.3 ? 'ai-down' : 'ai-flat';
-  } else {
-    headline = '원자재 변동 데이터가 없습니다 — 데이터 부족';
-    headClass = 'ai-flat';
-  }
-  const basisParts = [];
-  if (sig) basisParts.push(`원자재 ${sig.count}종`);
-  if (newsCount) basisParts.push(`뉴스 ${newsCount}건`);
-  if (topImport) basisParts.push(`수입 상위 ${topImport}`);
-  const basis = basisParts.length ? basisParts.join(' · ') : '가용 데이터 없음';
-
-  // ── 2) SIMMONS 영향 분석 ──
-  const costUp = !!sig && sig.change > 0.3;
-  const costDown = !!sig && sig.change < -0.3;
-  let cost;
-  if (!sig) cost = { cls: 'ai-na', val: '데이터 부족', src: '—' };
-  else if (costUp) cost = { cls: 'ai-up', val: `▲ +${sig.change.toFixed(1)}%`, src: sig.name };
-  else if (costDown) cost = { cls: 'ai-down', val: `▼ ${Math.abs(sig.change).toFixed(1)}%`, src: sig.name };
-  else cost = { cls: 'ai-flat', val: `- 보합 (${sig.change >= 0 ? '+' : ''}${sig.change.toFixed(1)}%)`, src: sig.name };
-
-  const trend = costUp ? { cls: 'ai-up', txt: '상승 압력 ▲' } : costDown ? { cls: 'ai-down', txt: '완화 ▼' } : { cls: 'ai-flat', txt: '중립 -' };
-  const metrics = [
-    { label: '원가', cls: cost.cls, val: cost.val, src: cost.src },
-    { label: '생산', cls: sig ? trend.cls : 'ai-na', val: sig ? trend.txt : '데이터 부족', src: sig ? '원가 연동' : '—' },
-    { label: '재고', cls: sig ? trend.cls : 'ai-na', val: sig ? trend.txt : '데이터 부족', src: sig ? '원가 연동' : '—' },
-    { label: '납기', cls: 'ai-na', val: '영향 낮음', src: '근거 없음' },
-    { label: '품질', cls: 'ai-na', val: '영향 낮음', src: '근거 없음' },
-  ];
-  const metricsHtml = metrics.map((m) => `<div class="ai-metric">
-      <div class="ai-metric__label">${escapeHtml(m.label)}</div>
-      <div class="ai-metric__val ${m.cls}">${escapeHtml(m.val)}</div>
-      <div class="ai-metric__src">${escapeHtml(m.src)}</div>
-    </div>`).join('');
-
-  // ── 3) 종합 영향도 + 추천 체크리스트 ──
-  let stars = 0, scoreBasis;
-  if (sig) {
-    const a = Math.abs(sig.change);
-    stars = a >= 5 ? 5 : a >= 3 ? 4 : a >= 1.5 ? 3 : a >= 0.5 ? 2 : 1;
-    scoreBasis = `원자재 최대 변동 ${sig.name} ${sig.change >= 0 ? '+' : ''}${sig.change.toFixed(1)}% 기준`;
-  } else {
-    scoreBasis = '원자재 변동 데이터 부족';
-  }
-  const starStr = '★★★★★'.slice(0, stars) + '☆☆☆☆☆'.slice(0, 5 - stars);
-
-  let actions;
-  if (costUp) actions = ['공급처 다변화 검토', '장기 계약으로 원가 안정화', '가격 상승분 제품가 반영 시점 검토'];
-  else if (costDown) actions = ['원가 하락분 반영 — 원가 개선 기회', '저가 시점 원자재 재고 확보 검토'];
-  else if (sig) actions = ['원자재 변동 미미 — 현 계약·재고 유지', '주간 모니터링 지속'];
-  else actions = ['원자재 데이터 업로드 후 재분석 권장'];
-  const actionsHtml = actions.map((a) => `<li>${escapeHtml(a)}</li>`).join('');
-
-  el.innerHTML = `
-    <div class="ai-headline ${headClass}">
-      <div class="ai-headline__eyebrow">주요 이슈</div>
-      <div class="ai-headline__text">${escapeHtml(headline)}</div>
-      <div class="ai-basis">근거: ${escapeHtml(basis)} <span class="ai-basis__tag">규칙 기반 자동 계산</span></div>
-    </div>
-
-    <div class="ai-block">
-      <div class="ai-block__title">SIMMONS 영향 분석</div>
-      <div class="ai-metric-grid">${metricsHtml}</div>
-    </div>
-
-    <div class="ai-overall">
-      <div class="ai-score">
-        <div class="ai-score__label">종합 영향도</div>
-        <div class="ai-score__stars" title="${escapeHtml(scoreBasis)}">${starStr}</div>
-        <div class="ai-score__basis">${escapeHtml(scoreBasis)}</div>
-      </div>
-      <div class="ai-actions">
-        <div class="ai-actions__title">추천 체크리스트 <span class="ai-actions__tag">규칙 기반 제안</span></div>
-        <ul class="ai-actions__list">${actionsHtml}</ul>
-      </div>
-    </div>`;
-}
-
 /** 필터 클릭(위임) — 한 번만 연결 */
 function initNews() {
   const filtersEl = document.getElementById('newsFilters');
@@ -1957,7 +1835,6 @@ function refreshSections() {
   renderDomestic();
   renderMaterial();
   renderFx();
-  renderInsights();
   updateDashHeader();
 }
 
@@ -2043,9 +1920,8 @@ function applyMaterialsUpdate(data) {
     }
     STORE.material = { rows, origin: 'update', file: 'World Bank Pink Sheet' };
   }
-  // 원자재 섹션 + (원자재에서 파생되는) AI 인사이트 재렌더 — 기존 렌더 로직 재사용
+  // 원자재 섹션 재렌더 — 기존 렌더 로직 재사용
   renderMaterial();
-  renderInsights();
 }
 
 /** API 기본 경로 — 상대경로('/api/update')로 호출한다.
@@ -2071,7 +1947,7 @@ function resetDashboard() {
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';
   const dashUpd = document.getElementById('dashUpdated');
   if (dashUpd) dashUpd.textContent = '—';
-  // 원자재·시장·경쟁사·뉴스·AI 인사이트 재렌더(빈 STORE → emptyState/데이터 부족)
+  // 원자재·시장·경쟁사·뉴스 재렌더(빈 STORE → emptyState/데이터 부족)
   refreshSections();
 }
 
