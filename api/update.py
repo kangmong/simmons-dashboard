@@ -150,7 +150,8 @@ def fetch_materials():
 
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
-SIMMONS_NEWS_QUERY = "시몬스 (팝업 OR 행사 OR 전시 OR 신제품 OR 이벤트)"
+# 신메뉴 편중 방지 — 여러 검색어에서 조금씩 모아 중복 제거(팝업·광고·행사·브랜드 골고루)
+SIMMONS_QUERIES = ["시몬스침대", "시몬스 광고", "시몬스 팝업", "시몬스 행사", "시몬스 브랜드", "시몬스 신제품"]
 _GNEWS_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 # 기사 페이지에서 대표 이미지 후보 (og:image → twitter:image → link[image_src])
@@ -232,43 +233,76 @@ def _simmons_thumb(link):
         return None
 
 
+def _norm_title(title, source):
+    """제목에서 ' - 언론사' 접미사 제거 → (표시용 제목, 중복판정 키: 공백·기호 제거 앞 18자)."""
+    t = (title or "").strip()
+    if source and t.endswith(" - " + source):
+        t = t[:-(len(source) + 3)]
+    else:
+        t = re.sub(r"\s*-\s*[^-]+$", "", t).strip()
+    key = re.sub(r"[\s\W]+", "", t)[:18]
+    return t, key
+
+
 def update_simmons_news():
-    """시몬스 팝업·행사·신제품 등 국내 소식 최신 6건 + 기사 대표 이미지.
-       Google News 링크를 실제 기사 URL로 디코드한 뒤 og:image 등 추출(병렬)."""
-    url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(SIMMONS_NEWS_QUERY)
-           + "&hl=ko&gl=KR&ceid=KR:ko")
-    try:
-        resp = requests.get(url, timeout=30, headers=_GNEWS_UA)
-        resp.raise_for_status()
-        root = ET.fromstring(resp.content)
-    except Exception as e:  # noqa: BLE001
-        return {"status": "데이터 없음", "reason": str(e), "items": []}
-
-    items = []
-    for item in root.iter("item"):
-        title = (item.findtext("title") or "").strip()
-        if not title:
+    """여러 검색어(신메뉴 편중 방지)로 모아 제목·이미지 중복 제거 후 최신순 6건.
+       각 기사는 실제 URL 디코드 후 대표 이미지 추출(병렬). 실패 시 status='데이터 없음'."""
+    cands, seen_key = [], set()
+    for q in SIMMONS_QUERIES:
+        url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q)
+               + "&hl=ko&gl=KR&ceid=KR:ko")
+        try:
+            root = ET.fromstring(requests.get(url, timeout=20, headers=_GNEWS_UA).content)
+        except Exception:  # noqa: BLE001 — 한 검색 실패해도 계속
             continue
-        link = (item.findtext("link") or "").strip()
-        pub = item.findtext("pubDate") or ""
-        src_el = item.find("source")
-        source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
-        items.append({"title": title, "link": link, "source": source, "date": _fmt_pubdate(pub)})
-        if len(items) >= 6:
-            break
+        n = 0
+        for item in root.iter("item"):
+            raw = (item.findtext("title") or "").strip()
+            if not raw:
+                continue
+            src_el = item.find("source")
+            source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+            disp, key = _norm_title(raw, source)
+            if not key or key in seen_key:  # 제목 중복 제거
+                continue
+            seen_key.add(key)
+            cands.append({"title": disp, "link": (item.findtext("link") or "").strip(),
+                          "source": source, "date": _fmt_pubdate(item.findtext("pubDate") or "")})
+            n += 1
+            if n >= 3:  # 검색어당 최대 3건(다양성 확보)
+                break
 
-    if not items:
+    if not cands:
         return {"status": "데이터 없음", "items": []}
 
-    # 6개 기사 대표 이미지 병렬 추출 (기사별: URL 디코드 → og:image; 실패 시 None)
+    cands.sort(key=lambda x: x["date"], reverse=True)  # 최신순
+    top = cands[:9]  # 이미지 중복 제거 여유분
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
-            imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), items))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=9) as ex:
+            imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), top))
     except Exception:  # noqa: BLE001
-        imgs = [None] * len(items)
-    for it, img in zip(items, imgs):
+        imgs = [None] * len(top)
+
+    items, seen_img = [], set()
+    for it, img in zip(top, imgs):
+        if img and img in seen_img:  # 같은 대표 이미지 중복 제거
+            continue
+        if img:
+            seen_img.add(img)
         it["image"] = img
-    return {"status": "ok", "items": items}
+        items.append(it)
+        if len(items) >= 6:
+            break
+    # 이미지 중복으로 6개 미달 시 남은 후보로 보충
+    if len(items) < 6:
+        used = {it["link"] for it in items}
+        for it in cands:
+            if it["link"] not in used:
+                it["image"] = None
+                items.append(it)
+                if len(items) >= 6:
+                    break
+    return {"status": "ok", "items": items[:6]}
 
 
 # ── 업계 주요 뉴스 — Google News RSS (API 키 불필요) ─────────────────────

@@ -404,7 +404,7 @@ body {
 /* 헤더: 로고 + 제목 */
 .sk-title { display: flex; align-items: center; gap: 10px; }
 .sk-logo-box { display: inline-flex; align-items: center; }
-.sk-logo { height: 30px; width: auto; display: block; }
+.sk-logo { height: 38px; width: auto; display: block; }
 .sk-logo-wm { font-weight: 900; letter-spacing: .06em; color: var(--ink); font-size: 16px; }
 .sk-subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .sk-sub { font-size: 13px; color: var(--muted); }
