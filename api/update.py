@@ -20,6 +20,7 @@ import re
 import json
 import datetime
 import urllib.parse
+import concurrent.futures
 import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler
 
@@ -150,15 +151,94 @@ def fetch_materials():
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
 SIMMONS_NEWS_QUERY = "시몬스 (팝업 OR 행사 OR 전시 OR 신제품 OR 이벤트)"
+_GNEWS_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
+# 기사 페이지에서 대표 이미지 후보 (og:image → twitter:image → link[image_src])
+_IMG_METAS = [
+    re.compile(r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', re.I),
+    re.compile(r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<link[^>]+rel=["\']image_src["\'][^>]+href=["\']([^"\']+)', re.I),
+]
+
+
+def _decode_gnews_url(link, timeout=8):
+    """Google News RSS 리다이렉트 링크 → 실제 기사 URL(batchexecute). 실패 시 원 링크."""
+    try:
+        from bs4 import BeautifulSoup
+        m = re.search(r'/articles/([^?/]+)', link)
+        if not m:
+            return link
+        gid = m.group(1)
+        r = requests.get("https://news.google.com/rss/articles/" + gid, headers=_GNEWS_UA, timeout=timeout)
+        r.raise_for_status()
+        div = BeautifulSoup(r.text, "html.parser").select_one("c-wiz > div")
+        if div is None:
+            return link
+        sig, ts = div.get("data-n-a-sg"), div.get("data-n-a-ts")
+        if not sig or not ts:
+            return link
+        inner = json.dumps(["garturlreq",
+                            [["X", "X", ["X", "X"], None, None, 1, 1, "US:en", None, 1,
+                              None, None, None, None, None, 0, 1],
+                             "X", "X", 1, [1, 1, 1], 1, 1, None, 0, 0, None, 0],
+                            gid, int(ts), sig])
+        freq = json.dumps([[["Fbv4je", inner, None, "generic"]]])
+        resp = requests.post("https://news.google.com/_/DotsSplashUi/data/batchexecute",
+                             headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                                      **_GNEWS_UA},
+                             data={"f.req": freq}, timeout=timeout)
+        # 응답은 이중 이스케이프된 JSON 문자열 — \\ 축소 후 \\uXXXX(=,& 등) 디코드
+        m2 = re.search(r'garturlres\\",\\"(.*?)\\"', resp.text)
+        if m2:
+            u = m2.group(1).replace("\\\\", "\\")
+            u = re.sub(r"\\u([0-9a-fA-F]{4})", lambda mm: chr(int(mm.group(1), 16)), u)
+            u = u.replace("\\/", "/").replace("\\", "")  # 남은 escape 백슬래시 제거
+            if u.startswith("http"):
+                return u
+    except Exception:  # noqa: BLE001
+        pass
+    return link
+
+
+def _page_image(page_url, timeout=8):
+    """기사 페이지 대표 이미지: og:image → twitter:image → link[image_src] → 본문 첫 큰 이미지."""
+    if not page_url or not page_url.startswith("http"):
+        return None
+    try:
+        r = requests.get(page_url, headers=_GNEWS_UA, timeout=timeout)
+        r.raise_for_status()
+        html = r.text
+    except Exception:  # noqa: BLE001
+        return None
+    for rx in _IMG_METAS:
+        m = rx.search(html)
+        if m:
+            img = urllib.parse.urljoin(page_url, m.group(1).strip())
+            if img.startswith("http") and "googleusercontent" not in img:
+                return img
+    for m in re.finditer(r'<img[^>]+(?:data-src|src)=["\']([^"\']+\.(?:jpe?g|png|webp)[^"\']*)', html, re.I):
+        img = urllib.parse.urljoin(page_url, m.group(1).strip())
+        if img.startswith("http") and "googleusercontent" not in img:
+            return img
+    return None
+
+
+def _simmons_thumb(link):
+    """Google News 링크 → 실제 기사 URL 디코드 → 대표 이미지. 실패 시 None."""
+    try:
+        return _page_image(_decode_gnews_url(link))
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def update_simmons_news():
-    """시몬스 팝업·행사·신제품 등 국내 소식 최신 6건 + 기사 대표 이미지(og:image).
-       실패 시 status='데이터 없음'. (_og_image·_fmt_pubdate 는 하단에서 정의)"""
+    """시몬스 팝업·행사·신제품 등 국내 소식 최신 6건 + 기사 대표 이미지.
+       Google News 링크를 실제 기사 URL로 디코드한 뒤 og:image 등 추출(병렬)."""
     url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(SIMMONS_NEWS_QUERY)
            + "&hl=ko&gl=KR&ceid=KR:ko")
     try:
-        resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        resp = requests.get(url, timeout=30, headers=_GNEWS_UA)
         resp.raise_for_status()
         root = ET.fromstring(resp.content)
     except Exception as e:  # noqa: BLE001
@@ -180,9 +260,14 @@ def update_simmons_news():
     if not items:
         return {"status": "데이터 없음", "items": []}
 
-    # 대표 이미지(og:image) — 실패하면 None(프런트에서 그라데이션 대체)
-    for it in items:
-        it["image"] = _og_image(it["link"])
+    # 6개 기사 대표 이미지 병렬 추출 (기사별: URL 디코드 → og:image; 실패 시 None)
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+            imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), items))
+    except Exception:  # noqa: BLE001
+        imgs = [None] * len(items)
+    for it, img in zip(items, imgs):
+        it["image"] = img
     return {"status": "ok", "items": items}
 
 
