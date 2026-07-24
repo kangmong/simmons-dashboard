@@ -1057,60 +1057,6 @@ function renderCompetitor() {
   renderCompCaption();
 }
 
-/* ── (실시간 추가 1) 주가·시가총액·PER 카드 — 페이지 로드 시 + 5분마다 ── */
-let _stock = null;        // [{ ticker, name, status, price, change_pct, market_cap, pe }]
-let _stockError = false;
-
-/** 응답의 stock 저장 후 카드 갱신 */
-function applyStockUpdate(data) {
-  const st = data && data.sections && data.sections.stock;
-  if (!st) return;
-  if (st.status === 'error') { _stock = null; _stockError = true; console.warn('[update] stock error:', st.reason); }
-  else { _stock = st.companies || []; _stockError = false; }
-  renderStock();
-}
-
-/** 주가만 별도 조회(5분 자동 갱신). 서버 없거나 실패하면 '데이터 없음' 표시 */
-function fetchStock() {
-  fetch(API_BASE + '/api/update?section=stock', { cache: 'no-store' })
-    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then(applyStockUpdate)
-    .catch((e) => { _stock = null; _stockError = true; renderStock(); console.warn('[stock] 조회 실패:', e); });
-}
-
-/** 실시간 주가 카드 렌더 (기존 고정값과 구분되도록 '실시간' 뱃지) */
-function renderStock() {
-  const el = document.getElementById('stockCards');
-  if (!el) return;
-  if (_stockError) {
-    el.innerHTML = `<div class="stk-grid"><div class="stk-card">
-      <div class="stk-card__top"><span class="stk-name">실시간 주가</span><span class="stk-live">실시간</span></div>
-      <div class="stk-empty">데이터 없음 — API 키·네트워크를 확인하세요</div></div></div>`;
-    return;
-  }
-  if (!_stock || !_stock.length) { el.innerHTML = ''; return; } // 로드 전
-  const cards = _stock.map((c, i) => {
-    const color = COMP_COLORS[i % COMP_COLORS.length];
-    const head = `<div class="stk-card__top"><span class="stk-name">${escapeHtml(c.name)} <span class="cc-card__sub">(${escapeHtml(c.ticker)})</span></span><span class="stk-live">실시간</span></div>`;
-    if (c.status !== 'ok') {
-      return `<div class="stk-card" style="--stk-c:${color}">${head}<div class="stk-empty">데이터 없음</div></div>`;
-    }
-    const chg = c.change_pct;
-    const chgCls = chg == null ? 'flat' : (chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat');
-    const chgTxt = chg == null ? '—' : `${chg > 0 ? '▲' : chg < 0 ? '▼' : ''} ${Math.abs(chg).toFixed(2)}%`;
-    const price = c.price == null ? '—' : '$' + Number(c.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `<div class="stk-card" style="--stk-c:${color}">
-      ${head}
-      <div class="stk-price">${price} <span class="stk-chg ${chgCls}">${chgTxt}</span></div>
-      <div class="stk-metrics">
-        <span>시가총액 <b>${fmtUsd(c.market_cap)}</b></span>
-        <span>PER <b>${c.pe == null ? '—' : Number(c.pe).toFixed(1)}</b></span>
-      </div>
-    </div>`;
-  }).join('');
-  el.innerHTML = `<div class="stk-grid">${cards}</div>`;
-}
-
 /* ============================================================
    4) 업계 주요 뉴스 섹션
    ============================================================ */
@@ -2007,7 +1953,6 @@ function refreshSections() {
   renderMarket();
   renderCompetitor();
   renderQuarterly();
-  renderStock();
   renderNews();
   renderDomestic();
   renderMaterial();
@@ -2035,10 +1980,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
   // 저장된 값/기본 CSV를 자동으로 불러오지 않는다 — 데이터는 오직 [업데이트]로만 채운다.
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
-
-  // 예외: 실시간 주가 카드는 페이지 로드 시 + 5분마다 자동 갱신한다.
-  fetchStock();
-  setInterval(fetchStock, 5 * 60 * 1000);
 });
 
 /** 보고서 다운로드: 브라우저 인쇄(→ PDF로 저장) */
@@ -2123,7 +2064,6 @@ function resetDashboard() {
   _domesticFeatured = null;
   _liveCompetitors = null; // SEC 경쟁사 데이터 비우기
   _quarterly = null;        // 분기 실적 비우기
-  _stock = null; _stockError = false;       // 실시간 주가 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   // "마지막 업데이트" 텍스트 되돌리기
@@ -2160,7 +2100,6 @@ function initUpdate() {
       applyNewsUpdate(data);
       applyDomesticUpdate(data);
       applyCompetitorsUpdate(data);
-      applyStockUpdate(data);
     } catch (e) {
       if (lbl) lbl.textContent = '업데이트 실패 — 서버 실행을 확인하세요 (' + (e.message || e) + ')';
       console.warn('[update] 실패:', e);

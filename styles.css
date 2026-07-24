@@ -523,24 +523,12 @@ body {
 /* ============================================================
    3) 경쟁사 분석 — 매출 막대 + 회사별 카드
    ============================================================ */
-/* 실시간 주가·시가총액 카드 (기존 고정값과 구분: '실시간' 뱃지) */
-.stk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
-.stk-card { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-1); border-top: 3px solid var(--stk-c, var(--accent)); }
-.stk-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+/* 회사명·증감 라벨 (분기 실적 카드에서 재사용) */
 .stk-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-.stk-live {
-  flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
-  color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 999px;
-}
-.stk-price { font-size: 24px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .stk-chg { font-size: 13px; font-weight: 700; margin-left: 6px; }
-.stk-chg.up { color: var(--accent); }
-.stk-chg.down { color: var(--green); }
+.stk-chg.up { color: var(--accent); }   /* 상승 = 빨강 */
+.stk-chg.down { color: var(--green); }  /* 하락 = 초록 */
 .stk-chg.flat { color: var(--muted); }
-.stk-metrics { margin-top: 8px; display: flex; gap: 18px; font-size: 12px; color: var(--muted); }
-.stk-metrics b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-.stk-empty { font-size: 13px; color: var(--muted); padding: 6px 0 2px; }
-@media (max-width: 560px) { .stk-grid { grid-template-columns: 1fr; } }
 
 /* 분기 실적 (10-Q) — 연간(고정)과 구분되는 "분기·자동 갱신" 라벨 */
 .q-live {
