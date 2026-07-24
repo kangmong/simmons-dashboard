@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'market', 'competitor', 'news', 'material', 'domestic', 'fx'];
+const VIEWS = ['dashboard', 'simmons_news', 'competitor', 'news', 'material', 'domestic', 'fx'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -130,11 +130,6 @@ function setView(view) {
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('is-active', n.dataset.view === view));
   history.replaceState(null, '', `#${view}`);
   window.scrollTo(0, 0);
-
-  // Leaflet 지도는 컨테이너 크기가 바뀌면(대시보드↔포커스) 재계산 필요
-  if ((isDash || view === 'market') && _leaflet && _leaflet.map) {
-    setTimeout(() => { try { _leaflet.map.invalidateSize(); } catch (e) {} }, 120);
-  }
 }
 
 /** 네비게이션(사이드바 항목 + 카드 "더보기" + 뒤로가기) 라우팅 */
@@ -574,36 +569,44 @@ function getMarketData() {
   return { rows: norm, isComtrade };
 }
 
-const _marketState = { metric: null };
-let _worldTopoPromise = null;
-function loadWorldTopo() {
-  if (_worldTopoPromise) return _worldTopoPromise;
-  _worldTopoPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-    .then((r) => { if (!r.ok) throw new Error('map HTTP ' + r.status); return r.json(); });
-  return _worldTopoPromise;
+/* ── 시몬스 코리아 소식 (Google News RSS) ─────────────────────────────── */
+let _simmonsNews = null; // { status, items:[{title,source,date,link,image}] }
+
+/** 응답의 simmons_news 저장 후 섹션 갱신 */
+function applySimmonsNewsUpdate(data) {
+  const sn = data && data.sections && data.sections.simmons_news;
+  if (!sn) return;
+  _simmonsNews = sn;
+  if (sn.status && sn.status !== 'ok') console.warn('[update] simmons_news:', sn.reason || sn.status);
+  renderSimmonsNews();
 }
 
-/* ── 해외 시장 현황: World Bank 단계구분도 (Leaflet) ─────────────────────
-   매트리스 시장 "규모"가 아니라 수요 잠재력 지표(인구·소득·소비). API 키 불필요. */
-let _wbMarket = null;      // { consumer_power:{...}, consumption:{...}, population:{...}, gdp_percap:{...} }
-let _wbMetric = 'consumer_power';  // 기본값: 가구 소비력
-let _leaflet = null;       // { map, layer, geojson }
-let _worldGeoPromise = null;
-
-const CRIMSON_RAMP = ['#FDECEE', '#F7B9C1', '#EE8290', '#E24A5E', '#C8102E', '#8E0B20'];
-const NODATA_COLOR = '#E5E8ED';
-
-/** 응답의 market 를 저장하고 지도 갱신 */
-function applyMarketUpdate(data) {
-  const mk = data && data.sections && data.sections.market;
-  if (!mk) return;
-  if (mk.status === 'error') { _wbMarket = null; console.warn('[update] market error:', mk.reason); }
-  else {
-    _wbMarket = mk.indicators || null;
-    const keys = _wbMarket ? Object.keys(_wbMarket) : [];
-    if (keys.length && !keys.includes(_wbMetric)) _wbMetric = keys[0];
+/** 시몬스 코리아 소식 — 썸네일 카드 그리드 (제목 클릭 → 원문 새 탭) */
+function renderSimmonsNews() {
+  const el = document.getElementById('simmonsNewsGrid');
+  if (!el) return;
+  const items = (_simmonsNews && Array.isArray(_simmonsNews.items)) ? _simmonsNews.items : null;
+  if (!items || !items.length) {
+    el.innerHTML = emptyState('데이터 없음');
+    return;
   }
-  renderMarket();
+  el.innerHTML = items.map((it) => {
+    const url = safeUrl(it.link);
+    const img = safeUrl(it.image);
+    // 썸네일: 이미지 있으면 표시(로드 실패 시 그라데이션+워드마크로 대체), 없으면 그라데이션
+    const thumb = img
+      ? `<div class="sk-card__thumb"><img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('sk-card__thumb--ph');this.remove()"><span class="sk-card__wm">SIMMONS</span></div>`
+      : `<div class="sk-card__thumb sk-card__thumb--ph"><span class="sk-card__wm">SIMMONS</span></div>`;
+    const tag = url ? 'a' : 'div';
+    const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
+    return `<${tag} class="sk-card"${attrs}>
+      ${thumb}
+      <div class="sk-card__body">
+        <h3 class="sk-card__title">${escapeHtml(it.title)}</h3>
+        <div class="sk-card__meta">${escapeHtml(it.source || '')}${it.date ? '<span class="sk-dot"></span>' + escapeHtml(it.date) : ''}</div>
+      </div>
+    </${tag}>`;
+  }).join('');
 }
 
 /** 응답의 news(Google News RSS)를 저장하고 뉴스 섹션 갱신 */
@@ -615,142 +618,6 @@ function applyNewsUpdate(data) {
   renderNews();
 }
 
-/** world countries GeoJSON (feature.id = ISO3) — 1회 로드 캐시 */
-function loadWorldGeo() {
-  if (_worldGeoPromise) return _worldGeoPromise;
-  _worldGeoPromise = fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json')
-    .then((r) => { if (!r.ok) throw new Error('geojson HTTP ' + r.status); return r.json(); });
-  return _worldGeoPromise;
-}
-
-/** Leaflet 지도 1회 생성 (밝은 OSM 기반 베이스맵) */
-function ensureLeafletMap() {
-  if (_leaflet && _leaflet.map) return _leaflet;
-  const el = document.getElementById('wbMap');
-  if (!el || typeof L === 'undefined') return null;
-  el.innerHTML = '';
-  const map = L.map(el, { minZoom: 1, maxZoom: 6, worldCopyJump: true, scrollWheelZoom: false })
-    .setView([25, 10], 1.4);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap · © CARTO', subdomains: 'abcd', maxZoom: 6,
-  }).addTo(map);
-  _leaflet = { map, layer: null, geojson: null };
-  return _leaflet;
-}
-
-/** 분위 임계값 (색상 개수만큼 균등 분포) */
-function quantileBins(sorted, nColors) {
-  const bins = [];
-  if (!sorted.length) return bins;
-  for (let i = 1; i < nColors; i++) {
-    const idx = Math.floor((sorted.length * i) / nColors);
-    bins.push(sorted[Math.min(idx, sorted.length - 1)]);
-  }
-  return bins;
-}
-
-/** iso3 값(만) 큰 숫자를 읽기 쉽게 (억/만 축약, 그 외 천단위) */
-function fmtWbValue(v, unit) {
-  if (v == null || !isFinite(v)) return '데이터 없음';
-  const n = Math.round(v);
-  if (unit === '명') {
-    if (n >= 1e8) return (n / 1e8).toFixed(2) + '억 명';
-    if (n >= 1e4) return Math.round(n / 1e4).toLocaleString('ko-KR') + '만 명';
-    return n.toLocaleString('ko-KR') + ' 명';
-  }
-  // USD 등
-  if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
-  if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
-  return (unit === 'USD' ? '$' : '') + n.toLocaleString('en-US') + (unit === 'USD' ? '' : ' ' + unit);
-}
-
-/** 섹션 2 전체 렌더: 지표 토글 + 단계구분도 (데이터 없으면 안내) */
-function renderMarket() {
-  const toggleEl = document.getElementById('wbToggle');
-  const mapEl = document.getElementById('wbMap');
-  if (!mapEl) return;
-
-  if (!_wbMarket) {
-    if (_leaflet && _leaflet.map) { _leaflet.map.remove(); _leaflet = null; }
-    if (toggleEl) toggleEl.innerHTML = '';
-    mapEl.innerHTML = '<div class="wb-placeholder">‘업데이트’를 누르면 World Bank 데이터로 세계 지도를 표시합니다</div>';
-    return;
-  }
-
-  const ORDER = ['consumer_power', 'consumption', 'population', 'gdp_percap'];
-  const keys = Object.keys(_wbMarket).sort((a, b) => {
-    const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-  if (!keys.includes(_wbMetric)) _wbMetric = keys[0];
-  if (toggleEl) {
-    toggleEl.innerHTML = keys.map((k) =>
-      `<button class="mkt-tab ${k === _wbMetric ? 'is-active' : ''}" data-metric="${escapeHtml(k)}">${escapeHtml(_wbMarket[k].label)}</button>`).join('');
-  }
-  if (mapEl.querySelector('.wb-placeholder')) mapEl.innerHTML = '';
-  renderChoropleth();
-}
-
-/** 현재 지표로 나라별 색을 칠한다 */
-async function renderChoropleth() {
-  const lf = ensureLeafletMap();
-  const mapEl = document.getElementById('wbMap');
-  if (!lf) { if (mapEl) mapEl.innerHTML = '<div class="wb-placeholder">지도를 불러오지 못했습니다 (Leaflet 로드 실패)</div>'; return; }
-
-  let geo = lf.geojson;
-  if (!geo) {
-    try { geo = await loadWorldGeo(); lf.geojson = geo; }
-    catch (e) { if (mapEl) mapEl.innerHTML = '<div class="wb-placeholder">지도 데이터를 불러오지 못했습니다 (오프라인?)</div>'; return; }
-  }
-  if (!_wbMarket || !_wbMarket[_wbMetric]) return;
-
-  const ind = _wbMarket[_wbMetric];
-  const data = ind.data || {};
-  const isoOf = (f) => f.id || (f.properties && (f.properties.iso_a3 || f.properties.ISO_A3));
-
-  // 색 스케일: 지도에 실제 있는 국가값만으로 분위 계산 (집계·미매칭 제외)
-  const vals = [];
-  geo.features.forEach((f) => { const v = data[isoOf(f)]; if (v != null && isFinite(v)) vals.push(v); });
-  vals.sort((a, b) => a - b);
-  const bins = quantileBins(vals, CRIMSON_RAMP.length);
-  const colorFor = (v) => {
-    if (v == null || !isFinite(v)) return NODATA_COLOR;
-    let i = 0; while (i < bins.length && v > bins[i]) i++;
-    return CRIMSON_RAMP[Math.min(i, CRIMSON_RAMP.length - 1)];
-  };
-
-  if (lf.layer) { lf.map.removeLayer(lf.layer); lf.layer = null; }
-  lf.layer = L.geoJSON(geo, {
-    style: (f) => {
-      const v = data[isoOf(f)];
-      return { fillColor: colorFor(v), fillOpacity: v == null ? 0.35 : 0.85, color: '#ffffff', weight: 0.5 };
-    },
-    onEachFeature: (f, layer) => {
-      const v = data[isoOf(f)];
-      const name = (f.properties && f.properties.name) || isoOf(f) || '';
-      const yr = ind.year ? ' · ' + ind.year : '';
-      layer.bindTooltip(
-        `<b>${escapeHtml(name)}</b><br>${escapeHtml(ind.label)}: ${escapeHtml(fmtWbValue(v, ind.unit))}${escapeHtml(yr)}`,
-        { sticky: true });
-      layer.on('mouseover', () => layer.setStyle({ weight: 1.6, color: '#333333' }));
-      layer.on('mouseout', () => { if (lf.layer) lf.layer.resetStyle(layer); });
-    },
-  }).addTo(lf.map);
-
-  setTimeout(() => { if (_leaflet && _leaflet.map) _leaflet.map.invalidateSize(); }, 60);
-}
-
-/** 지표 토글 (인구 / 1인당 GDP / 가계소비지출) */
-function initMarket() {
-  const t = document.getElementById('wbToggle');
-  if (!t) return;
-  t.addEventListener('click', (e) => {
-    const b = e.target.closest('.mkt-tab');
-    if (!b) return;
-    _wbMetric = b.dataset.metric;
-    renderMarket();
-  });
-}
 
 /* ============================================================
    3) 경쟁사 분석 섹션 — 국외(Global) / 국내(Korea) 두 그룹
@@ -1715,7 +1582,7 @@ function wireFxInteraction() {
 
 /** 데이터 변경 시 데이터 의존 섹션 재렌더 */
 function refreshSections() {
-  renderMarket();
+  renderSimmonsNews();
   renderCompetitor();
   renderNews();
   renderDomestic();
@@ -1737,7 +1604,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initNav();
   initUpload();
   initNews();
-  initMarket();
   initReport();
   initUpdate();
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
@@ -1820,7 +1686,7 @@ function resetDashboard() {
   // 업데이트/기본값으로 채워졌던 모든 섹션 데이터 제거 → 각 섹션 "준비중" 빈 상태
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _materialCharts = []; // 원자재 미니차트 hover 캐시 비우기
-  _wbMarket = null;     // World Bank 지도 데이터 비우기 (renderMarket 이 지도 제거)
+  _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _liveNews = null;     // 실시간 뉴스 비우기
   _domestic = null;     // 국내 브랜드 신제품 비우기
   _domesticFeatured = null;
@@ -1857,7 +1723,7 @@ function initUpdate() {
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
       applyFxUpdate(data);        // 먼저 환율을 반영해야 원자재 카드의 원화 환산이 나온다
       applyMaterialsUpdate(data);
-      applyMarketUpdate(data);
+      applySimmonsNewsUpdate(data);
       applyNewsUpdate(data);
       applyDomesticUpdate(data);
       applyCompetitorsUpdate(data);

@@ -400,80 +400,48 @@ body {
   margin-bottom: 24px;
 }
 
-/* 세계지도(해외 시장 동향) */
-.mkt-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
-}
-.mkt-summary {
-  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 20px 24px; min-width: 240px;
-}
-.mkt-summary--empty { padding: 0; box-shadow: none; background: transparent; }
-.mkt-summary__label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
-.mkt-summary__value { font-size: 30px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.mkt-summary__yoy { margin-top: 6px; font-size: 13px; font-weight: 700; }
-.mkt-summary__yoy.up { color: var(--green); }
-.mkt-summary__yoy.down { color: var(--accent); }
+/* ── 시몬스 코리아 소식 (Google News RSS) ── */
+/* 헤더: 로고 + 제목 */
+.sk-title { display: flex; align-items: center; gap: 10px; }
+.sk-logo-box { display: inline-flex; align-items: center; }
+.sk-logo { height: 30px; width: auto; display: block; }
+.sk-logo-wm { font-weight: 900; letter-spacing: .06em; color: var(--ink); font-size: 16px; }
+.sk-subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.sk-sub { font-size: 13px; color: var(--muted); }
+.sk-src { margin-top: 0 !important; }
 
-.mkt-toggle { display: flex; gap: 8px; flex-wrap: wrap; }
-.mkt-tab {
-  border: 1px solid var(--line); background: var(--card); color: var(--text);
-  border-radius: 999px; padding: 7px 16px; font-size: 13px; font-weight: 600;
-  font-family: inherit; cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
+/* 카드 그리드 (3열 / 2열 / 1열) */
+.sk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.sk-card {
+  display: flex; flex-direction: column; overflow: hidden; text-decoration: none; color: inherit;
+  background: #fff; border: 1px solid #ececf1; border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(17, 17, 26, .05);
+  transition: box-shadow .16s ease, transform .16s ease;
 }
-.mkt-tab:hover { background: var(--field); }
-.mkt-tab.is-active { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.sk-card:hover { box-shadow: 0 10px 26px rgba(17, 17, 26, .10); transform: translateY(-2px); }
 
-/* World Bank 단계구분도 (Leaflet) */
-.wb-note { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-.mkt-toggle { margin-bottom: 12px; }
-.wb-map {
-  height: 420px; border-radius: var(--radius-sm); overflow: hidden;
-  border: 1px solid var(--line); background: var(--field);
-}
-.wb-placeholder {
+/* 썸네일 16:9 (위 모서리 둥글게), 없으면 크림슨→연회색 그라데이션 + 워드마크 */
+.sk-card__thumb {
+  position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #f3f4f7;
   display: flex; align-items: center; justify-content: center;
-  height: 100%; padding: 24px; text-align: center; color: var(--muted); font-size: 13px;
+  border-top-left-radius: 14px; border-top-right-radius: 14px;
 }
-.wb-map .leaflet-container {
-  height: 100%; width: 100%; background: var(--field);
-  font-family: inherit; font-size: 12px;
-}
-.wb-map .leaflet-tooltip { font-family: inherit; font-size: 12px; line-height: 1.5; }
+.sk-card__thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sk-card__thumb--ph { background: linear-gradient(135deg, #c8102e 0%, #e6e7ec 100%); }
+.sk-card__wm { display: none; font-size: 18px; font-weight: 900; letter-spacing: .08em; color: #fff; opacity: .92; }
+.sk-card__thumb--ph .sk-card__wm { display: block; }
 
-.mkt-svg { display: block; width: 100%; height: auto; }
-.mkt-bubble {
-  fill: var(--accent); fill-opacity: .5; stroke: var(--accent); stroke-width: 1;
-  transition: fill-opacity .12s;
+/* 본문: 제목(2줄) + 출처·날짜 */
+.sk-card__body { padding: 14px 16px 16px; }
+.sk-card__title {
+  margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.mkt-bubble:hover { fill-opacity: .78; }
-.mkt-label {
-  font-size: 11px; font-weight: 700; fill: var(--ink);
-  paint-order: stroke; stroke: var(--card); stroke-width: 3px;
-}
-.mkt-map__loading, .mkt-fallback-note { font-size: 13px; color: var(--muted); padding: 10px 0; }
+.sk-card__meta { margin-top: 10px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.sk-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); display: inline-block; }
 
-.mkt-rank { display: flex; flex-direction: column; }
-.mkt-rank__row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--line); }
-.mkt-rank__row:last-child { border-bottom: none; }
-.mkt-rank__name { flex: 1; font-weight: 600; color: var(--ink); }
-.mkt-rank__val { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.mkt-rank__yoy { font-size: 12px; font-weight: 700; }
-.mkt-rank__yoy.up { color: var(--green); }
-.mkt-rank__yoy.down { color: var(--accent); }
-
-.mk-card__region { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 8px; }
-.mk-card__value { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.mk-num { font-size: 28px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
-.mk-unit { font-size: 13px; color: var(--muted); }
-.mk-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
-.mk-yoy { font-size: 13px; font-weight: 700; }
-.mk-yoy--up { color: var(--green); }
-.mk-yoy--down { color: var(--accent); }
-.mk-yoy--flat { color: var(--muted); }
-.mk-metric { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+@media (max-width: 1100px) { .sk-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .sk-grid { grid-template-columns: 1fr; } }
 
 /* 차트 위젯 */
 .viz-figure { position: relative; padding: 22px; }

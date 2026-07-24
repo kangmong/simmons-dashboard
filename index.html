@@ -7,10 +7,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   <!-- SIMMONS 브랜딩 헤더 -->
@@ -84,8 +80,8 @@
       <button class="nav-item is-active" data-view="dashboard">
         <span class="tab-num tab-num--home">⌂</span>대시보드
       </button>
-      <button class="nav-item" data-view="market">
-        <span class="tab-num">2</span>해외 시장 동향
+      <button class="nav-item" data-view="simmons_news">
+        <span class="tab-num">2</span>시몬스 코리아 소식
       </button>
       <button class="nav-item" data-view="competitor">
         <span class="tab-num">3</span>경쟁사 분석
@@ -132,16 +128,24 @@
       </div>
 
       <div class="dash-grid" id="dashGrid">
-        <section class="dash-card" data-section="market">
+        <section class="dash-card" data-section="simmons_news">
           <div class="dash-card__head">
-            <h3 class="dash-card__title">해외 시장 현황</h3>
-            <button class="more-link" data-view="market" type="button">더보기 ›</button>
+            <h3 class="dash-card__title sk-title">
+              <span class="sk-logo-box">
+                <img class="sk-logo" src="logo.png" alt="SIMMONS"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+                <span class="sk-logo-wm" style="display:none">SIMMONS</span>
+              </span>
+              시몬스 코리아 소식
+            </h3>
+            <button class="more-link" data-view="simmons_news" type="button">더보기 ›</button>
           </div>
-          <div class="panel-body" id="body-market">
-            <div class="wb-note">매트리스 수요 잠재력 — 소비시장 규모 기준 (World Bank 지표 활용, 실제 매트리스 시장 규모 아님)</div>
-            <div class="mkt-toggle" id="wbToggle"></div>
-            <div class="wb-map" id="wbMap"></div>
-            <div class="comp-caption">출처: World Bank Open Data</div>
+          <div class="panel-body" id="body-simmons_news">
+            <div class="sk-subhead">
+              <span class="sk-sub">팝업·행사·신제품 소식</span>
+              <span class="comp-caption sk-src">출처: Google News</span>
+            </div>
+            <div class="sk-grid" id="simmonsNewsGrid"></div>
           </div>
         </section>
 

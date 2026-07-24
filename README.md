@@ -3,7 +3,7 @@
 정적 화면(`index.html` + `app.js` + `styles.css`) + 실시간 데이터 API(`/api/update`) 로 구성된
 글로벌 매트리스 시장 인텔리전스 대시보드입니다. **API 키를 전혀 쓰지 않고** 공개 소스만 사용합니다.
 
-- **해외 시장 현황** — World Bank Open Data (수요 잠재력 지표 choropleth)
+- **시몬스 코리아 소식** — Google News RSS (팝업·행사·신제품 등 국내 소식)
 - **경쟁사 분석** — SEC EDGAR (Sleep Number·Tempur Sealy 재무/매출추이)
 - **업계 주요 뉴스** — Google News RSS + 제목 한국어 번역
 - **원자재·원가 동향** — World Bank 핑크시트(월간 원자재 가격) + 원화 환산
@@ -111,7 +111,7 @@ git push
   "updated_at": "2026-07-21 14:58:13",
   "sections": {
     "materials":   { "status": "ok", "period": "2024M12", "rows": [ ... ], "series": { ... } },
-    "market":      { "status": "ok", "indicators": { "population": {...}, "consumer_power": {...} } },
+    "simmons_news": { "status": "ok", "items": [ { "title": "...", "source": "...", "date": "...", "link": "...", "image": null } ] },
     "news":        { "status": "ok", "items": [ { "title": "...", "title_ko": "...", "link": "...", "date": "..." } ] },
     "competitors": { "status": "ok", "companies": [ { "ticker": "SNBR", "revenue": ..., "revenue_trend": {...} } ] },
     "fx":          { "status": "ok", "pair": "USD/KRW", "rate": 1481.18, "change_pct": 0.12, "date": "2026-07-20" }

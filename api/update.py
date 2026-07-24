@@ -148,92 +148,42 @@ def fetch_materials():
     return {"status": "ok", "period": period, "rows": rows, "series": series}
 
 
-# ── 해외 시장(수요 잠재력) — World Bank Open Data (API 키 불필요) ──────────
-WB_INDICATORS = [
-    ("population", "인구", "명", "SP.POP.TOTL"),
-    ("gdp_percap", "1인당 GDP", "USD", "NY.GDP.PCAP.CD"),
-    ("consumption", "가계소비지출", "USD", "NE.CON.PRVT.CD"),
-]
-
-# 집계 지역(국가가 아닌 그룹) iso3 코드 — 지도에 안 쓰이므로 제외
-WB_AGGREGATES = frozenset([
-    "WLD", "ARB", "CEB", "CSS", "EAP", "EAR", "EAS", "ECA", "ECS", "EMU", "EUU",
-    "FCS", "HIC", "HPC", "IBD", "IBT", "IDA", "IDB", "IDX", "INX", "LAC", "LCN",
-    "LDC", "LIC", "LMC", "LMY", "LTE", "MEA", "MIC", "MNA", "NAC", "OED", "OSS",
-    "PRE", "PSS", "PST", "SAS", "SSA", "SSF", "SST", "TEA", "TEC", "TLA", "TMN",
-    "TSA", "TSS", "UMC", "AFE", "AFW", "EAR",
-])
+# ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
+SIMMONS_NEWS_QUERY = "시몬스 (팝업 OR 행사 OR 전시 OR 신제품 OR 이벤트)"
 
 
-def _wb_fetch_indicator(code):
-    """World Bank 지표 코드 → ({iso3: value}, 대표연도). mrnev=1 = 각국 최신값."""
-    url = ("https://api.worldbank.org/v2/country/all/indicator/%s"
-           "?format=json&per_page=400&mrnev=1" % code)
-    resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-    resp.raise_for_status()
-    js = resp.json()
-    data, latest_year = {}, None
-    if isinstance(js, list) and len(js) >= 2 and js[1]:
-        for rec in js[1]:
-            iso3 = (rec.get("countryiso3code") or "").strip()
-            val = rec.get("value")
-            yr = rec.get("date")
-            # iso3 없는/집계 지역 제외
-            if len(iso3) != 3 or iso3 in WB_AGGREGATES:
-                continue
-            if val is None:
-                continue
-            data[iso3] = val
-            if yr and (latest_year is None or yr > latest_year):
-                latest_year = yr
-    return data, (latest_year or "")
-
-
-def update_market():
-    """해외 시장 수요 잠재력 지표. 한 지표만 실패해도 나머지는 반환."""
-    indicators = {}
-    any_ok = False
-    for key, label, unit, code in WB_INDICATORS:
-        try:
-            data, year = _wb_fetch_indicator(code)
-            if data:
-                indicators[key] = {"label": label, "unit": unit, "data": data, "year": year}
-                any_ok = True
-            else:
-                indicators[key] = {"label": label, "unit": unit, "data": {}, "year": "", "error": "no data"}
-        except Exception as e:  # noqa: BLE001
-            indicators[key] = {"label": label, "unit": unit, "data": {}, "year": "", "error": str(e)}
-
-    # ── 조합 지표: 가구 소비력(소비시장 규모) ──
-    # 가계소비지출 총액(NE.CON.PRVT.CD)을 그대로 쓰고, 없는 나라는
-    # 인구(SP.POP.TOTL) × 1인당 가계소비(NE.CON.PRVT.PC.KD)로 채운다.
+def update_simmons_news():
+    """시몬스 팝업·행사·신제품 등 국내 소식 최신 6건 + 기사 대표 이미지(og:image).
+       실패 시 status='데이터 없음'. (_og_image·_fmt_pubdate 는 하단에서 정의)"""
+    url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(SIMMONS_NEWS_QUERY)
+           + "&hl=ko&gl=KR&ceid=KR:ko")
     try:
-        pop = indicators.get("population", {}).get("data", {})
-        cons = indicators.get("consumption", {}).get("data", {})
-        percap, pc_year = _wb_fetch_indicator("NE.CON.PRVT.PC.KD")
-        cp = {}
-        for iso, v in cons.items():
-            if v is not None:
-                cp[iso] = v
-        for iso in (set(pop) & set(percap)):
-            if iso not in cp:
-                cp[iso] = pop[iso] * percap[iso]
-        cp_year = (indicators.get("consumption", {}).get("year")
-                   or indicators.get("population", {}).get("year") or pc_year)
-        if cp:
-            indicators["consumer_power"] = {"label": "가구 소비력(소비시장 규모)", "unit": "USD",
-                                            "data": cp, "year": cp_year}
-            any_ok = True
-        else:
-            indicators["consumer_power"] = {"label": "가구 소비력(소비시장 규모)", "unit": "USD",
-                                            "data": {}, "year": "", "error": "no data"}
+        resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+        root = ET.fromstring(resp.content)
     except Exception as e:  # noqa: BLE001
-        indicators["consumer_power"] = {"label": "가구 소비력(소비시장 규모)", "unit": "USD",
-                                        "data": {}, "year": "", "error": str(e)}
+        return {"status": "데이터 없음", "reason": str(e), "items": []}
 
-    if not any_ok:
-        return {"status": "error", "reason": "World Bank 지표를 하나도 받지 못했습니다"}
-    return {"status": "ok", "indicators": indicators}
+    items = []
+    for item in root.iter("item"):
+        title = (item.findtext("title") or "").strip()
+        if not title:
+            continue
+        link = (item.findtext("link") or "").strip()
+        pub = item.findtext("pubDate") or ""
+        src_el = item.find("source")
+        source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+        items.append({"title": title, "link": link, "source": source, "date": _fmt_pubdate(pub)})
+        if len(items) >= 6:
+            break
+
+    if not items:
+        return {"status": "데이터 없음", "items": []}
+
+    # 대표 이미지(og:image) — 실패하면 None(프런트에서 그라데이션 대체)
+    for it in items:
+        it["image"] = _og_image(it["link"])
+    return {"status": "ok", "items": items}
 
 
 # ── 업계 주요 뉴스 — Google News RSS (API 키 불필요) ─────────────────────
@@ -839,7 +789,7 @@ def update_fx():
 # 섹션별 fetcher — 요청 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.
 FETCHERS = {
     "materials": fetch_materials,
-    "market": update_market,
+    "simmons_news": update_simmons_news,
     "news": update_news,
     "domestic": update_domestic,
     "competitors": update_competitors,
