@@ -569,6 +569,16 @@ def _quarter_metric(facts, keys):
     return (val, yoy, qs[latest]["label"])
 
 
+def _logo_candidates(domain):
+    """로고 자동 소스 후보(앞에서부터 시도, 프런트에서 onerror 체인으로 대체):
+       1) Clearbit  2) Google 파비콘(고해상)  3) 도메인 파비콘 직접."""
+    return [
+        "https://logo.clearbit.com/%s" % domain,
+        "https://www.google.com/s2/favicons?domain=%s&sz=128" % domain,
+        "https://%s/favicon.ico" % domain,
+    ]
+
+
 def update_competitors():
     """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
        국내(Korea)는 다음 단계(DART)에서 채우므로 준비중. 한 회사 실패해도 나머지 반환."""
@@ -582,7 +592,7 @@ def update_competitors():
         entry = {"name": name, "ticker": ticker, "quarter": None,
                  "revenue": None, "revenue_yoy": None,
                  "net_income": None, "net_income_yoy": None,
-                 "logo_url": "https://logo.clearbit.com/%s" % domain}
+                 "logo_urls": _logo_candidates(domain)}
         cik = _resolve_cik(ticker, cikmap, fallback)
         if cik is None:
             entry["error"] = "CIK 없음"

@@ -787,13 +787,26 @@ function compYoy(yoy) {
   return `<span class="stk-chg ${cls}">${txt} <span class="gco-yoy">YoY</span></span>`;
 }
 
+/** 로고 onerror 체인: data-srcs(|구분)의 다음 후보로 교체, 다 떨어지면 제거→텍스트 노출 */
+function cLogoNext(img) {
+  const rest = (img.getAttribute('data-srcs') || '').split('|').filter(Boolean);
+  if (rest.length) {
+    img.setAttribute('data-srcs', rest.slice(1).join('|'));
+    img.src = rest[0];
+  } else {
+    img.remove();
+  }
+}
+
 /** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 YoY) */
 function compGlobalCard(c, i) {
   const color = COMP_COLORS[i % COMP_COLORS.length];
-  const logo = safeUrl(c.logo_url);
-  // 로고 위에 티커 텍스트를 깔고, 로고 로드 실패(onerror) 시 텍스트가 드러남
-  const logoImg = logo
-    ? `<img class="gco-logo__img" src="${escapeHtml(logo)}" alt="${escapeHtml(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+  // 로고 소스 다중 시도: logo_urls[0]→[1]→[2] 순서로 onerror 체인, 다 깨지면 티커 텍스트.
+  const srcs = (Array.isArray(c.logo_urls) ? c.logo_urls : (c.logo_url ? [c.logo_url] : []))
+    .map(safeUrl).filter(Boolean);
+  // 로고 위에 티커 텍스트를 깔아, 이미지가 모두 실패하면 텍스트가 드러남
+  const logoImg = srcs.length
+    ? `<img class="gco-logo__img" src="${escapeHtml(srcs[0])}" alt="${escapeHtml(c.name)}" loading="lazy" referrerpolicy="no-referrer" data-srcs="${escapeHtml(srcs.slice(1).join('|'))}" onerror="cLogoNext(this)">`
     : '';
   const hasData = c.revenue != null || c.net_income != null;
   const body = hasData
