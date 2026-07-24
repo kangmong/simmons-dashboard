@@ -596,6 +596,7 @@ NAVER_COMPANIES = [
     ("에이스침대", "003800", "acebed.com"),
     ("지누스", "013890", "zinus.co.kr"),
     ("한샘", "009240", "hanssem.com"),
+    ("현대리바트", "079430", "hyundailivart.co.kr"),
 ]
 
 
