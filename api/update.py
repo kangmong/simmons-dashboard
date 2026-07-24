@@ -597,6 +597,8 @@ NAVER_COMPANIES = [
     ("지누스", "013890", "zinus.co.kr"),
     ("한샘", "009240", "hanssem.com"),
     ("현대리바트", "079430", "hyundailivart.co.kr"),
+    ("코웨이", "021240", "coway.co.kr"),
+    ("에넥스", "011090", "enex.co.kr"),
 ]
 
 
