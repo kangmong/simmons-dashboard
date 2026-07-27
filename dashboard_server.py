@@ -781,8 +781,17 @@ def update_fx():
 
 
 # 섹션별 fetcher — 버튼 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.
+def update_usd_krw():
+    """원자재(USD/톤) 원화 환산용 USD/KRW 환율. 실패 시 status=error."""
+    r = _usd_krw_rate()
+    if r is None:
+        return {"status": "error", "rate": None}
+    return {"status": "ok", "rate": r}
+
+
 FETCHERS = {
     "simmons_news": update_simmons_news,
+    "usd_krw": update_usd_krw,
     "news": update_news,
     "domestic": update_domestic,
     "competitors": update_competitors,

@@ -968,10 +968,22 @@ const ICIS_DATA = {
   PO: [2100,2100,2400,2350,2275,1850,1790,2070,2070,2240,2250,2070,1700,1800,1500,1450,1375,1330,1220,1050,1120,1250,1050,1050,1050,1150,1380,1165,1200,1210,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,965,948,920,903,915,920,904,907,910,925,955,962,994,1000,1355,1710,1713,1398],
 };
 const ICIS_SERIES = [
-  { key: 'PPG', color: 'var(--blue)' },
-  { key: 'TDI', color: 'var(--green)' },
-  { key: 'MDI', color: 'var(--amber)' },
-  { key: 'PO', color: 'var(--violet)' },
+  { key: 'PPG', color: '#3B82F6' },  // 파랑
+  { key: 'TDI', color: '#12B981' },  // 초록
+  { key: 'MDI', color: '#F59E0B' },  // 주황
+  { key: 'PO',  color: '#8B5CF6' },  // 보라
+];
+
+// 원료 용어 설명 (그래프 색과 매칭)
+const ICIS_TERMS = [
+  { key: 'PPG', color: '#3B82F6', full: 'Polypropylene Glycol (폴리프로필렌글리콜, Polyether Polyol)',
+    use: '폴리우레탄 폼의 주원료. 침대 매트리스·소파·자동차 시트 등에 사용' },
+  { key: 'TDI', color: '#12B981', full: 'Toluene Diisocyanate (톨루엔 디이소시아네이트)',
+    use: '연질(Soft) 폴리우레탄 폼 제조에 사용되는 핵심 원료' },
+  { key: 'MDI', color: '#F59E0B', full: 'Methylene Diphenyl Diisocyanate (메틸렌 디페닐 디이소시아네이트)',
+    use: '경질(Rigid) 폴리우레탄 폼 및 고기능 폼 제조에 사용되는 원료' },
+  { key: 'PO', color: '#8B5CF6', full: 'Propylene Oxide (프로필렌 옥사이드)',
+    use: 'PPG(폴리올)를 만드는 기초 원료(원료의 원료)' },
 ];
 
 // 그래프 아래 "주요 시황 원자재 링크" (클릭 시 새 탭)
@@ -989,23 +1001,82 @@ const MATERIAL_LINKS = [
 ];
 
 let _icisChart = null;
+let _matReady = false;      // [업데이트] 누르기 전엔 빈 초기 상태
+let _matYear = null;        // 선택된 연도('2021'~'2026' | 'all')
+let _matUsdKrw = null;      // USD/KRW 환율(업데이트 시 확보)
 
-/** 섹션 5 전체 렌더: ICIS 시황 그래프 + 시황 링크 */
-function renderMaterial() {
-  renderIcisChart();
-  renderMaterialLinks();
+/** 응답의 usd_krw 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
+function applyMaterialUpdate(data) {
+  _matReady = true;
+  const uk = data && data.sections && data.sections.usd_krw;
+  _matUsdKrw = (uk && uk.status === 'ok') ? uk.rate : null;
+  renderMaterial();
 }
 
-/** 4개 원료(PPG·TDI·MDI·PO) 월별 선그래프 (null 구간은 선 끊김) */
-function renderIcisChart() {
-  const host = document.getElementById('materialChart');
-  if (!host) return;
-  const periods = ICIS_DATA.periods, n = periods.length;
-  const series = ICIS_SERIES.map((s) => ({ key: s.key, color: s.color, values: ICIS_DATA[s.key] }));
+/** 선택 연도에 맞춰 periods/series 슬라이스 (데이터 있는 원료만) */
+function icisViewData(year) {
+  const P = ICIS_DATA.periods;
+  const idx = year === 'all'
+    ? P.map((_, i) => i)
+    : P.map((p, i) => (p.slice(0, 4) === year ? i : -1)).filter((i) => i >= 0);
+  const periods = idx.map((i) => P[i]);
+  const series = ICIS_SERIES
+    .map((s) => ({ key: s.key, color: s.color, values: idx.map((i) => ICIS_DATA[s.key][i]) }))
+    .filter((s) => s.values.some((v) => v != null));  // 값 없는 원료(예: 2024 PO)는 생략
+  return { periods, series };
+}
+
+/** 섹션 5 전체 렌더: 업데이트 전 안내 → 업데이트 후 연도 툴바 → 연도 선택 시 그래프 */
+function renderMaterial() {
+  const root = document.getElementById('materialRoot');
+  if (!root) return;
+  if (!_matReady) {
+    root.innerHTML = emptyState('업데이트 버튼을 누르면 표시됩니다');
+    return;
+  }
+  const years = ['2021', '2022', '2023', '2024', '2025', '2026', 'all'];
+  const toolbar = `<div class="icis-years">${years.map((y) =>
+    `<button class="icis-year${y === _matYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`;
+
+  let body;
+  if (!_matYear) {
+    body = '<div class="icis-prompt">연도를 선택하세요</div>';
+  } else {
+    const { periods, series } = icisViewData(_matYear);
+    body = buildIcisChart(periods, series) + icisLatest(periods, series) + icisTermsTable();
+  }
+
+  root.innerHTML = `<div class="viz-root viz-figure icis-figure">
+    <div class="viz-head"><div>
+      <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
+      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤)</div>
+    </div></div>
+    ${toolbar}
+    ${body}
+    <div class="viz-tooltip" id="icisTooltip"></div>
+    <div class="comp-caption">출처: ICIS Asia</div>
+  </div>
+  ${renderMaterialLinksHtml()}`;
+
+  const yearsEl = root.querySelector('.icis-years');
+  if (yearsEl) yearsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.icis-year');
+    if (!b) return;
+    _matYear = b.dataset.year;
+    renderMaterial();
+  });
+  if (_matYear) wireIcisChart();
+}
+
+/** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
+function buildIcisChart(periods, series) {
+  const n = periods.length;
+  if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
+  const singleYear = periods.every((p) => p.slice(0, 4) === periods[0].slice(0, 4));
 
   const all = series.flatMap((s) => s.values).filter((v) => v != null);
   let ymin = Math.min(...all), ymax = Math.max(...all);
-  const yp = (ymax - ymin) * 0.08; ymin = Math.max(0, ymin - yp); ymax += yp;
+  const yp = (ymax - ymin) * 0.08 || 100; ymin = Math.max(0, ymin - yp); ymax += yp;
 
   const W = 720, H = 300, padL = 54, padR = 16, padT = 18, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
@@ -1018,55 +1089,76 @@ function renderIcisChart() {
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
   }).join('');
 
-  const step = 6; // 6개월 간격 라벨
+  const step = Math.max(1, Math.ceil(n / 8));
   const xticks = periods.map((p, i) => {
     if (!(i % step === 0 || i === n - 1)) return '';
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="9.5" fill="var(--muted)">${escapeHtml(p)}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="9.5" fill="var(--muted)">${escapeHtml(singleYear ? p.slice(5) + '월' : p)}</text>`;
   }).join('');
 
   const lines = series.map((s) => {
     let path = '', pen = false;
     s.values.forEach((v, i) => {
-      if (v == null) { pen = false; return; }        // null → 선 끊김
+      if (v == null) { pen = false; return; }
       const x = X(i), y = Y(v);
       path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
     });
-    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
   _icisChart = { periods, series, geom: { X, Y, n, W, padL } };
 
-  host.innerHTML = `<div class="viz-root viz-figure">
-    <div class="viz-head"><div>
-      <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
-      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤)</div>
-    </div></div>
-    ${legend}
-    <svg class="viz-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
+  return `${legend}
+    <svg class="viz-svg icis-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
       ${grid}${xticks}${lines}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
       <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-    </svg>
-    <div class="viz-tooltip" id="icisTooltip"></div>
-    <div class="comp-caption">출처: ICIS Asia</div>
-  </div>`;
-  wireIcisChart();
+    </svg>`;
 }
 
-/** 크로스헤어 + 툴팁 (월 · 원료별 가격) */
+/** 최신값 병기 (USD/톤 → ≈ 원/톤) + 적용 환율 */
+function icisLatest(periods, series) {
+  const rate = _matUsdKrw;
+  const items = series.map((s) => {
+    for (let i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return { key: s.key, color: s.color, v: s.values[i] };
+    return null;
+  }).filter(Boolean);
+  if (!items.length) return '';
+  const rows = items.map((it) => {
+    const krw = (rate != null) ? ` <span class="icis-krw">≈ 약 ${escapeHtml(fmtKrwShort(it.v * rate))}/톤</span>` : '';
+    return `<span class="icis-latest__item"><span class="icis-dot" style="background:${it.color}"></span><b>${it.key}</b> ${it.v.toLocaleString('en-US')} USD/톤${krw}</span>`;
+  }).join('');
+  const rateNote = (rate != null)
+    ? `<span class="icis-rate">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원</span>` : '';
+  return `<div class="icis-latest"><div class="icis-latest__head">최신값 ${rateNote}</div><div class="icis-latest__row">${rows}</div></div>`;
+}
+
+/** 원료 용어 설명표 (색 점 매칭) */
+function icisTermsTable() {
+  const rows = ICIS_TERMS.map((t) =>
+    `<tr><td class="icis-term__var"><span class="icis-dot" style="background:${t.color}"></span>${t.key}</td>
+      <td>${escapeHtml(t.full)}</td><td>${escapeHtml(t.use)}</td></tr>`).join('');
+  return `<div class="icis-terms">
+    <h3 class="subhead">원료 용어 설명</h3>
+    <div class="icis-term-wrap"><table class="icis-termtable">
+      <thead><tr><th>변수</th><th>의미</th><th>용도</th></tr></thead><tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+/** 크로스헤어 + 툴팁 (월 · 원료별 USD/톤 및 원화 환산) */
 function wireIcisChart() {
-  const fig = document.querySelector('#materialChart .viz-figure');
+  const fig = document.querySelector('#materialRoot .icis-figure');
   const tip = document.getElementById('icisTooltip');
   if (!fig || !tip || !_icisChart) return;
-  const svg = fig.querySelector('.viz-svg');
+  const svg = fig.querySelector('.icis-svg');
   const overlay = svg.querySelector('.icis-overlay');
   const cross = svg.querySelector('.icis-cross');
   const dots = svg.querySelector('.icis-dots');
-  const c = _icisChart, g = c.geom;
+  const c = _icisChart, g = c.geom, rate = _matUsdKrw;
   const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
   overlay.addEventListener('mousemove', (evt) => {
     const rect = svg.getBoundingClientRect();
@@ -1079,12 +1171,12 @@ function wireIcisChart() {
     c.series.forEach((s) => {
       const v = s.values[i];
       if (v == null) return;
-      const cy = g.Y(v);
-      dh += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
-      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toLocaleString('en-US')}</span></div>`;
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      const krw = (rate != null) ? ` (≈ ${fmtKrwShort(v * rate)}/톤)` : '';
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toLocaleString('en-US')} USD/톤${krw}</span></div>`;
     });
     dots.innerHTML = dh;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])} · USD/톤</div>${rows}`;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -1095,10 +1187,8 @@ function wireIcisChart() {
   overlay.addEventListener('mouseleave', clear);
 }
 
-/** 주요 시황 원자재 링크 카드 (새 탭) */
-function renderMaterialLinks() {
-  const el = document.getElementById('materialLinks');
-  if (!el) return;
+/** 주요 시황 원자재 링크 HTML */
+function renderMaterialLinksHtml() {
   const cards = MATERIAL_LINKS.map((l) => `<a class="matlink" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">
     <span class="matlink__icon" aria-hidden="true">${l.icon}</span>
     <span class="matlink__txt">
@@ -1107,8 +1197,9 @@ function renderMaterialLinks() {
     </span>
     <span class="matlink__go" aria-hidden="true">↗</span>
   </a>`).join('');
-  el.innerHTML = `<h3 class="subhead matlink-head">주요 시황 원자재 링크</h3><div class="matlink-grid">${cards}</div>`;
+  return `<h3 class="subhead matlink-head">주요 시황 원자재 링크</h3><div class="matlink-grid">${cards}</div>`;
 }
+
 
 
 /** 필터 클릭(위임) — 한 번만 연결 */
@@ -1436,6 +1527,7 @@ function resetDashboard() {
   // 업데이트/기본값으로 채워졌던 모든 섹션 데이터 제거 → 각 섹션 "준비중" 빈 상태
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
+  _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _liveNews = null;     // 실시간 뉴스 비우기
   _domestic = null;     // 국내 브랜드 신제품 비우기
   _domesticFeatured = null;
@@ -1471,6 +1563,7 @@ function initUpdate() {
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
       applyFxUpdate(data);
+      applyMaterialUpdate(data);
       applySimmonsNewsUpdate(data);
       applyNewsUpdate(data);
       applyDomesticUpdate(data);

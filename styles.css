@@ -589,6 +589,37 @@ body {
    ============================================================ */
 .icis-overlay { cursor: crosshair; }
 
+/* 연도 선택 툴바 */
+.icis-years { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 14px; }
+.icis-year {
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.icis-year:hover { background: var(--field); }
+.icis-year.is-active { background: var(--accent); color: #fff; border-color: transparent; }
+.icis-prompt { padding: 48px 0; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* 최신값 병기 */
+.icis-latest { margin-top: 12px; }
+.icis-latest__head { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.icis-rate { font-size: 12px; font-weight: 500; color: var(--muted); }
+.icis-latest__row { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.icis-latest__item { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.icis-latest__item b { color: var(--ink); font-weight: 700; margin-right: 2px; }
+.icis-krw { color: var(--muted); font-size: 12px; }
+.icis-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+
+/* 원료 용어 설명표 */
+.icis-terms { margin-top: 22px; }
+.icis-term-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.icis-termtable { border-collapse: collapse; width: 100%; font-size: 13px; }
+.icis-termtable th, .icis-termtable td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.icis-termtable thead th { background: var(--field); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.icis-termtable tbody tr:last-child td { border-bottom: none; }
+.icis-termtable td { color: var(--text); line-height: 1.5; }
+.icis-term__var { font-weight: 800; color: var(--ink); white-space: nowrap; }
+
 /* 주요 시황 원자재 링크 */
 .matlink-head { margin-top: 22px; }
 .matlink-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
