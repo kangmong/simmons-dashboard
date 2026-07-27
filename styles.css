@@ -88,23 +88,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 14px 26px;
+  gap: 16px;
+  padding: 10px 24px;
   background: linear-gradient(120deg, var(--accent-soft) 0%, var(--card) 58%);
   border-bottom: 1px solid var(--line);
   overflow: hidden;
 }
 .hero__lockup { min-width: 0; }
 .hero__logo { display: flex; align-items: baseline; gap: 10px; }
-.hero__mark { font-size: 26px; font-weight: 800; letter-spacing: .16em; color: var(--ink); line-height: 1; }
-.hero__factorium { font-size: 13px; font-weight: 700; letter-spacing: .28em; color: var(--accent); }
-.hero__rule { display: block; width: 52px; height: 3px; border-radius: 2px; background: var(--accent); margin: 8px 0; }
-.hero__title { margin: 0 0 3px; font-size: 19px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
-.hero__desc { margin: 0; font-size: 13px; color: var(--muted); }
-.hero__art { width: 300px; max-width: 34%; height: auto; flex: 0 0 auto; }
+.hero__mark { font-size: 23px; font-weight: 800; letter-spacing: .16em; color: var(--ink); line-height: 1; }
+.hero__factorium { font-size: 12px; font-weight: 700; letter-spacing: .28em; color: var(--accent); }
+.hero__rule { display: block; width: 46px; height: 2px; border-radius: 2px; background: var(--accent); margin: 6px 0; }
+.hero__title { margin: 0 0 2px; font-size: 17px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+.hero__desc { margin: 0; font-size: 12px; color: var(--muted); }
+.hero__art { width: 168px; max-width: 20%; height: auto; flex: 0 0 auto; }
 
 /* ── 레이아웃 ── */
-.layout { display: flex; min-height: calc(100vh - 61px); }
+.layout { display: flex; min-height: calc(100vh - 180px); }
 
 .tabs {
   flex: 0 0 210px;
@@ -180,7 +180,7 @@ body {
 .uw-note { font-size: 11px; color: var(--muted); text-align: center; }
 
 /* ── 컨텐츠 ── */
-.content { flex: 1; padding: 18px 22px; min-width: 0; }
+.content { flex: 1; padding: 12px 20px; min-width: 0; }
 
 .focus-back {
   display: none;
@@ -193,22 +193,22 @@ body {
 /* 대시보드 헤더 */
 .dash-header {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
 }
-.dash-title h2 { margin: 0; font-size: 21px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
-.dash-title p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+.dash-title h2 { margin: 0; font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
+.dash-title p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
 .dash-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .dash-ctl { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .dash-ctl b { color: var(--ink); font-weight: 700; font-size: 13px; }
 
 /* 대시보드 그리드 */
-.dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+.dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: start; }
 .dash-card {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 14px; display: flex; flex-direction: column; min-width: 0;
+  padding: 11px 12px; display: flex; flex-direction: column; min-width: 0;
 }
 .dash-card.is-hidden { display: none; }
-.dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .dash-card__title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
 .more-link {
   border: none; background: transparent; color: var(--accent);
@@ -217,9 +217,9 @@ body {
 .more-link:hover { text-decoration: underline; }
 
 /* 대시보드(그리드) 모드: 카드 본문을 요약 높이로 축소 + 하단 페이드 */
-.content[data-view="dashboard"] .dash-card .panel-body { max-height: 320px; overflow: hidden; position: relative; }
+.content[data-view="dashboard"] .dash-card .panel-body { max-height: 150px; overflow: hidden; position: relative; }
 .content[data-view="dashboard"] .dash-card .panel-body::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px;
   background: linear-gradient(to bottom, transparent, var(--card)); pointer-events: none;
 }
 /* 포커스(개별 섹션) 모드: 전체 폭, 캡 해제 */
@@ -258,10 +258,10 @@ body {
 
 /* 공용 빈 데이터 플레이스홀더 */
 .empty-state {
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 36px 16px; text-align: center; color: var(--muted); font-size: 13px;
+  display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 12px; text-align: center; color: var(--muted); font-size: 12px;
 }
-.chart-empty, .ds-empty { font-size: 13px; color: var(--muted); padding: 24px 0; text-align: center; }
+.chart-empty, .ds-empty { font-size: 12px; color: var(--muted); padding: 12px 0; text-align: center; }
 
 /* ============================================================
    1) 데이터 업로드
