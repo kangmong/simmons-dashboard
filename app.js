@@ -897,8 +897,8 @@ const OIL_RANGES = [
   { key: '5y', label: '5년', months: 60 }, { key: '10y', label: '10년', months: 120 },
   { key: 'all', label: '전체', months: null },
 ];
-let _oilData = null;   // {rows:[{period,...9}], series:[{key,label}], source, unit} | {error} | null
-let _oilRange = 'all'; // 기본 전체
+let _oilData = null;   // {rows:[{period,...}], series:[{key,label}], source, unit} | {error} | null
+let _oilRange = null;  // 선택된 기간(null=미선택 → "기간을 선택하세요")
 let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAULT_ON
 let _oilChart = null;
 
@@ -1313,11 +1313,13 @@ function renderOilPricesHtml() {
     `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${ok ? '' : ' disabled'}>${r.label}</button>`).join('')}</div>`;
 
   let body;
-  if (!_oilData) {
+  if (!_oilData) {                                   // 1) 데이터 없음
     body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
   } else if (_oilData.error) {
     body = '<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>';
-  } else {
+  } else if (!_oilRange) {                            // 2) 데이터 있음 · 기간 미선택
+    body = '<div class="icis-prompt">기간을 선택하세요</div>';
+  } else {                                            // 3) 기간 선택됨 → 차트
     // 범례(3개) — 클릭 토글, 꺼진 항목은 흐리게
     const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
       const on = _oilOn && _oilOn.has(s.key);
@@ -1830,7 +1832,7 @@ function resetDashboard() {
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
-  _oilData = null; _oilRange = 'all'; _oilOn = null; _oilChart = null; // 국제유가 비우기
+  _oilData = null; _oilRange = null; _oilOn = null; _oilChart = null; // 국제유가 비우기
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
