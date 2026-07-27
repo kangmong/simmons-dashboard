@@ -446,6 +446,8 @@ body {
 .oil-leg { border: 0; background: none; padding: 2px 4px; cursor: pointer; font: inherit; color: var(--text); border-radius: var(--radius-sm); }
 .oil-leg:hover { background: var(--row-hover); }
 .oil-leg.is-off { color: var(--muted); text-decoration: line-through; opacity: .7; }
+/* 기간 칩: 데이터 없을 때 비활성 */
+.oil-range.is-disabled, .oil-range:disabled { opacity: .45; cursor: not-allowed; }
 .viz-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .viz-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .viz-sub { font-size: 13px; font-weight: 500; color: var(--muted); }

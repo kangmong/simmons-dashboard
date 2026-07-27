@@ -889,11 +889,9 @@ let _srChart = null;
 
 // 국제유가(PETRONET 월별 제품가) — 9개 유종 색상 + 상태
 const OIL_COLORS = {
-  gasoline95: '#C8102E', gasoline92: '#F0728D', kerosene: '#F59E0B',
-  diesel05: '#65A30D', diesel005: '#12B981', diesel0001: '#0EA5A0',
-  hsfo180: '#8B5CF6', hsfo380: '#A78BFA', naphtha: '#3B82F6',
+  gasoline95: '#C8102E', diesel005: '#12B981', naphtha: '#3B82F6',
 };
-const OIL_DEFAULT_ON = ['gasoline95', 'diesel005', 'naphtha']; // 기본 켜둘 3개
+const OIL_DEFAULT_ON = ['gasoline95', 'diesel005', 'naphtha']; // 남긴 3개 모두 기본 표시
 const OIL_RANGES = [
   { key: '1y', label: '1년', months: 12 }, { key: '3y', label: '3년', months: 36 },
   { key: '5y', label: '5년', months: 60 }, { key: '10y', label: '10년', months: 120 },
@@ -999,7 +997,7 @@ function renderMaterial() {
     const chipsEl = oilFig.querySelector('.oil-ranges');
     if (chipsEl) chipsEl.addEventListener('click', (e) => {
       const b = e.target.closest('.oil-range');
-      if (!b) return;
+      if (!b || b.disabled) return;  // 데이터 없으면 칩 비활성
       _oilRange = b.dataset.range;
       renderMaterial();
     });
@@ -1300,31 +1298,36 @@ function oilSliceRows() {
   return rows.slice(rows.length - r.months);
 }
 
-/** 국제유가 블록 HTML (스폰지·해상정시성 카드와 동일 구조/클래스) */
+/** 국제유가 블록 HTML (스폰지·해상정시성 카드와 동일 구조/클래스).
+ *  다른 카드와 동일하게 업데이트 전에는 차트를 그리지 않고 빈 상태 문구 + 비활성 칩만 표시. */
 function renderOilPricesHtml() {
   const head = `<div class="viz-head"><div>
       <div class="viz-title">국제유가 (PETRONET)</div>
       <div class="viz-sub">일일국제제품가격 · 월별 (USD/배럴)</div>
     </div></div>`;
   const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET</div>';
-  const wrap = (inner) => `<div class="viz-root viz-figure oil-figure">${head}${inner}${cap}</div>`;
+  const ok = _oilData && !_oilData.error && Array.isArray(_oilData.rows) && _oilData.rows.length;
 
-  if (!_oilData) return wrap('<div class="chart-empty">업데이트 버튼을 눌러 데이터를 받아오세요</div>');
-  if (_oilData.error) return wrap('<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>');
-
+  // 기간 칩 — 데이터 없으면 비활성(disabled)
   const chips = `<div class="icis-years oil-ranges">${OIL_RANGES.map((r) =>
-    `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}</div>`;
+    `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${ok ? '' : ' disabled'}>${r.label}</button>`).join('')}</div>`;
 
-  // 범례(9개) — 클릭 토글, 꺼진 항목은 흐리게
-  const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
-    const on = _oilOn && _oilOn.has(s.key);
-    const color = OIL_COLORS[s.key] || 'var(--slate)';
-    return `<button class="viz-legend__item oil-leg${on ? '' : ' is-off'}" data-key="${s.key}" type="button" aria-pressed="${on}">
-      <span class="viz-legend__swatch" style="background:${on ? color : 'var(--muted)'}"></span>${escapeHtml(s.label)}</button>`;
-  }).join('')}</div>`;
-
-  return wrap(`${chips}${legend}${buildOilChart(oilSliceRows())}
-    <div class="viz-tooltip" id="oilTooltip"></div>`);
+  let body;
+  if (!_oilData) {
+    body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
+  } else if (_oilData.error) {
+    body = '<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>';
+  } else {
+    // 범례(3개) — 클릭 토글, 꺼진 항목은 흐리게
+    const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
+      const on = _oilOn && _oilOn.has(s.key);
+      const color = OIL_COLORS[s.key] || 'var(--slate)';
+      return `<button class="viz-legend__item oil-leg${on ? '' : ' is-off'}" data-key="${s.key}" type="button" aria-pressed="${on}">
+        <span class="viz-legend__swatch" style="background:${on ? color : 'var(--muted)'}"></span>${escapeHtml(s.label)}</button>`;
+    }).join('')}</div>`;
+    body = `${legend}${buildOilChart(oilSliceRows())}<div class="viz-tooltip" id="oilTooltip"></div>`;
+  }
+  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}</div>`;
 }
 
 /** 9개 유종 중 켜진 것만 월별 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음) */

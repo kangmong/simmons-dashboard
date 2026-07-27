@@ -793,21 +793,15 @@ def update_schedule_reliability():
         return {"status": "error", "reason": "파싱 실패: %s" % e}
 
 
-# ── 국제유가 — 한국석유공사 PETRONET 일일국제제품가격(월별, 9개 유종) ──────────
+# ── 국제유가 — 한국석유공사 PETRONET 일일국제제품가격(월별, 3개 유종) ──────────
 OIL_GET_URL = "https://www.petronet.co.kr/v4/excel/KDFQ0200_x2.jsp"
 OIL_POST_URL = "https://www.petronet.co.kr/v4/sub.jsp"
-# (제품코드, 응답키, 표시라벨) — 표의 9개 열 순서와 동일
+# (제품코드, 응답키, 표시라벨) — 요청 ProdCDList 순서 = 응답 표의 열 순서
 OIL_PRODS = [
-    ("B001", "gasoline95", "휘발유(95RON)"), ("B007", "gasoline92", "휘발유(92RON)"),
-    ("C001", "kerosene", "등유"), ("D001", "diesel05", "경유(0.5%)"),
-    ("D008", "diesel005", "경유(0.05%)"), ("D009", "diesel0001", "경유(0.001%)"),
-    ("E001", "hsfo180", "고유황중유(180cst)"), ("E008", "hsfo380", "고유황중유(380cst)"),
+    ("B001", "gasoline95", "휘발유(95RON)"),
+    ("D008", "diesel005", "경유(0.05%)"),
     ("F001", "naphtha", "나프타"),
 ]
-# POST 폴백용 Parameter(브라우저 캡처값, URL 인코딩 상태). {TO}=종료 YYYYMM 만 치환
-_OIL_ENC_PARAM = ("%3AT%3D%27M%27%2C%3AFromDate%3D%27201107%27%2C%3AToDate%3D%27{TO}%27%2C%3AProdCD%3D%27"
-    "%5C%27B001%5C%27%5C%2C%5C%27B007%5C%27%5C%2C%5C%27C001%5C%27%5C%2C%5C%27D001%5C%27%5C%2C%5C%27D008%5C%27%5C%2C"
-    "%5C%27D009%5C%27%5C%2C%5C%27E001%5C%27%5C%2C%5C%27E008%5C%27%5C%2C%5C%27F001%5C%27+%27")
 
 
 def _oil_num(cell):
@@ -823,11 +817,12 @@ def _oil_parse(text):
        - 날짜 셀에 연도 없음. 다만 1월 행은 'YY년 01월'로 연도 표기 → 연도 확정.
          그 외 'MM월' 행은 직전 연도 유지(월 감소 시 +1 롤오버 안전장치).
        - 첫 셀이 월 형태가 아닌 행(헤더/전월비/전년동월비/평균)은 제외."""
+    n_prod = len(OIL_PRODS)
     rows = []
     year, prev_m = None, None
     for tr in re.findall(r"<tr.*?>(.*?)</tr>", text, re.S | re.I):
         cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)
-        if len(cells) < 10:
+        if len(cells) < 1 + n_prod:
             continue
         first = re.sub(r"<[^>]+>", "", cells[0]).replace("&nbsp;", " ").strip()
         mfull = re.match(r"^\s*(\d{2})\s*년\s*(\d{1,2})\s*월", first)  # 'YY년 MM월'
@@ -844,7 +839,7 @@ def _oil_parse(text):
         else:
             continue  # 헤더·요약행 제외
         prev_m = mo
-        vals = [_oil_num(c) for c in cells[1:10]]  # 9개 제품
+        vals = [_oil_num(c) for c in cells[1:1 + n_prod]]
         row = {"period": "%04d-%02d" % (year, mo)}
         for (_, key, _), v in zip(OIL_PRODS, vals):
             row[key] = v
@@ -853,7 +848,7 @@ def _oil_parse(text):
 
 
 def update_oil_prices():
-    """PETRONET 일일국제제품가격(월별, USD/배럴, 9개 유종, 2011.07~현재).
+    """PETRONET 일일국제제품가격(월별, USD/배럴, 3개 유종, 2011.07~현재).
        GET(excel jsp) 먼저 시도 → 리다이렉트/빈 응답이면 POST(sub.jsp)로 폴백.
        실패 시 status=error, 서버는 죽지 않음."""
     ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -879,7 +874,8 @@ def update_oil_prices():
             rows = []
         # 2순위 POST 폴백
         if not rows:
-            param = urllib.parse.unquote(_OIL_ENC_PARAM.replace("{TO}", todate))
+            inner = "\\,".join("\\'%s\\'" % c for c in prods)  # \'B001\'\,\'D008\'\,\'F001\'
+            param = ":T='M',:FromDate='201107',:ToDate='%s',:ProdCD='%s '" % (todate, inner)
             data = [("fmuId", "KDFQSTAT"), ("smuId", "KDFQ01"), ("tmuId", "KDFQ0200"),
                     ("fmuOrd", "03"), ("smuOrd", "03_01"), ("tmuOrd", "03_01_02"),
                     ("Parameter", param), ("ProdCDList", ",".join(prods)),
@@ -887,7 +883,7 @@ def update_oil_prices():
                     ("by", "2011"), ("bq", "3"), ("bm", "07"), ("bw", "1"), ("bd", "16"),
                     ("ay", str(today.year)), ("aq", str((today.month - 1) // 3 + 1)),
                     ("am", "%02d" % today.month), ("aw", "1"), ("ad", "%02d" % today.day)]
-            data += [("ProdCd", p) for p in prods]  # ProdCd 9회 반복
+            data += [("ProdCd", p) for p in prods]  # ProdCd 반복
             pr = requests.post(OIL_POST_URL, data=data, timeout=40,
                                headers={"User-Agent": ua, "Referer": ref,
                                         "Content-Type": "application/x-www-form-urlencoded"})
