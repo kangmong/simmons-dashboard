@@ -902,7 +902,7 @@ function applyMaterialUpdate(data) {
   const sr = data && data.sections && data.sections.schedule_reliability;
   if (sr && sr.status === 'ok' && sr.years && Object.keys(sr.years).length) {
     _srData = { months: (sr.months && sr.months.length) ? sr.months : SR_MONTHS, years: sr.years };
-    if (!_srYear) _srYear = 'all';   // 업데이트 직후 전체 연도 표시
+    // ICIS와 동일: 업데이트 직후엔 그래프를 띄우지 않고 연도 선택을 기다린다(_srYear=null → "연도를 선택하세요")
   } else {
     _srData = { error: (sr && sr.reason) || '데이터 없음' };
   }
