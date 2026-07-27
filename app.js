@@ -867,12 +867,8 @@ const ICIS_TERMS = [
 const MATERIAL_LINKS = [
   { name: '글로벌 컨테이너 운임지수', desc: 'Freightos Baltic Index (FBX)', icon: '🚢',
     url: 'https://app.terminal.freightos.com/fbx?ticker=FBX&frequency=%22weekly%22' },
-  { name: '환율 (기간별 환율조회)', desc: '우리은행 환율조회', icon: '💱',
-    url: 'https://spot.wooribank.com/pot/Dream?withyou=CMCOM0184' },
   { name: '국제유가', desc: '한국석유공사 PETRONET', icon: '🛢️',
     url: 'https://www.petronet.co.kr' },
-  { name: '해상 정시성', desc: 'Sea-Intelligence Global Schedule Reliability', icon: '⏱️',
-    url: 'https://www.sea-intelligence.com/' },
   { name: '제재목 (Lumber)', desc: 'Trading Economics Lumber', icon: '🪵',
     url: 'https://tradingeconomics.com/commodity/lumber' },
 ];
