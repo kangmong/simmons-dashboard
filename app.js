@@ -1388,7 +1388,7 @@ function renderBrands() {
 
 /* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */
 let _fx = null;        // { rows:[{cur,now,change,prev}], series:{dates,USD,EUR,JPY}, source }
-let _fxMonths = 12;    // 추이 기간(3/6/9/12개월)
+let _fxMonths = null;  // 추이 기간(3/6/9/12개월). null이면 아직 미선택 → "기간을 선택하세요"
 let _fxChart = null;   // 추이 차트 hover 캐시
 
 const FX_META = {
@@ -1443,10 +1443,18 @@ function renderFx() {
     <tbody>${trs}</tbody>
   </table></div>`;
 
-  // 2) 기간 버튼 + 추이 그래프
+  // 2) 기간 버튼 + 추이 그래프 — 다른 섹션과 동일하게, 기간 선택 전엔 그래프 대신 안내
   const months = [3, 6, 9, 12];
   const toolbar = `<div class="icis-years fx-months">${months.map((mm) =>
     `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}</div>`;
+
+  let chartBody;
+  if (!_fxMonths) {
+    _fxChart = null;
+    chartBody = '<div class="icis-prompt">기간을 선택하세요</div>';
+  } else {
+    chartBody = buildFxChart(fxSlice(_fxMonths)) + '<div class="fx-jpy-note">* JPY는 100엔 단위</div>';
+  }
 
   el.innerHTML = `
     ${table}
@@ -1457,8 +1465,7 @@ function renderFx() {
         <div class="viz-sub">USD · EUR · JPY (원)</div>
       </div></div>
       ${toolbar}
-      ${buildFxChart(fxSlice(_fxMonths))}
-      <div class="fx-jpy-note">* JPY는 100엔 단위</div>
+      ${chartBody}
       <div class="viz-tooltip" id="fxTooltip"></div>
       <div class="comp-caption">출처: Frankfurter (ECB 기반)</div>
     </div>`;
@@ -1470,7 +1477,7 @@ function renderFx() {
     _fxMonths = parseInt(b.dataset.months, 10);
     renderFx();
   });
-  wireFxInteraction();
+  if (_fxMonths) wireFxInteraction();
 }
 
 /** series를 최근 N개월로 슬라이스 */
@@ -1643,7 +1650,7 @@ function resetDashboard() {
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
-  _fxMonths = 12;       // 환율 추이 기간 기본값(12개월)
+  _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
   // "마지막 업데이트" 텍스트 되돌리기
   const lbl = document.getElementById('lastUpdated');
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';
