@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'simmons_news', 'competitor', 'material', 'domestic', 'fx'];
+const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic', 'fx'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
