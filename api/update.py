@@ -748,9 +748,70 @@ def update_usd_krw():
     return {"status": "ok", "rate": r}
 
 
+SR_XLSX_URL = ("https://www.sea-intelligence.com/images/press_docs/GLP-May2026/"
+               "20260527_-_Sea-Intelligence_GLP_Press_Release_-_May_2026.xlsx")
+SR_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def update_schedule_reliability():
+    """Sea-Intelligence 글로벌 해상 정시성(Global Schedule Reliability) 월별 시계열.
+       xlsx의 'Fig 1' 시트(행=연도 2021~2026, 열=Jan~Dec, 값=정시성 비율)를 파싱한다.
+       접근 차단(403)·타임아웃·형식 오류 등은 서버가 죽지 않도록 status=error + reason 처리."""
+    hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                         "AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/125.0.0.0 Safari/537.36"}
+    try:
+        import io
+        import openpyxl
+        r = requests.get(SR_XLSX_URL, headers=hdr, allow_redirects=True, timeout=15)
+        r.raise_for_status()
+        if r.content[:2] != b"PK":  # xlsx=zip. 아니면 차단 페이지 등
+            return {"status": "error", "reason": "엑셀이 아닌 응답(사이트 접근 차단 가능)"}
+        wb = openpyxl.load_workbook(io.BytesIO(r.content), data_only=True, read_only=True)
+        if "Fig 1" not in wb.sheetnames:
+            return {"status": "error", "reason": "'Fig 1' 시트를 찾을 수 없음"}
+        ws = wb["Fig 1"]
+        # 1행 = [None, Jan, Feb, ... Dec] : 월 헤더로 12개월 열 위치 확정
+        header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        month_cols = [i for i, v in enumerate(header)
+                      if isinstance(v, str) and v.strip()[:3] in SR_MONTHS]
+        if len(month_cols) < 12:  # 헤더 파싱 실패 시 관례 위치(B~M)로 대체
+            month_cols = list(range(1, 13))
+        years = {}
+        for row in ws.iter_rows(min_row=2):
+            cells = [c.value for c in row]
+            if not cells:
+                continue
+            try:
+                yi = int(cells[0])
+            except (TypeError, ValueError):
+                continue
+            if not (2000 <= yi <= 2100):  # 연도 행만 채택
+                continue
+            vals = []
+            for ci in month_cols:
+                v = cells[ci] if ci < len(cells) else None
+                if isinstance(v, (int, float)):
+                    pct = v * 100.0 if v <= 1.5 else float(v)  # 비율→% 환산
+                    vals.append(round(pct, 1))
+                else:
+                    vals.append(None)
+            years[str(yi)] = vals
+        if not years:
+            return {"status": "error", "reason": "연도별 데이터 없음"}
+        return {"status": "ok", "months": SR_MONTHS, "years": years,
+                "source": "Sea-Intelligence"}
+    except requests.exceptions.RequestException as e:  # noqa: BLE001
+        return {"status": "error", "reason": "다운로드 실패: %s" % e}
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "reason": "파싱 실패: %s" % e}
+
+
 FETCHERS = {
     "simmons_news": update_simmons_news,
     "usd_krw": update_usd_krw,
+    "schedule_reliability": update_schedule_reliability,
     "domestic": update_domestic,
     "global_brands": update_global_brands,
     "competitors": update_competitors,

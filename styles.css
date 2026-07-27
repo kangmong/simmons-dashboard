@@ -439,6 +439,7 @@ body {
 
 /* 차트 위젯 */
 .viz-figure { position: relative; padding: 14px; }
+.sr-figure { margin-top: 16px; }
 .viz-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .viz-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .viz-sub { font-size: 13px; font-weight: 500; color: var(--muted); }

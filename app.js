@@ -882,11 +882,30 @@ let _matReady = false;      // [업데이트] 누르기 전엔 빈 초기 상태
 let _matYear = null;        // 선택된 연도('2021'~'2026' | 'all')
 let _matUsdKrw = null;      // USD/KRW 환율(업데이트 시 확보)
 
-/** 응답의 usd_krw 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
+// 해상 정시성(Sea-Intelligence) — 연도별 선 색상 + 상태
+const SR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SR_YEAR_COLORS = {
+  '2021': '#94A3B8', '2022': '#3B82F6', '2023': '#12B981',
+  '2024': '#F59E0B', '2025': '#8B5CF6', '2026': '#C8102E',
+};
+let _srData = null;   // {months, years:{...}} | {error:'reason'} | null
+let _srYear = null;   // '2021'~'2026' | 'all'
+let _srChart = null;
+
+/** 응답의 usd_krw + 해상 정시성 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
   _matReady = true;
   const uk = data && data.sections && data.sections.usd_krw;
   _matUsdKrw = (uk && uk.status === 'ok') ? uk.rate : null;
+
+  const sr = data && data.sections && data.sections.schedule_reliability;
+  if (sr && sr.status === 'ok' && sr.years && Object.keys(sr.years).length) {
+    _srData = { months: (sr.months && sr.months.length) ? sr.months : SR_MONTHS, years: sr.years };
+    if (!_srYear) _srYear = 'all';   // 업데이트 직후 전체 연도 표시
+  } else {
+    _srData = { error: (sr && sr.reason) || '데이터 없음' };
+  }
   renderMaterial();
 }
 
@@ -933,6 +952,7 @@ function renderMaterial() {
     <div class="viz-tooltip" id="icisTooltip"></div>
     <div class="comp-caption">출처: ICIS Asia</div>
   </div>
+  ${renderScheduleReliabilityHtml()}
   ${renderMaterialLinksHtml()}`;
 
   const yearsEl = root.querySelector('.icis-years');
@@ -943,6 +963,15 @@ function renderMaterial() {
     renderMaterial();
   });
   if (_matYear) wireIcisChart();
+
+  const srYearsEl = root.querySelector('.sr-years');
+  if (srYearsEl) srYearsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.sr-year');
+    if (!b) return;
+    _srYear = b.dataset.year;
+    renderMaterial();
+  });
+  if (_srData && !_srData.error) wireSrChart();
 }
 
 /** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
@@ -1067,6 +1096,149 @@ function wireIcisChart() {
     });
     dots.innerHTML = dh;
     tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
+    const fr = fig.getBoundingClientRect();
+    let left = evt.clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  });
+  overlay.addEventListener('mouseleave', clear);
+}
+
+/* ── 해상 정시성 (Sea-Intelligence Global Schedule Reliability) ── */
+
+/** 선택 연도에 맞춰 표시할 연도(선) 목록 구성 */
+function srViewData(year) {
+  const yrs = Object.keys(_srData.years).sort();
+  const months = _srData.months;
+  const pick = (year === 'all') ? yrs : yrs.filter((y) => y === year);
+  const series = pick.map((y) => ({
+    key: y,
+    color: SR_YEAR_COLORS[y] || 'var(--slate)',
+    values: (_srData.years[y] || []).slice(0, months.length),
+  })).filter((s) => s.values.some((v) => v != null));
+  return { months, series };
+}
+
+/** 해상 정시성 블록 HTML (ICIS와 동일 스타일: 연도 버튼 → 선그래프) */
+function renderScheduleReliabilityHtml() {
+  if (!_srData) return '';
+  const head = `<div class="viz-head"><div>
+      <div class="viz-title">해상 정시성 (Global Schedule Reliability)</div>
+      <div class="viz-sub">월별 정시 도착 비율(%) · 연도별</div>
+    </div></div>`;
+  if (_srData.error) {
+    return `<div class="viz-root viz-figure sr-figure">${head}
+      <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
+      <div class="comp-caption">출처: Sea-Intelligence</div>
+    </div>`;
+  }
+  const years = Object.keys(_srData.years).sort().concat(['all']);
+  const toolbar = `<div class="icis-years sr-years">${years.map((y) =>
+    `<button class="icis-year sr-year${y === _srYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`;
+
+  let body;
+  if (!_srYear) {
+    body = '<div class="icis-prompt">연도를 선택하세요</div>';
+  } else {
+    const { months, series } = srViewData(_srYear);
+    body = buildSrChart(months, series);
+  }
+  return `<div class="viz-root viz-figure sr-figure">${head}
+    ${toolbar}
+    ${body}
+    <div class="viz-tooltip" id="srTooltip"></div>
+    <div class="comp-caption">출처: Sea-Intelligence</div>
+  </div>`;
+}
+
+/** 연도별 정시성(%) 선그래프 SVG (null 구간 선 끊김, 단일 연도 시 값 라벨) */
+function buildSrChart(months, series) {
+  const n = months.length;
+  if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
+  const single = series.length === 1;
+
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const yp = (ymax - ymin) * 0.12 || 5; ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
+
+  const W = 720, H = 300, padL = 46, padR = 16, padT = 18, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val)}%</text>`;
+  }).join('');
+
+  const xticks = months.map((m, i) =>
+    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${escapeHtml(m)}</text>`).join('');
+
+  const lines = series.map((s) => {
+    let path = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      const x = X(i), y = Y(v);
+      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
+    });
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  }).join('');
+
+  const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.4" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
+
+  // 값 라벨: 단일 연도 보기일 때만 각 점에 %(소수1자리) 표시
+  const labels = single ? series[0].values.map((v, i) => {
+    if (v == null) return '';
+    const x = X(i), y = Y(v) - 8;
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${series[0].color}">${v.toFixed(1)}%</text>`;
+  }).join('') : '';
+
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
+  _srChart = { months, series, geom: { X, Y, n, W, padL } };
+
+  return `${legend}
+    <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
+      ${grid}${xticks}${lines}${dots}${labels}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="sr-dots"></g>
+      <rect class="sr-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>`;
+}
+
+/** 크로스헤어 + 툴팁 (월 · 연도별 정시성 %) */
+function wireSrChart() {
+  const fig = document.querySelector('#materialRoot .sr-figure');
+  const tip = document.getElementById('srTooltip');
+  if (!fig || !tip || !_srChart) return;
+  const svg = fig.querySelector('.sr-svg');
+  if (!svg) return;
+  const overlay = svg.querySelector('.sr-overlay');
+  const cross = svg.querySelector('.sr-cross');
+  const dots = svg.querySelector('.sr-dots');
+  const c = _srChart, g = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  overlay.addEventListener('mousemove', (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+    const cx = g.X(i);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    let dh = '', rows = '';
+    c.series.forEach((s) => {
+      const v = s.values[i];
+      if (v == null) return;
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toFixed(1)}%</span></div>`;
+    });
+    if (!rows) { clear(); return; }
+    dots.innerHTML = dh;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.months[i])}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -1410,6 +1582,7 @@ function resetDashboard() {
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
+  _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
