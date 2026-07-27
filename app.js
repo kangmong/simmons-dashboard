@@ -867,8 +867,6 @@ const ICIS_TERMS = [
 const MATERIAL_LINKS = [
   { name: '글로벌 컨테이너 운임지수', desc: 'Freightos Baltic Index (FBX)', icon: '🚢',
     url: 'https://app.terminal.freightos.com/fbx?ticker=FBX&frequency=%22weekly%22' },
-  { name: '국제유가', desc: '한국석유공사 PETRONET', icon: '🛢️',
-    url: 'https://www.petronet.co.kr' },
   { name: '제재목 (Lumber)', desc: 'Trading Economics Lumber', icon: '🪵',
     url: 'https://tradingeconomics.com/commodity/lumber' },
 ];
@@ -889,7 +887,24 @@ let _srData = null;   // {months, years:{...}} | {error:'reason'} | null
 let _srYear = null;   // '2021'~'2026' | 'all'
 let _srChart = null;
 
-/** 응답의 usd_krw + 해상 정시성 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
+// 국제유가(PETRONET 월별 제품가) — 9개 유종 색상 + 상태
+const OIL_COLORS = {
+  gasoline95: '#C8102E', gasoline92: '#F0728D', kerosene: '#F59E0B',
+  diesel05: '#65A30D', diesel005: '#12B981', diesel0001: '#0EA5A0',
+  hsfo180: '#8B5CF6', hsfo380: '#A78BFA', naphtha: '#3B82F6',
+};
+const OIL_DEFAULT_ON = ['gasoline95', 'diesel005', 'naphtha']; // 기본 켜둘 3개
+const OIL_RANGES = [
+  { key: '1y', label: '1년', months: 12 }, { key: '3y', label: '3년', months: 36 },
+  { key: '5y', label: '5년', months: 60 }, { key: '10y', label: '10년', months: 120 },
+  { key: 'all', label: '전체', months: null },
+];
+let _oilData = null;   // {rows:[{period,...9}], series:[{key,label}], source, unit} | {error} | null
+let _oilRange = 'all'; // 기본 전체
+let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAULT_ON
+let _oilChart = null;
+
+/** 응답의 usd_krw + 해상 정시성 + 국제유가 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
   _matReady = true;
   const uk = data && data.sections && data.sections.usd_krw;
@@ -901,6 +916,14 @@ function applyMaterialUpdate(data) {
     // ICIS와 동일: 업데이트 직후엔 그래프를 띄우지 않고 연도 선택을 기다린다(_srYear=null → "연도를 선택하세요")
   } else {
     _srData = { error: (sr && sr.reason) || '데이터 없음' };
+  }
+
+  const oil = data && data.sections && data.sections.oil_prices;
+  if (oil && oil.status === 'ok' && Array.isArray(oil.rows) && oil.rows.length) {
+    _oilData = { rows: oil.rows, series: oil.series || [], source: oil.source, unit: oil.unit };
+    if (!_oilOn) _oilOn = new Set(OIL_DEFAULT_ON);  // 기본 3개만 켜기(최초 1회)
+  } else {
+    _oilData = { error: (oil && oil.reason) || '데이터 없음' };
   }
   renderMaterial();
 }
@@ -949,6 +972,7 @@ function renderMaterial() {
     <div class="comp-caption">출처: ICIS Asia</div>
   </div>
   ${renderScheduleReliabilityHtml()}
+  ${renderOilPricesHtml()}
   ${renderMaterialLinksHtml()}`;
 
   const yearsEl = root.querySelector('.icis-years');
@@ -968,6 +992,27 @@ function renderMaterial() {
     renderMaterial();
   });
   if (_srData && !_srData.error) wireSrChart();
+
+  // 국제유가: 기간 칩 + 범례 토글
+  const oilFig = root.querySelector('.oil-figure');
+  if (oilFig) {
+    const chipsEl = oilFig.querySelector('.oil-ranges');
+    if (chipsEl) chipsEl.addEventListener('click', (e) => {
+      const b = e.target.closest('.oil-range');
+      if (!b) return;
+      _oilRange = b.dataset.range;
+      renderMaterial();
+    });
+    const legEl = oilFig.querySelector('.oil-legend');
+    if (legEl) legEl.addEventListener('click', (e) => {
+      const b = e.target.closest('.oil-leg');
+      if (!b || !_oilOn) return;
+      const k = b.dataset.key;
+      if (_oilOn.has(k)) _oilOn.delete(k); else _oilOn.add(k);
+      renderMaterial();
+    });
+    if (_oilData && !_oilData.error) wireOilChart();
+  }
 }
 
 /** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
@@ -1235,6 +1280,143 @@ function wireSrChart() {
     if (!rows) { clear(); return; }
     dots.innerHTML = dh;
     tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.months[i])}</div>${rows}`;
+    const fr = fig.getBoundingClientRect();
+    let left = evt.clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  });
+  overlay.addEventListener('mouseleave', clear);
+}
+
+/* ── 국제유가 (PETRONET 일일국제제품가격, 월별) ── */
+
+/** 선택 기간(_oilRange)에 맞춰 rows 슬라이스(뒤에서 N개월) */
+function oilSliceRows() {
+  const rows = _oilData.rows;
+  const r = OIL_RANGES.find((x) => x.key === _oilRange) || OIL_RANGES[OIL_RANGES.length - 1];
+  if (!r.months || rows.length <= r.months) return rows;
+  return rows.slice(rows.length - r.months);
+}
+
+/** 국제유가 블록 HTML (스폰지·해상정시성 카드와 동일 구조/클래스) */
+function renderOilPricesHtml() {
+  const head = `<div class="viz-head"><div>
+      <div class="viz-title">국제유가 (PETRONET)</div>
+      <div class="viz-sub">일일국제제품가격 · 월별 (USD/배럴)</div>
+    </div></div>`;
+  const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET</div>';
+  const wrap = (inner) => `<div class="viz-root viz-figure oil-figure">${head}${inner}${cap}</div>`;
+
+  if (!_oilData) return wrap('<div class="chart-empty">업데이트 버튼을 눌러 데이터를 받아오세요</div>');
+  if (_oilData.error) return wrap('<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>');
+
+  const chips = `<div class="icis-years oil-ranges">${OIL_RANGES.map((r) =>
+    `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}" data-range="${r.key}">${r.label}</button>`).join('')}</div>`;
+
+  // 범례(9개) — 클릭 토글, 꺼진 항목은 흐리게
+  const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
+    const on = _oilOn && _oilOn.has(s.key);
+    const color = OIL_COLORS[s.key] || 'var(--slate)';
+    return `<button class="viz-legend__item oil-leg${on ? '' : ' is-off'}" data-key="${s.key}" type="button" aria-pressed="${on}">
+      <span class="viz-legend__swatch" style="background:${on ? color : 'var(--muted)'}"></span>${escapeHtml(s.label)}</button>`;
+  }).join('')}</div>`;
+
+  return wrap(`${chips}${legend}${buildOilChart(oilSliceRows())}
+    <div class="viz-tooltip" id="oilTooltip"></div>`);
+}
+
+/** 9개 유종 중 켜진 것만 월별 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음) */
+function buildOilChart(rows) {
+  const n = rows.length;
+  if (!n) { _oilChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
+  const on = (_oilData.series || []).filter((s) => _oilOn && _oilOn.has(s.key));
+  const series = on.map((s) => ({
+    key: s.key, label: s.label, color: OIL_COLORS[s.key] || 'var(--slate)',
+    values: rows.map((r) => (r[s.key] == null ? null : r[s.key])),
+  }));
+  const periods = rows.map((r) => r.period);
+  if (!series.length) { _oilChart = null; return '<div class="chart-empty">범례에서 유종을 선택하세요.</div>'; }
+
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  if (!all.length) { _oilChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const yp = (ymax - ymin) * 0.1 || 5; ymin = Math.max(0, ymin - yp); ymax += yp;
+
+  const W = 720, H = 300, padL = 48, padR = 16, padT = 16, padB = 32;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">$${Math.round(val)}</text>`;
+  }).join('');
+
+  const TICKS = Math.min(7, n);
+  const tickIdx = [];
+  for (let k = 0; k < TICKS; k++) {
+    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
+    if (!tickIdx.includes(i)) tickIdx.push(i);
+  }
+  const xticks = tickIdx.map((i) => {
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
+  }).join('');
+
+  // connectNulls: 결측(null)은 건너뛰되 선은 끊지 않고 다음 값과 이어 그림
+  const lines = series.map((s) => {
+    let d = '', started = false;
+    s.values.forEach((v, i) => {
+      if (v == null) return;
+      const x = X(i), y = Y(v);
+      d += `${started ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; started = true;
+    });
+    return d ? `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  }).join('');
+
+  _oilChart = { periods, series, geom: { X, Y, n, W, padL } };
+
+  return `<svg class="viz-svg oil-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="국제유가 월별">
+      ${grid}${xticks}${lines}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="oil-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="oil-dots"></g>
+      <rect class="oil-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>`;
+}
+
+/** 크로스헤어 + 툴팁 (연-월 · 유종 · $값) */
+function wireOilChart() {
+  const fig = document.querySelector('#materialRoot .oil-figure');
+  const tip = document.getElementById('oilTooltip');
+  if (!fig || !tip || !_oilChart) return;
+  const svg = fig.querySelector('.oil-svg');
+  if (!svg) return;
+  const overlay = svg.querySelector('.oil-overlay');
+  const cross = svg.querySelector('.oil-cross');
+  const dots = svg.querySelector('.oil-dots');
+  const c = _oilChart, g = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  overlay.addEventListener('mousemove', (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+    const cx = g.X(i);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    let dh = '', rows = '';
+    c.series.forEach((s) => {
+      const v = s.values[i];
+      if (v == null) return;
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${escapeHtml(s.label)}</span><span class="viz-tt-val">$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>`;
+    });
+    if (!rows) { clear(); return; }
+    dots.innerHTML = dh;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -1645,6 +1827,7 @@ function resetDashboard() {
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
+  _oilData = null; _oilRange = 'all'; _oilOn = null; _oilChart = null; // 국제유가 비우기
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기

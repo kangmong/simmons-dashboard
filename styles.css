@@ -440,6 +440,12 @@ body {
 /* 차트 위젯 */
 .viz-figure { position: relative; padding: 14px; }
 .sr-figure { margin-top: 16px; }
+.oil-figure { margin-top: 16px; }
+/* 국제유가 범례: 클릭 토글(버튼) — 꺼지면 흐리게 */
+.oil-legend { flex-wrap: wrap; }
+.oil-leg { border: 0; background: none; padding: 2px 4px; cursor: pointer; font: inherit; color: var(--text); border-radius: var(--radius-sm); }
+.oil-leg:hover { background: var(--row-hover); }
+.oil-leg.is-off { color: var(--muted); text-decoration: line-through; opacity: .7; }
 .viz-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
 .viz-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .viz-sub { font-size: 13px; font-weight: 500; color: var(--muted); }

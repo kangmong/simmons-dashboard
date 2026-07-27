@@ -17,3 +17,5 @@ env/
 Thumbs.db
 .env
 .env.*
+
+tmp/
