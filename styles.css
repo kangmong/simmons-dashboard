@@ -652,6 +652,26 @@ body {
 .fx-date { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fx-note { margin-top: 14px; font-size: 13px; color: var(--text); line-height: 1.55; }
 
+/* 환율 시세표 (우리은행 스타일) */
+.fxr-wrap { overflow-x: auto; }
+.fxr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fxr-table th, .fxr-table td { padding: 9px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.fxr-table th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--field); text-align: right; }
+.fxr-table th:first-child, .fxr-table td:first-child { text-align: left; }
+.fxr-table tbody tr:hover { background: var(--row-hover); }
+.fxr-cur { color: var(--ink); }
+.fxr-cur b { font-weight: 700; }
+.fxr-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.fxr-sub { font-size: 12px; color: var(--muted); margin-left: 2px; }
+.fxr-now { font-weight: 700; color: var(--ink); }
+.fxr-prev { color: var(--text); }
+.fxr-chg { font-weight: 700; }
+.fxr-chg.up { color: var(--accent); }        /* 오름: 빨강 ▲ */
+.fxr-chg.down { color: var(--blue); }         /* 내림: 파랑 ▼ */
+.fxr-flat { color: var(--muted); }
+.fx-figure { margin-top: 14px; }
+.fx-jpy-note { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
 /* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
 .brand-group { margin-bottom: 4px; }
 .brand-group .comp-group__head { margin-bottom: 14px; }

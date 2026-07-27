@@ -677,66 +677,51 @@ def update_competitors():
 
 # ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────
 def update_fx():
-    """EUR/KRW 최신 환율 + 전일(직전 영업일) 대비 변화율 + 최근 5년 월별 추이.
-       현재값 실패 시 error. 추이(series)만 실패하면 현재값은 그대로 반환."""
+    """Frankfurter(ECB 기반, 무키·무료)로 USD/EUR/JPY 대비 원화(KRW) 환율.
+       - 최근 12개월(+여유) 시계열을 통화별로 받아 현재값·전일대비(직전 영업일)·추이를 구성.
+       - JPY는 100엔 단위(×100)로 환산해 표시한다.
+       - rows: 상단 시세표(현재기준율/전일대비/전일기준율), series: 그래프용 시계열.
+       실패 시 status=error, 서버는 죽지 않음."""
     base = "https://api.frankfurter.app"
     hdr = {"User-Agent": "Mozilla/5.0"}
-
-    # 1) 현재값 + 기준일 (기준통화 EUR, 대상통화 KRW)
+    curs = ["USD", "EUR", "JPY"]
     try:
-        lj = requests.get(base + "/latest?from=EUR&to=KRW", timeout=20, headers=hdr)
-        lj.raise_for_status()
-        lj = lj.json()
-        rate = lj["rates"]["KRW"]
-        date = lj["date"]
-    except Exception as e:  # noqa: BLE001
+        today = datetime.date.today()
+        start = (today - datetime.timedelta(days=400)).isoformat()  # 12개월 + 여유
+        end = today.isoformat()
+        raw = {}  # cur -> {date: KRW값}
+        for c in curs:
+            resp = requests.get("%s/%s..%s?from=%s&to=KRW" % (base, start, end, c),
+                                timeout=25, headers=hdr)
+            resp.raise_for_status()
+            rr = resp.json().get("rates", {})
+            raw[c] = {d: obj["KRW"] for d, obj in rr.items() if obj.get("KRW") is not None}
+        # 세 통화가 공유하는 ECB 영업일 전체(정렬)
+        dates = sorted(set().union(*[set(raw[c].keys()) for c in curs]))
+        if not dates:
+            return {"status": "error", "reason": "환율 시계열 없음"}
+        cutoff = (today - datetime.timedelta(days=366)).isoformat()  # 최근 12개월만 유지
+        dates = [d for d in dates if d >= cutoff]
+
+        def scale(cur, v):  # JPY는 100엔 단위
+            return round(v * 100.0, 2) if cur == "JPY" else round(v, 2)
+
+        series = {"dates": dates}
+        rows = []
+        for c in curs:
+            vals = [scale(c, raw[c][d]) if d in raw[c] else None for d in dates]
+            series[c] = vals
+            nn = [v for v in vals if v is not None]
+            now = nn[-1] if nn else None
+            prev = nn[-2] if len(nn) >= 2 else None
+            change = round(now - prev, 2) if (now is not None and prev is not None) else None
+            rows.append({"cur": c, "now": now, "prev": prev, "change": change})
+        return {"status": "ok", "rows": rows, "series": series,
+                "source": "Frankfurter (ECB 기반)"}
+    except requests.exceptions.RequestException as e:  # noqa: BLE001
         return {"status": "error", "reason": "환율 조회 실패: %s" % e}
-
-    # 2) 전일 대비: 최근 7일 시계열에서 직전 영업일 값으로 계산(주말·공휴일 대응)
-    change = None
-    try:
-        start = (datetime.datetime.strptime(date, "%Y-%m-%d").date()
-                 - datetime.timedelta(days=7)).isoformat()
-        ser = requests.get(base + "/%s..%s?from=EUR&to=KRW" % (start, date), timeout=20, headers=hdr)
-        ser.raise_for_status()
-        rates = ser.json().get("rates", {})
-        days = sorted(rates.keys())
-        if len(days) >= 2:
-            prev = rates[days[-2]].get("KRW")
-            if prev:
-                change = round((rate - prev) / prev * 100.0, 2)
-    except Exception:  # noqa: BLE001 — 변화율만 실패해도 최신값은 반환
-        change = None
-
-    # 3) 최근 5년 추이: 일별은 과하므로 월 단위(각 달의 마지막 관측치)로 샘플링
-    series = None
-    try:
-        end = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-        start5 = (end - datetime.timedelta(days=365 * 5)).isoformat()
-        sr = requests.get(base + "/%s..%s?from=EUR&to=KRW" % (start5, end.isoformat()),
-                          timeout=30, headers=hdr)
-        sr.raise_for_status()
-        rr = sr.json().get("rates", {})
-        monthly = {}  # 'YYYY-MM' → (날짜, 값). 오름차순 순회이므로 뒤 값이 그 달의 최신
-        for d in sorted(rr.keys()):
-            v = rr[d].get("KRW")
-            if v is not None:
-                monthly[d[:7]] = (d, v)
-        dates, values = [], []
-        for ym in sorted(monthly.keys()):
-            d, v = monthly[ym]
-            dates.append(d)
-            values.append(round(v, 2))
-        if dates:
-            series = {"dates": dates, "values": values}
-    except Exception:  # noqa: BLE001 — 추이만 실패해도 현재값은 반환
-        series = None
-
-    out = {"status": "ok", "pair": "EUR/KRW", "rate": round(rate, 2),
-           "change_pct": change, "date": date}
-    if series:
-        out["series"] = series
-    return out
+    except Exception as e:  # noqa: BLE001
+        return {"status": "error", "reason": "환율 처리 실패: %s" % e}
 
 
 # 섹션별 fetcher — 요청 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.

@@ -1386,11 +1386,19 @@ function renderBrands() {
   el.innerHTML = kor + '<div class="brand-divider"></div>' + glo + foot;
 }
 
-/* ── 환율 (EUR/KRW) ── */
-let _fx = null; // { pair, rate, change_pct, date, series:{dates,values} }
-let _fxChart = null; // 추이 차트 hover 캐시
+/* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */
+let _fx = null;        // { rows:[{cur,now,change,prev}], series:{dates,USD,EUR,JPY}, source }
+let _fxMonths = 12;    // 추이 기간(3/6/9/12개월)
+let _fxChart = null;   // 추이 차트 hover 캐시
 
-/** 응답의 fx 저장 후 환율 카드 갱신 */
+const FX_META = {
+  USD: { label: 'USD', sub: '미국 달러', color: '#C8102E' }, // 빨강
+  EUR: { label: 'EUR', sub: '유로',      color: '#F59E0B' }, // 주황
+  JPY: { label: 'JPY', sub: '100엔',     color: '#3B82F6' }, // 파랑
+};
+const FX_CURS = ['USD', 'EUR', 'JPY'];
+
+/** 응답의 fx 저장 후 환율 섹션 갱신 */
 function applyFxUpdate(data) {
   const fx = data && data.sections && data.sections.fx;
   if (!fx) return;
@@ -1399,105 +1407,150 @@ function applyFxUpdate(data) {
   renderFx();
 }
 
-/** 환율 카드 렌더 (현재값 + 전일대비 + 최근 5년 추이) */
+/** 원화 시세 포맷: 천단위 콤마 + 소수 2자리 */
+function fxNum(v) {
+  return (v == null) ? '—' : Number(v).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 환율 섹션 렌더: 상단 시세표 + 기간 버튼 + 추이 그래프 */
 function renderFx() {
   const el = document.getElementById('body-fx');
   if (!el) return;
-  const note = '<div class="fx-note">유로화 대비 원화 가치. 유럽산 원자재·설비 수입 시 원화 부담을 가늠할 수 있습니다.</div>';
-  if (!_fx || _fx.rate == null) {
+  const note = '<div class="fx-note">원/달러·원/유로·원/엔 시세. 수입 원자재·설비 결제 시 원가 부담을 가늠할 수 있습니다.</div>';
+  if (!_fx || !Array.isArray(_fx.rows) || !_fx.rows.length) {
     el.innerHTML = emptyState('환율 데이터 준비중') + note;
     return;
   }
-  const rateStr = Number(_fx.rate).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // 원화: 천단위 콤마 + 소수 2자리
-  const c = _fx.change_pct;
-  const chgHtml = (c == null)
-    ? '<div class="fx-change fx-flat">전일 대비 —</div>'
-    : `<div class="fx-change ${c > 0 ? 'up' : c < 0 ? 'down' : 'fx-flat'}">${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${Math.abs(c).toFixed(2)}% <span class="fx-change__lbl">전일 대비</span></div>`;
+
+  // 1) 상단 시세표
+  const rowByCur = {};
+  _fx.rows.forEach((r) => { rowByCur[r.cur] = r; });
+  const trs = FX_CURS.map((cur) => {
+    const r = rowByCur[cur]; if (!r) return '';
+    const m = FX_META[cur], c = r.change;
+    const chg = (c == null)
+      ? '<span class="fxr-flat">—</span>'
+      : `<span class="fxr-chg ${c > 0 ? 'up' : c < 0 ? 'down' : 'fxr-flat'}">${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${fxNum(Math.abs(c))}</span>`;
+    return `<tr>
+      <td class="fxr-cur"><span class="fxr-dot" style="background:${m.color}"></span><b>${m.label}</b> <span class="fxr-sub">${m.sub}</span></td>
+      <td class="fxr-now">${fxNum(r.now)}</td>
+      <td>${chg}</td>
+      <td class="fxr-prev">${fxNum(r.prev)}</td>
+    </tr>`;
+  }).join('');
+  const table = `<div class="fxr-wrap"><table class="fxr-table">
+    <thead><tr><th>통화</th><th>현재기준율</th><th>전일대비</th><th>전일기준율</th></tr></thead>
+    <tbody>${trs}</tbody>
+  </table></div>`;
+
+  // 2) 기간 버튼 + 추이 그래프
+  const months = [3, 6, 9, 12];
+  const toolbar = `<div class="icis-years fx-months">${months.map((mm) =>
+    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}</div>`;
+
   el.innerHTML = `
-    <div class="fx-card">
-      <div class="fx-rate">${rateStr}<span class="fx-unit">원</span></div>
-      ${chgHtml}
-      <div class="fx-date">기준일 ${escapeHtml(_fx.date || '—')}</div>
-    </div>
+    ${table}
     ${note}
-    <div id="fxChart"></div>
-    <div class="comp-caption">출처: Frankfurter (ECB 기반)</div>`;
-  renderFxChart();
+    <div class="viz-root viz-figure fx-figure">
+      <div class="viz-head"><div>
+        <div class="viz-title">원화 환율 추이</div>
+        <div class="viz-sub">USD · EUR · JPY (원)</div>
+      </div></div>
+      ${toolbar}
+      ${buildFxChart(fxSlice(_fxMonths))}
+      <div class="fx-jpy-note">* JPY는 100엔 단위</div>
+      <div class="viz-tooltip" id="fxTooltip"></div>
+      <div class="comp-caption">출처: Frankfurter (ECB 기반)</div>
+    </div>`;
+
+  const mEl = el.querySelector('.fx-months');
+  if (mEl) mEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.fx-month');
+    if (!b) return;
+    _fxMonths = parseInt(b.dataset.months, 10);
+    renderFx();
+  });
+  wireFxInteraction();
 }
 
-/** 최근 5년 추이 선그래프 (원자재 추이와 같은 톤: 크림슨 선 + 크로스헤어 툴팁) */
-function renderFxChart() {
-  const host = document.getElementById('fxChart');
-  if (!host) return;
+/** series를 최근 N개월로 슬라이스 */
+function fxSlice(months) {
+  const empty = { dates: [], USD: [], EUR: [], JPY: [] };
   const s = _fx && _fx.series;
-  if (!s || !Array.isArray(s.dates) || !s.dates.length) { host.innerHTML = ''; _fxChart = null; return; }
+  if (!s || !Array.isArray(s.dates) || !s.dates.length) return empty;
+  const dates = s.dates;
+  const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+  const cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - months);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const idx = dates.map((d, i) => (d >= cutoffStr ? i : -1)).filter((i) => i >= 0);
+  const pick = (arr) => (Array.isArray(arr) ? idx.map((i) => arr[i]) : idx.map(() => null));
+  return { dates: idx.map((i) => dates[i]), USD: pick(s.USD), EUR: pick(s.EUR), JPY: pick(s.JPY) };
+}
 
-  const dates = s.dates, values = s.values;
-  const n = dates.length;
-  const W = 520, H = 210, padL = 48, padR = 14, padT = 18, padB = 30;
+/** USD·EUR·JPY 원화 추이 선그래프 (모두 KRW → 한 축 공유) */
+function buildFxChart(slice) {
+  const dates = slice.dates, n = dates.length;
+  if (!n) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
+  const series = FX_CURS.map((cur) => ({ key: cur, color: FX_META[cur].color, values: slice[cur] }))
+    .filter((s) => s.values.some((v) => v != null));
+  if (!series.length) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
+
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const yp = (ymax - ymin) * 0.1 || 10; ymin -= yp; ymax += yp;
+
+  const W = 720, H = 280, padL = 52, padR = 16, padT = 16, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const color = 'var(--accent)'; // 크림슨 계열
-
-  // y축 자동 스케일 (0부터 시작 아님)
-  const vals = values.filter((v) => v != null);
-  let ymin = Math.min(...vals), ymax = Math.max(...vals);
-  if (ymin === ymax) { const dd = Math.abs(ymin) * 0.1 || 0.01; ymin -= dd; ymax += dd; }
-  const yp = (ymax - ymin) * 0.12; ymin -= yp; ymax += yp;
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.5, 1].map((t) => {
-    const val = ymin + (ymax - ymin) * t;
-    const y = Y(val);
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
   }).join('');
 
-  // x축 라벨: 연-월(YYYY-MM) 형식으로 통일 + 양 끝 포함해 균등 간격으로만 표시.
-  // (모든 점마다 찍지 않고 고정 개수만 → 오른쪽 끝 라벨 겹침 방지)
   const TICKS = Math.min(6, n);
   const tickIdx = [];
   for (let k = 0; k < TICKS; k++) {
-    const i = TICKS === 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
+    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
     if (!tickIdx.includes(i)) tickIdx.push(i);
   }
   const xticks = tickIdx.map((i) => {
-    const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
   }).join('');
 
-  let path = '', pen = false;
-  values.forEach((v, i) => {
-    if (v == null) { pen = false; return; }
-    const x = X(i), y = Y(v);
-    path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `;
-    pen = true;
-  });
-  const line = path ? `<path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  const lines = series.map((s) => {
+    let path = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      const x = X(i), y = Y(v);
+      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
+    });
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  }).join('');
 
-  _fxChart = { dates, values, color, geom: { X, Y, n, W, padL } };
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
+  _fxChart = { dates, series, geom: { X, Y, n, W, padL } };
 
-  host.innerHTML = `<div class="viz-root viz-figure">
-    <div class="viz-head"><div class="viz-title">최근 5년 추이 (EUR/KRW)</div></div>
-    <svg class="fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="EUR/KRW 최근 5년 추이">
-      ${grid}${xticks}${line}
+  return `${legend}
+    <svg class="viz-svg fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="원화 환율 추이">
+      ${grid}${xticks}${lines}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="fx-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="fx-dots"></g>
       <rect class="fx-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-    </svg>
-    <div class="viz-tooltip" id="fxTooltip"></div>
-  </div>`;
-
-  wireFxInteraction();
+    </svg>`;
 }
 
-/** 추이 차트 크로스헤어 + 툴팁 (날짜 · 값) */
+/** 추이 차트 크로스헤어 + 툴팁 (날짜 · 통화 · 값) */
 function wireFxInteraction() {
-  const fig = document.querySelector('#fxChart .viz-figure');
+  const fig = document.querySelector('#body-fx .fx-figure');
   const tip = document.getElementById('fxTooltip');
   if (!fig || !tip || !_fxChart) return;
   const svg = fig.querySelector('.fx-svg');
+  if (!svg) return;
   const overlay = svg.querySelector('.fx-overlay');
   const cross = svg.querySelector('.fx-cross');
   const dots = svg.querySelector('.fx-dots');
@@ -1508,13 +1561,19 @@ function wireFxInteraction() {
     const sx = (evt.clientX - rect.left) * (g.W / rect.width);
     let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
     i = Math.max(0, Math.min(g.n - 1, i));
-    const v = c.values[i];
-    if (v == null) { clear(); return; }
-    const cx = g.X(i), cy = g.Y(v);
+    const cx = g.X(i);
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
-    dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${c.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>
-      <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>EUR/KRW</span><span class="viz-tt-val">${v.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 원</span></div>`;
+    let dh = '', rows = '';
+    c.series.forEach((s) => {
+      const v = s.values[i];
+      if (v == null) return;
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      const unit = s.key === 'JPY' ? ' 원 (100엔)' : ' 원';
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${fxNum(v)}${unit}</span></div>`;
+    });
+    if (!rows) { clear(); return; }
+    dots.innerHTML = dh;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -1584,6 +1643,7 @@ function resetDashboard() {
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
+  _fxMonths = 12;       // 환율 추이 기간 기본값(12개월)
   // "마지막 업데이트" 텍스트 되돌리기
   const lbl = document.getElementById('lastUpdated');
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';
