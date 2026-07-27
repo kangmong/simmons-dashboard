@@ -110,7 +110,6 @@ git push
 {
   "updated_at": "2026-07-21 14:58:13",
   "sections": {
-    "materials":   { "status": "ok", "period": "2024M12", "rows": [ ... ], "series": { ... } },
     "simmons_news": { "status": "ok", "items": [ { "title": "...", "source": "...", "date": "...", "link": "...", "image": null } ] },
     "news":        { "status": "ok", "items": [ { "title": "...", "title_ko": "...", "link": "...", "date": "..." } ] },
     "competitors": { "status": "ok", "companies": [ { "ticker": "SNBR", "revenue": ..., "revenue_trend": {...} } ] },
@@ -121,19 +120,7 @@ git push
 
 ---
 
-## 참고: pandas / openpyxl 무게
+## 원자재 · 원가 동향 (ICIS 시황 그래프)
 
-원자재(핑크시트 xlsx) 파싱에 `pandas` + `openpyxl` 을 씁니다. Vercel Python 함수 번들
-(무압축 250MB 제한)에 보통 무리 없이 들어갑니다. 만약 배포 크기/콜드스타트가 문제라면
-`api/update.py` 의 `fetch_materials()` 만 **openpyxl 단독**(pandas·numpy 제거)으로 바꿔
-경량화할 수 있습니다 — `openpyxl.load_workbook(read_only=True)` 로 시트를 직접 순회하면
-같은 결과를 얻을 수 있고, 이 경우 `requirements.txt` 에서 `pandas` 를 빼면 됩니다.
-
-## 핑크시트 링크 교체
-
-링크가 바뀌면 `api/update.py`(및 `dashboard_server.py`) 상단 상수 한 곳만 수정하면 됩니다.
-
-```python
-PINK_SHEET_URL = "https://thedocs.worldbank.org/.../CMO-Historical-Data-Monthly.xlsx"
-SHEET_NAME = "Monthly Prices"
-```
+스폰지 주원료(PPG·TDI·MDI·PO) 월별 시황은 `app.js` 의 `ICIS_DATA` 상수로 그립니다(외부 호출 없음).
+그 아래 "주요 시황 원자재 링크"는 `MATERIAL_LINKS` 상수의 외부 사이트로 연결됩니다.

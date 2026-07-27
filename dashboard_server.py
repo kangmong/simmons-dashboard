@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-SIMMONS 대시보드 백엔드 — World Bank 핑크시트(월간 원자재 가격) 실시간 업데이트.
-API 키 없이 공개 xlsx만 사용한다.
+SIMMONS 대시보드 백엔드 — 뉴스·경쟁사·환율 등 공개 소스 실시간 업데이트(API 키 불필요).
 
 실행:
-    pip install flask requests pandas openpyxl
+    pip install flask flask-cors requests beautifulsoup4
     python dashboard_server.py
     브라우저에서 http://127.0.0.1:5000 접속
 
-정적 파일(index.html/app.js/styles.css/*.csv)도 이 서버가 함께 서빙하므로
+정적 파일(index.html/app.js/styles.css/logo.svg)도 이 서버가 함께 서빙하므로
 프런트의 fetch('/api/update') 가 같은 출처로 동작한다(CORS 불필요).
 """
-import io
 import re
 import json
 import datetime
@@ -20,134 +18,11 @@ import concurrent.futures
 import xml.etree.ElementTree as ET
 
 import requests
-import pandas as pd
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)  # 대시보드가 다른 주소(예: http-server)에서 열려도 /api 호출 허용
-
-# ── 핑크시트 위치 (링크가 바뀌면 여기만 교체) ─────────────────────────────
-# 출처: https://www.worldbank.org/en/research/commodity-markets 의 Monthly prices xlsx
-PINK_SHEET_URL = (
-    "https://thedocs.worldbank.org/en/doc/"
-    "5d903e848db1d1b83e0ec8f744e55570-0350012021/related/"
-    "CMO-Historical-Data-Monthly.xlsx"
-)
-SHEET_NAME = "Monthly Prices"
-DATE_RE = re.compile(r"^\d{4}M\d{2}$")  # 예: 2026M06
-
-# 표시 원자재:  (화면 이름, 핑크시트 컬럼 부분일치, 단위)
-MATERIALS = [
-    ("원유(WTI)", "Crude oil, WTI", "USD/배럴"),
-    ("면", "Cotton, A", "USD/kg"),
-    ("천연고무", "Rubber", "USD/kg"),
-    ("천연가스", "Natural gas, US", "USD/mmbtu"),
-]
-
-
-def _download_pink_sheet():
-    """핑크시트 xlsx 원본 바이트를 반환. 실패 시 예외."""
-    resp = requests.get(PINK_SHEET_URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-    resp.raise_for_status()
-    return resp.content
-
-
-def _find_header_row(raw):
-    """첫 15행 중 'Crude oil' 또는 'Cotton' 이 들어간 행 번호를 헤더로 자동 탐지."""
-    preview = pd.read_excel(io.BytesIO(raw), sheet_name=SHEET_NAME, header=None, nrows=15, engine="openpyxl")
-    for i in range(len(preview)):
-        rowvals = " ".join(str(v) for v in preview.iloc[i].tolist())
-        if "Crude oil" in rowvals or "Cotton" in rowvals:
-            return i
-    return None
-
-
-def fetch_materials():
-    """원자재 섹션 데이터. 한 항목 실패해도 나머지는 정상 반환. 파일 실패면 status=error."""
-    # 1) 다운로드
-    try:
-        raw = _download_pink_sheet()
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "핑크시트 다운로드 실패: %s" % e}
-
-    # 2) 파싱 (헤더 자동 탐지)
-    try:
-        header_row = _find_header_row(raw)
-        if header_row is None:
-            return {"status": "error", "reason": "헤더 행(Crude oil/Cotton)을 찾지 못했습니다"}
-        df = pd.read_excel(io.BytesIO(raw), sheet_name=SHEET_NAME, header=header_row, engine="openpyxl")
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "엑셀 파싱 실패: %s" % e}
-
-    # 3) 첫 컬럼(날짜)에서 YYYYMxx 형식 행만 사용
-    try:
-        date_col = df.columns[0]
-        dates = df[date_col].astype(str).str.strip()
-        data = df[dates.str.match(DATE_RE)].reset_index(drop=True)
-        if len(data) < 1:
-            return {"status": "error", "reason": "날짜(YYYYMxx) 형식 데이터 행이 없습니다"}
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "날짜 컬럼 처리 실패: %s" % e}
-
-    latest = data.iloc[-1]
-    prev = data.iloc[-2] if len(data) >= 2 else None
-    period = str(latest[date_col]).strip()
-
-    def find_col(partial):
-        low = partial.lower()
-        for c in df.columns:
-            if low in str(c).lower():
-                return c
-        return None
-
-    def to_float(v):
-        try:
-            return float(v) if pd.notna(v) else None
-        except Exception:  # noqa: BLE001
-            return None
-
-    rows = []
-    for label, partial, unit in MATERIALS:
-        col = find_col(partial)
-        if col is None:
-            rows.append({"label": label, "unit": unit, "value": None,
-                         "period": period, "change_pct": None, "status": "missing"})
-            continue
-        try:
-            val = to_float(latest[col])
-            change = None
-            if prev is not None and val is not None:
-                pv = to_float(prev[col])
-                if pv not in (None, 0):
-                    change = round((val - pv) / pv * 100.0, 1)
-            rows.append({
-                "label": label, "unit": unit,
-                "value": round(val, 2) if val is not None else None,
-                "period": period, "change_pct": change,
-                "status": "ok" if val is not None else "missing",
-            })
-        except Exception as e:  # noqa: BLE001
-            rows.append({"label": label, "unit": unit, "value": None,
-                         "period": period, "change_pct": None, "status": "error"})
-
-    # ── 추이용 시계열: 최근 12개월 ──
-    tail = data.tail(12).reset_index(drop=True)
-    periods = [str(v).strip() for v in tail[date_col].tolist()]
-    series = {"periods": periods}
-    for label, partial, unit in MATERIALS:
-        col = find_col(partial)
-        if col is None:
-            series[label] = [None] * len(periods)
-            continue
-        vals = []
-        for _, row in tail.iterrows():
-            v = to_float(row[col])
-            vals.append(round(v, 2) if v is not None else None)
-        series[label] = vals
-
-    return {"status": "ok", "period": period, "rows": rows, "series": series}
-
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
 # 신메뉴 편중 방지 — 여러 검색어에서 조금씩 모아 중복 제거(팝업·광고·행사·브랜드 골고루)
@@ -907,7 +782,6 @@ def update_fx():
 
 # 섹션별 fetcher — 버튼 한 번에 모두 실행. 추후 같은 패턴으로 확장 가능.
 FETCHERS = {
-    "materials": fetch_materials,
     "simmons_news": update_simmons_news,
     "news": update_news,
     "domestic": update_domestic,

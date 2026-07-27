@@ -959,355 +959,157 @@ function renderNewsAI(rows) {
    5) 원자재 원가 동향 섹션
    ============================================================ */
 
-const MATERIAL_KO = {
-  polyurethane_foam: '폴리우레탄 폼',
-  memory_foam: '메모리폼',
-  steel_spring: '스프링강',
-  latex: '라텍스',
-  cotton: '면',
-  wool: '울',
+/* ── 스폰지 주원료 시황 (ICIS Asia, 고정 데이터) ── */
+const ICIS_DATA = {
+  periods: ["2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"],
+  PPG: [2600,2600,2650,2550,2800,2600,2300,2450,2450,2350,2550,2300,2300,1900,2000,2000,1850,1850,1825,1300,1350,1600,1750,1400,1180,1500,1600,1600,1550,1395,1450,1435,1435,1450,1350,1350,1400,1370,1350,1400,1400,1388,1350,1320,1296,1299,1295,1266,1261,1250,1250,1182,1150,1156,1160,1194,1188,1224,1186,1191,1221,1209,1776,2110,1666,1350],
+  TDI: [1900,1950,2800,2700,2500,2080,1900,2050,2150,2300,2450,2450,2450,2600,2950,3000,2900,2550,2600,2500,2550,2750,3000,2500,2600,2800,2650,2400,2450,2200,2200,2200,2050,2100,2050,1950,1950,2100,2100,2025,1960,1900,1880,1872,1800,1800,1800,1800,1850,1938,1808,1682,1680,1650,1740,1975,1825,1800,1700,1810,1825,1888,2500,2890,2563,2238],
+  MDI: [2300,2600,3300,2900,2450,2200,2400,2600,2600,3000,2700,2500,2500,2800,2800,2700,2650,2400,2200,2050,1950,1950,1850,1600,1750,1850,2000,1900,1800,1775,1850,1930,1950,1900,1750,1750,1800,2100,2100,2063,2100,2163,2200,2175,2113,2200,2200,2100,2175,2238,2150,2010,1988,1925,1832,1817,1763,1686,1650,1765,1765,1750,2300,2920,2688,2375],
+  PO: [2100,2100,2400,2350,2275,1850,1790,2070,2070,2240,2250,2070,1700,1800,1500,1450,1375,1330,1220,1050,1120,1250,1050,1050,1050,1150,1380,1165,1200,1210,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,965,948,920,903,915,920,904,907,910,925,955,962,994,1000,1355,1710,1713,1398],
 };
-const MAT_PALETTE = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
+const ICIS_SERIES = [
+  { key: 'PPG', color: 'var(--blue)' },
+  { key: 'TDI', color: 'var(--green)' },
+  { key: 'MDI', color: 'var(--amber)' },
+  { key: 'PO', color: 'var(--violet)' },
+];
 
-function matName(m) { return MATERIAL_KO[String(m).trim()] || String(m).replace(/_/g, ' '); }
-function matUnit(u) { return String(u || '').replace(/_per_/i, '/').replace(/_/g, ' '); }
-/** 값 라벨 소수 자릿수: 원유(배럴)=1, 그 외(kg·mmbtu 등)=2 */
-function matDecimals(unit) { return /배럴|bbl|barrel/i.test(String(unit || '')) ? 1 : 2; }
+// 그래프 아래 "주요 시황 원자재 링크" (클릭 시 새 탭)
+const MATERIAL_LINKS = [
+  { name: '글로벌 컨테이너 운임지수', desc: 'Freightos Baltic Index (FBX)', icon: '🚢',
+    url: 'https://app.terminal.freightos.com/fbx?ticker=FBX&frequency=%22weekly%22' },
+  { name: '환율 (기간별 환율조회)', desc: '우리은행 환율조회', icon: '💱',
+    url: 'https://spot.wooribank.com/pot/Dream?withyou=CMCOM0184' },
+  { name: '국제유가', desc: '한국석유공사 PETRONET', icon: '🛢️',
+    url: 'https://www.petronet.co.kr' },
+  { name: '해상 정시성', desc: 'Sea-Intelligence Global Schedule Reliability', icon: '⏱️',
+    url: 'https://www.sea-intelligence.com/' },
+  { name: '제재목 (Lumber)', desc: 'Trading Economics Lumber', icon: '🪵',
+    url: 'https://tradingeconomics.com/commodity/lumber' },
+];
 
-/** x축용 짧은 날짜: YYYY-MM-DD→MM-DD, YYYY-MM→YY-MM, 그 외는 뒤 5자 */
-function shortDate(d) {
-  const s = String(d);
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return `${m[2]}-${m[3]}`;
-  m = s.match(/^(\d{4})-(\d{2})$/);
-  if (m) return `${m[1].slice(2)}-${m[2]}`;
-  m = s.match(/^(\d{4})M(\d{2})$/); // World Bank 월간: 2024M06 → 24.06
-  if (m) return `${m[1].slice(2)}.${m[2]}`;
-  return s.length > 7 ? s.slice(-5) : s;
+let _icisChart = null;
+
+/** 섹션 5 전체 렌더: ICIS 시황 그래프 + 시황 링크 */
+function renderMaterial() {
+  renderIcisChart();
+  renderMaterialLinks();
 }
 
-/** 느슨한 숫자 파싱: 콤마·%·공백 제거, FRED 결측치 "." → null */
-function numLoose(v) {
-  if (v == null) return null;
-  const s = String(v).trim().replace(/[,%\s]/g, '');
-  if (s === '' || s === '.') return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-/** 열이 대부분 숫자인지 (가격 열 자동 인식용) */
-function isNumericColumn(rows, key) {
-  let nonEmpty = 0, numeric = 0;
-  for (const r of rows) {
-    const s = String(r[key] == null ? '' : r[key]).trim();
-    if (s === '' || s === '.') continue;
-    nonEmpty++;
-    if (numLoose(r[key]) != null) numeric++;
-  }
-  return nonEmpty > 0 && numeric >= nonEmpty * 0.7;
-}
-
-/** 다양한 CSV 스키마 → 우리 열(날짜/가격/변동/자재/단위/지역/출처) 자동 인식 */
-function detectMaterialColumns(keys, rows) {
-  const norm = (s) => String(s).trim().toLowerCase();
-  const find = (cands) => {
-    for (const c of cands) { const hit = keys.find((k) => norm(k) === norm(c)); if (hit) return hit; }
-    return null;
-  };
-  const date = find(['date', '날짜', 'observation_date']);
-  let price = find(['price', '종가', 'close', 'adj close', 'adjclose', '가격']);
-  const change = find(['변동 %', '변동%', 'mom_change_pct', 'change %', 'change%', '전월대비', '전월대비 %']);
-  const material = find(['material', '자재', '품목']);
-  const unit = find(['unit', '단위']);
-  const region = find(['region', '지역']);
-  const source = find(['source', '출처']);
-
-  const exclude = new Set([date, change, material, unit, region, source].filter(Boolean));
-  if (!price) {
-    // FRED류 시리즈코드형 열(예: WTISPLC, PCU3273...)이면 그 열을 가격으로
-    price = keys.find((k) => !exclude.has(k) && /^[A-Z][A-Z0-9_.]{2,}$/.test(String(k).trim()) && isNumericColumn(rows, k)) || null;
-  }
-  if (!price) {
-    // 숫자로만 채워진 첫 번째 열
-    price = keys.find((k) => !exclude.has(k) && isNumericColumn(rows, k)) || null;
-  }
-  return { date, price, change, material, unit, region, source };
-}
-
-/** 자재명: material 열 없으면 파일명에서 유추, 그래도 못 찾으면 파일명 자체 */
-function inferMaterialFromFilename(file) {
-  const base = String(file || '').replace(/\.[^.]+$/, '');
-  const l = base.toLowerCase();
-  if (/wti|crude|oil|유가|원유/.test(l)) return '유가';
-  if (/urethane|foam|우레탄|폼/.test(l)) return '우레탄';
-  if (/steel|철강|스틸/.test(l)) return '철강';
-  if (/rubber|latex|라텍스|고무/.test(l)) return '라텍스';
-  return base || '원자재';
-}
-
-/** STORE.material을 자동 인식·정규화한 행 배열로 반환 (날짜+가격 못 찾으면 null) */
-function getMaterialData() {
-  const entry = STORE.material;
-  if (!entry || !entry.rows.length) return null;
-  const rows = entry.rows;
-  const col = detectMaterialColumns(Object.keys(rows[0]), rows);
-  if (!col.date || !col.price) return null; // 최소 날짜+가격이 있어야 함
-
-  const inferred = inferMaterialFromFilename(entry.file);
-  const norm = rows
-    .map((r) => {
-      const source = col.source ? String(r[col.source]).trim() : null;
-      const price = numLoose(r[col.price]);
-      return {
-        date: String(r[col.date] == null ? '' : r[col.date]).trim(),
-        material: col.material ? (String(r[col.material]).trim() || inferred) : inferred,
-        price,
-        change: col.change ? numLoose(r[col.change]) : null,
-        unit: col.unit ? String(r[col.unit]).trim() : '',
-        region: col.region ? String(r[col.region]).trim() : '',
-        source,
-        pending: source === '준비중' && price == null,
-      };
-    })
-    .filter((r) => r.date !== '');
-
-  // 변동 열이 없으면 자재별 날짜순으로 '이전 행 대비 %' 계산
-  if (!col.change) {
-    const groups = new Map();
-    norm.forEach((r) => { if (!groups.has(r.material)) groups.set(r.material, []); groups.get(r.material).push(r); });
-    groups.forEach((arr) => {
-      arr.sort((a, b) => a.date.localeCompare(b.date));
-      let prev = null;
-      arr.forEach((r) => {
-        if (r.price != null && prev != null && prev !== 0) r.change = ((r.price - prev) / prev) * 100;
-        if (r.price != null) prev = r.price;
-      });
-    });
-  }
-
-  return { rows: norm, hasSource: !!col.source, hasChangeCol: !!col.change, col };
-}
-
-/** 변동률 → 화살표/색상/라벨 */
-function momMeta(v) {
-  const n = num(v);
-  if (n == null) return { cls: 'mt-mom--flat', label: '—' };
-  if (n > 0) return { cls: 'mt-mom--up', label: `▲ ${n.toFixed(1)}%` };
-  if (n < 0) return { cls: 'mt-mom--down', label: `▼ ${Math.abs(n).toFixed(1)}%` };
-  return { cls: 'mt-mom--flat', label: '0.0%' };
-}
-
-/** 자재별 최신가격/변동 카드 (자재별 최신 date 행 사용) */
-function renderMaterialCards() {
-  const el = document.getElementById('materialCards');
-  if (!el) return;
-  const data = getMaterialData();
-  if (!data) {
-    el.innerHTML = emptyState('원자재 가격 데이터 준비중');
-    return;
-  }
-
-  // 자재별 최신 행
-  const latest = new Map();
-  data.rows.forEach((r) => {
-    if (!r.material) return;
-    const cur = latest.get(r.material);
-    if (!cur || r.date.localeCompare(cur.date) >= 0) latest.set(r.material, r);
-  });
-
-  // 환율(fx) 재사용 — USD/KRW 쌍일 때만 원화 환산(그 외 쌍이면 환산 불가 → 생략)
-  const fxRate = (_fx && _fx.pair === 'USD/KRW' && _fx.rate != null) ? _fx.rate : null;
-  // "USD/배럴" → "원/배럴" (단위 뒷부분 그대로 유지)
-  const krwUnit = (unit) => {
-    const parts = String(unit || '').split('/');
-    return parts.length > 1 ? '원/' + parts.slice(1).join('/') : '원';
-  };
-  const rateNote = fxRate != null
-    ? `<div class="mt-fxrate">적용 환율: 1 USD = ${Math.round(fxRate).toLocaleString('ko-KR')}원${_fx.date ? ` (${escapeHtml(_fx.date)})` : ''}</div>`
-    : '';
-
-  el.innerHTML = rateNote + [...latest.values()]
-    .map((r) => {
-      const badge = r.source ? renderBadge(r.source) : '';
-      if (r.pending) {
-        return `<div class="mt-card mt-card--pending">
-          <div class="mt-card__name"><span>${escapeHtml(matName(r.material))}</span>${badge}</div>
-          <div class="mt-pending-text">데이터 준비중</div>
-        </div>`;
-      }
-      const mom = momMeta(r.change);
-      const unit = matUnit(r.unit);
-      const krw = (fxRate != null && r.price != null)
-        ? `<div class="mt-price-krw">≈ ${Math.round(r.price * fxRate).toLocaleString('ko-KR')}${escapeHtml(krwUnit(unit))}</div>`
-        : '';
-      return `<div class="mt-card">
-        <div class="mt-card__name"><span>${escapeHtml(matName(r.material))}</span>${badge}</div>
-        <div class="mt-card__price">
-          <span class="mt-price-num">${r.price == null ? '—' : r.price.toLocaleString()}</span>
-          ${unit ? `<span class="mt-price-unit">${escapeHtml(unit)}</span>` : ''}
-        </div>
-        ${krw}
-        <div class="mt-card__foot">
-          <span class="mt-mom ${mom.cls}">${mom.label}</span>
-          <span class="mt-region">${escapeHtml(r.region || fmtDate(r.date))}</span>
-        </div>
-      </div>`;
-    })
-    .join('');
-}
-
-let _materialCharts = [];
-
-/** 자재명 → 선 색 (기존 유지: 면=파랑, 원유=초록, 가스=주황, 고무=보라) */
-function matColor(name, idx) {
-  const n = String(name);
-  if (/면|cotton/i.test(n)) return 'var(--series-1)';
-  if (/원유|wti|crude|oil/i.test(n)) return 'var(--series-2)';
-  if (/가스|gas/i.test(n)) return 'var(--series-3)';
-  if (/고무|rubber|latex/i.test(n)) return 'var(--series-4)';
-  return ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'][idx % 4];
-}
-
-/** 자재별 개별 라인차트 4개 (2×2). 각 차트는 자기 "실제 가격" y축으로 자동 스케일 */
-function renderMaterialChart() {
+/** 4개 원료(PPG·TDI·MDI·PO) 월별 선그래프 (null 구간은 선 끊김) */
+function renderIcisChart() {
   const host = document.getElementById('materialChart');
   if (!host) return;
-  _materialCharts = [];
-  const data = getMaterialData();
-  const head = `<div class="viz-head"><div class="viz-title">자재별 가격 추이</div></div>`;
-  if (!data) { host.innerHTML = `<div class="viz-root viz-figure">${head}${emptyState('원자재 가격 데이터 준비중')}</div>`; return; }
+  const periods = ICIS_DATA.periods, n = periods.length;
+  const series = ICIS_SERIES.map((s) => ({ key: s.key, color: s.color, values: ICIS_DATA[s.key] }));
 
-  const byMat = new Map();
-  data.rows.forEach((r) => {
-    if (r.pending || r.price == null) return;
-    if (!byMat.has(r.material)) byMat.set(r.material, { material: r.material, unit: r.unit, points: [] });
-    byMat.get(r.material).points.push({ date: r.date, price: r.price });
-  });
-  if (!byMat.size) { host.innerHTML = `<div class="viz-root viz-figure">${head}<div class="chart-empty">차트로 표시할 가격 데이터가 없습니다.</div></div>`; return; }
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const yp = (ymax - ymin) * 0.08; ymin = Math.max(0, ymin - yp); ymax += yp;
 
-  const mats = [...byMat.values()];
-  mats.forEach((s) => s.points.sort((a, b) => a.date.localeCompare(b.date)));
-  const xCats = [...new Set(mats.flatMap((s) => s.points.map((p) => p.date)))].sort((a, b) => a.localeCompare(b));
-
-  const W = 340, H = 200, padL = 42, padR = 14, padT = 26, padB = 30;
+  const W = 720, H = 300, padL = 54, padR = 16, padT = 18, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const n = xCats.length;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const xStep = Math.max(1, Math.ceil(n / 5));
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const minis = mats.map((s, idx) => {
-    const color = matColor(s.material, idx);
-    const dec = matDecimals(s.unit);
-    const priceByDate = new Map(s.points.map((p) => [p.date, p.price]));
-    const values = xCats.map((d) => (priceByDate.has(d) ? priceByDate.get(d) : null));
-
-    // 실제 가격 y축 자동 스케일 (0 고정 아님)
-    const prices = values.filter((v) => v != null);
-    let ymin = Math.min(...prices), ymax = Math.max(...prices);
-    if (ymin === ymax) { const dd = Math.abs(ymin) * 0.1 || 1; ymin -= dd; ymax += dd; }
-    const yp = (ymax - ymin) * 0.18; ymin -= yp; ymax += yp;
-    const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
-
-    // y 그리드 3줄 + 실제 가격 라벨
-    const grid = [0, 0.5, 1].map((t) => {
-      const val = ymin + (ymax - ymin) * t;
-      const y = Y(val);
-      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-        <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${val.toFixed(dec)}</text>`;
-    }).join('');
-
-    // x축 라벨 (24.01~24.12, 솎아서)
-    const xticks = xCats.map((d, i) => {
-      if (!(i % xStep === 0 || i === n - 1)) return '';
-      return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--muted)">${escapeHtml(shortDate(d))}</text>`;
-    }).join('');
-
-    // 선 + 점
-    let path = '', pen = false;
-    const dots = [];
-    values.forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      const x = X(i), y = Y(v);
-      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `;
-      pen = true;
-      dots.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="${color}" stroke="var(--surface-1)" stroke-width="1.2"/>`);
-    });
-    const line = path ? `<path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
-
-    // 값 라벨(실제 가격) — 각 점 위/아래 번갈아, 선 색 + 흰 헤일로
-    const labels = values.map((v, i) => {
-      if (v == null) return '';
-      const x = X(i), py = Y(v);
-      let ly = (i % 2 === 0) ? py - 7 : py + 12;
-      if (ly < padT + 8) ly = py + 12;
-      if (ly > H - 6) ly = py - 7;
-      return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${color}">${v.toFixed(dec)}</text>`;
-    }).join('');
-
-    _materialCharts.push({ idx, name: s.material, unit: s.unit, color, dec, xCats, values, geom: { X, Y, n, W, padL } });
-
-    return `<div class="mat-mini">
-      <div class="mat-mini__title"><span class="mat-mini__dot" style="background:${color}"></span>${escapeHtml(s.material)} <span class="mat-mini__unit">(${escapeHtml(matUnit(s.unit))})</span></div>
-      <svg class="mat-mini__svg" data-i="${idx}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(s.material)} 가격 추이">
-        ${grid}${xticks}${line}${dots.join('')}${labels}
-        <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
-        <line class="mat-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
-        <g class="mat-dots"></g>
-        <rect class="mat-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      </svg>
-    </div>`;
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
   }).join('');
 
-  host.innerHTML = `<div class="viz-root viz-figure">
-    ${head}
-    <div class="mat-grid">${minis}</div>
-    <div class="viz-tooltip" id="materialTooltip"></div>
-  </div>`;
+  const step = 6; // 6개월 간격 라벨
+  const xticks = periods.map((p, i) => {
+    if (!(i % step === 0 || i === n - 1)) return '';
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="9.5" fill="var(--muted)">${escapeHtml(p)}</text>`;
+  }).join('');
 
-  wireMaterialInteraction();
-}
-
-/** 미니차트별 크로스헤어 + 툴팁 (날짜 · 실제 가격) */
-function wireMaterialInteraction() {
-  const fig = document.querySelector('#materialChart .viz-figure');
-  const tip = document.getElementById('materialTooltip');
-  if (!fig || !tip) return;
-  _materialCharts.forEach((c) => {
-    const svg = fig.querySelector(`.mat-mini__svg[data-i="${c.idx}"]`);
-    if (!svg) return;
-    const overlay = svg.querySelector('.mat-overlay');
-    const cross = svg.querySelector('.mat-cross');
-    const dots = svg.querySelector('.mat-dots');
-    const g = c.geom;
-    const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
-    overlay.addEventListener('mousemove', (evt) => {
-      const rect = svg.getBoundingClientRect();
-      const sx = (evt.clientX - rect.left) * (g.W / rect.width);
-      let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
-      i = Math.max(0, Math.min(g.n - 1, i));
-      const v = c.values[i];
-      if (v == null) { clear(); return; }
-      const cx = g.X(i), cy = g.Y(v);
-      cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
-      dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${c.color}" stroke="var(--surface-1)" stroke-width="2"/>`;
-      tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.xCats[i])}</div>
-        <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>${escapeHtml(c.name)}</span><span class="viz-tt-val">${v.toFixed(c.dec)} ${escapeHtml(matUnit(c.unit))}</span></div>`;
-      const fr = fig.getBoundingClientRect();
-      let left = evt.clientX - fr.left + 14;
-      if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
-      tip.style.left = `${Math.max(4, left)}px`;
-      tip.style.top = `${evt.clientY - fr.top + 14}px`;
-      tip.classList.add('is-visible');
+  const lines = series.map((s) => {
+    let path = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }        // null → 선 끊김
+      const x = X(i), y = Y(v);
+      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
     });
-    overlay.addEventListener('mouseleave', clear);
-  });
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  }).join('');
+
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
+  _icisChart = { periods, series, geom: { X, Y, n, W, padL } };
+
+  host.innerHTML = `<div class="viz-root viz-figure">
+    <div class="viz-head"><div>
+      <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
+      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤)</div>
+    </div></div>
+    ${legend}
+    <svg class="viz-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
+      ${grid}${xticks}${lines}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="icis-dots"></g>
+      <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>
+    <div class="viz-tooltip" id="icisTooltip"></div>
+    <div class="comp-caption">출처: ICIS Asia</div>
+  </div>`;
+  wireIcisChart();
 }
 
-/** 섹션 5 전체 렌더 */
-function renderMaterial() {
-  renderMaterialCards();
-  renderMaterialChart();
+/** 크로스헤어 + 툴팁 (월 · 원료별 가격) */
+function wireIcisChart() {
+  const fig = document.querySelector('#materialChart .viz-figure');
+  const tip = document.getElementById('icisTooltip');
+  if (!fig || !tip || !_icisChart) return;
+  const svg = fig.querySelector('.viz-svg');
+  const overlay = svg.querySelector('.icis-overlay');
+  const cross = svg.querySelector('.icis-cross');
+  const dots = svg.querySelector('.icis-dots');
+  const c = _icisChart, g = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  overlay.addEventListener('mousemove', (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+    const cx = g.X(i);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    let dh = '', rows = '';
+    c.series.forEach((s) => {
+      const v = s.values[i];
+      if (v == null) return;
+      const cy = g.Y(v);
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toLocaleString('en-US')}</span></div>`;
+    });
+    dots.innerHTML = dh;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])} · USD/톤</div>${rows}`;
+    const fr = fig.getBoundingClientRect();
+    let left = evt.clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  });
+  overlay.addEventListener('mouseleave', clear);
 }
+
+/** 주요 시황 원자재 링크 카드 (새 탭) */
+function renderMaterialLinks() {
+  const el = document.getElementById('materialLinks');
+  if (!el) return;
+  const cards = MATERIAL_LINKS.map((l) => `<a class="matlink" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">
+    <span class="matlink__icon" aria-hidden="true">${l.icon}</span>
+    <span class="matlink__txt">
+      <span class="matlink__name">${escapeHtml(l.name)}</span>
+      <span class="matlink__desc">${escapeHtml(l.desc)}</span>
+    </span>
+    <span class="matlink__go" aria-hidden="true">↗</span>
+  </a>`).join('');
+  el.innerHTML = `<h3 class="subhead matlink-head">주요 시황 원자재 링크</h3><div class="matlink-grid">${cards}</div>`;
+}
+
 
 /** 필터 클릭(위임) — 한 번만 연결 */
 function initNews() {
@@ -1618,63 +1420,11 @@ function initReport() {
 }
 
 /* ============================================================
-   실시간 업데이트 — 백엔드 /api/update (World Bank 핑크시트)
+   실시간 업데이트 — 백엔드 /api/update
    서버(python dashboard_server.py) 실행 중일 때만 동작.
-   지금은 "원자재" 섹션만 연결 (섹션별 apply 함수로 확장 가능).
    ============================================================ */
 
-/** 응답의 materials 를 원자재 섹션 STORE 형식으로 변환해 채운다 */
-function applyMaterialsUpdate(data) {
-  const m = data && data.sections && data.sections.materials;
-  if (!m) return;
 
-  if (m.status === 'error') {
-    // 파일 자체 실패: 섹션은 비우되 사유는 콘솔에 남김
-    STORE.material = { rows: [], origin: 'update', file: 'World Bank Pink Sheet', message: m.reason || '' };
-    console.warn('[update] materials error:', m.reason);
-  } else {
-    // 라벨→단위/상태 조회 (series 는 단위를 담지 않으므로 rows 에서 가져옴)
-    const unitByLabel = {}, statusByLabel = {};
-    (m.rows || []).forEach((r) => { unitByLabel[r.label] = r.unit; statusByLabel[r.label] = r.status; });
-
-    const series = m.series;
-    let rows;
-    if (series && Array.isArray(series.periods) && series.periods.length) {
-      // 최근 12개월을 롱포맷(자재 × 월)으로 → 기존 시계열 차트 로직 재사용
-      // mom_change_pct 는 넣지 않아 getMaterialData 가 월별 전월대비를 자동 계산하게 함
-      const labels = Object.keys(series).filter((k) => k !== 'periods');
-      rows = [];
-      series.periods.forEach((per, i) => {
-        labels.forEach((label) => {
-          const arr = series[label];
-          const v = arr && arr[i] != null ? arr[i] : '';
-          rows.push({
-            date: String(per).trim(),
-            material: label,
-            price: v,
-            unit: unitByLabel[label] || '',
-            region: 'Global',
-            source: statusByLabel[label] === 'ok' ? '실데이터' : '준비중',
-          });
-        });
-      });
-    } else {
-      // series 없으면 최신값만 (구버전 호환)
-      rows = (m.rows || []).map((r) => ({
-        date: String(r.period || m.period || '').trim(),
-        material: r.label,
-        price: r.value,
-        unit: r.unit,
-        region: 'Global',
-        mom_change_pct: r.change_pct,
-        source: r.status === 'ok' ? '실데이터' : '준비중',
-      }));
-    }
-    STORE.material = { rows, origin: 'update', file: 'World Bank Pink Sheet' };
-  }
-  // 원자재 섹션 재렌더 — 기존 렌더 로직 재사용
-  renderMaterial();
-}
 
 /** API 기본 경로 — 상대경로('/api/update')로 호출한다.
  *  같은 출처에서 서빙되므로(로컬: dashboard_server.py, 배포: Vercel) 절대주소가 필요 없다. */
@@ -1685,7 +1435,6 @@ function resetDashboard() {
   if (!window.confirm('초기화할까요?')) return;
   // 업데이트/기본값으로 채워졌던 모든 섹션 데이터 제거 → 각 섹션 "준비중" 빈 상태
   Object.keys(STORE).forEach((k) => delete STORE[k]);
-  _materialCharts = []; // 원자재 미니차트 hover 캐시 비우기
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _liveNews = null;     // 실시간 뉴스 비우기
   _domestic = null;     // 국내 브랜드 신제품 비우기
@@ -1721,8 +1470,7 @@ function initUpdate() {
       if (lbl && data.updated_at) lbl.textContent = '마지막 업데이트: ' + data.updated_at;
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
-      applyFxUpdate(data);        // 먼저 환율을 반영해야 원자재 카드의 원화 환산이 나온다
-      applyMaterialsUpdate(data);
+      applyFxUpdate(data);
       applySimmonsNewsUpdate(data);
       applyNewsUpdate(data);
       applyDomesticUpdate(data);
