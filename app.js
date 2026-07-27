@@ -788,18 +788,18 @@ function renderCompetitor() {
 
   el.innerHTML = `
     <div class="comp-group">
-      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
-      <div class="comp-group__sub">분기별 실적 (최근 10-Q · 자동 갱신)
-        <span class="comp-group__desc">매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR</span>
-      </div>
-      ${globalHtml}
-    </div>
-    <div class="comp-group">
       <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
       <div class="comp-group__sub">분기별 실적 (네이버 금융 · 자동 갱신)
         <span class="comp-group__desc">매출·순이익(원화) · 전년 동기 대비(YoY) 기준</span>
       </div>
       ${koreaHtml}
+    </div>
+    <div class="comp-group">
+      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
+      <div class="comp-group__sub">분기별 실적 (최근 10-Q · 자동 갱신)
+        <span class="comp-group__desc">매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR</span>
+      </div>
+      ${globalHtml}
     </div>`;
 }
 
