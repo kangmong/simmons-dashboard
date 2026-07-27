@@ -1106,12 +1106,25 @@ function buildIcisChart(periods, series) {
     return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
+  // 각 데이터 점 표시
+  const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.4" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
+  // 값 라벨: 연도별 보기(12개월)에서만 항상 표시. 시리즈별 위/아래 번갈아 배치로 겹침 완화
+  const labels = singleYear ? series.map((s, si) => s.values.map((v, i) => {
+    if (v == null) return '';
+    const x = X(i), y = Y(v);
+    let ly = (si % 2 === 0) ? y - 7 : y + 13;
+    if (ly < padT + 8) ly = y + 13;
+    if (ly > padT + plotH) ly = y - 7;
+    return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${s.color}">${Math.round(v).toLocaleString('en-US')}</text>`;
+  }).join('')).join('') : '';
+
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
   _icisChart = { periods, series, geom: { X, Y, n, W, padL } };
 
   return `${legend}
     <svg class="viz-svg icis-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
-      ${grid}${xticks}${lines}
+      ${grid}${xticks}${lines}${dots}${labels}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
