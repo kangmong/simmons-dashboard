@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'simmons_news', 'competitor', 'news', 'material', 'domestic', 'fx'];
+const VIEWS = ['dashboard', 'simmons_news', 'competitor', 'material', 'domestic', 'fx'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -609,14 +609,6 @@ function renderSimmonsNews() {
   }).join('');
 }
 
-/** 응답의 news(Google News RSS)를 저장하고 뉴스 섹션 갱신 */
-function applyNewsUpdate(data) {
-  const nw = data && data.sections && data.sections.news;
-  if (!nw) return;
-  if (nw.status === 'error') { _liveNews = null; console.warn('[update] news error:', nw.reason); }
-  else { _liveNews = nw.items || []; }
-  renderNews();
-}
 
 
 /* ============================================================
@@ -839,121 +831,6 @@ function distinct(rows, key) {
   return out;
 }
 
-/** 필터 칩 그룹 HTML */
-function filterGroup(label, group, values, active) {
-  const chips = ['전체', ...values]
-    .map((v) => `<button class="chip ${v === active ? 'is-active' : ''}" data-group="${group}" data-value="${escapeHtml(v)}">${escapeHtml(v)}</button>`)
-    .join('');
-  return `<div class="news-filter-group"><span class="news-filter-label">${label}</span>${chips}</div>`;
-}
-
-/** 썸네일 이모지: region 국기 우선 → category 아이콘 → 기본(📰). 외부 이미지 미사용 */
-function newsThumb(region, category) {
-  const r = String(region || '').toLowerCase();
-  const flag =
-    /미국|usa|united states|u\.s|북미|north america/.test(r) ? '🇺🇸' :
-    /유럽|europe|\beu\b|영국|독일|프랑스|germany|france|\buk\b/.test(r) ? '🇪🇺' :
-    /중국|china|prc/.test(r) ? '🇨🇳' :
-    /일본|japan/.test(r) ? '🇯🇵' :
-    /한국|korea/.test(r) ? '🇰🇷' :
-    /글로벌|global|world|전\s*세계/.test(r) ? '🌐' : null;
-  if (flag) return flag;
-  const c = String(category || '').toLowerCase();
-  if (/신제품|제품|트렌드|product/.test(c)) return '🛏️';
-  if (/시장|실적|매출|market|earnings|sales/.test(c)) return '📈';
-  if (/m&a|인수|합병|merger|acquis/.test(c)) return '🤝';
-  if (/규제|정책|regulation|policy/.test(c)) return '📋';
-  if (/공급망|물류|supply/.test(c)) return '🚚';
-  return '📰';
-}
-
-let _liveNews = null; // Google News RSS 실시간 항목 (업데이트 버튼)
-
-/** 실시간 뉴스 항목 하나 렌더 (제목 클릭 → 원문 새 탭) */
-function renderLiveNewsItem(it) {
-  const url = safeUrl(it.link);
-  const meta = [it.source, it.date].filter(Boolean).join(' · ');
-  const tag = url ? 'a' : 'div';
-  const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
-  return `<${tag} class="news-item${url ? '' : ' news-item--nolink'}"${attrs}>
-    <div class="news-thumb" aria-hidden="true">📰</div>
-    <div class="news-item__body">
-      <div class="news-item__top"><h3 class="news-item__title">${escapeHtml(it.title)}</h3></div>
-      <div class="news-item__meta">${escapeHtml(meta)}</div>
-    </div>
-  </${tag}>`;
-}
-
-/** 뉴스 섹션: 실시간(Google News) 우선, 없으면 CSV, 없으면 준비중 */
-function renderNews() {
-  const listEl = document.getElementById('newsList');
-  const aiEl = document.getElementById('newsAI');
-  if (!listEl) return;
-
-  // 1) 실시간 뉴스(업데이트 버튼)
-  if (_liveNews && _liveNews.length) {
-    listEl.innerHTML = _liveNews.map(renderLiveNewsItem).join('')
-      + '<div class="comp-caption">출처: Google News</div>';
-    if (aiEl) aiEl.innerHTML = renderNewsTranslations(_liveNews);
-    return;
-  }
-
-  // 2) CSV 폴백
-  const rows = (STORE.news ? STORE.news.rows.slice() : [])
-    .sort((a, b) => String(b.date).localeCompare(String(a.date))); // 날짜 최신순
-
-  if (!rows.length) {
-    listEl.innerHTML = emptyState('뉴스 데이터 준비중');
-    if (aiEl) aiEl.innerHTML = renderNewsAI([]);
-    return;
-  }
-
-  listEl.innerHTML = rows.map((r) => {
-    const url = safeUrl(r.url);
-    const region = String(r.region || '').trim();
-    const meta = [region, fmtDate(r.date)].filter(Boolean).join(' · ');
-    const summary = String(r.summary || '').trim();
-    const thumb = newsThumb(region, r.category);
-    const badge = r.source ? renderBadge(r.source) : '';
-    const tag = url ? 'a' : 'div';
-    const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
-    return `<${tag} class="news-item${url ? '' : ' news-item--nolink'}"${attrs}>
-      <div class="news-thumb" aria-hidden="true">${thumb}</div>
-      <div class="news-item__body">
-        <div class="news-item__top">
-          <h3 class="news-item__title">${escapeHtml(r.title)}</h3>
-          ${badge}
-        </div>
-        <div class="news-item__meta">${escapeHtml(meta)}</div>
-        ${summary ? `<div class="news-item__summary">${escapeHtml(summary)}</div>` : ''}
-      </div>
-    </${tag}>`;
-  }).join('');
-
-  if (aiEl) aiEl.innerHTML = renderNewsAI(rows);
-}
-
-/** 하단 "뉴스 한글 번역" 박스 — 각 뉴스 제목의 한국어 번역(title_ko)을 나열. 번역만, 요약 아님. */
-function renderNewsTranslations(items) {
-  const lines = (items || []).map((it) => it.title_ko || it.title).filter(Boolean);
-  const has = lines.length > 0;
-  const body = has
-    ? lines.map((s) => `<span class="news-ai__line">· ${escapeHtml(s)}</span>`).join('')
-    : '번역 준비중';
-  const tag = has ? '<span class="news-ai__tag">자동번역</span>' : '<span class="news-ai__tag">준비중</span>';
-  return `<div class="news-ai__label">뉴스 한글 번역 ${tag}</div>
-    <div class="news-ai__body">${body}</div>`;
-}
-
-/** 하단 AI 요약 박스 — 지금은 summary 모음(최대 3줄), 없으면 "요약 준비중" (실제 AI는 추후 연결) */
-function renderNewsAI(rows) {
-  const summaries = rows.map((r) => String(r.summary || '').trim()).filter(Boolean).slice(0, 3);
-  const body = summaries.length
-    ? summaries.map((s) => `<span class="news-ai__line">· ${escapeHtml(s)}</span>`).join('')
-    : '요약 준비중';
-  return `<div class="news-ai__label">✨ AI 요약 <span class="news-ai__tag">준비중</span></div>
-    <div class="news-ai__body">${body}</div>`;
-}
 
 /* ============================================================
    5) 원자재 원가 동향 섹션
@@ -1215,70 +1092,48 @@ function renderMaterialLinksHtml() {
 
 
 
-/** 필터 클릭(위임) — 한 번만 연결 */
-function initNews() {
-  const filtersEl = document.getElementById('newsFilters');
-  if (!filtersEl) return;
-  filtersEl.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    _newsState[chip.dataset.group] = chip.dataset.value;
-    renderNews();
-  });
-}
 
-/* ── 국내 브랜드 신제품 (Google News RSS 한국어) ── */
-let _domestic = null;         // [{ brand, title, source, date, link, image, product_name }]
-let _domesticFeatured = null; // [{ brand, product_name, image, source, date, link }] 대표 상품 3개
+/* ── 국내외 브랜드 신제품 (Google News RSS) ── */
+let _domestic = null;         // 국내 items
+let _domesticFeatured = null; // 국내 대표 상품
+let _globalBrands = null;     // 국외 items
+let _globalFeatured = null;   // 국외 대표 상품
 
 // 브랜드별 포인트 색 (배지 강조)
 const DOM_BRAND_COLORS = {
-  '에이스침대': 'var(--blue)',
-  '씰리': 'var(--violet)',
-  '한샘': 'var(--green)',
-  '이케아': 'var(--amber)',
+  '에이스침대': 'var(--blue)', '씰리': 'var(--violet)', '한샘': 'var(--green)', '이케아': 'var(--amber)',
+  'Sleep Number': 'var(--blue)', 'Tempur-Pedic': 'var(--green)', 'Purple': 'var(--violet)', 'Serta': 'var(--amber)',
 };
 
-/** 응답의 domestic 저장 후 카드 갱신 */
+/** 응답의 domestic 저장 */
 function applyDomesticUpdate(data) {
   const dm = data && data.sections && data.sections.domestic;
   if (!dm) return;
-  if (dm.status === 'error') {
-    _domestic = null; _domesticFeatured = null;
-    console.warn('[update] domestic error:', dm.reason);
-  } else {
-    _domestic = dm.items || [];
-    // featured 가 오면 사용, 없으면 items 상위 3개로 폴백
-    _domesticFeatured = (dm.featured && dm.featured.length) ? dm.featured : _domestic.slice(0, 3);
-  }
-  renderDomestic();
+  if (dm.status === 'error') { _domestic = null; _domesticFeatured = null; console.warn('[update] domestic error:', dm.reason); }
+  else { _domestic = dm.items || []; _domesticFeatured = (dm.featured && dm.featured.length) ? dm.featured : _domestic.slice(0, 3); }
+  renderBrands();
 }
 
-/** 국내 브랜드 신제품 카드 렌더: 상단 "대표 출시 상품" 3개 + 하단 뉴스 목록 (클릭 → 원문 새 탭) */
-function renderDomestic() {
-  const el = document.getElementById('domesticList');
-  if (!el) return;
-  if (!_domestic || !_domestic.length) {
-    el.innerHTML = emptyState('국내 브랜드 신제품 데이터 준비중');
-    return;
-  }
+/** 응답의 global_brands 저장 */
+function applyGlobalBrandsUpdate(data) {
+  const gb = data && data.sections && data.sections.global_brands;
+  if (!gb) return;
+  if (gb.status === 'error') { _globalBrands = null; _globalFeatured = null; console.warn('[update] global_brands error:', gb.reason); }
+  else { _globalBrands = gb.items || []; _globalFeatured = (gb.featured && gb.featured.length) ? gb.featured : _globalBrands.slice(0, 3); }
+  renderBrands();
+}
 
-  // ── 상단: 대표 출시 상품 3개 (사진 + 회사명 + 제품명 + 출처·날짜) ──
-  // image 가 null 이어도 브랜드 색 배경으로 카드는 항상 표시된다.
-  const featList = (_domesticFeatured && _domesticFeatured.length)
-    ? _domesticFeatured
-    : (_domestic ? _domestic.slice(0, 3) : []);
-  const feats = featList.map((it) => {
+/** 대표 출시 상품 카드 3개 HTML (사진 > Clearbit 로고 > 파비콘 > 브랜드명) */
+function brandFeatureCards(featList, colors) {
+  return featList.map((it) => {
     const url = safeUrl(it.link);
     const img = safeUrl(it.image);
-    const logo = safeUrl(it.logo_url);        // 1순위 로고(Clearbit)
-    const logo2 = safeUrl(it.logo_fallback);  // 폴백 로고(구글 파비콘)
-    const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
+    const logo = safeUrl(it.logo_url);
+    const logo2 = safeUrl(it.logo_fallback);
+    const color = colors[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const name = String(it.product_name || it.title || '').trim();
     const meta = [it.source, it.date].filter(Boolean).join(' · ');
-    // 이미지 우선순위: 기사 사진 > 브랜드 로고(Clearbit) > 폴백 로고(파비콘) > 브랜드명 텍스트.
-    // 겹쳐 쌓고(아래=폴백, 위=우선), 위 레이어가 로드 실패(onerror)하면 제거돼 아래가 드러난다.
     const mkLogo = (u) => u
       ? `<img class="prod-card__logo" src="${escapeHtml(u)}" alt="${escapeHtml(brand)} 로고" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
@@ -1299,30 +1154,23 @@ function renderDomestic() {
       </div>
     </${tag}>`;
   }).join('');
-  const feature = feats
-    ? `<div class="dom-feature">
-        <div class="dom-feature__head">대표 출시 상품</div>
-        <div class="dom-feature__grid">${feats}</div>
-      </div>
-      <div class="dom-divider"></div>`
-    : '';
+}
 
-  // ── 하단: 기존 뉴스 목록 ──
-  const list = _domestic.map((it) => {
+/** 기사 목록 HTML ([브랜드] 제목 + 출처·날짜) */
+function brandListItems(items, colors) {
+  return items.map((it) => {
     const url = safeUrl(it.link);
     const img = safeUrl(it.image);
-    const color = DOM_BRAND_COLORS[it.brand] || 'var(--accent)';
+    const color = colors[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const meta = [it.source, it.date].filter(Boolean).join(' · ');
-    // 제목: 끝의 " - 언론사" 접미사 제거 → 앞의 중복 브랜드명 제거 → [브랜드] 표기로 통합
     let title = String(it.title || '');
     if (it.source && title.endsWith(' - ' + it.source)) title = title.slice(0, -(it.source.length + 3));
     if (brand) {
       const bre = new RegExp('^\\s*' + brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,·:\\-]?\\s*');
       const stripped = title.replace(bre, '').trim();
-      if (stripped) title = stripped; // 전부 지워지면 원제목 유지
+      if (stripped) title = stripped;
     }
-    // 썸네일: 이미지 위에 브랜드 이니셜을 깔아, 이미지 실패(onerror) 시 이니셜이 드러남
     const initial = brand ? brand.charAt(0) : '·';
     const imgTag = img
       ? `<img class="dom-thumb__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
@@ -1340,11 +1188,34 @@ function renderDomestic() {
       </div>
     </${tag}>`;
   }).join('');
+}
 
+/** 한 소그룹(국내/국외) 렌더: 소제목 + 대표 상품 3개 + 기사 목록 */
+function brandGroupHtml(title, tag, items, featured, colors, emptyMsg) {
+  const head = `<div class="comp-group__head">${escapeHtml(title)}${tag ? ` <span class="comp-group__tag">${escapeHtml(tag)}</span>` : ''}</div>`;
+  if (!items || !items.length) return `<div class="brand-group">${head}${emptyState(emptyMsg)}</div>`;
+  const featList = (featured && featured.length) ? featured : items.slice(0, 3);
+  return `<div class="brand-group">
+    ${head}
+    <div class="dom-feature"><div class="dom-feature__head">대표 출시 상품</div>
+      <div class="dom-feature__grid">${brandFeatureCards(featList, colors)}</div></div>
+    <div class="dom-divider"></div>
+    ${brandListItems(items, colors)}
+  </div>`;
+}
+
+/** 국내외 브랜드 신제품 렌더: 국내 + 국외(Global) 두 소그룹 */
+function renderBrands() {
+  const el = document.getElementById('domesticList');
+  if (!el) return;
+  const hasKor = _domestic && _domestic.length;
+  const hasGlo = _globalBrands && _globalBrands.length;
+  if (!hasKor && !hasGlo) { el.innerHTML = emptyState('브랜드 신제품 데이터 준비중'); return; }
+  const kor = brandGroupHtml('국내', '', _domestic, _domesticFeatured, DOM_BRAND_COLORS, '국내 브랜드 신제품 준비중');
+  const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
-
-  el.innerHTML = feature + list + foot;
+  el.innerHTML = kor + '<div class="brand-divider"></div>' + glo + foot;
 }
 
 /* ── 환율 (EUR/KRW) ── */
@@ -1490,8 +1361,7 @@ function wireFxInteraction() {
 function refreshSections() {
   renderSimmonsNews();
   renderCompetitor();
-  renderNews();
-  renderDomestic();
+  renderBrands();
   renderMaterial();
   renderFx();
   updateDashHeader();
@@ -1509,7 +1379,6 @@ function updateDashHeader() {
 document.addEventListener('DOMContentLoaded', () => {
   initNav();
   initUpload();
-  initNews();
   initReport();
   initUpdate();
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
@@ -1541,9 +1410,8 @@ function resetDashboard() {
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
-  _liveNews = null;     // 실시간 뉴스 비우기
-  _domestic = null;     // 국내 브랜드 신제품 비우기
-  _domesticFeatured = null;
+  _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
+  _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
@@ -1578,8 +1446,8 @@ function initUpdate() {
       applyFxUpdate(data);
       applyMaterialUpdate(data);
       applySimmonsNewsUpdate(data);
-      applyNewsUpdate(data);
       applyDomesticUpdate(data);
+      applyGlobalBrandsUpdate(data);
       applyCompetitorsUpdate(data);
     } catch (e) {
       if (lbl) lbl.textContent = '업데이트 실패 — 서버 실행을 확인하세요 (' + (e.message || e) + ')';

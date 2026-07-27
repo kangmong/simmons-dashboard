@@ -651,6 +651,11 @@ body {
 .fx-date { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fx-note { margin-top: 14px; font-size: 13px; color: var(--text); line-height: 1.55; }
 
+/* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
+.brand-group { margin-bottom: 4px; }
+.brand-group .comp-group__head { margin-bottom: 14px; }
+.brand-divider { height: 1px; background: var(--line); margin: 22px 0; }
+
 /* ── 국내 브랜드 신제품 ── */
 /* 상단: 대표 출시 상품 3개 */
 .dom-feature__head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 2px 0 10px; }

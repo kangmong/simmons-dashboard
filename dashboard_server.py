@@ -180,10 +180,6 @@ def update_simmons_news():
     return {"status": "ok", "items": items[:6]}
 
 
-# ── 업계 주요 뉴스 — Google News RSS (API 키 불필요) ─────────────────────
-NEWS_RSS_URL = "https://news.google.com/rss/search?q=mattress+industry&hl=en-US&gl=US&ceid=US:en"
-
-
 def _fmt_pubdate(s):
     """RFC822 pubDate → 'YYYY-MM-DD'."""
     s = (s or "").strip()
@@ -195,57 +191,9 @@ def _fmt_pubdate(s):
     return s[:16]
 
 
-def _translate_ko(text):
-    """영어 → 한국어 (Google 번역 비공식 엔드포인트, 키 불필요). 실패 시 원문 반환."""
-    text = (text or "").strip()
-    if not text:
-        return text
-    try:
-        url = ("https://translate.googleapis.com/translate_a/single"
-               "?client=gtx&sl=en&tl=ko&dt=t&q=" + urllib.parse.quote(text))
-        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        segments = resp.json()[0]  # [[번역, 원문, ...], ...]
-        out = "".join(seg[0] for seg in segments if seg and seg[0])
-        return out or text
-    except Exception:  # noqa: BLE001
-        return text  # 번역 실패 시 원문(영어)이라도 보이게
-
-
-def update_news():
-    """매트리스 업계 뉴스 최신 3건 (Google News RSS) + 제목 한국어 번역. 한 건도 못 받으면 error."""
-    try:
-        resp = requests.get(NEWS_RSS_URL, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        root = ET.fromstring(resp.content)
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "뉴스 RSS 실패: %s" % e}
-
-    items = []
-    for item in root.iter("item"):
-        title = (item.findtext("title") or "").strip()
-        link = (item.findtext("link") or "").strip()
-        pub = item.findtext("pubDate") or ""
-        src_el = item.find("source")
-        source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
-        if not title:
-            continue
-        items.append({"title": title, "link": link, "source": source, "date": _fmt_pubdate(pub)})
-        if len(items) >= 3:
-            break
-
-    if not items:
-        return {"status": "error", "reason": "뉴스 항목을 받지 못했습니다"}
-
-    # 제목 영어 → 한국어 번역 (번역만, 요약 없음)
-    for it in items:
-        it["title_ko"] = _translate_ko(it["title"])
-    return {"status": "ok", "items": items}
-
-
-# ── 국내 브랜드 신제품 — Google News RSS (한국어, 무료·무키) ─────────────
-# 시몬스 제외 국내 매트리스·가구 브랜드. 브랜드명 + (신제품 OR 출시 OR 론칭)으로 검색.
-DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]
+# ── 국내외 브랜드 신제품 — Google News RSS (무료·무키) ───────────────────
+DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]           # 국내(한국어 검색)
+GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(영어 검색)
 
 # 브랜드 공식 도메인 → 무료 로고 서비스(Clearbit, 키 불필요)로 로고 URL 생성.
 # 기사 사진이 없을 때 프런트에서 이 주소를 img src 로 바로 사용한다.
@@ -254,6 +202,10 @@ BRAND_DOMAINS = {
     "씰리": "sealy.co.kr",
     "한샘": "hanssem.com",
     "이케아": "ikea.com",
+    "Sleep Number": "sleepnumber.com",
+    "Tempur-Pedic": "tempurpedic.com",
+    "Purple": "purple.com",
+    "Serta": "serta.com",
 }
 
 
@@ -344,16 +296,15 @@ def _product_name(title, brand, source):
     return t.strip() or (title or "").strip()
 
 
-def update_domestic():
-    """브랜드별 신제품/출시 뉴스를 모아 전체 최신순 상위 6개 반환.
-       한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error."""
-    collected = []
-    media_by_link = {}  # link -> RSS 미디어(media:content/enclosure) 이미지 URL
-    for brand in DOMESTIC_BRANDS:
+def _brand_news(brands, query_fn, hl, gl):
+    """브랜드별 신제품 뉴스를 모아 {status, items(≤6), featured(브랜드당 1건·≤3)} 반환.
+       한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error. (국내·국외 공용)"""
+    lang = hl.split("-")[0]
+    collected, media_by_link = [], {}
+    for brand in brands:
         try:
-            q = '"%s" (신제품 OR 출시 OR 론칭)' % brand
-            url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q)
-                   + "&hl=ko&gl=KR&ceid=KR:ko")
+            url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(query_fn(brand))
+                   + "&hl=%s&gl=%s&ceid=%s:%s" % (hl, gl, gl, lang))
             resp = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"})
             resp.raise_for_status()
             root = ET.fromstring(resp.content)
@@ -368,7 +319,7 @@ def update_domestic():
             pub = item.findtext("pubDate") or ""
             src_el = item.find("source")
             source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
-            media = _rss_media(item)  # RSS 안 이미지 태그(og:image 실패 시 폴백)
+            media = _rss_media(item)
             if link and media:
                 media_by_link[link] = media
             collected.append({"brand": brand, "title": title, "source": source,
@@ -379,11 +330,9 @@ def update_domestic():
                 break
 
     if not collected:
-        return {"status": "error", "reason": "국내 브랜드 뉴스를 받지 못했습니다"}
+        return {"status": "error", "reason": "브랜드 뉴스를 받지 못했습니다"}
 
-    collected.sort(key=lambda x: x["date"], reverse=True)  # 날짜 최신순
-
-    # 이미지 해석(링크별 1회 캐시): 최종 기사까지 리다이렉트 추적 og:image → 없으면 RSS 미디어
+    collected.sort(key=lambda x: x["date"], reverse=True)  # 최신순
     img_cache = {}
 
     def _resolve_img(link):
@@ -391,14 +340,13 @@ def update_domestic():
             img_cache[link] = _og_image(link) or media_by_link.get(link)
         return img_cache[link]
 
-    # 전체 목록: 최신순 상위 6개
     items = collected[:6]
     for it in items:
         it["image"] = _resolve_img(it["link"])
 
-    # 대표 상품(featured): 브랜드당 최신 1건만 → 최신순 → 상위 3개 (브랜드 중복 없음)
+    # 대표 상품(featured): 브랜드당 최신 1건 → 최신순 → 상위 3개 (브랜드 중복 없음)
     best = {}
-    for it in collected:  # 이미 최신순이라 브랜드별 첫 등장이 그 브랜드의 최신 기사
+    for it in collected:
         if it["brand"] not in best:
             best[it["brand"]] = it
     reps = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
@@ -408,8 +356,17 @@ def update_domestic():
                  "logo_fallback": _brand_logo_fallback(it["brand"]),
                  "source": it["source"], "date": it["date"], "link": it["link"]}
                 for it in reps]
-
     return {"status": "ok", "items": items, "featured": featured}
+
+
+def update_domestic():
+    """국내 브랜드(에이스침대·씰리·한샘·이케아) 신제품 뉴스 (한국어)."""
+    return _brand_news(DOMESTIC_BRANDS, lambda b: '"%s" (신제품 OR 출시 OR 론칭)' % b, "ko", "KR")
+
+
+def update_global_brands():
+    """국외 브랜드(Sleep Number·Tempur-Pedic·Purple·Serta) 신제품 뉴스 (영어)."""
+    return _brand_news(GLOBAL_BRANDS, lambda b: '"%s" (new OR launch OR release OR mattress)' % b, "en-US", "US")
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
@@ -792,8 +749,8 @@ def update_usd_krw():
 FETCHERS = {
     "simmons_news": update_simmons_news,
     "usd_krw": update_usd_krw,
-    "news": update_news,
     "domestic": update_domestic,
+    "global_brands": update_global_brands,
     "competitors": update_competitors,
     "fx": update_fx,
 }
