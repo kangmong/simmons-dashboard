@@ -679,6 +679,11 @@ body {
 .fxr-flat { color: var(--muted); }
 .fx-figure { margin-top: 14px; }
 .fx-jpy-note { margin-top: 6px; font-size: 11px; color: var(--muted); }
+/* 환율 통화/기간 2줄 필터 */
+.fx-curs { margin-bottom: 6px; }
+/* 범례 대신 단일 통화 라벨 */
+.fx-series-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); margin: 2px 0 6px; }
+.fx-series-unit { font-weight: 500; color: var(--muted); }
 
 /* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
 .brand-group { margin-bottom: 4px; }
