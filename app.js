@@ -1632,20 +1632,24 @@ function renderFx() {
   </table></div>`;
 
   // 2) 통화 칩(1줄) + 기간 칩(2줄) — 두 값을 조합해 단일 통화 추이를 그림
-  const curChips = `<div class="icis-years fx-curs">${FX_CURS.map((cur) => {
-    const m = FX_META[cur];
-    return `<button class="icis-year fx-cur${cur === _fxCur ? ' is-active' : ''}" data-cur="${cur}">${escapeHtml(m.name)}(${m.label})</button>`;
+  const curChips = `<div class="icis-years fx-curs">${[...FX_CURS, 'all'].map((cur) => {
+    const label = (cur === 'all') ? '전체' : `${FX_META[cur].name}(${FX_META[cur].label})`;
+    return `<button class="icis-year fx-cur${cur === _fxCur ? ' is-active' : ''}" data-cur="${cur}">${escapeHtml(label)}</button>`;
   }).join('')}</div>`;
-  const months = [3, 6, 9, 12, 'all'];
+  const months = [3, 6, 9, 12];
   const monChips = `<div class="icis-years fx-months">${months.map((mm) =>
-    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm === 'all' ? '전체' : mm + '개월'}</button>`).join('')}</div>`;
+    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}</div>`;
 
   let chartBody, sub;
   if (!_fxCur || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
     _fxChart = null;
     sub = '통화와 기간을 선택하세요';
     chartBody = '<div class="icis-prompt">통화와 기간을 선택하세요</div>';
-  } else {
+  } else if (_fxCur === 'all') { // 전체: 세 통화 동시 표시(범례 O)
+    sub = '원/달러 · 원/유로 · 원/엔 (100엔 기준)';
+    chartBody = buildFxChart(fxSlice(_fxMonths), 'all')
+      + '<div class="fx-jpy-note">* JPY는 100엔 단위</div>';
+  } else {                       // 단일 통화(범례 X)
     const m = FX_META[_fxCur];
     sub = `${m.name}(${m.label}) · 원${_fxCur === 'JPY' ? ' (100엔 기준)' : ''}`;
     chartBody = buildFxChart(fxSlice(_fxMonths), _fxCur)
@@ -1678,8 +1682,7 @@ function renderFx() {
   if (mEl) mEl.addEventListener('click', (e) => {
     const b = e.target.closest('.fx-month');
     if (!b) return;
-    const val = b.dataset.months;
-    _fxMonths = (val === 'all') ? 'all' : parseInt(val, 10);  // 통화는 유지
+    _fxMonths = parseInt(b.dataset.months, 10);  // 통화는 유지
     renderFx();
   });
   if (_fxCur && _fxMonths) wireFxInteraction();
@@ -1691,9 +1694,6 @@ function fxSlice(months) {
   const s = _fx && _fx.series;
   if (!s || !Array.isArray(s.dates) || !s.dates.length) return empty;
   const dates = s.dates;
-  if (months === 'all') {  // 전체: 보유 데이터 전 구간
-    return { dates: dates.slice(), USD: (s.USD || []).slice(), EUR: (s.EUR || []).slice(), JPY: (s.JPY || []).slice() };
-  }
   const last = new Date(dates[dates.length - 1] + 'T00:00:00');
   const cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - months);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -1702,17 +1702,19 @@ function fxSlice(months) {
   return { dates: idx.map((i) => dates[i]), USD: pick(s.USD), EUR: pick(s.EUR), JPY: pick(s.JPY) };
 }
 
-/** 단일 통화 원화 추이 선그래프 — Y축은 해당 통화 min/max에 여유를 준 auto 범위 */
+/** 원화 추이 선그래프 — cur='all'이면 세 통화 동시(범례 O), 아니면 단일(라벨).
+ *  Y축은 표시 통화들의 min/max에 여유를 준 auto 범위(0부터 시작 안 함). */
 function buildFxChart(slice, cur) {
   const dates = slice.dates, n = dates.length;
   if (!n) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
-  const m = FX_META[cur] || { color: 'var(--slate)', name: cur, label: cur };
-  const s = { key: cur, color: m.color, values: slice[cur] || [] };
-  if (!s.values.some((v) => v != null)) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
-  const series = [s];
+  const isAll = cur === 'all';
+  const curList = isAll ? FX_CURS : [cur];
+  const series = curList.map((c) => ({ key: c, color: FX_META[c].color, values: slice[c] || [] }))
+    .filter((sr) => sr.values.some((v) => v != null));
+  if (!series.length) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
 
   // Y축: 통화별 자릿수가 달라 고정 금지 → 데이터 min/max 기준 + 여유(변동이 평평해지지 않게)
-  const all = s.values.filter((v) => v != null);
+  const all = series.flatMap((sr) => sr.values).filter((v) => v != null);
   let ymin = Math.min(...all), ymax = Math.max(...all);
   if (ymin === ymax) { const d = Math.abs(ymin) * 0.05 || 1; ymin -= d; ymax += d; }
   const yp = (ymax - ymin) * 0.14 || 10; ymin -= yp; ymax += yp;
@@ -1739,21 +1741,31 @@ function buildFxChart(slice, cur) {
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
   }).join('');
 
-  let path = '', pen = false;
-  s.values.forEach((v, i) => {
-    if (v == null) { pen = false; return; }
-    const x = X(i), y = Y(v);
-    path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
-  });
-  const line = path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  const lines = series.map((sr) => {
+    let path = '', pen = false;
+    sr.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      const x = X(i), y = Y(v);
+      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
+    });
+    return path ? `<path d="${path.trim()}" fill="none" stroke="${sr.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  }).join('');
 
-  // 범례 대신: 어떤 통화인지 명시하는 라벨(색·이름·단위)
-  const label = `<div class="fx-series-label"><span class="viz-legend__swatch" style="background:${m.color}"></span>${escapeHtml(m.name)}(${escapeHtml(m.label)})<span class="fx-series-unit"> · 원${cur === 'JPY' ? ' (100엔)' : ''}</span></div>`;
+  // 헤더: 전체=범례(3개), 단일=통화 라벨
+  let header, aria;
+  if (isAll) {
+    header = `<div class="viz-legend">${series.map((sr) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${sr.color}"></span>${escapeHtml(FX_META[sr.key].name)}(${sr.key})</span>`).join('')}</div>`;
+    aria = '원화 환율 추이 (USD·EUR·JPY)';
+  } else {
+    const m = FX_META[cur] || { color: 'var(--slate)', name: cur, label: cur };
+    header = `<div class="fx-series-label"><span class="viz-legend__swatch" style="background:${m.color}"></span>${escapeHtml(m.name)}(${escapeHtml(m.label)})<span class="fx-series-unit"> · 원${cur === 'JPY' ? ' (100엔)' : ''}</span></div>`;
+    aria = `${m.name} 원화 추이`;
+  }
   _fxChart = { dates, series, geom: { X, Y, n, W, padL }, cur };
 
-  return `${label}
-    <svg class="viz-svg fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(m.name)} 원화 추이">
-      ${grid}${xticks}${line}
+  return `${header}
+    <svg class="viz-svg fx-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(aria)}">
+      ${grid}${xticks}${lines}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="fx-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="fx-dots"></g>
