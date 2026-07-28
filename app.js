@@ -1636,9 +1636,9 @@ function renderFx() {
     const m = FX_META[cur];
     return `<button class="icis-year fx-cur${cur === _fxCur ? ' is-active' : ''}" data-cur="${cur}">${escapeHtml(m.name)}(${m.label})</button>`;
   }).join('')}</div>`;
-  const months = [3, 6, 9, 12];
+  const months = [3, 6, 9, 12, 'all'];
   const monChips = `<div class="icis-years fx-months">${months.map((mm) =>
-    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}</div>`;
+    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm === 'all' ? '전체' : mm + '개월'}</button>`).join('')}</div>`;
 
   let chartBody, sub;
   if (!_fxCur || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
@@ -1678,7 +1678,8 @@ function renderFx() {
   if (mEl) mEl.addEventListener('click', (e) => {
     const b = e.target.closest('.fx-month');
     if (!b) return;
-    _fxMonths = parseInt(b.dataset.months, 10);  // 통화는 유지
+    const val = b.dataset.months;
+    _fxMonths = (val === 'all') ? 'all' : parseInt(val, 10);  // 통화는 유지
     renderFx();
   });
   if (_fxCur && _fxMonths) wireFxInteraction();
@@ -1690,6 +1691,9 @@ function fxSlice(months) {
   const s = _fx && _fx.series;
   if (!s || !Array.isArray(s.dates) || !s.dates.length) return empty;
   const dates = s.dates;
+  if (months === 'all') {  // 전체: 보유 데이터 전 구간
+    return { dates: dates.slice(), USD: (s.USD || []).slice(), EUR: (s.EUR || []).slice(), JPY: (s.JPY || []).slice() };
+  }
   const last = new Date(dates[dates.length - 1] + 'T00:00:00');
   const cutoff = new Date(last); cutoff.setMonth(cutoff.getMonth() - months);
   const cutoffStr = cutoff.toISOString().slice(0, 10);
