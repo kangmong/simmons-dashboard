@@ -105,7 +105,7 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic', 'fx'];
+const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic', 'fx', 'worldclock'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -1814,6 +1814,84 @@ function wireFxInteraction() {
   overlay.addEventListener('mouseleave', clear);
 }
 
+/* ── 세계 시간 (World Clock) — 외부 API 없이 Intl.DateTimeFormat로 계산 ── */
+// 좌→우: 서울에서 서쪽으로 도는 순서(시차 단조 감소). extra=대시보드 요약카드에서 숨김
+const WORLD_CITIES = [
+  { ko: '서울', sub: 'seoul', tz: 'Asia/Seoul' },
+  { ko: '상하이', sub: 'shanghai', tz: 'Asia/Shanghai', extra: true },
+  { ko: '두바이', sub: 'dubai', tz: 'Asia/Dubai' },
+  { ko: '런던', sub: 'london', tz: 'Europe/London' },
+  { ko: '뉴욕', sub: 'new york', tz: 'America/New_York' },
+  { ko: '로스앤젤레스', sub: 'los angeles', tz: 'America/Los_Angeles', extra: true },
+];
+let _wcTimer = null;
+
+/** tz 현재 시각 구성요소 {year,month,day,minute,second,h(0~23)} — 24시간제 */
+function wcParts(tz, date) {
+  const out = {};
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(date).forEach((p) => { if (p.type !== 'literal') out[p.type] = p.value; });
+  let hh = parseInt(out.hour, 10); if (hh === 24) hh = 0;  // 자정 '24' 방어
+  out.h = hh;
+  return out;
+}
+
+/** tz의 UTC 오프셋(분) — 서머타임 자동 반영(하드코딩 없음) */
+function wcOffsetMin(parts, date) {
+  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, parts.h, +parts.minute, +parts.second);
+  return Math.round((asUTC - date.getTime()) / 60000);
+}
+
+/** 서울 기준 시차 배지(예: '+0h', '-5h', '-13h') */
+function wcOffsetLabel(diffMin) {
+  const h = diffMin / 60, a = Math.abs(h);
+  return `${h < 0 ? '-' : '+'}${Number.isInteger(a) ? a : a.toFixed(1)}h`;
+}
+
+/** 도시 타일 구조 1회 생성(시각 값은 wcTick가 매초 갱신). 업데이트 버튼과 무관하게 항상 표시 */
+function renderWorldClock() {
+  const root = document.getElementById('worldclockRoot');
+  if (!root) return;
+  root.innerHTML = `<div class="wc-grid">${WORLD_CITIES.map((c) => `
+    <div class="wc-tile${c.extra ? ' wc-extra' : ''}" data-tz="${c.tz}">
+      <div class="wc-top">
+        <div class="wc-city">${escapeHtml(c.ko)}<span class="wc-sub">${escapeHtml(c.sub)}</span></div>
+        <span class="wc-icon" aria-hidden="true"></span>
+      </div>
+      <div class="wc-time">--:--:--</div>
+      <div class="wc-meta"><span class="wc-date">--/--</span><span class="wc-badge">--</span></div>
+    </div>`).join('')}</div>`;
+  wcTick();
+}
+
+/** 매초 갱신: 시각(HH:MM:SS)·날짜(MM/DD)·서울기준 시차·주야 구분 */
+function wcTick() {
+  const tiles = document.querySelectorAll('#worldclockRoot .wc-tile');
+  if (!tiles.length) return;
+  const now = new Date();
+  const seoulOff = wcOffsetMin(wcParts('Asia/Seoul', now), now);
+  tiles.forEach((tile) => {
+    const p = wcParts(tile.dataset.tz, now);
+    tile.querySelector('.wc-time').textContent = `${String(p.h).padStart(2, '0')}:${p.minute}:${p.second}`;
+    tile.querySelector('.wc-date').textContent = `${p.month}/${p.day}`;
+    tile.querySelector('.wc-badge').textContent = wcOffsetLabel(wcOffsetMin(p, now) - seoulOff);
+    const night = (p.h >= 19 || p.h < 6);  // 야간 19시~06시
+    tile.classList.toggle('wc-night', night);
+    tile.classList.toggle('wc-day', !night);
+    tile.querySelector('.wc-icon').textContent = night ? '🌙' : '☀️';
+  });
+}
+
+/** 세계 시간 초기화: 구조 생성 + 1초 인터벌(중복 방지 위해 기존 타이머 정리 후 재설정) */
+function initWorldClock() {
+  renderWorldClock();
+  if (_wcTimer) clearInterval(_wcTimer);  // useEffect 정리(cleanup) 대응 — 중복 인터벌 방지
+  _wcTimer = setInterval(wcTick, 1000);
+}
+
 /** 데이터 변경 시 데이터 의존 섹션 재렌더 */
 function refreshSections() {
   renderSimmonsNews();
@@ -1841,6 +1919,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
   // 저장된 값/기본 CSV를 자동으로 불러오지 않는다 — 데이터는 오직 [업데이트]로만 채운다.
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
+  initWorldClock();  // 세계 시간: 업데이트와 무관하게 로드 즉시 실시간 표시
 });
 
 /** 보고서 다운로드: 브라우저 인쇄(→ PDF로 저장) */

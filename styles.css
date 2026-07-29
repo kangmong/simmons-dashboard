@@ -685,6 +685,36 @@ body {
 .fx-series-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); margin: 2px 0 6px; }
 .fx-series-unit { font-weight: 500; color: var(--muted); }
 
+/* ── 세계 시간 (World Clock) ── */
+.wc-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.wc-tile {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card);
+  padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  transition: background .3s ease, border-color .3s ease;
+}
+.wc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.wc-city { display: flex; flex-direction: column; line-height: 1.2; font-size: 14px; font-weight: 700; color: var(--ink); }
+.wc-sub { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: lowercase; }
+.wc-icon { font-size: 15px; line-height: 1; }
+.wc-time { font-size: 22px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.wc-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wc-date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wc-badge { font-size: 11px; font-weight: 700; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-variant-numeric: tabular-nums; }
+/* 주간(밝음)/야간(어두움) 구분 */
+.wc-tile.wc-night { background: #1B2233; border-color: #2A3346; }
+.wc-tile.wc-night .wc-city, .wc-tile.wc-night .wc-time { color: #F4F6FB; }
+.wc-tile.wc-night .wc-sub, .wc-tile.wc-night .wc-date { color: #9AA6BF; }
+.wc-tile.wc-night .wc-badge { background: rgba(255, 255, 255, .08); border-color: #35405A; color: #C9D3E8; }
+/* 반응형: 데스크톱 6열 → 태블릿 3열 → 모바일 2열 */
+@media (max-width: 1100px) { .wc-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px) { .wc-grid { grid-template-columns: repeat(2, 1fr); } }
+/* 대시보드 요약 카드: 서울·두바이·런던·뉴욕 4개만 컴팩트하게(상하이·LA 숨김) */
+.content[data-view="dashboard"] .dash-card[data-section="worldclock"] .wc-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.content[data-view="dashboard"] .dash-card[data-section="worldclock"] .wc-extra { display: none; }
+.content[data-view="dashboard"] .dash-card[data-section="worldclock"] .wc-sub { display: none; }
+.content[data-view="dashboard"] .dash-card[data-section="worldclock"] .wc-tile { padding: 8px 10px; gap: 3px; }
+.content[data-view="dashboard"] .dash-card[data-section="worldclock"] .wc-time { font-size: 17px; }
+
 /* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
 .brand-group { margin-bottom: 4px; }
 .brand-group .comp-group__head { margin-bottom: 14px; }

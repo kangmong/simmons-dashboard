@@ -95,6 +95,9 @@
       <button class="nav-item" data-view="fx">
         <span class="tab-num">6</span>환율
       </button>
+      <button class="nav-item" data-view="worldclock">
+        <span class="tab-num">7</span>세계 시간
+      </button>
 
       <div class="sidebar-fill"></div>
 
@@ -182,6 +185,16 @@
             <button class="more-link" data-view="fx" type="button">더보기 ›</button>
           </div>
           <div class="panel-body" id="body-fx"></div>
+        </section>
+
+        <section class="dash-card" data-section="worldclock">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">세계 시간</h3>
+            <button class="more-link" data-view="worldclock" type="button">더보기 ›</button>
+          </div>
+          <div class="panel-body" id="body-worldclock">
+            <div id="worldclockRoot"></div>
+          </div>
         </section>
       </div>
     </main>
