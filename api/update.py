@@ -145,8 +145,12 @@ def _gnews_candidates(query):
         if not key or key in seen:
             continue
         seen.add(key)
+        desc = re.sub(r"<[^>]+>", " ", item.findtext("description") or "")  # RSS 스니펫(태그 제거)
+        desc = re.sub(r"&[a-zA-Z#0-9]+;", " ", desc)
+        desc = re.sub(r"\s+", " ", desc).strip()
         out.append({"title": disp, "link": (item.findtext("link") or "").strip(),
-                    "source": source, "date": _fmt_pubdate(item.findtext("pubDate") or "")})
+                    "source": source, "date": _fmt_pubdate(item.findtext("pubDate") or ""),
+                    "desc": desc})
     return out
 
 
@@ -165,6 +169,71 @@ def _simmons_relevant(cands):
             flagged.append("%s  ← 타 브랜드 언급(%s)" % (t, ",".join(others)))
         kept.append(it)
     return kept, excluded, flagged
+
+
+# 나열형(종합) 기사 판별용
+SIMMONS_LISTICLE_PHRASES = ["새로나왔어요", "새로 나왔어요", "신제품 모음", "신상품 모음",
+                            "이번 주 신제품", "이주의 신제품", "한눈에"]
+SIMMONS_ROUNDUP_SECTIONS = ["유통", "신상", "신제품", "새상품", "리테일", "이주의", "쇼핑",
+                            "픽", "pick", "브리핑", "하이라이트"]
+# 시몬스와 무관한(다른 업종) 기업/브랜드 — 제목에 2개↑면 나열형 종합 기사로 판단
+SIMMONS_OTHER_COMPANIES = [
+    "서울우유", "남양유업", "매일유업", "빙그레", "오뚜기", "농심", "삼양", "팔도", "동원", "풀무원",
+    "대상", "하이트진로", "롯데칠성", "롯데웰푸드", "코카콜라", "펩시", "맥도날드", "한국맥도날드",
+    "버거킹", "롯데리아", "kfc", "맘스터치", "스타벅스", "투썸", "이디야", "메가커피", "컴포즈", "빽다방",
+    "파리바게뜨", "뚜레쥬르", "배스킨라빈스", "던킨", "공차", "cu", "gs25", "세븐일레븐", "이마트24",
+    "홈플러스", "올리브영", "다이소", "무신사", "컬리"]
+
+
+def _simmons_topic_filter(cands, body_check=True):
+    """시몬스가 '주제'인지 판정. 반환 (kept, log[(title, ok, reason)]).
+       1) 나열형(종합) 기사 제외: 外/외, 신제품 모음 표현, 종합 코너 대괄호, 타 기업 2개↑ 나열
+       2) 본문(RSS description) 기반: 제목 앞 15자에 시몬스 있으면 통과,
+          뒤에만 있으면 요약의 '시몬스' 언급이 2회 미만이면 제외(요약 없으면 판정보류·통과)."""
+    kept, log = [], []
+    for it in cands:
+        t = it["title"]
+        tl = t.lower()
+        reason = None
+        mbr = re.match(r"^\s*\[([^\]]*)\]", t)  # 선두 대괄호 섹션명
+        if ("外" in t) or re.search(r"외\s*\(", t) or re.search(r"외\s*\d+\s*건", t):
+            reason = "나열형(外/외 나열)"
+        elif any(p in t for p in SIMMONS_LISTICLE_PHRASES):
+            reason = "나열형(신제품 모음 표현)"
+        elif mbr and any(k in mbr.group(1).lower() for k in SIMMONS_ROUNDUP_SECTIONS):
+            reason = "종합 코너 대괄호([%s])" % mbr.group(1).strip()
+        else:
+            others = sorted({c for c in SIMMONS_OTHER_COMPANIES if c in tl})
+            if len(others) >= 2:
+                reason = "타 기업 %d개 나열(%s)" % (len(others), ",".join(others))
+        if reason:
+            log.append((t, False, reason))
+            continue
+
+        if not body_check:  # 완화 모드: 나열형만 거르고 통과
+            kept.append(it)
+            log.append((t, True, "통과(본문판정 완화)"))
+            continue
+
+        pos = t.find("시몬스")
+        if pos < 0:
+            pos = tl.find("simmons")
+        if 0 <= pos < 15:  # 제목 앞부분이 시몬스 → 주제 가능성 높음
+            kept.append(it)
+            log.append((t, True, "제목 앞부분 주제"))
+            continue
+        desc = it.get("desc") or ""
+        if not desc:  # 요약 없음 → 판정 불가, 안전하게 통과
+            kept.append(it)
+            log.append((t, True, "판정보류(요약 없음)"))
+            continue
+        cnt = desc.count("시몬스") + desc.lower().count("simmons")
+        if cnt < 2:
+            log.append((t, False, "본문(요약) 시몬스 언급 %d회(<2)" % cnt))
+            continue
+        kept.append(it)
+        log.append((t, True, "본문 시몬스 언급 %d회" % cnt))
+    return kept, log
 
 
 def _simmons_sim_key(title):
@@ -316,19 +385,31 @@ def update_simmons_news():
         print("[simmons_news] * 애매(사람 확인 필요) %d건:\n  - %s" % (len(flagged), "\n  - ".join(flagged)))
     if not kept:
         print("[simmons_news] 최종 0건 — 데이터 없음")
-        return {"status": "데이터 없음", "items": []}
+        return {"status": "최근 관련 기사가 없습니다", "items": []}
+
+    # 주제 적합성 필터(나열형 제외 + 본문 기반). 3건 미만이면 본문 판정만 완화(나열형은 유지).
+    topic_kept, topic_log = _simmons_topic_filter(kept, body_check=True)
+    if len(topic_kept) < 3:
+        print("[simmons_news] WARN 주제 필터 후 3건 미만 → 본문 판정 완화(나열형 규칙만 유지)")
+        topic_kept, topic_log = _simmons_topic_filter(kept, body_check=False)
+    print("[simmons_news] 주제 판정 (통과 %d / 검사 %d):" % (len(topic_kept), len(topic_log)))
+    for title, ok, reason in topic_log:
+        print("   [%s] %s — %s" % ("통과" if ok else "제외", title, reason))
+    if not topic_kept:
+        print("[simmons_news] 주제 적합 0건 — 표시할 기사 없음")
+        return {"status": "최근 관련 기사가 없습니다", "items": []}
 
     # 제목 유사도 중복 제거. 실측 튜닝: 매체 받아쓰기는 boilerplate가 많아 0.7로는 안 묶여
     # 0.45가 적정(같은 보도자료는 묶고 서로 다른 프로모션/이벤트는 분리). 부족 시 0.85 완화.
     thr = 0.45
-    chosen, groups = _simmons_dedup(kept, thr)
+    chosen, groups = _simmons_dedup(topic_kept, thr)
     if len(chosen) < 3:
         thr = 0.85
         print("[simmons_news] WARN 중복제거 후 3건 미만 → 임계값 0.85로 완화 재계산")
-        chosen, groups = _simmons_dedup(kept, thr)
+        chosen, groups = _simmons_dedup(topic_kept, thr)
     if len(chosen) < 3:
         print("[simmons_news] WARN 완화 후에도 부족 → 중복제거 생략, 최신순 상위 6건 표시")
-        chosen, groups = _simmons_plain_top(kept, 6), None
+        chosen, groups = _simmons_plain_top(topic_kept, 6), None
 
     # ── 중복 그룹 로그(2건 이상 묶인 것 + 각 그룹 대표) ──
     if groups is not None:

@@ -587,7 +587,9 @@ function renderSimmonsNews() {
   if (!el) return;
   const items = (_simmonsNews && Array.isArray(_simmonsNews.items)) ? _simmonsNews.items : null;
   if (!items || !items.length) {
-    el.innerHTML = emptyState('데이터 없음');
+    const msg = (_simmonsNews && _simmonsNews.status && _simmonsNews.status !== 'ok')
+      ? _simmonsNews.status : '데이터 없음';
+    el.innerHTML = emptyState(msg);
     return;
   }
   el.innerHTML = items.map((it) => {
