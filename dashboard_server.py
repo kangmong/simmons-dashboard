@@ -234,15 +234,6 @@ def _simmons_topic_filter(cands, body_check=True):
     return kept, log
 
 
-def _simmons_sim_key(title):
-    """유사도 비교용 제목 정규화: 매체 접두([..]) 제거 → 어미 통일 → 구두점·공백 제거."""
-    t = re.sub(r"^\s*\[[^\]]*\]\s*", "", title or "")  # 선두 [유통 Pick]/[트렌드] 등 제거
-    # 어미 표현 통일(출시/선봬/선보여/선보인다/공개 …→ '출시')
-    t = re.sub(r"(선보인다|선보였다|선보여|선봬|선봤다|출시했다|출시|공개했다|공개|내놨다|내놓는다)", "출시", t)
-    t = re.sub(r"[\s'\"“”‘’\[\](),.·…]", "", t)  # 공백·따옴표·대괄호·쉼표·마침표·가운뎃점 제거
-    return t.lower()
-
-
 def _bigrams(s):
     if len(s) >= 2:
         return set(s[i:i + 2] for i in range(len(s) - 1))
@@ -259,18 +250,78 @@ def _title_jaccard(a, b):
     return len(A & B) / len(A | B)
 
 
-def _simmons_cluster(cands, thr):
-    """제목 유사도 그리디 클러스터 — 유사한 기사끼리 그룹(list of list)."""
-    groups = []
-    for it in cands:
-        it["_k"] = it.get("_k") or _simmons_sim_key(it["title"])
-        for g in groups:
-            if _title_jaccard(it["_k"], g[0]["_k"]) >= thr:
-                g.append(it)
-                break
-        else:
-            groups.append([it])
-    return groups
+def _set_jaccard(a, b):
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+# 표기 정규화 사전(영문↔한글 음차) · 동의어 통일 · 흔한 수식어 stopword
+WC_NOTATION = [
+    ("cool summer", "쿨썸머"), ("쿨 썸머", "쿨썸머"),
+    ("life is comfort", "라이프이즈컴포트"), ("라이프 이즈 컴포트", "라이프이즈컴포트"),
+    ("beautyrest black", "뷰티레스트블랙"), ("뷰티레스트 블랙", "뷰티레스트블랙"),
+    ("refresh & rewards", "리프레시리워즈"), ("bigger & more", "비거앤모어"), ("비거 앤 모어", "비거앤모어"),
+]
+WC_SYNONYMS = [
+    (["기획전", "프로모션", "행사", "이벤트", "페어", "세일"], "PROMO"),
+    (["실시", "전개", "진행", "개최", "운영", "오픈", "선사", "제공"], "RUN"),
+    (["출시", "선봬", "선보여", "선보인다", "선보였다", "선봤다", "공개", "론칭", "런칭"], "LAUNCH"),
+]
+WC_STOP = set(("여름 봄 가을 겨울 맞이 맞아 맞아서 맞은 위한 위해 관련 기념 신규 새 전국 국내 해외 "
+               "오늘 이번 최대 첫 더 및 등 통해 통한 대한 앞두고 함께 침대 소식 시즌 잡는 겨냥 더위 "
+               "방문객 시장").split())
+
+
+def _wc_norm_text(t):
+    """소문자화 → 표기 사전(영문 음차) → 동의어 태그 치환."""
+    t = (t or "").lower()
+    for a, b in WC_NOTATION:
+        t = t.replace(a, b)
+    for words, tag in WC_SYNONYMS:
+        for w in words:
+            t = t.replace(w, tag)
+    return t
+
+
+def _wc_strip_simmons(t):
+    """모든 기사 공통인 시몬스 표기 제거(그로서리·뷰티레스트 등 실질 키워드는 보존)."""
+    t = re.sub(r"시몬스\s*침대", " ", t)
+    t = re.sub(r"시몬스\s*테라스", " ", t)
+    t = t.replace("시몬스", " ")
+    return re.sub(r"simmons", " ", t, flags=re.I)
+
+
+def _wc_strip_lead_subtitle(t):
+    """제목 맨 앞의 따옴표/대괄호로 묶인 부제·코너명 제거."""
+    return re.sub(r"^\s*[\"'“”‘’\[(][^\"'“”‘’\)\]]{0,40}[\"'“”‘’\)\]]\s*", "", t or "")
+
+
+def _wc_keywords(title):
+    """제목 → 핵심 키워드 집합(시몬스·부제·조사/수식어 제거, 표기/동의어 정규화)."""
+    t = _wc_norm_text(_wc_strip_simmons(_wc_strip_lead_subtitle(title)))
+    out = set()
+    for w in re.findall(r"[A-Za-z]+|[0-9]+|[가-힣]+", t):
+        if w in ("PROMO", "RUN", "LAUNCH"):
+            out.add(w)
+        elif not w.isdigit() and len(w) >= 2 and w not in WC_STOP:
+            out.add(w)
+    return out
+
+
+def _wc_strkey(title):
+    """문자열 유사도용: 시몬스 제거 + 표기/동의어 정규화 + 공백·구두점 제거."""
+    t = _wc_norm_text(_wc_strip_simmons(_wc_strip_lead_subtitle(title)))
+    return re.sub(r"[^0-9a-z가-힣]", "", t)
+
+
+def _img_norm(u):
+    """이미지 URL 정규화: 쿼리·프래그먼트 제거."""
+    if not u:
+        return None
+    return u.split("?")[0].split("#")[0].rstrip("/").lower()
 
 
 def _rep_key(it):
@@ -278,16 +329,47 @@ def _rep_key(it):
     return (0 if it.get("image") else 1, it.get("date") or "", len(it["title"]))
 
 
-def _simmons_dedup(cands, thr):
-    """유사도 클러스터 → 그룹별 대표 1건 → 매체 다양성(매체당 1건) → 최대 6건.
-       반환 (chosen_items, groups)."""
-    groups = _simmons_cluster(cands, thr)
-    groups.sort(key=lambda g: max((x["date"] or "") for x in g), reverse=True)  # 최신 그룹 먼저
-    top = groups[:8]  # 6 + 버퍼
-    # 대표 후보 이미지 확보: 각 그룹의 (이른 날짜·짧은 제목) 상위 2건만(비용 제한)
+def _dup_match(a, b, kw_thr, str_thr):
+    """두 기사 중복 판정. 반환 (matched, rule, score). 우선순위: 이미지(동일 URL) > 키워드 > 문자열.
+       ※ 파일명만 비교는 Google News 이미지 프록시 특성상 서로 다른 기사가 충돌(오결합)해 제외."""
+    if a.get("_imn") and b.get("_imn") and a["_imn"] == b["_imn"]:
+        return True, "이미지(URL)", 1.0
+    kj = _set_jaccard(a["_kw"], b["_kw"])
+    if kj >= kw_thr:
+        return True, "키워드", round(kj, 2)
+    sj = _title_jaccard(a["_sk"], b["_sk"])
+    if sj >= str_thr:
+        return True, "문자열", round(sj, 2)
+    return False, None, round(max(kj, sj), 2)
+
+
+def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
+    """2단계 중복 제거.
+       1) 텍스트(키워드/문자열)로 저비용 군집 — 풀을 넓게(다양한 최신 주제 확보).
+       2) 상위 그룹만 이미지 확보 → 대표 선정(이미지>날짜>길이) + 동일 이미지 URL 그룹 2차 병합.
+       → 매체 다양성(매체당 1건) → 6건. 반환 (chosen, groups[{items,merges,rep}])."""
+    pool = cands[:40]
+    for it in pool:  # 텍스트 판정용 사전 계산(이미지 없음)
+        it["_kw"] = _wc_keywords(it["title"])
+        it["_sk"] = _wc_strkey(it["title"])
+    groups = []
+    for it in pool:
+        placed = False
+        for g in groups:
+            matched, rule, score = _dup_match(it, g["items"][0], kw_thr, str_thr)
+            if matched:
+                g["items"].append(it)
+                g["merges"].append((it["title"], rule, score))
+                placed = True
+                break
+        if not placed:
+            groups.append({"items": [it], "merges": []})
+    groups.sort(key=lambda g: max((x["date"] or "") for x in g["items"]), reverse=True)  # 최신 그룹 먼저
+    head = groups[:12]  # 표시 6 + 이미지병합/매체다양성 여유
+    # 상위 그룹의 (이른 날짜·짧은 제목) 상위 2건만 이미지 확보(비용 제한)
     to_img, seen = [], set()
-    for g in top:
-        for m in sorted(g, key=lambda x: ((x["date"] or ""), len(x["title"])))[:2]:
+    for g in head:
+        for m in sorted(g["items"], key=lambda x: ((x["date"] or ""), len(x["title"])))[:2]:
             if m["link"] and m["link"] not in seen:
                 seen.add(m["link"])
                 to_img.append(m)
@@ -298,36 +380,55 @@ def _simmons_dedup(cands, thr):
                     m["image"] = img
         except Exception:  # noqa: BLE001
             pass
-    reps = [sorted(g, key=_rep_key)[0] for g in top]  # 그룹별 대표
+    for m in to_img:
+        m["_imn"] = _img_norm(m.get("image"))
+    for g in head:
+        g["rep"] = sorted(g["items"], key=_rep_key)[0]  # 대표: 이미지>날짜>길이
+    # 동일 이미지 URL 그룹 2차 병합(문자열론 못 잡는 같은 보도자료)
+    merged = []
+    for g in head:
+        rep, done = g["rep"], False
+        imn = rep.get("_imn")
+        if imn:
+            for mg in merged:
+                if mg["rep"].get("_imn") == imn:
+                    mg["items"] += g["items"]
+                    mg["merges"].append((rep["title"], "이미지(URL)", 1.0))
+                    done = True
+                    break
+        if not done:
+            merged.append(g)
     chosen, used_src, seen_img = [], set(), set()
-    for rep in reps:  # 매체 다양성(매체당 1건) + 이미지 중복 제거
+    for g in merged:  # 매체 다양성(매체당 1건) + 이미지 중복 회피
+        rep = g["rep"]
         src = rep.get("source") or ""
+        imn = rep.get("_imn")
         if src and src in used_src:
             continue
-        img = rep.get("image")
-        if img and img in seen_img:
+        if imn and imn in seen_img:
             continue
         if src:
             used_src.add(src)
-        if img:
-            seen_img.add(img)
+        if imn:
+            seen_img.add(imn)
         chosen.append(rep)
         if len(chosen) >= 6:
             break
-    if len(chosen) < 6:  # 6건 미달 → 매체 제약 완화(이미지 중복만 회피)로 채움
+    if len(chosen) < 6:  # 부족 시 매체 제약 완화(이미지 중복만 회피)
         picked = {id(x) for x in chosen}
-        for rep in reps:
+        for g in merged:
+            rep = g["rep"]
             if id(rep) in picked:
                 continue
-            img = rep.get("image")
-            if img and img in seen_img:
+            imn = rep.get("_imn")
+            if imn and imn in seen_img:
                 continue
-            if img:
-                seen_img.add(img)
+            if imn:
+                seen_img.add(imn)
             chosen.append(rep)
             if len(chosen) >= 6:
                 break
-    return chosen, groups
+    return chosen, merged
 
 
 def _simmons_plain_top(cands, n):
@@ -397,27 +498,30 @@ def update_simmons_news():
         print("[simmons_news] 주제 적합 0건 — 표시할 기사 없음")
         return {"status": "최근 관련 기사가 없습니다", "items": []}
 
-    # 제목 유사도 중복 제거. 실측 튜닝: 매체 받아쓰기는 boilerplate가 많아 0.7로는 안 묶여
-    # 0.45가 적정(같은 보도자료는 묶고 서로 다른 프로모션/이벤트는 분리). 부족 시 0.85 완화.
-    thr = 0.45
-    chosen, groups = _simmons_dedup(topic_kept, thr)
+    # 중복 제거: 이미지 URL > 키워드집합 Jaccard(≥0.5) > 문자열 유사도(≥0.7).
+    # 부족 시 임계값 완화(키워드 0.65/문자열 0.8), 그래도 부족하면 중복제거 생략.
+    chosen, groups = _simmons_dedup(topic_kept)
     if len(chosen) < 3:
-        thr = 0.85
-        print("[simmons_news] WARN 중복제거 후 3건 미만 → 임계값 0.85로 완화 재계산")
-        chosen, groups = _simmons_dedup(topic_kept, thr)
+        print("[simmons_news] WARN 중복제거 후 3건 미만 → 임계값 완화(키워드 0.65/문자열 0.8) 재계산")
+        chosen, groups = _simmons_dedup(topic_kept, kw_thr=0.65, str_thr=0.8)
     if len(chosen) < 3:
         print("[simmons_news] WARN 완화 후에도 부족 → 중복제거 생략, 최신순 상위 6건 표시")
         chosen, groups = _simmons_plain_top(topic_kept, 6), None
 
-    # ── 중복 그룹 로그(2건 이상 묶인 것 + 각 그룹 대표) ──
+    # ── 중복 그룹 로그(2건 이상 + 묶인 규칙/유사도 + 대표) ──
     if groups is not None:
-        multi = [g for g in groups if len(g) > 1]
-        print("[simmons_news] 유사도 임계값 %.2f — 중복 그룹 %d개(2건+):" % (thr, len(multi)))
+        multi = [g for g in groups if len(g["items"]) > 1]
+        print("[simmons_news] 중복 그룹 %d개(2건+):" % len(multi))
         for gi, g in enumerate(multi, 1):
-            rep = sorted(g, key=_rep_key)[0]
-            print("  [그룹 %d] %d건 — 대표: %s" % (gi, len(g), rep["title"]))
-            for m in g:
-                print("     · %s%s" % (m["title"], "   ★대표" if m is rep else ""))
+            items_g = g["items"]
+            rep = sorted(items_g, key=_rep_key)[0]
+            warn = " ⚠4건 초과(과결합 여부 확인)" if len(items_g) > 4 else ""
+            print("  [그룹 %d] %d건%s — 대표: %s" % (gi, len(items_g), warn, rep["title"]))
+            how = {t: (r, s) for (t, r, s) in g["merges"]}
+            for m in items_g:
+                rs = how.get(m["title"])
+                via = ("  ← %s %.2f" % (rs[0], rs[1])) if rs else "  (기준)"
+                print("     · %s%s%s" % (m["title"], via, "   ★대표" if m is rep else ""))
 
     items = [{"title": c["title"], "link": c["link"], "source": c["source"],
               "date": c["date"], "image": c.get("image")} for c in chosen[:6]]
