@@ -1822,8 +1822,8 @@ const WORLD_CITIES = [
   { ko: '상하이', tz: 'Asia/Shanghai', lat: 31.23, lon: 121.47, dir: 'sw' },
   { ko: '두바이', tz: 'Asia/Dubai', lat: 25.20, lon: 55.27, dir: 'ne' },
   { ko: '런던', tz: 'Europe/London', lat: 51.51, lon: -0.13, dir: 'nw' },
-  { ko: '뉴욕', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'nw' },
-  { ko: '로스앤젤레스', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 'ne' },
+  { ko: '뉴욕', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'ne' },
+  { ko: '로스앤젤레스', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 'sw' },
 ];
 let _wcTimer = null;
 let _wcShown = false;    // 마커 표시 여부(업데이트 후 true, 초기화 시 false)
@@ -1902,23 +1902,32 @@ function wcTick() {
 /** [업데이트]에 연결: Open-Meteo로 6개 도시 날씨 1회 요청 → 마커 표시.
  *  실패해도 마커·시계는 뜨고 기온만 '—'. */
 async function updateWorldWeather() {
+  // 먼저 마커부터 표시(시계 동작 보장). 날씨는 도착하면 채우고, 실패/지연이면 '—' 유지
+  _wcShown = true;
+  _wcWeather = null;
+  renderWorldClock();
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;  // 지연 방어(무한 대기 방지)
   try {
     const lat = WORLD_CITIES.map((c) => c.lat).join(',');
     const lon = WORLD_CITIES.map((c) => c.lon).join(',');
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`, { cache: 'no-store' });
+    const url = 'https://api.open-meteo.com/v1/forecast'
+      + `?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`;
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const arr = Array.isArray(data) ? data : [data];
+    const arr = Array.isArray(data) ? data : [data];  // 다중 좌표 → 배열(도시 순서와 매칭)
     _wcWeather = WORLD_CITIES.map((c, i) => {
       const cur = arr[i] && arr[i].current;
       return cur ? { temp: cur.temperature_2m, code: cur.weather_code } : null;
     });
-  } catch (e) {  // noqa — 날씨 실패해도 시계는 동작
+  } catch (e) {  // 날씨 실패해도 시계는 동작(기온 '—')
     console.warn('[worldclock] weather fail:', e);
     _wcWeather = null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  _wcShown = true;
-  renderWorldClock();
+  renderWorldClock();  // 날씨 반영해 재렌더(실패 시 '—')
 }
 
 /** [초기화]: 마커 제거하고 회색 지도 + 안내 상태로 */
