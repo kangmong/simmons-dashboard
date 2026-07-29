@@ -165,15 +165,133 @@ def _simmons_relevant(cands):
     return kept, excluded, flagged
 
 
+def _simmons_sim_key(title):
+    """유사도 비교용 제목 정규화: 매체 접두([..]) 제거 → 어미 통일 → 구두점·공백 제거."""
+    t = re.sub(r"^\s*\[[^\]]*\]\s*", "", title or "")  # 선두 [유통 Pick]/[트렌드] 등 제거
+    # 어미 표현 통일(출시/선봬/선보여/선보인다/공개 …→ '출시')
+    t = re.sub(r"(선보인다|선보였다|선보여|선봬|선봤다|출시했다|출시|공개했다|공개|내놨다|내놓는다)", "출시", t)
+    t = re.sub(r"[\s'\"“”‘’\[\](),.·…]", "", t)  # 공백·따옴표·대괄호·쉼표·마침표·가운뎃점 제거
+    return t.lower()
+
+
+def _bigrams(s):
+    if len(s) >= 2:
+        return set(s[i:i + 2] for i in range(len(s) - 1))
+    return {s} if s else set()
+
+
+def _title_jaccard(a, b):
+    """2-gram Jaccard 유사도(0~1)."""
+    A, B = _bigrams(a), _bigrams(b)
+    if not A and not B:
+        return 1.0
+    if not A or not B:
+        return 0.0
+    return len(A & B) / len(A | B)
+
+
+def _simmons_cluster(cands, thr):
+    """제목 유사도 그리디 클러스터 — 유사한 기사끼리 그룹(list of list)."""
+    groups = []
+    for it in cands:
+        it["_k"] = it.get("_k") or _simmons_sim_key(it["title"])
+        for g in groups:
+            if _title_jaccard(it["_k"], g[0]["_k"]) >= thr:
+                g.append(it)
+                break
+        else:
+            groups.append([it])
+    return groups
+
+
+def _rep_key(it):
+    """그룹 대표 선정 우선순위: 이미지 있음 → 발행일 빠름 → 제목 짧음."""
+    return (0 if it.get("image") else 1, it.get("date") or "", len(it["title"]))
+
+
+def _simmons_dedup(cands, thr):
+    """유사도 클러스터 → 그룹별 대표 1건 → 매체 다양성(매체당 1건) → 최대 6건.
+       반환 (chosen_items, groups)."""
+    groups = _simmons_cluster(cands, thr)
+    groups.sort(key=lambda g: max((x["date"] or "") for x in g), reverse=True)  # 최신 그룹 먼저
+    top = groups[:8]  # 6 + 버퍼
+    # 대표 후보 이미지 확보: 각 그룹의 (이른 날짜·짧은 제목) 상위 2건만(비용 제한)
+    to_img, seen = [], set()
+    for g in top:
+        for m in sorted(g, key=lambda x: ((x["date"] or ""), len(x["title"])))[:2]:
+            if m["link"] and m["link"] not in seen:
+                seen.add(m["link"])
+                to_img.append(m)
+    if to_img:
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(to_img))) as ex:
+                for m, img in zip(to_img, ex.map(lambda it: _simmons_thumb(it["link"]), to_img)):
+                    m["image"] = img
+        except Exception:  # noqa: BLE001
+            pass
+    reps = [sorted(g, key=_rep_key)[0] for g in top]  # 그룹별 대표
+    chosen, used_src, seen_img = [], set(), set()
+    for rep in reps:  # 매체 다양성(매체당 1건) + 이미지 중복 제거
+        src = rep.get("source") or ""
+        if src and src in used_src:
+            continue
+        img = rep.get("image")
+        if img and img in seen_img:
+            continue
+        if src:
+            used_src.add(src)
+        if img:
+            seen_img.add(img)
+        chosen.append(rep)
+        if len(chosen) >= 6:
+            break
+    if len(chosen) < 6:  # 6건 미달 → 매체 제약 완화(이미지 중복만 회피)로 채움
+        picked = {id(x) for x in chosen}
+        for rep in reps:
+            if id(rep) in picked:
+                continue
+            img = rep.get("image")
+            if img and img in seen_img:
+                continue
+            if img:
+                seen_img.add(img)
+            chosen.append(rep)
+            if len(chosen) >= 6:
+                break
+    return chosen, groups
+
+
+def _simmons_plain_top(cands, n):
+    """중복제거 생략 폴백 — 최신순 상위 n건(+이미지, 이미지 중복만 회피)."""
+    top = cands[:max(n + 3, 9)]
+    imgs = [None] * len(top)
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(top) or 1)) as ex:
+            imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), top))
+    except Exception:  # noqa: BLE001
+        pass
+    out, seen_img = [], set()
+    for it, img in zip(top, imgs):
+        if img and img in seen_img:
+            continue
+        if img:
+            seen_img.add(img)
+        it["image"] = img
+        out.append(it)
+        if len(out) >= n:
+            break
+    return out
+
+
 def update_simmons_news():
-    """정밀 쿼리로 시몬스 관련 뉴스만 수집 → 제목 관련성 필터 → 최신순 6건.
-       필터 후 3건 미만이면 '시몬스' 광의 검색으로 폴백. 검증 로그는 서버 콘솔에 출력."""
+    """정밀 쿼리 수집 → 관련성 필터 → 제목 유사도 중복 제거(매체 다양성) → 최신순 6건.
+       필터/중복제거 후 부족하면 단계적 완화. 검증 로그는 서버 콘솔에 출력."""
     cands = _gnews_candidates(SIMMONS_NARROW_QUERY)
     pre = len(cands)
     kept, excluded, flagged = _simmons_relevant(cands)
 
     used_fallback = False
-    if len(kept) < 3:  # 안전장치: 필터가 빡빡해 부족하면 광의 검색으로 보충
+    if len(kept) < 3:  # 관련성 필터가 빡빡해 부족하면 광의 검색으로 보충
         used_fallback = True
         seen_keys = {_norm_title(x["title"], x["source"])[1] for x in kept}
         fb_kept, fb_ex, fb_fl = _simmons_relevant(_gnews_candidates(SIMMONS_FALLBACK_QUERY))
@@ -184,51 +302,47 @@ def update_simmons_news():
                 kept.append(it)
         excluded += fb_ex
         flagged += fb_fl
-        print("[simmons_news] WARN 필터 후 3건 미만 → '시몬스' 광의 검색 폴백")
+        print("[simmons_news] WARN 관련성 필터 후 3건 미만 → '시몬스' 광의 검색 폴백")
 
     kept.sort(key=lambda x: x["date"], reverse=True)  # 최신순
 
-    # ── 검증 로그(서버 콘솔) ──
-    print("[simmons_news] 수집(필터 전) %d건 → 필터 후 %d건%s"
+    print("[simmons_news] 수집 원본 %d건 → 관련성 필터 후 %d건%s"
           % (pre, len(kept), " (폴백 포함)" if used_fallback else ""))
     if excluded:
-        print("[simmons_news] 제외 %d건:\n  - %s" % (len(excluded), "\n  - ".join(excluded)))
+        print("[simmons_news] 관련성 제외 %d건:\n  - %s" % (len(excluded), "\n  - ".join(excluded)))
     if flagged:
         print("[simmons_news] * 애매(사람 확인 필요) %d건:\n  - %s" % (len(flagged), "\n  - ".join(flagged)))
-
-    if not kept:  # 광의 검색까지 0건이면 데이터 없음(화면은 emptyState 처리)
+    if not kept:
         print("[simmons_news] 최종 0건 — 데이터 없음")
         return {"status": "데이터 없음", "items": []}
 
-    # 대표 이미지 병렬 확보(+이미지 중복 제거) 후 6건
-    top = kept[:9]
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=9) as ex:
-            imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), top))
-    except Exception:  # noqa: BLE001
-        imgs = [None] * len(top)
-    items, seen_img = [], set()
-    for it, img in zip(top, imgs):
-        if img and img in seen_img:  # 같은 대표 이미지 중복 제거
-            continue
-        if img:
-            seen_img.add(img)
-        items.append({"title": it["title"], "link": it["link"], "source": it["source"],
-                      "date": it["date"], "image": img})
-        if len(items) >= 6:
-            break
-    if len(items) < 6:  # 이미지 중복으로 미달 시 남은 후보 보충
-        used = {x["link"] for x in items}
-        for it in kept:
-            if it["link"] not in used:
-                items.append({"title": it["title"], "link": it["link"], "source": it["source"],
-                              "date": it["date"], "image": None})
-                if len(items) >= 6:
-                    break
+    # 제목 유사도 중복 제거. 실측 튜닝: 매체 받아쓰기는 boilerplate가 많아 0.7로는 안 묶여
+    # 0.45가 적정(같은 보도자료는 묶고 서로 다른 프로모션/이벤트는 분리). 부족 시 0.85 완화.
+    thr = 0.45
+    chosen, groups = _simmons_dedup(kept, thr)
+    if len(chosen) < 3:
+        thr = 0.85
+        print("[simmons_news] WARN 중복제거 후 3건 미만 → 임계값 0.85로 완화 재계산")
+        chosen, groups = _simmons_dedup(kept, thr)
+    if len(chosen) < 3:
+        print("[simmons_news] WARN 완화 후에도 부족 → 중복제거 생략, 최신순 상위 6건 표시")
+        chosen, groups = _simmons_plain_top(kept, 6), None
 
+    # ── 중복 그룹 로그(2건 이상 묶인 것 + 각 그룹 대표) ──
+    if groups is not None:
+        multi = [g for g in groups if len(g) > 1]
+        print("[simmons_news] 유사도 임계값 %.2f — 중복 그룹 %d개(2건+):" % (thr, len(multi)))
+        for gi, g in enumerate(multi, 1):
+            rep = sorted(g, key=_rep_key)[0]
+            print("  [그룹 %d] %d건 — 대표: %s" % (gi, len(g), rep["title"]))
+            for m in g:
+                print("     · %s%s" % (m["title"], "   ★대표" if m is rep else ""))
+
+    items = [{"title": c["title"], "link": c["link"], "source": c["source"],
+              "date": c["date"], "image": c.get("image")} for c in chosen[:6]]
     print("[simmons_news] 최종 표시 %d건:\n  - %s"
           % (len(items), "\n  - ".join(x["title"] for x in items)))
-    return {"status": "ok", "items": items[:6]}
+    return {"status": "ok", "items": items}
 
 
 def _fmt_pubdate(s):
