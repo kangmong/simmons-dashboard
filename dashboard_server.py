@@ -25,8 +25,13 @@ app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)  # 대시보드가 다른 주소(예: http-server)에서 열려도 /api 호출 허용
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
-# 신메뉴 편중 방지 — 여러 검색어에서 조금씩 모아 중복 제거(팝업·광고·행사·브랜드 골고루)
-SIMMONS_QUERIES = ["시몬스침대", "시몬스 광고", "시몬스 팝업", "시몬스 행사", "시몬스 브랜드", "시몬스 신제품"]
+# 정밀 쿼리(따옴표+OR)로 관련성 높은 기사만. 결과 부족 시 '시몬스' 광의 검색으로 폴백.
+SIMMONS_NARROW_QUERY = '"시몬스 침대" OR "시몬스코리아" OR "시몬스 그로서리"'
+SIMMONS_FALLBACK_QUERY = "시몬스"
+# 제목에 이 브랜드가 함께 있으면 '타 브랜드가 주어'일 수 있어 애매 → 통과시키되 로그로 표시
+SIMMONS_OTHER_BRANDS = ["세라젬", "쿤달", "코웨이", "바디프랜드", "에이스침대", "에이스 침대",
+                        "씰리", "한샘", "이케아", "템퍼", "슬립앤슬립", "라클라우드",
+                        "알레르망", "이브자리", "지누스", "웰스"]
 _GNEWS_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
 # 기사 페이지에서 대표 이미지 후보 (og:image → twitter:image → link[image_src])
@@ -119,64 +124,110 @@ def _norm_title(title, source):
     return t, key
 
 
-def update_simmons_news():
-    """여러 검색어(신메뉴 편중 방지)로 모아 제목·이미지 중복 제거 후 최신순 6건.
-       각 기사는 실제 URL 디코드 후 대표 이미지 추출(병렬). 실패 시 status='데이터 없음'."""
-    cands, seen_key = [], set()
-    for q in SIMMONS_QUERIES:
-        url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q)
-               + "&hl=ko&gl=KR&ceid=KR:ko")
-        try:
-            root = ET.fromstring(requests.get(url, timeout=20, headers=_GNEWS_UA).content)
-        except Exception:  # noqa: BLE001 — 한 검색 실패해도 계속
+def _gnews_candidates(query):
+    """Google News RSS 검색 → 후보 리스트[{title,link,source,date}] (제목 중복 제거)."""
+    url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(query, safe="")
+           + "&hl=ko&gl=KR&ceid=KR:ko")  # 따옴표·공백·한글 모두 인코딩(encodeURIComponent 상당)
+    out, seen = [], set()
+    try:
+        root = ET.fromstring(requests.get(url, timeout=20, headers=_GNEWS_UA).content)
+    except Exception:  # noqa: BLE001
+        return out
+    for item in root.iter("item"):
+        raw = (item.findtext("title") or "").strip()
+        if not raw:
             continue
-        n = 0
-        for item in root.iter("item"):
-            raw = (item.findtext("title") or "").strip()
-            if not raw:
-                continue
-            src_el = item.find("source")
-            source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
-            disp, key = _norm_title(raw, source)
-            if not key or key in seen_key:  # 제목 중복 제거
-                continue
-            seen_key.add(key)
-            cands.append({"title": disp, "link": (item.findtext("link") or "").strip(),
-                          "source": source, "date": _fmt_pubdate(item.findtext("pubDate") or "")})
-            n += 1
-            if n >= 3:  # 검색어당 최대 3건(다양성 확보)
-                break
+        src_el = item.find("source")
+        source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+        disp, key = _norm_title(raw, source)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append({"title": disp, "link": (item.findtext("link") or "").strip(),
+                    "source": source, "date": _fmt_pubdate(item.findtext("pubDate") or "")})
+    return out
 
-    if not cands:
+
+def _simmons_relevant(cands):
+    """제목 기준 관련성 필터. 반환 (kept, excluded_titles, flagged_titles).
+       - 제목에 '시몬스'/'simmons' 없으면 제외(요약에만 스친 기사 배제).
+       - 타 브랜드가 함께 언급되면 애매 → 통과시키되 flagged로 기록(사람 확인용)."""
+    kept, excluded, flagged = [], [], []
+    for it in cands:
+        t = it["title"]
+        if ("시몬스" not in t) and ("simmons" not in t.lower()):
+            excluded.append(t)
+            continue
+        others = [b for b in SIMMONS_OTHER_BRANDS if b in t]
+        if others:
+            flagged.append("%s  ← 타 브랜드 언급(%s)" % (t, ",".join(others)))
+        kept.append(it)
+    return kept, excluded, flagged
+
+
+def update_simmons_news():
+    """정밀 쿼리로 시몬스 관련 뉴스만 수집 → 제목 관련성 필터 → 최신순 6건.
+       필터 후 3건 미만이면 '시몬스' 광의 검색으로 폴백. 검증 로그는 서버 콘솔에 출력."""
+    cands = _gnews_candidates(SIMMONS_NARROW_QUERY)
+    pre = len(cands)
+    kept, excluded, flagged = _simmons_relevant(cands)
+
+    used_fallback = False
+    if len(kept) < 3:  # 안전장치: 필터가 빡빡해 부족하면 광의 검색으로 보충
+        used_fallback = True
+        seen_keys = {_norm_title(x["title"], x["source"])[1] for x in kept}
+        fb_kept, fb_ex, fb_fl = _simmons_relevant(_gnews_candidates(SIMMONS_FALLBACK_QUERY))
+        for it in fb_kept:
+            k = _norm_title(it["title"], it["source"])[1]
+            if k not in seen_keys:
+                seen_keys.add(k)
+                kept.append(it)
+        excluded += fb_ex
+        flagged += fb_fl
+        print("[simmons_news] WARN 필터 후 3건 미만 → '시몬스' 광의 검색 폴백")
+
+    kept.sort(key=lambda x: x["date"], reverse=True)  # 최신순
+
+    # ── 검증 로그(서버 콘솔) ──
+    print("[simmons_news] 수집(필터 전) %d건 → 필터 후 %d건%s"
+          % (pre, len(kept), " (폴백 포함)" if used_fallback else ""))
+    if excluded:
+        print("[simmons_news] 제외 %d건:\n  - %s" % (len(excluded), "\n  - ".join(excluded)))
+    if flagged:
+        print("[simmons_news] * 애매(사람 확인 필요) %d건:\n  - %s" % (len(flagged), "\n  - ".join(flagged)))
+
+    if not kept:  # 광의 검색까지 0건이면 데이터 없음(화면은 emptyState 처리)
+        print("[simmons_news] 최종 0건 — 데이터 없음")
         return {"status": "데이터 없음", "items": []}
 
-    cands.sort(key=lambda x: x["date"], reverse=True)  # 최신순
-    top = cands[:9]  # 이미지 중복 제거 여유분
+    # 대표 이미지 병렬 확보(+이미지 중복 제거) 후 6건
+    top = kept[:9]
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=9) as ex:
             imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), top))
     except Exception:  # noqa: BLE001
         imgs = [None] * len(top)
-
     items, seen_img = [], set()
     for it, img in zip(top, imgs):
         if img and img in seen_img:  # 같은 대표 이미지 중복 제거
             continue
         if img:
             seen_img.add(img)
-        it["image"] = img
-        items.append(it)
+        items.append({"title": it["title"], "link": it["link"], "source": it["source"],
+                      "date": it["date"], "image": img})
         if len(items) >= 6:
             break
-    # 이미지 중복으로 6개 미달 시 남은 후보로 보충
-    if len(items) < 6:
-        used = {it["link"] for it in items}
-        for it in cands:
+    if len(items) < 6:  # 이미지 중복으로 미달 시 남은 후보 보충
+        used = {x["link"] for x in items}
+        for it in kept:
             if it["link"] not in used:
-                it["image"] = None
-                items.append(it)
+                items.append({"title": it["title"], "link": it["link"], "source": it["source"],
+                              "date": it["date"], "image": None})
                 if len(items) >= 6:
                     break
+
+    print("[simmons_news] 최종 표시 %d건:\n  - %s"
+          % (len(items), "\n  - ".join(x["title"] for x in items)))
     return {"status": "ok", "items": items[:6]}
 
 
