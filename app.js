@@ -1815,81 +1815,124 @@ function wireFxInteraction() {
 }
 
 /* ── 세계 시간 (World Clock) — 외부 API 없이 Intl.DateTimeFormat로 계산 ── */
-// 좌→우: 서울에서 서쪽으로 도는 순서(시차 단조 감소). extra=대시보드 요약카드에서 숨김
+// 등장방형도법(equirectangular) 지도 위 마커. lat/lon → x=(lon+180)/360, y=(90-lat)/180
+// dir=라벨 방향(겹침·잘림 회피). 서울/상하이는 가로 1.6%차라 ne/sw로 분리 + leader line
 const WORLD_CITIES = [
-  { ko: '서울', sub: 'seoul', tz: 'Asia/Seoul' },
-  { ko: '상하이', sub: 'shanghai', tz: 'Asia/Shanghai', extra: true },
-  { ko: '두바이', sub: 'dubai', tz: 'Asia/Dubai' },
-  { ko: '런던', sub: 'london', tz: 'Europe/London' },
-  { ko: '뉴욕', sub: 'new york', tz: 'America/New_York' },
-  { ko: '로스앤젤레스', sub: 'los angeles', tz: 'America/Los_Angeles', extra: true },
+  { ko: '서울', tz: 'Asia/Seoul', lat: 37.57, lon: 126.98, dir: 'ne' },
+  { ko: '상하이', tz: 'Asia/Shanghai', lat: 31.23, lon: 121.47, dir: 'sw' },
+  { ko: '두바이', tz: 'Asia/Dubai', lat: 25.20, lon: 55.27, dir: 'ne' },
+  { ko: '런던', tz: 'Europe/London', lat: 51.51, lon: -0.13, dir: 'nw' },
+  { ko: '뉴욕', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'nw' },
+  { ko: '로스앤젤레스', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 'ne' },
 ];
 let _wcTimer = null;
+let _wcShown = false;    // 마커 표시 여부(업데이트 후 true, 초기화 시 false)
+let _wcWeather = null;   // 도시별 {temp,code} 배열 | null(요청 실패 → 기온 —)
 
-/** tz 현재 시각 구성요소 {year,month,day,minute,second,h(0~23)} — 24시간제 */
+/** tz 현재 시각 구성요소 {minute,h(0~23)} — 24시간제 */
 function wcParts(tz, date) {
   const out = {};
   new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, hour12: false,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
   }).formatToParts(date).forEach((p) => { if (p.type !== 'literal') out[p.type] = p.value; });
   let hh = parseInt(out.hour, 10); if (hh === 24) hh = 0;  // 자정 '24' 방어
   out.h = hh;
   return out;
 }
 
-/** tz의 UTC 오프셋(분) — 서머타임 자동 반영(하드코딩 없음) */
-function wcOffsetMin(parts, date) {
-  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, parts.h, +parts.minute, +parts.second);
-  return Math.round((asUTC - date.getTime()) / 60000);
+/** WMO weather_code → 아이콘 */
+function wmoIcon(code) {
+  if (code == null) return '·';
+  if (code === 0) return '☀';
+  if ([1, 2, 3].includes(code)) return '⛅';
+  if ([45, 48].includes(code)) return '🌫';
+  if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67)) return '🌧';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return '❄';
+  if (code >= 80 && code <= 82) return '🌦';
+  if ([95, 96, 99].includes(code)) return '⛈';
+  return '🌡';
 }
 
-/** 서울 기준 시차 배지(예: '+0h', '-5h', '-13h') */
-function wcOffsetLabel(diffMin) {
-  const h = diffMin / 60, a = Math.abs(h);
-  return `${h < 0 ? '-' : '+'}${Number.isInteger(a) ? a : a.toFixed(1)}h`;
+/** 도시 마커 1개 HTML — 등장방형 퍼센트 좌표로 절대배치 */
+function wcMarkerHtml(c, i) {
+  const x = (c.lon + 180) / 360 * 100;
+  const y = (90 - c.lat) / 180 * 100;
+  const w = _wcWeather && _wcWeather[i];
+  const icon = w ? wmoIcon(w.code) : '·';
+  const temp = (w && w.temp != null) ? `${Math.round(w.temp)}°` : '—';
+  return `<div class="wc-mk wc-${c.dir}" data-tz="${c.tz}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">
+    <span class="wc-leader"></span>
+    <span class="wc-dot"></span>
+    <div class="wc-label">
+      <span class="wc-l-head"><b class="wc-l-city">${escapeHtml(c.ko)}</b><span class="wc-l-time">--:--</span></span>
+      <span class="wc-l-wx"><span class="wc-l-ic">${icon}</span><span class="wc-l-temp">${escapeHtml(temp)}</span></span>
+    </div>
+  </div>`;
 }
 
-/** 도시 타일 구조 1회 생성(시각 값은 wcTick가 매초 갱신). 업데이트 버튼과 무관하게 항상 표시 */
+/** 지도 + 마커 렌더. 초기(미표시)엔 회색 지도 + 안내만, 업데이트 후 마커 표시 */
 function renderWorldClock() {
   const root = document.getElementById('worldclockRoot');
   if (!root) return;
-  root.innerHTML = `<div class="wc-grid">${WORLD_CITIES.map((c) => `
-    <div class="wc-tile${c.extra ? ' wc-extra' : ''}" data-tz="${c.tz}">
-      <div class="wc-top">
-        <div class="wc-city">${escapeHtml(c.ko)}<span class="wc-sub">${escapeHtml(c.sub)}</span></div>
-        <span class="wc-icon" aria-hidden="true"></span>
-      </div>
-      <div class="wc-time">--:--:--</div>
-      <div class="wc-meta"><span class="wc-date">--/--</span><span class="wc-badge">--</span></div>
-    </div>`).join('')}</div>`;
-  wcTick();
+  const inner = _wcShown
+    ? `<div class="wc-markers">${WORLD_CITIES.map((c, i) => wcMarkerHtml(c, i)).join('')}</div>`
+    : '<div class="wc-empty">업데이트 버튼을 눌러 불러오세요</div>';
+  root.innerHTML = `<div class="wc-map">
+      <img class="wc-map__img" src="world-map.svg" alt="" aria-hidden="true">
+      ${inner}
+    </div>
+    <div class="comp-caption">출처: Open-Meteo</div>`;
+  if (_wcShown) wcTick();
 }
 
-/** 매초 갱신: 시각(HH:MM:SS)·날짜(MM/DD)·서울기준 시차·주야 구분 */
+/** 시각(HH:MM)·주야 구분 갱신. 30초 간격이면 분 표시엔 충분 */
 function wcTick() {
-  const tiles = document.querySelectorAll('#worldclockRoot .wc-tile');
-  if (!tiles.length) return;
+  const mks = document.querySelectorAll('#worldclockRoot .wc-mk');
+  if (!mks.length) return;
   const now = new Date();
-  const seoulOff = wcOffsetMin(wcParts('Asia/Seoul', now), now);
-  tiles.forEach((tile) => {
-    const p = wcParts(tile.dataset.tz, now);
-    tile.querySelector('.wc-time').textContent = `${String(p.h).padStart(2, '0')}:${p.minute}:${p.second}`;
-    tile.querySelector('.wc-date').textContent = `${p.month}/${p.day}`;
-    tile.querySelector('.wc-badge').textContent = wcOffsetLabel(wcOffsetMin(p, now) - seoulOff);
+  mks.forEach((mk) => {
+    const p = wcParts(mk.dataset.tz, now);
+    mk.querySelector('.wc-l-time').textContent = `${String(p.h).padStart(2, '0')}:${p.minute}`;
     const night = (p.h >= 19 || p.h < 6);  // 야간 19시~06시
-    tile.classList.toggle('wc-night', night);
-    tile.classList.toggle('wc-day', !night);
-    tile.querySelector('.wc-icon').textContent = night ? '🌙' : '☀️';
+    mk.classList.toggle('is-night', night);
+    mk.classList.toggle('is-day', !night);
   });
 }
 
-/** 세계 시간 초기화: 구조 생성 + 1초 인터벌(중복 방지 위해 기존 타이머 정리 후 재설정) */
+/** [업데이트]에 연결: Open-Meteo로 6개 도시 날씨 1회 요청 → 마커 표시.
+ *  실패해도 마커·시계는 뜨고 기온만 '—'. */
+async function updateWorldWeather() {
+  try {
+    const lat = WORLD_CITIES.map((c) => c.lat).join(',');
+    const lon = WORLD_CITIES.map((c) => c.lon).join(',');
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const arr = Array.isArray(data) ? data : [data];
+    _wcWeather = WORLD_CITIES.map((c, i) => {
+      const cur = arr[i] && arr[i].current;
+      return cur ? { temp: cur.temperature_2m, code: cur.weather_code } : null;
+    });
+  } catch (e) {  // noqa — 날씨 실패해도 시계는 동작
+    console.warn('[worldclock] weather fail:', e);
+    _wcWeather = null;
+  }
+  _wcShown = true;
+  renderWorldClock();
+}
+
+/** [초기화]: 마커 제거하고 회색 지도 + 안내 상태로 */
+function resetWorldClock() {
+  _wcShown = false;
+  _wcWeather = null;
+  renderWorldClock();
+}
+
+/** 세계 시간 초기화: 지도 렌더 + 30초 인터벌(중복 방지 위해 기존 타이머 정리 후 재설정) */
 function initWorldClock() {
   renderWorldClock();
   if (_wcTimer) clearInterval(_wcTimer);  // useEffect 정리(cleanup) 대응 — 중복 인터벌 방지
-  _wcTimer = setInterval(wcTick, 1000);
+  _wcTimer = setInterval(wcTick, 30000);  // 30초마다 시각 갱신(분 단위만 표시)
 }
 
 /** 데이터 변경 시 데이터 의존 섹션 재렌더 */
@@ -1960,6 +2003,7 @@ function resetDashboard() {
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';
   const dashUpd = document.getElementById('dashUpdated');
   if (dashUpd) dashUpd.textContent = '—';
+  resetWorldClock();  // 세계 시간: 마커 제거 → 회색 지도 + 안내
   // 원자재·시장·경쟁사·뉴스 재렌더(빈 STORE → emptyState/데이터 부족)
   refreshSections();
 }
@@ -1976,6 +2020,7 @@ function initUpdate() {
     const orig = btn.textContent;
     btn.disabled = true;
     btn.textContent = '불러오는 중…';
+    updateWorldWeather();  // 세계 시간: Open-Meteo 날씨(서버 /api/update와 독립) → 마커 표시
     try {
       const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);

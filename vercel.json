@@ -5,7 +5,8 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "app.js", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },
-    { "src": "logo.svg", "use": "@vercel/static" }
+    { "src": "logo.svg", "use": "@vercel/static" },
+    { "src": "world-map.svg", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/update", "methods": ["GET", "POST"], "dest": "/api/update.py" },
