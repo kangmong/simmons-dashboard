@@ -685,8 +685,9 @@ body {
 .fx-series-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); margin: 2px 0 6px; }
 .fx-series-unit { font-weight: 500; color: var(--muted); }
 
-/* ── 세계 시간 (World Clock — 지도 + 점 마커 + 툴팁 + 표) ── */
-.wc-map { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+/* ── 세계 시간 (World Clock — 지도 + 점 마커 + 툴팁) ── */
+/* 표를 없앤 만큼 지도를 넓게: 등장방형 실제 비율 2:1(세로 늘림 왜곡도 사라짐) */
+.wc-map { position: relative; width: 100%; aspect-ratio: 2 / 1; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .wc-map__img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
 .wc-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; background: rgba(255, 255, 255, .35); }
 .wc-markers { position: absolute; inset: 0; }
@@ -714,15 +715,6 @@ body {
 .wc-tip__date { font-size: 12px; font-weight: 500; color: var(--muted); }
 .wc-tip__row { display: flex; justify-content: space-between; gap: 12px; margin-top: 3px; color: var(--muted); }
 .wc-tip__row b { color: var(--text); font-variant-numeric: tabular-nums; }
-/* 하단 비교 표(서울 기준 시차 동→서) */
-.wc-tablewrap { margin-top: 12px; overflow-x: auto; }
-.wc-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.wc-table th, .wc-table td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-.wc-table th { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--field); }
-.wc-table th:first-child, .wc-table td:first-child { text-align: left; }
-.wc-tc-city { color: var(--ink); font-weight: 600; }
-.wc-tc-num { color: var(--text); }
-.wc-table tbody tr:hover { background: var(--row-hover); }
 
 /* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
 .brand-group { margin-bottom: 4px; }

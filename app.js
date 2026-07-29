@@ -1827,11 +1827,15 @@ const WORLD_CITIES = [
   { ko: '파리', tz: 'Europe/Paris', lat: 48.86, lon: 2.35, dir: 'sw' },
   { ko: '프랑크푸르트', tz: 'Europe/Berlin', lat: 50.11, lon: 8.68, dir: 'n' },
   { ko: '밀라노', tz: 'Europe/Rome', lat: 45.46, lon: 9.19, dir: 'se' },
+  { ko: '모스크바', tz: 'Europe/Moscow', lat: 55.76, lon: 37.62, dir: 'n' },
   { ko: '카이로', tz: 'Africa/Cairo', lat: 30.04, lon: 31.24, dir: 'se' },
   { ko: '요하네스버그', tz: 'Africa/Johannesburg', lat: -26.20, lon: 28.05, dir: 's' },
   { ko: '뉴욕', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'e' },
   { ko: '시카고', tz: 'America/Chicago', lat: 41.88, lon: -87.63, dir: 'w' },
   { ko: '로스앤젤레스', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 's' },
+  // 브라질리아 타임존은 America/Sao_Paulo(=Brasilia 아님), 부에노스아이레스는 슬래시 2개
+  { ko: '브라질리아', tz: 'America/Sao_Paulo', lat: -15.79, lon: -47.88, dir: 'ne' },
+  { ko: '부에노스아이레스', tz: 'America/Argentina/Buenos_Aires', lat: -34.61, lon: -58.38, dir: 'sw' },
   { ko: '시드니', tz: 'Australia/Sydney', lat: -33.87, lon: 151.21, dir: 'se' },
 ];
 let _wcTimer = null;
@@ -1913,46 +1917,23 @@ function renderWorldClock() {
       <div class="wc-markers">${dots}</div>
       <div class="wc-tip" id="wcTip" hidden></div>
     </div>
-    ${wcTableHtml()}
     <div class="comp-caption">출처: Open-Meteo</div>`;
   wcWire();
   wcTick();
 }
 
-/** 하단 비교 표(서울 기준 시차 동→서 정렬). tbody는 wcTick가 매 틱 갱신 */
-function wcTableHtml() {
-  return `<div class="wc-tablewrap"><table class="wc-table">
-    <thead><tr><th>도시</th><th>현재 시각</th><th>날짜</th><th>서울 대비</th><th>날씨</th></tr></thead>
-    <tbody id="wcTableBody"></tbody>
-  </table></div>`;
-}
-
-/** 매 틱(30초): 마커 주야 구분 + 하단 표 + 열린 툴팁 갱신 */
+/** 매 틱(30초): 마커 주야 구분 + 열린 툴팁 갱신 */
 function wcTick() {
   const root = document.getElementById('worldclockRoot');
   if (!root || !_wcShown) return;
   const now = new Date();
   const seoulOff = wcOffsetMin(wcParts('Asia/Seoul', now), now);
-  // 마커 주야 색
   root.querySelectorAll('.wc-mk').forEach((mk) => {
     const st = wcState(+mk.dataset.i, now, seoulOff);
     const night = (st.h >= 19 || st.h < 6);
     mk.classList.toggle('is-night', night);
     mk.classList.toggle('is-day', !night);
   });
-  // 하단 표(시차 동→서 = diffMin 내림차순)
-  const body = root.querySelector('#wcTableBody');
-  if (body) {
-    const rows = WORLD_CITIES.map((c, i) => ({ i, c, st: wcState(i, now, seoulOff) }))
-      .sort((a, b) => b.st.diffMin - a.st.diffMin);
-    body.innerHTML = rows.map(({ i, c, st }) => {
-      const w = _wcWeather && _wcWeather[i];
-      const wx = w ? `${wmoIcon(w.code)} ${w.temp != null ? Math.round(w.temp) + '°' : '—'}` : '—';
-      return `<tr data-i="${i}"><td class="wc-tc-city">${escapeHtml(c.ko)}</td>
-        <td class="wc-tc-num">${st.timeStr}</td><td class="wc-tc-num">${st.dateStr}</td>
-        <td class="wc-tc-num">${wcOffsetLabel(st.diffMin)}</td><td>${wx}</td></tr>`;
-    }).join('');
-  }
   if (_wcOpen != null) wcShowTip(_wcOpen, true);  // 열린 툴팁 내용 갱신
 }
 
@@ -2012,21 +1993,6 @@ function wcWire() {
   });
   // 바깥 탭/클릭 → 닫기
   document.addEventListener('click', wcOutside);
-  // 표 행 hover → 지도 마커 강조
-  const body = root.querySelector('#wcTableBody');
-  if (body) {
-    body.addEventListener('mouseover', (e) => {
-      const tr = e.target.closest('tr'); if (!tr) return;
-      const mk = root.querySelector(`.wc-mk[data-i="${tr.dataset.i}"]`);
-      if (mk) mk.classList.add('is-hi');
-    });
-    body.addEventListener('mouseout', (e) => {
-      const tr = e.target.closest('tr'); if (!tr) return;
-      if (_wcOpen != null) return;
-      const mk = root.querySelector(`.wc-mk[data-i="${tr.dataset.i}"]`);
-      if (mk) mk.classList.remove('is-hi');
-    });
-  }
 }
 
 /** 지도 바깥 클릭 시 핀 툴팁 닫기 */
@@ -2037,7 +2003,7 @@ function wcOutside(e) {
   _wcOpen = null; wcHideTip();
 }
 
-/** [업데이트]에 연결: Open-Meteo로 15개 도시 날씨 1회 요청 → 마커 표시.
+/** [업데이트]에 연결: Open-Meteo로 18개 도시 날씨 1회 요청 → 마커 표시.
  *  실패해도 마커·시계는 뜨고 기온만 '—'. */
 async function updateWorldWeather() {
   // 먼저 마커부터 표시(시계 동작 보장). 날씨는 도착하면 채우고, 실패/지연이면 '—' 유지
