@@ -685,37 +685,44 @@ body {
 .fx-series-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink); margin: 2px 0 6px; }
 .fx-series-unit { font-weight: 500; color: var(--muted); }
 
-/* ── 세계 시간 (World Clock — 등장방형 지도 + 마커) ── */
+/* ── 세계 시간 (World Clock — 지도 + 점 마커 + 툴팁 + 표) ── */
 .wc-map { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .wc-map__img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
 .wc-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; background: rgba(255, 255, 255, .35); }
 .wc-markers { position: absolute; inset: 0; }
-.wc-mk { position: absolute; }  /* left/top=좌표점, 자식은 이 점 기준 배치 */
-.wc-dot { position: absolute; left: 0; top: 0; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(16, 24, 40, .35); }
-.wc-leader { position: absolute; left: 0; top: 0; width: 15px; height: 0; border-top: 1px solid var(--slate); transform-origin: 0 0; opacity: .75; }
-.wc-label { position: absolute; white-space: nowrap; display: flex; flex-direction: column; gap: 1px; padding: 3px 7px; border-radius: 7px; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); }
-.wc-l-head { display: flex; align-items: baseline; gap: 5px; }
-.wc-l-city { font-size: 12px; font-weight: 700; color: var(--ink); }
-.wc-l-time { font-size: 12px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.wc-l-wx { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
-.wc-l-ic { font-size: 12px; line-height: 1; }
-.wc-l-temp { font-variant-numeric: tabular-nums; }
-/* 야간 마커: 어둡게 */
-.wc-mk.is-night .wc-label { background: #1B2233; border-color: #2A3346; }
-.wc-mk.is-night .wc-l-city, .wc-mk.is-night .wc-l-time { color: #F4F6FB; }
-.wc-mk.is-night .wc-l-wx { color: #AEB8CE; }
-.wc-mk.is-night .wc-dot { background: #C9D3E8; box-shadow: 0 0 0 2px #1B2233, 0 1px 3px rgba(16, 24, 40, .45); }
-/* 라벨 방향(겹침·잘림 회피) + leader line 각도. 서울=ne, 상하이=sw로 분리 */
-.wc-ne .wc-label { left: 13px; bottom: 9px; }
-.wc-ne .wc-leader { transform: rotate(-35deg); }
-.wc-nw .wc-label { right: 13px; bottom: 9px; }
-.wc-nw .wc-leader { transform: rotate(-145deg); }
-.wc-se .wc-label { left: 13px; top: 9px; }
-.wc-se .wc-leader { transform: rotate(35deg); }
-.wc-sw .wc-label { right: 13px; top: 9px; }
-.wc-sw .wc-leader { transform: rotate(145deg); }
-/* 좁은 화면: 라벨은 도시명+시각만, 날씨는 아이콘만(기온 숫자 숨김) */
-@media (max-width: 640px) { .wc-l-temp { display: none; } }
+/* 점 마커(버튼) — 크기 0, 자식(dot)이 좌표점 기준으로 표시 */
+.wc-mk { position: absolute; width: 0; height: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+.wc-dot { position: absolute; left: 0; top: 0; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px #fff, 0 1px 2px rgba(16, 24, 40, .35); transition: transform .12s ease; }
+.wc-mk.is-day .wc-dot { background: var(--accent); }     /* 주간=빨강 */
+.wc-mk.is-night .wc-dot { background: #2A3346; }         /* 야간=어두움 */
+.wc-mk:hover .wc-dot, .wc-mk.is-hi .wc-dot { transform: scale(1.55); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-soft), 0 1px 4px rgba(16, 24, 40, .4); }
+/* 도시명 아주 작게(흰 후광으로 지도 위 가독성) */
+.wc-name { position: absolute; left: 0; top: 0; font-size: 9.5px; font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+.wc-n .wc-name { left: 50%; bottom: 7px; top: auto; transform: translateX(-50%); }
+.wc-s .wc-name { left: 50%; top: 7px; transform: translateX(-50%); }
+.wc-e .wc-name { left: 8px; top: 50%; transform: translateY(-50%); }
+.wc-w .wc-name { right: 8px; left: auto; top: 50%; transform: translateY(-50%); }
+.wc-ne .wc-name { left: 7px; bottom: 5px; top: auto; }
+.wc-nw .wc-name { right: 7px; left: auto; bottom: 5px; top: auto; }
+.wc-se .wc-name { left: 7px; top: 5px; }
+.wc-sw .wc-name { right: 7px; left: auto; top: 5px; }
+/* 툴팁 카드(지도 안쪽으로 열림) */
+.wc-tip { position: absolute; z-index: 5; min-width: 118px; max-width: 190px; padding: 8px 10px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-hover); font-size: 12px; }
+.wc-tip[hidden] { display: none; }
+.wc-tip__city { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+.wc-tip__time { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.wc-tip__date { font-size: 12px; font-weight: 500; color: var(--muted); }
+.wc-tip__row { display: flex; justify-content: space-between; gap: 12px; margin-top: 3px; color: var(--muted); }
+.wc-tip__row b { color: var(--text); font-variant-numeric: tabular-nums; }
+/* 하단 비교 표(서울 기준 시차 동→서) */
+.wc-tablewrap { margin-top: 12px; overflow-x: auto; }
+.wc-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.wc-table th, .wc-table td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.wc-table th { font-size: 11px; font-weight: 600; color: var(--muted); background: var(--field); }
+.wc-table th:first-child, .wc-table td:first-child { text-align: left; }
+.wc-tc-city { color: var(--ink); font-weight: 600; }
+.wc-tc-num { color: var(--text); }
+.wc-table tbody tr:hover { background: var(--row-hover); }
 
 /* ── 국내외 브랜드 신제품 (국내/국외 소그룹) ── */
 .brand-group { margin-bottom: 4px; }
