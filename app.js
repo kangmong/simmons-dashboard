@@ -1528,7 +1528,14 @@ function brandListItems(items, colors) {
       const stripped = title.replace(bre, '').trim();
       if (stripped) title = stripped;
     }
+    const logo = safeUrl(it.logo_url);
+    const logo2 = safeUrl(it.logo_fallback);
     const initial = brand ? brand.charAt(0) : '·';
+    if (brand && !logo && !logo2) console.warn('[brands] 로고 URL 없음(첫글자 폴백):', brand);
+    // 썸네일 스택(뒤→앞): 첫글자 → 파비콘 → Clearbit 로고 → 기사 사진
+    const mkLogo = (u) => u
+      ? `<img class="dom-thumb__logo" src="${escapeHtml(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : '';
     const imgTag = img
       ? `<img class="dom-thumb__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
@@ -1537,7 +1544,7 @@ function brandListItems(items, colors) {
     return `<${tag} class="dom-item${url ? '' : ' dom-item--nolink'}"${attrs}>
       <div class="dom-thumb" style="--dom-c:${color}">
         <span class="dom-thumb__ini">${escapeHtml(initial)}</span>
-        ${imgTag}
+        ${mkLogo(logo2)}${mkLogo(logo)}${imgTag}
       </div>
       <div class="dom-item__body">
         <h3 class="dom-item__title"><span class="dom-brand" style="color:${color}">[${escapeHtml(brand)}]</span> ${escapeHtml(title)}</h3>

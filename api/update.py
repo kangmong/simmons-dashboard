@@ -345,20 +345,22 @@ def _dup_match(a, b, kw_thr, str_thr):
     return False, None, round(max(kj, sj), 2)
 
 
-def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
-    """2단계 중복 제거.
-       1) 텍스트(키워드/문자열)로 저비용 군집 — 풀을 넓게(다양한 최신 주제 확보).
-       2) 상위 그룹만 이미지 확보 → 대표 선정(이미지>날짜>길이) + 동일 이미지 URL 그룹 2차 병합.
-       → 매체 다양성(매체당 1건) → 6건. 반환 (chosen, groups[{items,merges,rep}])."""
-    pool = cands[:40]
-    for it in pool:  # 텍스트 판정용 사전 계산(이미지 없음)
+def _cluster_articles(items, kw_thr=0.5, str_thr=0.7, same_fn=None):
+    """기사 리스트를 이미지/키워드/문자열 신호로 그리디 군집(공용 — 시몬스·브랜드 섹션 공통).
+       same_fn(a, b)=False면 같은 그룹 후보에서 제외(예: 다른 브랜드끼리는 묶지 않음).
+       각 item에 _kw/_sk/_imn 부여. 반환 groups=[{items, merges}]."""
+    for it in items:
         it["_kw"] = _wc_keywords(it["title"])
         it["_sk"] = _wc_strkey(it["title"])
+        it["_imn"] = _img_norm(it.get("image"))
     groups = []
-    for it in pool:
+    for it in items:
         placed = False
         for g in groups:
-            matched, rule, score = _dup_match(it, g["items"][0], kw_thr, str_thr)
+            head = g["items"][0]
+            if same_fn and not same_fn(it, head):
+                continue
+            matched, rule, score = _dup_match(it, head, kw_thr, str_thr)
             if matched:
                 g["items"].append(it)
                 g["merges"].append((it["title"], rule, score))
@@ -366,6 +368,16 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
                 break
         if not placed:
             groups.append({"items": [it], "merges": []})
+    return groups
+
+
+def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
+    """2단계 중복 제거.
+       1) 텍스트(키워드/문자열)로 저비용 군집 — 풀을 넓게(다양한 최신 주제 확보).
+       2) 상위 그룹만 이미지 확보 → 대표 선정(이미지>날짜>길이) + 동일 이미지 URL 그룹 2차 병합.
+       → 매체 다양성(매체당 1건) → 6건. 반환 (chosen, groups[{items,merges,rep}])."""
+    pool = cands[:40]
+    groups = _cluster_articles(pool, kw_thr, str_thr)  # 텍스트 신호(이미지 아직 없음)
     groups.sort(key=lambda g: max((x["date"] or "") for x in g["items"]), reverse=True)  # 최신 그룹 먼저
     head = groups[:12]  # 표시 6 + 이미지병합/매체다양성 여유
     # 상위 그룹의 (이른 날짜·짧은 제목) 상위 2건만 이미지 확보(비용 제한)
@@ -561,17 +573,32 @@ BRAND_DOMAINS = {
 }
 
 
-def _brand_logo(brand):
-    """1순위 로고: Clearbit(무료·무키). ※ 참고: Clearbit 무료 로고 API는 현재
-       DNS가 해석되지 않을 때가 있어, 프런트에서 logo_fallback(구글 파비콘)으로 자동 대체한다."""
-    dom = BRAND_DOMAINS.get(brand)
-    return ("https://logo.clearbit.com/" + dom) if dom else None
+# 브랜드명 정규화(별칭·표기 차이 흡수) → BRAND_DOMAINS 정규 키. 공백 제거+소문자로 매칭.
+_BRAND_CANON = {
+    "에이스침대": "에이스침대", "ace": "에이스침대", "acebed": "에이스침대", "ace침대": "에이스침대",
+    "이케아": "이케아", "ikea": "이케아", "이케아코리아": "이케아", "ikeakorea": "이케아",
+    "한샘": "한샘", "hanssem": "한샘",
+    "씰리": "씰리", "sealy": "씰리",
+    "sleepnumber": "Sleep Number",
+    "tempur-pedic": "Tempur-Pedic", "tempurpedic": "Tempur-Pedic", "tempur": "Tempur-Pedic", "템퍼": "Tempur-Pedic",
+    "purple": "Purple", "퍼플": "Purple",
+    "serta": "Serta", "썰타": "Serta", "서타": "Serta",
+}
 
 
-def _brand_logo_fallback(brand):
-    """폴백 로고: 구글 파비콘 서비스(무료·무키). Clearbit 실패 시 사용."""
-    dom = BRAND_DOMAINS.get(brand)
-    return ("https://www.google.com/s2/favicons?sz=128&domain=" + dom) if dom else None
+def _brand_norm(name):
+    """표기 차이 흡수: 공백 제거+소문자 후 별칭 사전 매칭 → 정규 브랜드명(미등록이면 원문)."""
+    k = re.sub(r"\s+", "", (name or "")).lower()
+    return _BRAND_CANON.get(k, name)
+
+
+def _brand_logos(brand):
+    """공용 로고 소스: (clearbit_url, favicon_fallback, matched). 상단·하단 카드가 함께 사용."""
+    dom = BRAND_DOMAINS.get(_brand_norm(brand))
+    if not dom:
+        return (None, None, False)
+    return ("https://logo.clearbit.com/" + dom,
+            "https://www.google.com/s2/favicons?sz=128&domain=" + dom, True)
 
 
 # og:image 두 가지 속성 순서(content 앞/뒤) 모두 대응
@@ -678,37 +705,79 @@ def _brand_news(brands, query_fn, hl, gl):
                               "date": _fmt_pubdate(pub), "link": link,
                               "product_name": _product_name(title, brand, source)})
             cnt += 1
-            if cnt >= 2:  # 브랜드별 최신 1~2개
+            if cnt >= 3:  # 브랜드별 최신 최대 3건(중복 제거 재료 확보)
                 break
 
     if not collected:
         return {"status": "error", "reason": "브랜드 뉴스를 받지 못했습니다"}
 
     collected.sort(key=lambda x: x["date"], reverse=True)  # 최신순
+
+    # 이미지 확보(og:image → RSS media): 중복 판정(이미지 URL 신호)·대표 선정에 필요
     img_cache = {}
 
     def _resolve_img(link):
         if link not in img_cache:
             img_cache[link] = _og_image(link) or media_by_link.get(link)
         return img_cache[link]
-
-    items = collected[:6]
-    for it in items:
+    for it in collected:
         it["image"] = _resolve_img(it["link"])
 
-    # 대표 상품(featured): 브랜드당 최신 1건 → 최신순 → 상위 3개 (브랜드 중복 없음)
-    best = {}
+    # 로고: 상단·하단 공용 소스(_brand_logos)로 모든 기사에 부여 + 매칭 성공/실패 로그
+    logo_ok, logo_fail = set(), set()
     for it in collected:
-        if it["brand"] not in best:
-            best[it["brand"]] = it
-    reps = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
-    featured = [{"brand": it["brand"], "product_name": it.get("product_name"),
-                 "image": _resolve_img(it["link"]),
-                 "logo_url": _brand_logo(it["brand"]),
-                 "logo_fallback": _brand_logo_fallback(it["brand"]),
-                 "source": it["source"], "date": it["date"], "link": it["link"]}
-                for it in reps]
-    return {"status": "ok", "items": items, "featured": featured}
+        lu, lf, matched = _brand_logos(it["brand"])
+        it["logo_url"], it["logo_fallback"] = lu, lf
+        (logo_ok if matched else logo_fail).add(it["brand"])
+    print("[brand_news] 로고 매칭 성공: %s" % (", ".join(sorted(logo_ok)) or "-"))
+    if logo_fail:
+        print("[brand_news] 로고 매칭 실패(→첫글자 폴백): %s" % ", ".join(sorted(logo_fail)))
+
+    # 중복 제거 — 시몬스 소식과 동일 공용 로직, 단 같은 브랜드 안에서만 묶는다(★타 브랜드 병합 금지)
+    groups = _cluster_articles(collected, same_fn=lambda a, b: a["brand"] == b["brand"])
+    multi = [g for g in groups if len(g["items"]) > 1]
+    print("[brand_news] 중복 그룹 %d개(2건+):" % len(multi))
+    for gi, g in enumerate(multi, 1):
+        rep = sorted(g["items"], key=_rep_key)[0]
+        print("  [그룹 %d][%s] %d건 — 대표: %s" % (gi, rep["brand"], len(g["items"]), rep["title"]))
+        how = {t: (r, s) for (t, r, s) in g["merges"]}
+        for m in g["items"]:
+            rs = how.get(m["title"])
+            via = ("  ← %s %.2f" % (rs[0], rs[1])) if rs else "  (기준)"
+            print("     · %s%s%s" % (m["title"], via, "   ★대표" if m is rep else ""))
+
+    reps = [sorted(g["items"], key=_rep_key)[0] for g in groups]  # 그룹 대표: 이미지>날짜>길이
+    reps.sort(key=lambda x: x["date"], reverse=True)
+
+    def _out(it):
+        return {"brand": it["brand"], "title": it["title"], "source": it["source"],
+                "date": it["date"], "link": it["link"], "image": it.get("image"),
+                "product_name": it.get("product_name"),
+                "logo_url": it.get("logo_url"), "logo_fallback": it.get("logo_fallback")}
+
+    # items: 브랜드별 최소 1건 보장 → 나머지 최신순 채워 6건
+    items, picked = [], set()
+    for r in reps:  # 브랜드별 최신 대표 먼저(브랜드 누락 방지)
+        if r["brand"] not in {x["brand"] for x in items}:
+            items.append(r)
+            picked.add(id(r))
+    for r in reps:  # 남은 슬롯 최신순 채움
+        if id(r) not in picked and len(items) < 6:
+            items.append(r)
+            picked.add(id(r))
+    items = sorted(items[:6], key=lambda x: x["date"], reverse=True)
+
+    # featured(대표 출시 상품): 브랜드당 대표 1건(이미지>날짜>길이) → 최신 3
+    best = {}
+    for r in reps:
+        b = r["brand"]
+        if b not in best or _rep_key(r) < _rep_key(best[b]):
+            best[b] = r
+    featured = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
+
+    print("[brand_news] 최종 표시 items %d / featured %d" % (len(items), len(featured)))
+    return {"status": "ok", "items": [_out(x) for x in items],
+            "featured": [_out(x) for x in featured]}
 
 
 def update_domestic():

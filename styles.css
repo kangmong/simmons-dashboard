@@ -776,6 +776,8 @@ body {
   border: 1px solid color-mix(in srgb, var(--dom-c, var(--accent)) 30%, transparent);
 }
 .dom-thumb__ini { font-size: 24px; font-weight: 800; color: var(--dom-c, var(--accent)); }
+/* 브랜드 로고(파비콘/Clearbit): 썸네일 안에 여백 두고 contain, 흰 배경 */
+.dom-thumb__logo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 12px; background: #fff; }
 .dom-thumb__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dom-item__body { min-width: 0; }
 .dom-item__title {
