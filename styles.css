@@ -440,6 +440,31 @@ body {
 /* 차트 위젯 */
 .viz-figure { position: relative; padding: 14px; }
 .sr-figure { margin-top: 16px; }
+/* 순수 추가: 해상 정시성 '다음 달 전망' 섹션 */
+.sr-fc { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sr-fc__title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.sr-fc__month { font-size: 13px; font-weight: 600; color: var(--accent); }
+.sr-fc__gen { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--muted); }
+.sr-fc__row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 4px; }
+.sr-fc__big { display: flex; align-items: center; gap: 8px; font-size: 30px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.sr-fc__pct { font-size: 16px; font-weight: 700; color: var(--muted); margin-left: -3px; }
+.sr-fc__risk { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.sr-fc__risk.up { color: var(--accent); background: var(--accent-soft); }
+.sr-fc__risk.down { color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.sr-fc__risk.flat { color: var(--muted); background: var(--field); }
+.sr-fc__cmps { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.sr-fc__cmp { font-weight: 700; color: var(--text); }
+.sr-fc__cmp.up { color: var(--accent); }
+.sr-fc__cmp.down { color: var(--blue); }
+.sr-fc__cmp.flat { color: var(--muted); }
+.sr-fc__ci { font-weight: 500; color: var(--muted); }
+.sr-fc__ai { margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--text); }
+.sr-fc__ai b { color: var(--ink); font-weight: 700; margin-right: 4px; }
+.sr-fc__caution { margin-top: 6px; font-size: 12px; color: var(--muted); }
+.sr-fc__na { margin-top: 8px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.sr-fc__reason { font-size: 12px; font-weight: 500; }
+.sr-fc__disc { margin-top: 10px; padding: 9px 12px; font-size: 11.5px; line-height: 1.5; color: var(--accent);
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); border-radius: var(--radius-sm); }
 .oil-figure { margin-top: 16px; }
 /* 국제유가 범례: 클릭 토글(버튼) — 꺼지면 흐리게 */
 .oil-legend { flex-wrap: wrap; }

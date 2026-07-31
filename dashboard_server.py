@@ -26,6 +26,11 @@ try:  # 순수 추가: 다음 달 주원료 예측(기존 코드 미변경). 로
 except Exception:  # noqa: BLE001
     compute_icis_forecast = None
 
+try:  # 순수 추가: 다음 달 해상 정시성 예측(기존 코드 미변경).
+    from sr_forecast import compute_sr_forecast
+except Exception:  # noqa: BLE001
+    compute_sr_forecast = None
+
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)  # 대시보드가 다른 주소(예: http-server)에서 열려도 /api 호출 허용
 
@@ -1336,6 +1341,8 @@ FETCHERS = {
 }
 if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
     FETCHERS["icis_forecast"] = compute_icis_forecast
+if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
+    FETCHERS["sr_forecast"] = compute_sr_forecast
 
 
 @app.route("/api/update", methods=["GET", "POST"])

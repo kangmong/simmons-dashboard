@@ -33,6 +33,10 @@ try:
     from icis_forecast import compute_icis_forecast
 except Exception:  # noqa: BLE001
     compute_icis_forecast = None
+try:
+    from sr_forecast import compute_sr_forecast
+except Exception:  # noqa: BLE001
+    compute_sr_forecast = None
 
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
@@ -1342,6 +1346,8 @@ FETCHERS = {
 }
 if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
     FETCHERS["icis_forecast"] = compute_icis_forecast
+if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
+    FETCHERS["sr_forecast"] = compute_sr_forecast
 
 
 def build_payload():

@@ -904,6 +904,7 @@ let _oilRange = null;  // 선택된 기간(null=미선택 → "기간을 선택�
 let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAULT_ON
 let _oilChart = null;
 let _icisForecast = null; // 순수 추가: 다음 달 주원료 예측(백엔드 계산). null이면 예측 섹션 숨김
+let _srForecast = null;   // 순수 추가: 다음 달 해상 정시성 예측(백엔드 계산). null이면 섹션 숨김
 
 /** 응답의 usd_krw + 해상 정시성 + 국제유가 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
@@ -929,6 +930,8 @@ function applyMaterialUpdate(data) {
   // 순수 추가: 다음 달 예측 저장(있을 때만; 없으면 예측 섹션 숨김)
   const fc = data && data.sections && data.sections.icis_forecast;
   _icisForecast = (fc && fc.status === 'ok') ? fc : null;
+  const srf = data && data.sections && data.sections.sr_forecast;
+  _srForecast = (srf && srf.status === 'ok') ? srf : null;  // 순수 추가: 정시성 예측
   renderMaterial();
 }
 
@@ -1235,6 +1238,44 @@ function renderScheduleReliabilityHtml() {
     ${body}
     <div class="viz-tooltip" id="srTooltip"></div>
     <div class="comp-caption">출처: Sea-Intelligence</div>
+    ${renderSrForecastHtml()}
+  </div>`;
+}
+
+/** 순수 추가: 출처 아래 '다음 달 전망'(정시성). 예측 없으면 '' 반환(섹션 숨김).
+ *  숫자는 백엔드 계산(_srForecast), 문장(summary/seasonal/yoy/caution)만 AI. */
+function renderSrForecastHtml() {
+  const fc = _srForecast;
+  if (!fc) return '';
+  const gen = fc.generated_at ? `<span class="sr-fc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
+  const title = `<h3 class="subhead sr-fc__title">다음 달 전망 <span class="sr-fc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>`;
+  const disc = '<div class="sr-fc__disc">과거 계절 패턴 기반 참고용 추정치입니다. 해상 정시성은 기상·파업·항만 혼잡 등 예측 불가한 외부 요인에 크게 좌우되므로 실제와 다를 수 있습니다.</div>';
+  if (fc.forecast_status === 'insufficient') {
+    return `<div class="sr-fc">${title}
+      <div class="sr-fc__na">데이터 부족 <span class="sr-fc__reason">(${escapeHtml(fc.reason || '')})</span></div>
+      ${disc}</div>`;
+  }
+  const rcls = fc.risk === '상방' ? 'up' : (fc.risk === '하방' ? 'down' : 'flat');
+  const dcls = (v) => (v == null ? 'flat' : (v > 0 ? 'up' : (v < 0 ? 'down' : 'flat')));
+  const pp = (v) => (v == null ? '— ' : `${v > 0 ? '▲' : (v < 0 ? '▼' : '–')} ${Math.abs(v).toFixed(1)}%p`);
+  const ai = [
+    fc.summary ? `<div class="sr-fc__ai">${escapeHtml(fc.summary)}</div>` : '',
+    fc.seasonal_txt ? `<div class="sr-fc__ai"><b>계절 패턴</b> ${escapeHtml(fc.seasonal_txt)}</div>` : '',
+    fc.yoy_txt ? `<div class="sr-fc__ai"><b>전년 대비</b> ${escapeHtml(fc.yoy_txt)}</div>` : '',
+  ].join('');
+  return `<div class="sr-fc">${title}
+    <div class="sr-fc__row">
+      <div class="sr-fc__big">${Number(fc.predict).toFixed(1)}<span class="sr-fc__pct">%</span>
+        <span class="sr-fc__risk ${rcls}">${escapeHtml(fc.risk)}</span></div>
+      <div class="sr-fc__cmps">
+        <span class="sr-fc__cmp ${dcls(fc.delta_pp)}">직전월 대비 ${pp(fc.delta_pp)}</span>
+        <span class="sr-fc__cmp ${dcls(fc.yoy_pp)}">전년 동월 대비 ${pp(fc.yoy_pp)}</span>
+        <span class="sr-fc__ci">신뢰구간 ${Number(fc.ci_low).toFixed(1)}% ~ ${Number(fc.ci_high).toFixed(1)}%</span>
+      </div>
+    </div>
+    ${ai}
+    ${fc.caution ? `<div class="sr-fc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : ''}
+    ${disc}
   </div>`;
 }
 
@@ -2159,6 +2200,7 @@ function resetDashboard() {
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
+  _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
   _oilData = null; _oilRange = null; _oilOn = null; _oilChart = null; // 국제유가 비우기
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
