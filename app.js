@@ -905,6 +905,7 @@ let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAU
 let _oilChart = null;
 let _icisForecast = null; // 순수 추가: 다음 달 주원료 예측(백엔드 계산). null이면 예측 섹션 숨김
 let _srForecast = null;   // 순수 추가: 다음 달 해상 정시성 예측(백엔드 계산). null이면 섹션 숨김
+let _oilForecast = null;  // 순수 추가: 다음 달 국제유가 예측(백엔드 계산). null이면 섹션 숨김
 
 /** 응답의 usd_krw + 해상 정시성 + 국제유가 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
@@ -932,6 +933,8 @@ function applyMaterialUpdate(data) {
   _icisForecast = (fc && fc.status === 'ok') ? fc : null;
   const srf = data && data.sections && data.sections.sr_forecast;
   _srForecast = (srf && srf.status === 'ok') ? srf : null;  // 순수 추가: 정시성 예측
+  const oilf = data && data.sections && data.sections.oil_forecast;
+  _oilForecast = (oilf && oilf.status === 'ok') ? oilf : null;  // 순수 추가: 유가 예측
   renderMaterial();
 }
 
@@ -1423,7 +1426,46 @@ function renderOilPricesHtml() {
     }).join('')}</div>`;
     body = `${legend}${buildOilChart(oilSliceRows())}<div class="viz-tooltip" id="oilTooltip"></div>`;
   }
-  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}</div>`;
+  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}${renderOilForecastHtml()}</div>`;
+}
+
+/** 순수 추가: 출처 아래 '다음 달 전망'(국제유가). 예측 없으면 '' 반환(섹션 숨김).
+ *  숫자는 백엔드 계산(_oilForecast), 문장(comment/summary/spread/caution)만 AI. */
+function renderOilForecastHtml() {
+  const fc = _oilForecast;
+  if (!fc || !Array.isArray(fc.products) || !fc.products.some((p) => p && p.status === 'ok')) return '';
+  const rcls = (r) => (r === '상방' ? 'up' : (r === '하방' ? 'down' : 'flat'));
+  const num = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const cards = fc.products.map((p) => {
+    const color = p.color || 'var(--slate)';
+    const head = `<div class="oilfc__head"><span class="icis-dot" style="background:${color}"></span><b>${escapeHtml(p.label || p.code)}</b>`;
+    if (p.status !== 'ok') {
+      return `<div class="oilfc__card">${head}</div><div class="oilfc__na">데이터 부족</div>
+        <div class="oilfc__reason">${escapeHtml(p.reason || '')}</div></div>`;
+    }
+    const d = p.delta, dp = p.delta_pct;
+    const dcls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '–');
+    return `<div class="oilfc__card">
+      ${head}<span class="oilfc__risk ${rcls(p.risk)}">${escapeHtml(p.risk)}</span></div>
+      <div class="oilfc__val">${num(p.predict)} <span class="oilfc__unit">USD/배럴</span></div>
+      <div class="oilfc__delta ${dcls}">${arrow} ${num(Math.abs(d))} (${Math.abs(dp).toFixed(1)}%) <span class="oilfc__prev">${escapeHtml(p.prev_month || '')} 실측 ${num(p.prev)} 대비</span></div>
+      <div class="oilfc__ci">신뢰구간 ${num(p.ci_low)} ~ ${num(p.ci_high)}</div>
+      ${p.comment ? `<div class="oilfc__cmt">${escapeHtml(p.comment)}</div>` : ''}
+    </div>`;
+  }).join('');
+  const gen = fc.generated_at ? `<span class="oilfc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
+  const sub = fc.last_data_month ? `<div class="oilfc__sub">최신 데이터 ${escapeHtml(fc.last_data_month)} 기준${fc.months_ahead != null ? ' · ' + fc.months_ahead + '개월 후 추정' : ''}</div>` : '';
+  const summary = fc.summary ? `<div class="oilfc__summary">${escapeHtml(fc.summary)}</div>` : '';
+  const spread = fc.spread ? `<div class="oilfc__line"><b>제품 간 가격차</b> ${escapeHtml(fc.spread)}</div>` : '';
+  const caution = fc.caution ? `<div class="oilfc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : '';
+  return `<div class="oilfc">
+    <h3 class="subhead oilfc__title">다음 달 전망 <span class="oilfc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
+    ${sub}
+    <div class="oilfc__grid">${cards}</div>
+    ${summary}${spread}${caution}
+    <div class="oilfc__disc">통계적 추세 기반 참고용 추정치입니다. 국제유가는 OPEC 정책, 지정학적 분쟁, 수요 충격 등 예측 불가한 요인에 크게 좌우되며, 과거 데이터만으로는 급변 구간을 예측할 수 없습니다.</div>
+  </div>`;
 }
 
 /** 9개 유종 중 켜진 것만 월별 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음) */
@@ -2209,6 +2251,7 @@ function resetDashboard() {
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
   _oilData = null; _oilRange = null; _oilOn = null; _oilChart = null; // 국제유가 비우기
+  _oilForecast = null; // 순수 추가: 유가 예측 초기화(섹션 숨김)
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
