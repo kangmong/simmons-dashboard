@@ -96,32 +96,35 @@ def _srf_load_key():
     return None
 
 
-def _srf_ai(target_month, recent12, samemonth_hist, o):
+def _srf_ai(target_month, recent12, samemonth_hist, path, months_ahead, o):
     """Anthropic API로 해석 문장만 생성. 실패 시 None(→ 통계값만 표시)."""
     key = _srf_load_key()
     if not key:
         print("[sr_forecast] ANTHROPIC_API_KEY 없음 → AI 해석 생략(통계 예측값만 표시)")
         return None
     hist = ", ".join("%d년 %.1f%%" % (y, v) for y, v in samemonth_hist) or "없음"
+    pathtxt = " → ".join("%s %.1f" % (p["label"], p["v"]) for p in path)
     prompt = (
-        "너는 글로벌 해상 정시성(정시 도착 비율) 애널리스트다. 아래는 코드가 통계로 계산한 "
-        "%s 다음 달 예측이다. 이 수치를 해석하는 짧은 문장만 작성하라.\n\n"
+        "너는 글로벌 해상 정시성(정시 도착 비율) 애널리스트다. 최신 실측은 %s(직전 실측), "
+        "예측 대상은 %s로 %d개월 후를 1개월씩 이어붙이는 다단계(재귀) 방식으로 추정했다. "
+        "이 수치를 해석하는 짧은 문장만 작성하라.\n\n"
         "최근 12개월 실제 정시성(%%): %s\n"
-        "예측 대상월(%s)의 과거 연도 동월 값: %s\n"
-        "예측=%.1f%% (신뢰구간 %.1f~%.1f), 계절성 변화폭(직전월→대상월 과거평균)=%+.2f%%p, "
-        "직전월 대비=%+.1f%%p, 전년 동월 대비=%s\n\n"
+        "대상월(%s)의 과거 연도 동월 실측: %s\n"
+        "다단계 경로(추정): %s\n"
+        "최종 예측=%.1f%% (신뢰구간 %.1f~%.1f), 직전 실측 대비=%+.1f%%p, 전년 동월 대비=%s\n\n"
         "제약:\n"
         "- 제시된 수치 외의 숫자를 만들어내지 말 것.\n"
         "- 특정 선사·항만·파업·지정학 이벤트를 아는 척하지 말 것(학습 시점이 오래됐고 해운은 외부 충격에 크게 좌우됨).\n"
+        "- %d개월 앞 예측이라 계절 패턴 의존도가 높고 불확실성이 크다는 점을 반영할 것.\n"
         "- 단정하지 말고 '~할 전망' 같은 추정 어조.\n"
         "- 한국어.\n\n"
         "아래 JSON만 출력(코드펜스·설명 없이 JSON only):\n"
-        '{"summary":"현재 정시성 수준과 다음 달 전망 2~3문장",'
+        '{"summary":"현재 정시성 수준과 대상월 전망 2~3문장",'
         '"seasonal":"계절 패턴상 이 시기의 일반적 흐름 1~2문장",'
         '"yoy":"전년 동월 대비 평가 1문장","risk":"상방|하방|중립","caution":"예측의 한계 1문장"}'
-    ) % (target_month, recent12, target_month, hist, o["predict"], o["ci_low"], o["ci_high"],
-         o["seasonal_delta"], o["delta_pp"],
-         ("%+.1f%%p" % o["yoy_pp"] if o["yoy_pp"] is not None else "데이터 없음"))
+    ) % (o["last_data_month"], target_month, months_ahead, recent12, target_month, hist, pathtxt,
+         o["predict"], o["ci_low"], o["ci_high"], o["delta_pp"],
+         ("%+.1f%%p" % o["yoy_pp"] if o["yoy_pp"] is not None else "데이터 없음"), months_ahead)
     try:
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -143,8 +146,26 @@ def _srf_ai(target_month, recent12, samemonth_hist, o):
         return None
 
 
+def _srf_seasonal_deltas(years, from_idx, to_idx):
+    """과거 연도들의 (from_idx월 → to_idx월) 변화폭(%p) 목록. 연말→연초(Dec→Jan) 처리 포함."""
+    out = []
+    if from_idx != 11 or to_idx != 0:  # 같은 해 인접 월
+        for y in years:
+            a, b = years[y][from_idx], years[y][to_idx]
+            if a is not None and b is not None:
+                out.append(b - a)
+    else:  # Dec(해 Y) → Jan(해 Y+1)
+        for y in years:
+            ny = str(int(y) + 1)
+            if ny in years and years[y][11] is not None and years[ny][0] is not None:
+                out.append(years[ny][0] - years[y][11])
+    return out
+
+
 def compute_sr_forecast():
-    """FETCHERS용 진입점. 다음 달 정시성 예측(통계) + AI 해석. 데이터 실패 시 status=error(섹션 숨김)."""
+    """FETCHERS용 진입점. '현재 시스템 날짜의 다음 달'까지 다단계(재귀) 예측 + AI 해석.
+       마지막 데이터 월 → 대상 월 간격을 코드가 계산하고, 1개월 앞 예측을 반복해 이어붙인다.
+       단계가 진행될수록 계절성 가중치↑(추세·모멘텀↓), 신뢰구간은 √단계수로 확대. 0~100% clamp."""
     years = _srf_fetch()
     if not years:
         print("[sr_forecast] 정시성 데이터 로드 실패 → 예측 섹션 표시 안 함")
@@ -156,73 +177,102 @@ def compute_sr_forecast():
     if last_pos is None:
         return {"status": "error", "reason": "유효 정시성 값 없음"}
     ly, lm, lv = flat[last_pos]
-    ty, tmidx = (ly + 1, 0) if lm == 11 else (ly, lm + 1)  # 대상 월 = 다음 달(자동 판별)
-    target_month = "%04d-%02d" % (ty, tmidx + 1)
-    prev_month = "%04d-%02d" % (ly, lm + 1)
+    last_data_month = "%04d-%02d" % (ly, lm + 1)
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print("[sr_forecast] 마지막 유효 월 %s(%.1f%%) → 예측 대상 월 %s (자동 판별)" % (prev_month, lv, target_month))
 
-    # 결측: 최근 3개월(대상 직전 3슬롯) 유효값 2개 미만이면 예측 생략
+    # 예측 대상 = 현재 시스템 날짜의 '다음 달'(하드코딩 금지, 실행 시점 기준 자동)
+    today = datetime.date.today()
+    ty, tmidx = (today.year + 1, 0) if today.month == 12 else (today.year, today.month)  # 다음 달 index
+    target_month = "%04d-%02d" % (ty, tmidx + 1)
+    steps = (ty - ly) * 12 + (tmidx - lm)  # 마지막 데이터 → 대상 월 간격(개월)
+    if steps < 1:  # 데이터가 이미 대상월 이상이면 최소 1개월 앞
+        steps = 1
+        ty, tmidx = (ly + 1, 0) if lm == 11 else (ly, lm + 1)
+        target_month = "%04d-%02d" % (ty, tmidx + 1)
+    print("[sr_forecast] 최신 데이터 %s(%.1f%%), 현재 %s → 대상 월 %s (%d개월 후, 다단계 %d회)"
+          % (last_data_month, lv, today.strftime("%Y-%m"), target_month, steps, steps))
+
+    # 결측: 최근 3개월 유효값 2개 미만이면 예측 생략
     recent3 = [flat[i][2] for i in range(max(0, last_pos - 2), last_pos + 1)]
-    valid3 = [v for v in recent3 if v is not None]
-    if len(valid3) < 2:
-        print("[sr_forecast] 최근 3개월 유효값 %d개(<2) → 데이터 부족" % len(valid3))
+    if len([v for v in recent3 if v is not None]) < 2:
+        print("[sr_forecast] 최근 3개월 유효값 부족 → 데이터 부족")
         return {"status": "ok", "forecast_status": "insufficient",
-                "reason": "최근 3개월 유효값 %d개(<2)" % len(valid3),
-                "target_month": target_month, "generated_at": now}
+                "reason": "최근 3개월 유효값 부족", "target_month": target_month,
+                "last_data_month": last_data_month, "months_ahead": steps, "generated_at": now}
 
-    # a) 추세: 최근 6개월 선형회귀 → 다음 달 외삽
-    win6 = flat[max(0, last_pos - 5):last_pos + 1]
-    pts = [(k, win6[k][2]) for k in range(len(win6)) if win6[k][2] is not None]
-    a = _linreg_next(pts, len(win6)) if len(pts) >= 2 else lv
+    # ── 재귀 다단계 예측: 4월 실측 → 5월 → 6월 → 7월 → 8월 ──
+    chron = [v for (_, _, v) in flat[:last_pos + 1]]  # 실측(Nones 포함)
+    cur_y, cur_m, cur_v = ly, lm, lv
+    path, sigma_base = [], None
+    for s in range(1, steps + 1):
+        nmi = (cur_m + 1) % 12
+        nyi = cur_y + (1 if cur_m == 11 else 0)
+        # a) 추세: chron 최근 6개 유효점 선형회귀
+        last6 = chron[-6:]
+        pts = [(k, last6[k]) for k in range(len(last6)) if last6[k] is not None]
+        a = _linreg_next(pts, len(last6)) if len(pts) >= 2 else cur_v
+        # b) 모멘텀: 최근 3개 변화폭 평균
+        vseq = [v for v in chron if v is not None]
+        diffs = [vseq[i] - vseq[i - 1] for i in range(1, len(vseq))]
+        b = cur_v + (sum(diffs[-3:]) / len(diffs[-3:]) if diffs else 0.0)
+        # c) 계절성: 과거 연도 (cur_m월 → nmi월) 변화폭 평균을 현재값에 적용
+        sd = _srf_seasonal_deltas(years, cur_m, nmi)
+        seas = sum(sd) / len(sd) if sd else 0.0
+        c = cur_v + seas
+        sig = statistics.pstdev(sd) if len(sd) >= 2 else 0.0
+        if sigma_base is None:
+            sigma_base = sig  # 1단계 계절 변화폭 표준편차 = 기본 σ
+        # 가중치: 단계 진행 → 계절성↑ / 추세·모멘텀↓ (5월0.4 6월0.6 7월0.8 8월1.0)
+        sw = min(1.0, 0.4 + 0.2 * (s - 1))
+        tw = mw = (1.0 - sw) / 2.0
+        pred = max(0.0, min(100.0, tw * a + mw * b + sw * c))
+        cum_ci = (sigma_base or 0.0) * (s ** 0.5)  # 누적 구간폭 = 기본σ×√단계
+        print("[sr_forecast]  %d단계 %04d-%02d | 입력(직전값)=%.1f | a=%.1f b=%.1f c=%.1f(계절Δ%+.2f n=%d) | 가중 추세%.1f·모멘텀%.1f·계절%.1f → %.1f%% | 누적CI ±%.2f(%.1f~%.1f)"
+              % (s, nyi, nmi + 1, cur_v, a, b, c, seas, len(sd), tw, mw, sw, pred, cum_ci,
+                 max(0.0, pred - cum_ci), min(100.0, pred + cum_ci)))
+        path.append({"m": "%04d-%02d" % (nyi, nmi + 1), "label": "%d월" % (nmi + 1), "v": round(pred, 1)})
+        chron.append(pred)
+        cur_y, cur_m, cur_v = nyi, nmi, pred
 
-    # b) 모멘텀: 최근 3개월 평균 '변화폭'(%p diff)을 마지막 값에 적용
-    seq = [v for (_, _, v) in flat[:last_pos + 1] if v is not None]
-    diffs = [seq[i] - seq[i - 1] for i in range(1, len(seq))]
-    last3d = diffs[-3:]
-    b = lv + (sum(last3d) / len(last3d) if last3d else 0.0)
-
-    # c) 계절성: 과거 연도들의 (직전월→대상월) 변화폭 평균을 현재값에 적용
-    seasonal = [flat[i][2] - flat[i - 1][2]
-                for i in range(1, len(flat))
-                if flat[i][1] == tmidx and flat[i - 1][1] == lm
-                and flat[i][2] is not None and flat[i - 1][2] is not None and flat[i][0] < ty]
-    seas_delta = sum(seasonal) / len(seasonal) if seasonal else 0.0
-    c = lv + seas_delta
-
-    final = max(0.0, min(100.0, a * 0.3 + b * 0.3 + c * 0.4))  # 계절성 가중 최대, 0~100 clamp
-    sigma = statistics.pstdev(seasonal) if len(seasonal) >= 2 else 0.0
-    ci_low = max(0.0, final - sigma)
-    ci_high = min(100.0, final + sigma)  # 상한 100% clamp
-
-    delta_pp = final - lv
+    final = round(cur_v, 1)
+    total_sigma = (sigma_base or 0.0) * (steps ** 0.5)  # 기본 σ × √(단계 수)
+    ci_low = round(max(0.0, cur_v - total_sigma), 1)
+    ci_high = round(min(100.0, cur_v + total_sigma), 1)  # 0~100 clamp 유지
+    delta_pp = round(final - lv, 1)  # 최신 실측(마지막 데이터월) 대비
     yoy_prev = years[str(ty - 1)][tmidx] if str(ty - 1) in years else None
-    yoy_pp = (final - yoy_prev) if yoy_prev is not None else None
+    yoy_pp = round(final - yoy_prev, 1) if yoy_prev is not None else None
     risk = "상방" if delta_pp > 1 else ("하방" if delta_pp < -1 else "중립")
 
-    print("[sr_forecast] a=%.1f b=%.1f c=%.1f (계절Δ%+.2f%%p, 표본 %d) → 최종=%.1f%% (직전 %.1f, Δ%+.1f%%p)  CI %.1f~%.1f  σ=%.2f"
-          % (a, b, c, seas_delta, len(seasonal), final, lv, delta_pp, ci_low, ci_high, sigma))
+    # 검증: 과거 동월(대상월) 실측과 비슷한 범위인지
+    tgt_hist = [(int(y), years[y][tmidx]) for y in yrs if years[y][tmidx] is not None and int(y) < ty]
+    if tgt_hist:
+        lo = min(v for _, v in tgt_hist)
+        hi = max(v for _, v in tgt_hist)
+        ok = (lo - total_sigma) <= final <= (hi + total_sigma)
+        print("[sr_forecast] 과거 %s 실측: %s | 예측 %.1f%% (과거 범위 %.1f~%.1f) → %s"
+              % (SRF_MONTHS[tmidx], ", ".join("%d년 %.1f" % (y, v) for y, v in tgt_hist),
+                 final, lo, hi, "타당(범위 내/근접)" if ok else "범위 밖(주의)"))
+    print("[sr_forecast] 최종 %s = %.1f%% | 기본σ=%.2f × √%d = ±%.2f%%p | CI %.1f~%.1f | 직전 실측(%s %.1f) 대비 %+.1f%%p"
+          % (target_month, final, sigma_base or 0.0, steps, total_sigma, ci_low, ci_high,
+             last_data_month, lv, delta_pp))
     if yoy_pp is not None:
-        print("[sr_forecast] 전년 동월(%s) %.1f%% 대비 %+.1f%%p" % (SRF_MONTHS[tmidx], yoy_prev, yoy_pp))
+        print("[sr_forecast] 전년 동월(%s %d) %.1f%% 대비 %+.1f%%p" % (SRF_MONTHS[tmidx], ty - 1, yoy_prev, yoy_pp))
 
     recent12 = [v for (_, _, v) in flat[max(0, last_pos - 11):last_pos + 1]]
-    samemonth_hist = [(int(y), years[y][tmidx]) for y in yrs
-                      if years[y][tmidx] is not None and int(y) < ty]
-
     out = {
         "status": "ok", "forecast_status": "ok",
-        "target_month": target_month, "prev_month": prev_month, "generated_at": now,
-        "predict": round(final, 1), "prev": round(lv, 1),
-        "delta_pp": round(delta_pp, 1),
-        "yoy_pp": (round(yoy_pp, 1) if yoy_pp is not None else None),
-        "yoy_prev": (round(yoy_prev, 1) if yoy_prev is not None else None),
-        "ci_low": round(ci_low, 1), "ci_high": round(ci_high, 1),
-        "seasonal_delta": round(seas_delta, 2), "seasonal_n": len(seasonal),
-        "a": round(a, 1), "b": round(b, 1), "c": round(c, 1),
-        "risk": risk,
+        "target_month": target_month, "last_data_month": last_data_month,
+        "prev_month": last_data_month, "months_ahead": steps, "steps": steps,
+        "generated_at": now,
+        "predict": final, "prev": round(lv, 1),
+        "delta_pp": delta_pp, "delta_label": "%s 실측 대비" % last_data_month,
+        "yoy_pp": yoy_pp, "yoy_prev": (round(yoy_prev, 1) if yoy_prev is not None else None),
+        "ci_low": ci_low, "ci_high": ci_high,
+        "sigma_base": round(sigma_base or 0.0, 2), "sigma_total": round(total_sigma, 2),
+        "path": path, "risk": risk,
         "summary": "", "seasonal_txt": "", "yoy_txt": "", "caution": "", "ai_ok": False,
     }
-    ai = _srf_ai(target_month, recent12, samemonth_hist, out)
+    ai = _srf_ai(target_month, recent12, tgt_hist, path, steps, out)
     if ai:
         out["ai_ok"] = True
         out["summary"] = ai.get("summary", "") or ""

@@ -1249,30 +1249,37 @@ function renderSrForecastHtml() {
   if (!fc) return '';
   const gen = fc.generated_at ? `<span class="sr-fc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
   const title = `<h3 class="subhead sr-fc__title">다음 달 전망 <span class="sr-fc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>`;
-  const disc = '<div class="sr-fc__disc">과거 계절 패턴 기반 참고용 추정치입니다. 해상 정시성은 기상·파업·항만 혼잡 등 예측 불가한 외부 요인에 크게 좌우되므로 실제와 다를 수 있습니다.</div>';
+  const dist = (fc.last_data_month && fc.months_ahead != null)
+    ? `<div class="sr-fc__dist">최신 데이터 ${escapeHtml(fc.last_data_month)} 기준 · ${fc.months_ahead}개월 후 추정</div>` : '';
+  const monthsTxt = (fc.months_ahead != null) ? (fc.months_ahead + '개월') : '수개월';
+  const disc = `<div class="sr-fc__disc">최신 데이터로부터 ${monthsTxt} 후를 추정한 값으로, 과거 계절 패턴에 주로 의존합니다. 예측 거리가 멀수록 오차가 커지며, 기상·파업·항만 혼잡·지정학적 요인 등 외부 변수는 반영되지 않았습니다.</div>`;
   if (fc.forecast_status === 'insufficient') {
-    return `<div class="sr-fc">${title}
+    return `<div class="sr-fc">${title}${dist}
       <div class="sr-fc__na">데이터 부족 <span class="sr-fc__reason">(${escapeHtml(fc.reason || '')})</span></div>
       ${disc}</div>`;
   }
   const rcls = fc.risk === '상방' ? 'up' : (fc.risk === '하방' ? 'down' : 'flat');
   const dcls = (v) => (v == null ? 'flat' : (v > 0 ? 'up' : (v < 0 ? 'down' : 'flat')));
   const pp = (v) => (v == null ? '— ' : `${v > 0 ? '▲' : (v < 0 ? '▼' : '–')} ${Math.abs(v).toFixed(1)}%p`);
+  const deltaLabel = escapeHtml(fc.delta_label || '직전 실측 대비');
+  const path = (Array.isArray(fc.path) && fc.path.length)
+    ? `<div class="sr-fc__path">${fc.path.map((p) => `${escapeHtml(p.label)} ${Number(p.v).toFixed(1)}`).join(' → ')} <span class="sr-fc__path-tag">(추정)</span></div>` : '';
   const ai = [
     fc.summary ? `<div class="sr-fc__ai">${escapeHtml(fc.summary)}</div>` : '',
     fc.seasonal_txt ? `<div class="sr-fc__ai"><b>계절 패턴</b> ${escapeHtml(fc.seasonal_txt)}</div>` : '',
     fc.yoy_txt ? `<div class="sr-fc__ai"><b>전년 대비</b> ${escapeHtml(fc.yoy_txt)}</div>` : '',
   ].join('');
-  return `<div class="sr-fc">${title}
+  return `<div class="sr-fc">${title}${dist}
     <div class="sr-fc__row">
       <div class="sr-fc__big">${Number(fc.predict).toFixed(1)}<span class="sr-fc__pct">%</span>
         <span class="sr-fc__risk ${rcls}">${escapeHtml(fc.risk)}</span></div>
       <div class="sr-fc__cmps">
-        <span class="sr-fc__cmp ${dcls(fc.delta_pp)}">직전월 대비 ${pp(fc.delta_pp)}</span>
+        <span class="sr-fc__cmp ${dcls(fc.delta_pp)}">${deltaLabel} ${pp(fc.delta_pp)}</span>
         <span class="sr-fc__cmp ${dcls(fc.yoy_pp)}">전년 동월 대비 ${pp(fc.yoy_pp)}</span>
         <span class="sr-fc__ci">신뢰구간 ${Number(fc.ci_low).toFixed(1)}% ~ ${Number(fc.ci_high).toFixed(1)}%</span>
       </div>
     </div>
+    ${path}
     ${ai}
     ${fc.caution ? `<div class="sr-fc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : ''}
     ${disc}
