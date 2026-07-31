@@ -9,6 +9,7 @@
 import os
 import re
 import json
+import math
 import statistics
 import datetime
 
@@ -60,6 +61,22 @@ def _next_month(period):
     return "%04d-%02d" % (y, m)
 
 
+def _months_between(a, b):
+    """'YYYY-MM' a→b 개월 수(b가 뒤면 양수)."""
+    ay, am = (int(x) for x in a.split("-"))
+    by, bm = (int(x) for x in b.split("-"))
+    return (by - ay) * 12 + (bm - am)
+
+
+def _step_weights(step):
+    """단계가 멀어질수록 추세·모멘텀↓ 평균회귀↑ (원자재는 급등 후 되돌림이 잦음)."""
+    if step <= 1:
+        return 0.35, 0.25, 0.40
+    if step == 2:
+        return 0.25, 0.15, 0.60
+    return 0.15, 0.05, 0.80
+
+
 def _linreg_next(points, x_next):
     """(x, y) 점들로 단순선형회귀 → x_next 예측값과 기울기 반환."""
     n = len(points)
@@ -73,12 +90,14 @@ def _linreg_next(points, x_next):
     return slope * x_next + (yb - slope * xb), slope
 
 
-def _forecast_one(code):
-    """원료 1개의 다음 달 예측. 결측 규칙 위반 시 status='insufficient'."""
+def _forecast_one(code, target_ym):
+    """원료 1개 예측. 마지막 실측월→대상월 간격만큼 1개월 예측을 재귀로 이어붙임(다단계).
+    각 단계는 기존 방식(a 추세/b 모멘텀/c 평균회귀) 유지, 단계가 멀어질수록 평균회귀 가중치↑.
+    결측 규칙 위반 시 status='insufficient'."""
     vals = ICIS_FC[code]
     n = len(vals)
     last6 = vals[-6:]
-    valid6 = [(i, v) for i, v in enumerate(last6) if v is not None]  # x=0..5
+    valid6 = [v for v in last6 if v is not None]
     if len(valid6) < 3:  # 최근 6개월 유효값 3개 미만 → 예측 생략
         return {"code": code, "status": "insufficient",
                 "reason": "최근 6개월 유효값 %d개(<3)" % len(valid6)}
@@ -87,44 +106,69 @@ def _forecast_one(code):
     if months_behind >= 3:  # 마지막 유효값이 3개월 이상 지남 → 예측 생략
         return {"code": code, "status": "insufficient",
                 "reason": "마지막 유효값이 %d개월 전(≥3)" % months_behind}
+    last_period = ICIS_FC_PERIODS[last_valid_idx]
     last_val = vals[last_valid_idx]
+    steps = max(1, _months_between(last_period, target_ym))  # 마지막 실측월→대상월 간격
 
-    # a) 선형 추세: 최근 6개월(유효점) 단순선형회귀의 다음 달(x=6) 외삽
-    a_val, slope = _linreg_next(valid6, 6)
-
-    # b) 모멘텀: 최근 3개월 평균 변화율을 마지막 값에 적용
-    valid_series = [v for v in vals if v is not None]
-    rates = [(valid_series[i] - valid_series[i - 1]) / valid_series[i - 1]
-             for i in range(1, len(valid_series)) if valid_series[i - 1]]
-    last3 = rates[-3:]
-    avg_rate = (sum(last3) / len(last3)) if last3 else 0.0
-    b_val = last_val * (1 + avg_rate)
-
-    # c) 평균회귀: 최근 12개월 평균 대비 현재 위치 보정(회귀속도 θ=0.3)
-    last12 = [v for v in vals[-12:] if v is not None]
-    mean12 = (sum(last12) / len(last12)) if last12 else last_val
-    c_val = last_val + 0.3 * (mean12 - last_val)
-
-    final = a_val * 0.4 + b_val * 0.4 + c_val * 0.2
-
-    # 신뢰구간: 최근 12개월 월간 변화율 표준편차(±1σ)
+    # 기본 변동성: 최근 12개월 월간 변화율 표준편차(1σ, 비율). 다단계는 √단계수로 확대
     v13 = [v for v in vals[-13:] if v is not None]
     rate12 = [(v13[i] - v13[i - 1]) / v13[i - 1] for i in range(1, len(v13)) if v13[i - 1]]
     sigma = statistics.pstdev(rate12) if len(rate12) >= 2 else 0.0
+    max12 = max(v for v in vals[-12:] if v is not None)
 
+    work = list(vals[:last_valid_idx + 1])  # 내부 결측(None) 유지
+    cur = last_val
+    cy, cm = (int(x) for x in last_period.split("-"))
+    path, dbg = [], []
+    last_slope = 0.0
+    for s in range(1, steps + 1):
+        cm += 1
+        if cm > 12:
+            cy, cm = cy + 1, 1
+        step_ym = "%04d-%02d" % (cy, cm)
+        # a) 선형 추세: 최근 6개월 유효점 단순선형회귀의 다음 달 외삽
+        last6w = work[-6:]
+        pts = [(i, last6w[i]) for i in range(len(last6w)) if last6w[i] is not None]
+        if len(pts) >= 2:
+            a_val, last_slope = _linreg_next(pts, len(last6w))
+        else:
+            a_val = cur
+        # b) 모멘텀: 최근 3개월 평균 변화율을 현재 값에 적용
+        vseq = [v for v in work if v is not None]
+        rates = [(vseq[i] - vseq[i - 1]) / vseq[i - 1]
+                 for i in range(1, len(vseq)) if vseq[i - 1]]
+        last3 = rates[-3:]
+        b_val = cur * (1 + (sum(last3) / len(last3) if last3 else 0.0))
+        # c) 평균회귀: 최근 12개월 평균으로 θ=0.3 회귀
+        last12 = [v for v in work[-12:] if v is not None]
+        mean12 = (sum(last12) / len(last12)) if last12 else cur
+        c_val = cur + 0.3 * (mean12 - cur)
+        wa, wb, wc = _step_weights(s)
+        pred = max(0.0, a_val * wa + b_val * wb + c_val * wc)  # 하한 0 clamp
+        halfw = pred * sigma * math.sqrt(s)  # 누적 신뢰구간(√단계수)
+        dbg.append({"step": s, "ym": step_ym, "a": round(a_val), "b": round(b_val),
+                    "c": round(c_val), "w": (wa, wb, wc), "pred": round(pred),
+                    "ci": (round(max(0.0, pred - halfw)), round(pred + halfw))})
+        path.append({"ym": step_ym, "value": round(pred)})
+        work.append(pred)
+        cur = pred
+
+    final = cur
+    halfw = final * sigma * math.sqrt(steps)
     delta = final - last_val
     delta_pct = (delta / last_val * 100.0) if last_val else 0.0
     return {
         "code": code, "status": "ok",
-        "predict": round(final), "prev": round(last_val),
+        "predict": round(final), "prev": round(last_val), "prev_month": last_period,
         "delta": round(delta), "delta_pct": round(delta_pct, 1),
-        "ci_low": round(final * (1 - sigma)), "ci_high": round(final * (1 + sigma)),
-        "a": round(a_val), "b": round(b_val), "c": round(c_val),
+        "ci_low": round(max(0.0, final - halfw)), "ci_high": round(final + halfw),
+        "steps": steps, "path": path, "max12": round(max12),
         "sigma_pct": round(sigma * 100.0, 1),
-        "trend": "상승" if slope > 0 else ("하락" if slope < 0 else "보합"),
+        "trend": "상승" if last_slope > 0 else ("하락" if last_slope < 0 else "보합"),
         "risk": "상방" if delta_pct > 2 else ("하방" if delta_pct < -2 else "중립"),
         "comment": "",
         "recent12": vals[-12:],
+        "_dbg": dbg,
     }
 
 
@@ -146,7 +190,7 @@ def _load_api_key():
     return None
 
 
-def _ai_interpret(target_month, mats):
+def _ai_interpret(target_month, months_ahead, last_data_month, mats):
     """Anthropic API로 해석 문장만 생성. 실패 시 None(→ 통계값만 표시)."""
     key = _load_api_key()
     if not key:
@@ -155,12 +199,12 @@ def _ai_interpret(target_month, mats):
     ok = [m for m in mats if m["status"] == "ok"]
     if not ok:
         return None
-    lines = ["%s: 최근12개월=%s, 예측=%d(신뢰구간 %d~%d), 추세=%s, 변동성σ=%.1f%%"
+    lines = ["%s: 최근12개월=%s, 예측=%d(신뢰구간 %d~%d, %d단계), 추세=%s, 변동성σ=%.1f%%"
              % (m["code"], m["recent12"], m["predict"], m["ci_low"], m["ci_high"],
-                m["trend"], m["sigma_pct"]) for m in ok]
+                m["steps"], m["trend"], m["sigma_pct"]) for m in ok]
     prompt = (
         "너는 폴리우레탄 원료(스폰지 주원료) 가격 애널리스트다. 아래는 코드가 통계로 계산한 "
-        "%s 다음 달 예측이다. 이 수치를 해석하는 짧은 문장만 작성하라.\n\n%s\n\n"
+        "%s 예측이다(최신 실측 %s 기준 %d개월 후). 이 수치를 해석하는 짧은 문장만 작성하라.\n\n%s\n\n"
         "제약:\n"
         "- 제시된 수치 외의 숫자를 만들어내지 말 것.\n"
         "- 외부 뉴스·시장 이벤트를 아는 척하지 말 것.\n"
@@ -170,7 +214,7 @@ def _ai_interpret(target_month, mats):
         '{"summary":"4개 원료 전반 흐름 2~3문장",'
         '"materials":[{"code":"PPG","comment":"흐름과 예측 근거 1~2문장","risk":"상방|하방|중립"}],'
         '"caution":"예측의 한계 1문장"}'
-    ) % (target_month, "\n".join(lines))
+    ) % (target_month, last_data_month, months_ahead, "\n".join(lines))
     try:
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -193,18 +237,29 @@ def _ai_interpret(target_month, mats):
 
 
 def compute_icis_forecast():
-    """FETCHERS용 진입점. 다음 달 예측(통계) + AI 해석을 합쳐 반환. 항상 status='ok'(섹션 자체는 뜸)."""
-    target = _next_month(ICIS_FC_PERIODS[-1])
-    mats = [_forecast_one(c) for c in ICIS_FC_CODES]
+    """FETCHERS용 진입점. '실행 시점의 다음 달'을 예측(달력 기준, 하드코딩 없음) + AI 해석."""
+    today = datetime.date.today()
+    ty, tm = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+    target = "%04d-%02d" % (ty, tm)  # 실행 시점 시스템 날짜의 다음 달
+    last_data = ICIS_FC_PERIODS[-1]
+    months_ahead = max(1, _months_between(last_data, target))
+    print("[icis_forecast] 실행일 %s → 예측 대상 %s | 마지막 실측 %s | %d개월 후(다단계 %d단계)"
+          % (today.isoformat(), target, last_data, months_ahead, months_ahead))
+    mats = [_forecast_one(c, target) for c in ICIS_FC_CODES]
     for m in mats:
         if m["status"] == "ok":
-            print("[icis_forecast] %s  a=%d b=%d c=%d → 최종=%d (직전 %d, Δ%+d %.1f%%)  CI %d~%d  σ=%.1f%%"
-                  % (m["code"], m["a"], m["b"], m["c"], m["predict"], m["prev"],
-                     m["delta"], m["delta_pct"], m["ci_low"], m["ci_high"], m["sigma_pct"]))
+            for d in m["_dbg"]:
+                print("[icis_forecast]   %s %d단계 %s | a=%d b=%d c=%d w=%.2f/%.2f/%.2f → %d (CI %d~%d)"
+                      % (m["code"], d["step"], d["ym"], d["a"], d["b"], d["c"],
+                         d["w"][0], d["w"][1], d["w"][2], d["pred"], d["ci"][0], d["ci"][1]))
+            flag = "  ⚠최근12개월 최고치 초과!" if m["predict"] > m["max12"] else ""
+            print("[icis_forecast] %s  최종=%d (직전 %s 실측 %d, Δ%+d %.1f%%)  CI %d~%d  12M최고 %d%s"
+                  % (m["code"], m["predict"], m["prev_month"], m["prev"], m["delta"],
+                     m["delta_pct"], m["ci_low"], m["ci_high"], m["max12"], flag))
         else:
             print("[icis_forecast] %s  예측 생략 — %s" % (m["code"], m["reason"]))
 
-    ai = _ai_interpret(target, mats)
+    ai = _ai_interpret(target, months_ahead, last_data, mats)
     summary, caution, ai_ok = "", "", False
     if ai:
         ai_ok = True
@@ -221,10 +276,13 @@ def compute_icis_forecast():
     for m in mats:  # 색상 부여 + 내부 필드 제거
         m["color"] = ICIS_FC_COLORS.get(m["code"])
         m.pop("recent12", None)
+        m.pop("_dbg", None)
 
     return {
         "status": "ok",
         "target_month": target,
+        "last_data_month": last_data,
+        "months_ahead": months_ahead,
         "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "materials": mats,
         "summary": summary,

@@ -1128,6 +1128,7 @@ function renderIcisForecastHtml() {
   const rate = _matUsdKrw;  // 기존 환율 값만 참조(기존 코드 미변경)
   const rcls = (r) => (r === '상방' ? 'up' : (r === '하방' ? 'down' : 'flat'));
   const num = (v) => Number(v).toLocaleString('en-US');
+  const moLabel = (ym) => (ym ? `${parseInt(String(ym).slice(5, 7), 10)}월` : '');
   const cards = fc.materials.map((m) => {
     const color = m.color || 'var(--slate)';
     const head = `<div class="icis-fc__head"><span class="icis-dot" style="background:${color}"></span><b>${escapeHtml(m.code)}</b>`;
@@ -1140,19 +1141,28 @@ function renderIcisForecastHtml() {
     const d = m.delta, dp = m.delta_pct;
     const dcls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
     const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '–');
+    const prevLbl = m.prev_month ? `${escapeHtml(m.prev_month)} 실측 ${num(m.prev)}` : `직전월 ${num(m.prev)}`;
+    const path = (Array.isArray(m.path) && m.path.length > 1)
+      ? `<div class="icis-fc__path">${m.path.map((p) => `${moLabel(p.ym)} ${num(p.value)}`).join(' → ')} (추정)</div>`
+      : '';
     return `<div class="icis-fc__card">
       ${head}<span class="icis-fc__risk ${rcls(m.risk)}">${escapeHtml(m.risk)}</span></div>
       <div class="icis-fc__val">${num(m.predict)} <span class="icis-fc__unit">USD/톤</span>${krw}</div>
-      <div class="icis-fc__delta ${dcls}">${arrow} ${num(Math.abs(d))} (${Math.abs(dp).toFixed(1)}%) <span class="icis-fc__prev">직전월 ${num(m.prev)}</span></div>
+      <div class="icis-fc__delta ${dcls}">${arrow} ${num(Math.abs(d))} (${Math.abs(dp).toFixed(1)}%) <span class="icis-fc__prev">${prevLbl} 대비</span></div>
+      ${path}
       <div class="icis-fc__ci">신뢰구간 ${num(m.ci_low)} ~ ${num(m.ci_high)}</div>
       ${m.comment ? `<div class="icis-fc__cmt">${escapeHtml(m.comment)}</div>` : ''}
     </div>`;
   }).join('');
   const gen = fc.generated_at ? `<span class="icis-fc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
+  const sub = fc.last_data_month
+    ? `<div class="icis-fc__sub">최신 데이터 ${escapeHtml(fc.last_data_month)} 기준 · ${Number(fc.months_ahead || 1)}개월 후 추정</div>`
+    : '';
   const sum = fc.summary ? `<div class="icis-fc__summary">${escapeHtml(fc.summary)}</div>` : '';
   const cau = fc.caution ? `<div class="icis-fc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : '';
   return `<div class="icis-fc">
     <h3 class="subhead icis-fc__title">다음 달 전망 <span class="icis-fc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
+    ${sub}
     <div class="icis-fc__grid">${cards}</div>
     ${sum}${cau}
     <div class="icis-fc__disc">통계적 추세 기반 참고용 추정치이며 실제 시황과 다를 수 있습니다. 구매 의사결정의 유일한 근거로 사용하지 마세요.</div>
