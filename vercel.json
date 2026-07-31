@@ -1,7 +1,7 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/update.py", "use": "@vercel/python" },
+    { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "icis_forecast.py" } },
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "app.js", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },

@@ -903,6 +903,7 @@ let _oilData = null;   // {rows:[{period,...}], series:[{key,label}], source, un
 let _oilRange = null;  // 선택된 기간(null=미선택 → "기간을 선택하세요")
 let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAULT_ON
 let _oilChart = null;
+let _icisForecast = null; // 순수 추가: 다음 달 주원료 예측(백엔드 계산). null이면 예측 섹션 숨김
 
 /** 응답의 usd_krw + 해상 정시성 + 국제유가 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
@@ -925,6 +926,9 @@ function applyMaterialUpdate(data) {
   } else {
     _oilData = { error: (oil && oil.reason) || '데이터 없음' };
   }
+  // 순수 추가: 다음 달 예측 저장(있을 때만; 없으면 예측 섹션 숨김)
+  const fc = data && data.sections && data.sections.icis_forecast;
+  _icisForecast = (fc && fc.status === 'ok') ? fc : null;
   renderMaterial();
 }
 
@@ -958,7 +962,8 @@ function renderMaterial() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { periods, series } = icisViewData(_matYear);
-    body = buildIcisChart(periods, series) + icisLatest(periods, series) + icisTermsTable();
+    body = buildIcisChart(periods, series) + icisLatest(periods, series) + icisTermsTable()
+      + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
 
   root.innerHTML = `<div class="viz-root viz-figure icis-figure">
@@ -1106,6 +1111,45 @@ function icisTermsTable() {
     <div class="icis-term-wrap"><table class="icis-termtable">
       <thead><tr><th>변수</th><th>의미</th><th>용도</th></tr></thead><tbody>${rows}</tbody>
     </table></div>
+  </div>`;
+}
+
+/** 순수 추가: 용어표 아래 '다음 달 전망'. 예측 데이터 없으면 '' 반환(섹션 숨김).
+ *  숫자는 백엔드가 계산(_icisForecast), 문장(comment/summary/caution)만 AI. 기존 환율값(_matUsdKrw) 참조. */
+function renderIcisForecastHtml() {
+  const fc = _icisForecast;
+  if (!fc || !Array.isArray(fc.materials) || !fc.materials.some((m) => m && m.status === 'ok')) return '';
+  const rate = _matUsdKrw;  // 기존 환율 값만 참조(기존 코드 미변경)
+  const rcls = (r) => (r === '상방' ? 'up' : (r === '하방' ? 'down' : 'flat'));
+  const num = (v) => Number(v).toLocaleString('en-US');
+  const cards = fc.materials.map((m) => {
+    const color = m.color || 'var(--slate)';
+    const head = `<div class="icis-fc__head"><span class="icis-dot" style="background:${color}"></span><b>${escapeHtml(m.code)}</b>`;
+    if (m.status !== 'ok') {
+      return `<div class="icis-fc__card">${head}</div>
+        <div class="icis-fc__na">데이터 부족</div>
+        <div class="icis-fc__reason">${escapeHtml(m.reason || '')}</div></div>`;
+    }
+    const krw = (rate != null) ? ` <span class="icis-krw">≈ ${escapeHtml(fmtKrwShort(m.predict * rate))}/톤</span>` : '';
+    const d = m.delta, dp = m.delta_pct;
+    const dcls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '–');
+    return `<div class="icis-fc__card">
+      ${head}<span class="icis-fc__risk ${rcls(m.risk)}">${escapeHtml(m.risk)}</span></div>
+      <div class="icis-fc__val">${num(m.predict)} <span class="icis-fc__unit">USD/톤</span>${krw}</div>
+      <div class="icis-fc__delta ${dcls}">${arrow} ${num(Math.abs(d))} (${Math.abs(dp).toFixed(1)}%) <span class="icis-fc__prev">직전월 ${num(m.prev)}</span></div>
+      <div class="icis-fc__ci">신뢰구간 ${num(m.ci_low)} ~ ${num(m.ci_high)}</div>
+      ${m.comment ? `<div class="icis-fc__cmt">${escapeHtml(m.comment)}</div>` : ''}
+    </div>`;
+  }).join('');
+  const gen = fc.generated_at ? `<span class="icis-fc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
+  const sum = fc.summary ? `<div class="icis-fc__summary">${escapeHtml(fc.summary)}</div>` : '';
+  const cau = fc.caution ? `<div class="icis-fc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : '';
+  return `<div class="icis-fc">
+    <h3 class="subhead icis-fc__title">다음 달 전망 <span class="icis-fc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
+    <div class="icis-fc__grid">${cards}</div>
+    ${sum}${cau}
+    <div class="icis-fc__disc">통계적 추세 기반 참고용 추정치이며 실제 시황과 다를 수 있습니다. 구매 의사결정의 유일한 근거로 사용하지 마세요.</div>
   </div>`;
 }
 
@@ -2113,6 +2157,7 @@ function resetDashboard() {
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
+  _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
   _oilData = null; _oilRange = null; _oilOn = null; _oilChart = null; // 국제유가 비우기
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기

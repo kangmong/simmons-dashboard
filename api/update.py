@@ -16,6 +16,8 @@ SIMMONS 대시보드 — Vercel 서버리스 함수 (/api/update).
   로직을 고칠 때는 두 파일을 함께 맞춰야 한다(로컬 테스트는 dashboard_server.py 사용).
 """
 import re
+import os
+import sys
 import json
 import datetime
 import urllib.parse
@@ -24,6 +26,13 @@ import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler
 
 import requests
+
+# 순수 추가: 다음 달 주원료 예측 모듈(프로젝트 루트). 로드 실패해도 나머지는 정상.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from icis_forecast import compute_icis_forecast
+except Exception:  # noqa: BLE001
+    compute_icis_forecast = None
 
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
@@ -1331,6 +1340,8 @@ FETCHERS = {
     "competitors": update_competitors,
     "fx": update_fx,
 }
+if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
+    FETCHERS["icis_forecast"] = compute_icis_forecast
 
 
 def build_payload():
