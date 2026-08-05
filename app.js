@@ -49,21 +49,6 @@ function parseCsvText(text, opts = {}) {
 }
 
 /**
- * loadCsv(path, opts) — CSV를 fetch + PapaParse로 로드한다.
- * @param {string} path         CSV 파일 경로
- * @param {object} [opts]       { papa?: object }
- * @returns {Promise<object[]>} 파싱된 행 배열
- */
-async function loadCsv(path, opts = {}) {
-  const res = await fetch(path);
-  if (!res.ok) {
-    throw new Error(`CSV 로드 실패: ${path} (HTTP ${res.status})`);
-  }
-  const text = await res.text();
-  return parseCsvText(text, opts);
-}
-
-/**
  * renderBadge(source) — source 값에 따라 상태 배지 HTML 문자열을 반환한다.
  * 규칙: "실데이터"=초록, "샘플"=회색, "준비중"=주황. (전 섹션 공용)
  */
@@ -336,23 +321,6 @@ function renderPendingUploads() {
 }
 
 /** 폴더의 CSV를 기본값으로 로드 (업로드 안 된 데이터셋만) */
-async function loadDefaults() {
-  await Promise.all(
-    DATASETS.map(async (ds) => {
-      if (STORE[ds.key] && STORE[ds.key].origin === 'upload') return;
-      try {
-        const rows = await loadCsv(ds.file);
-        STORE[ds.key] = { rows, origin: 'default', file: ds.file };
-      } catch (err) {
-        STORE[ds.key] = { rows: [], origin: 'error', file: ds.file, message: String(err.message || err) };
-      }
-    })
-  );
-  renderUploadCards();
-  refreshSections();
-  updateResetState();
-}
-
 /** 상시 업로드 위젯 초기화: 정적 DOM 요소를 배선 (드롭존/파일선택/초기화/드롭다운) */
 function initUpload() {
   const dz = document.getElementById('dropzone');
@@ -402,7 +370,7 @@ function initUpload() {
     if (e.dataTransfer && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   });
 
-  renderUploadCards(); // 초기: 미로드 카드 표시 → loadDefaults()가 채움
+  renderUploadCards(); // 초기: 미로드 카드 표시 (자동 적재 없음 — 업로드/[업데이트]로만 채움)
   updateResetState();
 }
 
