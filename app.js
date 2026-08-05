@@ -1207,20 +1207,22 @@ function renderScheduleReliabilityHtml() {
   const toolbar = `<div class="icis-years sr-years">${years.map((y) =>
     `<button class="icis-year sr-year${y === _srYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`;
 
-  let body;
+  // 스폰지 카드(renderMaterial의 _matYear 분기)와 동일 조건: 연도를 고르기 전에는
+  // 차트와 함께 지표 설명·예측도 내보내지 않는다.
+  let body, extras = '';
   if (!_srYear) {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { months, series } = srViewData(_srYear);
     body = buildSrChart(months, series);
+    extras = renderSrTermsHtml() + renderSrForecastHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="srTooltip"></div>
     <div class="comp-caption">출처: Sea-Intelligence</div>
-    ${renderSrTermsHtml()}
-    ${renderSrForecastHtml()}
+    ${extras}
   </div>`;
 }
 
@@ -1432,14 +1434,16 @@ function renderOilPricesHtml() {
   const chips = `<div class="icis-years oil-ranges">${OIL_RANGES.map((r) =>
     `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${ok ? '' : ' disabled'}>${r.label}</button>`).join('')}</div>`;
 
-  let body;
+  // 스폰지 카드(renderMaterial의 _matYear 분기)와 동일 조건: 기간을 고르기 전에는
+  // 차트와 함께 예측 섹션(적용 환율·면책 문구 포함)도 내보내지 않는다.
+  let body, extras = '';
   if (!_oilData) {                                   // 1) 데이터 없음
     body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
   } else if (_oilData.error) {
     body = '<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>';
   } else if (!_oilRange) {                            // 2) 데이터 있음 · 기간 미선택
     body = '<div class="icis-prompt">기간을 선택하세요</div>';
-  } else {                                            // 3) 기간 선택됨 → 차트
+  } else {                                            // 3) 기간 선택됨 → 차트 + 예측
     // 범례(3개) — 클릭 토글, 꺼진 항목은 흐리게
     const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
       const on = _oilOn && _oilOn.has(s.key);
@@ -1448,8 +1452,9 @@ function renderOilPricesHtml() {
         <span class="viz-legend__swatch" style="background:${on ? color : 'var(--muted)'}"></span>${escapeHtml(s.label)}</button>`;
     }).join('')}</div>`;
     body = `${legend}${buildOilChart(oilSliceRows())}<div class="viz-tooltip" id="oilTooltip"></div>`;
+    extras = renderOilForecastHtml();
   }
-  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}${renderOilForecastHtml()}</div>`;
+  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}${extras}</div>`;
 }
 
 /** 순수 추가(유가 예측 전용): 환율 카드(_fx)의 최신 USD 기준환율 + 기준일 참조.
