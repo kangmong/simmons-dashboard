@@ -1251,7 +1251,52 @@ function renderScheduleReliabilityHtml() {
     ${body}
     <div class="viz-tooltip" id="srTooltip"></div>
     <div class="comp-caption">출처: Sea-Intelligence</div>
+    ${renderSrTermsHtml()}
     ${renderSrForecastHtml()}
+  </div>`;
+}
+
+/* 순수 추가: 정시성 '지표 설명' 정적 텍스트 (데이터 수집·API 없음).
+   ★ 스폰지 카드의 ICIS_TERMS/icisTermsTable과 표기 패턴만 맞추고 공통화하지 않음. */
+const SR_TERMS = [
+  { item: '정시성이란',
+    desc: '선사가 사전에 공표한 도착 예정일에 실제로 도착한 선박의 비율. '
+        + 'Sea-Intelligence가 전 세계 34개 주요 항로, 60여 개 선사를 대상으로 매월 집계해 발표한다.' },
+  { item: '수치 읽는 법',
+    desc: '60%는 열 척 중 여섯 척만 예정일에 도착했다는 뜻이다. '
+        + '나머지 네 척은 지연되었으며, 통상 수일에서 2주 이상 늦어진다.' },
+  { item: '왜 중요한가',
+    desc: '정시성이 낮아지면 원자재 입고가 늦어져 생산 계획에 차질이 생기고, 안전재고를 늘려야 해 재고 비용이 증가한다. '
+        + '또한 지연이 길어질수록 운임과 체선료 부담도 함께 커진다.' },
+  { item: '주요 변동 요인',
+    desc: '항만 혼잡, 기상 악화, 선사 파업, 지정학적 항로 차단(수에즈·파나마 등), 물동량 급증에 따른 병목.' },
+];
+
+// '수준별 해석' 행에만 색 점 사용 (원활=초록 / 보통=파랑 / 지연=주황 / 심각=빨강)
+const SR_LEVELS = [
+  { range: '70% 이상', name: '원활', note: '팬데믹 이전 평시 수준', color: '#12B981' },
+  { range: '55~70%',   name: '보통', note: '최근 몇 년간의 일반적 범위', color: '#3B82F6' },
+  { range: '40~55%',   name: '지연', note: '공급망 차질이 체감되는 구간', color: '#F59E0B' },
+  { range: '40% 미만', name: '심각', note: '2021~2022년 물류 대란 수준', color: '#C8102E' },
+];
+
+/** 순수 추가: 출처 아래 '지표 설명' 표(2열: 항목/설명). 정적 텍스트라 항상 표시. */
+function renderSrTermsHtml() {
+  const levels = SR_LEVELS.map((l) =>
+    `<div class="sr-lv"><span class="icis-dot" style="background:${l.color}"></span>
+      <b class="sr-lv__range">${escapeHtml(l.range)}</b>
+      <span class="sr-lv__name">${escapeHtml(l.name)}</span>
+      <span class="sr-lv__note">— ${escapeHtml(l.note)}</span></div>`).join('');
+  const rows = SR_TERMS.map((t) =>
+    `<tr><td class="sr-term__item">${escapeHtml(t.item)}</td><td>${escapeHtml(t.desc)}</td></tr>`);
+  // '수준별 해석'은 '수치 읽는 법' 바로 다음(2번째)에 배치
+  rows.splice(2, 0, `<tr><td class="sr-term__item">수준별 해석</td><td><div class="sr-lvs">${levels}</div></td></tr>`);
+  return `<div class="sr-terms">
+    <h3 class="subhead">지표 설명</h3>
+    <div class="sr-term-wrap"><table class="sr-termtable">
+      <thead><tr><th>항목</th><th>설명</th></tr></thead><tbody>${rows.join('')}</tbody>
+    </table></div>
+    <div class="sr-terms__ref">함께 보면 좋은 지표: 글로벌 컨테이너 운임지수(FBX) — 운임이 급등하는 국면에서는 정시성도 함께 악화되는 경향이 있다.</div>
   </div>`;
 }
 
