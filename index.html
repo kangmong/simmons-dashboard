@@ -9,33 +9,25 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <!-- SIMMONS 브랜딩 헤더 -->
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-mark">SIMMONS</span>
-      <span class="brand-sub">해외 매트리스 업계 동향</span>
+  <!-- SIMMONS 통합 헤더 (기존 검은 상단 바 + 히어로 배너를 한 겹으로 합침) -->
+  <header class="app-header" aria-label="SIMMONS Factorium">
+    <div class="hdr-lockup">
+      <div class="hdr-logo">
+        <span class="hdr-mark">SIMMONS</span>
+        <span class="hdr-factorium">FACTORIUM</span>
+      </div>
+      <span class="hdr-rule"></span>
+      <p class="hdr-sub">국내외 매트리스 업계 동향</p>
     </div>
+
     <div class="header-right">
-      <span class="brand-meta">Global Mattress Market Intelligence</span>
       <button class="report-btn" id="reportBtn" type="button" title="현재 화면을 PDF로 저장">
         ⭳ 보고서 다운로드
       </button>
     </div>
-  </header>
 
-  <!-- 브랜드 히어로 배너 (자체 제작 SVG — 외부 파일 불필요) -->
-  <section class="hero" aria-label="SIMMONS Factorium">
-    <div class="hero__lockup">
-      <div class="hero__logo">
-        <span class="hero__mark">SIMMONS</span>
-        <span class="hero__factorium">FACTORIUM</span>
-      </div>
-      <span class="hero__rule"></span>
-      <h2 class="hero__title">글로벌 매트리스 시장 인텔리전스</h2>
-      <p class="hero__desc">해외 시장 동향 · 경쟁사 · 업계 뉴스 · 원자재 원가를 한 화면에서</p>
-    </div>
-
-    <svg class="hero__art" viewBox="0 0 360 200" fill="none" aria-hidden="true">
+    <!-- 건물 일러스트 (기존 히어로의 SVG 그대로) -->
+    <svg class="hdr-art" viewBox="0 0 360 200" fill="none" aria-hidden="true">
       <!-- 하늘/해 -->
       <circle cx="308" cy="44" r="30" fill="var(--accent-soft)" />
       <circle cx="308" cy="44" r="30" stroke="var(--accent)" stroke-opacity=".25" stroke-width="1.5" />
@@ -72,7 +64,7 @@
         <rect x="214" y="136" width="14" height="11" rx="1" /><rect x="232" y="136" width="14" height="11" rx="1" />
       </g>
     </svg>
-  </section>
+  </header>
 
   <div class="layout">
     <!-- 좌측 네비게이션 + 상시 업로드 위젯 -->
