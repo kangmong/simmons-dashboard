@@ -41,6 +41,11 @@ try:  # 순수 추가: KOIMA 월간 부문별 지수(기존 코드 미변경).
 except Exception:  # noqa: BLE001
     update_koima_index = None
 
+try:  # 순수 추가: KOIMA 일일 국제원자재가격(기존 코드 미변경).
+    from koima_price import update_koima_price
+except Exception:  # noqa: BLE001
+    update_koima_price = None
+
 app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)  # 대시보드가 다른 주소(예: http-server)에서 열려도 /api 호출 허용
 
@@ -1369,6 +1374,23 @@ def api_update():
             sections[name] = {"status": "error", "reason": str(e)}
     updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return jsonify({"updated_at": updated_at, "sections": sections})
+
+
+@app.route("/api/update-koima-price", methods=["GET", "POST"])
+def api_update_koima_price():
+    """순수 추가: KOIMA 일일 국제원자재가격 전용 엔드포인트.
+
+    ★ /api/update 의 FETCHERS 에 넣지 않고 별도 라우트로 분리한 이유:
+      품목이 60개라 수집에 2~3분이 걸린다. 공용 응답에 넣으면 업데이트 버튼이
+      그만큼 통째로 멈추고, Vercel 서버리스에서는 함수 타임아웃(최대 60초)에 걸려
+      기존 카드 전체가 함께 실패한다. 분리해 두면 이 카드만 실패/지연된다.
+    """
+    if update_koima_price is None:
+        return jsonify({"status": "error", "reason": "koima_price 모듈 로드 실패"})
+    try:
+        return jsonify(update_koima_price())
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"status": "error", "reason": str(e)})
 
 
 @app.route("/")

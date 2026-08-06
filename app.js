@@ -954,6 +954,7 @@ function renderMaterial() {
   ${renderScheduleReliabilityHtml()}
   ${renderOilPricesHtml()}
   ${renderKoimaHtml()}
+  ${renderKoimaPriceHtml()}
   ${renderMaterialLinksHtml()}`;
 
   const yearsEl = root.querySelector('.icis-years');
@@ -996,6 +997,7 @@ function renderMaterial() {
   }
 
   wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
+  wireKpControls(root);     // 순수 추가: KOIMA 일일 국제원자재가격 카드
 }
 
 /** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
@@ -2021,6 +2023,346 @@ function renderKoimaSummaryHtml() {
 }
 
 
+/* ── 일일 국제원자재가격 (KOIMA) — 순수 추가 카드 ───────────────────────────
+   ★ 월간 부문별 지수 카드와 데이터 모양이 다르다(일별 · 품목 2단 구조 ·
+     전일/전주/전월 3종 증감 · 전주평균/전월평균). 코드를 복사하지 않고 새로 작성했다.
+   ★ 수집이 2~3분 걸려 /api/update 와 분리된 전용 엔드포인트를 쓴다(_kpBusy 로 진행 표시).
+   저장 구조: categories[{no,key,label,items:[{no,name,unit,market,spotFutures,
+              weekAvg,monthAvg,rows:[{date,price,domValue,domPct,wowValue,wowPct,
+              momValue,momPct}]}]}]  */
+
+const KP_API = '/api/update-koima-price';
+// 부문 색(품목 단일 시리즈에 부문 색을 쓴다)
+const KP_COLORS = {
+  petchem: '#C8102E', textile: '#0EA5E9', steel: '#3B82F6',
+  nonferrous: '#64748B', rare: '#DB2777',
+};
+// 1단계(데이터 없음)에서도 탭 이름을 보여주기 위한 폴백 라벨 + 표시 순서
+const KP_TABS = [
+  { key: 'petchem', label: '유화원료' }, { key: 'textile', label: '섬유원료' },
+  { key: 'steel', label: '철강재' }, { key: 'nonferrous', label: '비철금속' },
+  { key: 'rare', label: '희소금속' },
+];
+const KP_RANGES = [
+  { key: '1m', label: '1개월', days: 30 }, { key: '6m', label: '6개월', days: 182 },
+  { key: '1y', label: '1년', days: 365 }, { key: 'all', label: '전체', days: null },
+];
+const KP_DEFAULT_CAT = 'petchem';
+
+let _kpData = null;    // {baseDate,categories:[...]} | {error} | null
+let _kpCat = null;     // 선택 부문 key
+let _kpItem = null;    // 선택 품목 no (숫자)
+let _kpRange = null;   // 선택 기간(null=미선택 → "품목과 기간을 선택하세요")
+let _kpChart = null;
+let _kpBusy = false;   // 수집 진행 중(업데이트 버튼이 켠다)
+
+/** 부문 찾기 */
+function kpCatOf(key) {
+  if (!_kpData || _kpData.error) return null;
+  return _kpData.categories.find((c) => c.key === key) || null;
+}
+
+/** 표시 순서대로 정렬된 부문 목록 */
+function kpCatsOrdered() {
+  if (!_kpData || _kpData.error) return [];
+  const cs = _kpData.categories;
+  const known = KP_TABS.map((t) => cs.find((c) => c.key === t.key)).filter(Boolean);
+  return known.concat(cs.filter((c) => !KP_TABS.some((t) => t.key === c.key)));
+}
+
+/** 선택 부문의 품목 찾기 */
+function kpItemOf(cat, no) {
+  if (!cat || !cat.items.length) return null;
+  return cat.items.find((i) => String(i.no) === String(no)) || null;
+}
+
+/** 부문의 첫 품목 no (부문 변경 시 리셋용) */
+function kpFirstItemNo(cat) {
+  return (cat && cat.items.length) ? cat.items[0].no : null;
+}
+
+/** 기간 칩 → 표시할 rows. 마지막 날짜에서 N일 소급. */
+function kpSliceRows(item) {
+  if (!item || !item.rows.length || !_kpRange) return [];
+  const rng = KP_RANGES.find((r) => r.key === _kpRange);
+  if (!rng || rng.days == null) return item.rows;
+  const end = new Date(item.rows[item.rows.length - 1].date + 'T00:00:00');
+  const from = new Date(end.getTime() - rng.days * 86400000);
+  const fromStr = from.toISOString().slice(0, 10);
+  return item.rows.filter((r) => r.date >= fromStr);
+}
+
+/** 증감 표기: "10.00 (▲1.01%)" — ▲빨강 ▼파랑 */
+function kpDelta(val, pct) {
+  if (val == null && pct == null) return '<span class="kp-chg flat">–</span>';
+  const v = val == null ? (pct || 0) : val;
+  const cls = v > 0 ? 'up' : (v < 0 ? 'down' : 'flat');
+  const arrow = v > 0 ? '▲' : (v < 0 ? '▼' : '–');
+  const av = val == null ? '-' : Math.abs(val).toFixed(2);
+  const ap = pct == null ? '-' : Math.abs(pct).toFixed(2);
+  return `<span class="kp-chg ${cls}">${av} (${arrow}${ap}%)</span>`;
+}
+
+/** 숫자 표기(가격) — 소수 2자리 + 천단위 구분 */
+function kpPrice(v) {
+  return v == null ? '-' : Number(v).toLocaleString('en-US',
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 응답 저장. 다른 카드 상태는 건드리지 않는다. */
+function applyKoimaPriceUpdate(data) {
+  if (data && data.status === 'ok' && Array.isArray(data.categories) && data.categories.length) {
+    _kpData = { baseDate: data.baseDate, days: data.days, categories: data.categories,
+      failures: data.failures || [] };
+    if (!_kpCat) _kpCat = KP_DEFAULT_CAT;
+    let cat = kpCatOf(_kpCat) || kpCatsOrdered()[0] || null;
+    if (cat) { _kpCat = cat.key; if (_kpItem == null) _kpItem = kpFirstItemNo(cat); }
+    const counts = data.categories.map((c) => `${c.label} ${c.items.length}개`).join(' · ');
+    console.log('[koima-price] 기준일 %s · 부문별 품목 수: %s', data.baseDate, counts);
+    if (_kpData.failures.length) {
+      console.warn('[koima-price] 실패 %d건:', _kpData.failures.length, _kpData.failures);
+    }
+  } else {
+    _kpData = { error: (data && data.reason) || '데이터 없음' };
+  }
+  renderMaterial();
+}
+
+/** 업데이트 버튼이 호출: 전용 엔드포인트로 수집(오래 걸리므로 진행 상태를 카드에 표시) */
+async function fetchKoimaPrice() {
+  _kpBusy = true;
+  renderMaterial();
+  try {
+    const res = await fetch(API_BASE + KP_API, { method: 'GET', cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    _kpBusy = false;
+    applyKoimaPriceUpdate(data);
+  } catch (e) {
+    _kpBusy = false;
+    _kpData = { error: (e && e.message) || String(e) };
+    console.warn('[koima-price] 수집 실패:', e);
+    renderMaterial();
+  }
+}
+
+/** 요약 바 — 원본처럼 한 줄: 가격 / 단위 / 거래시장 / 현물·선물 / 전주평균 / 전월평균 / 전일·전주·전월비 */
+function kpSummaryBar(item, rows) {
+  if (!item || !rows.length) return '';
+  const r = rows[rows.length - 1];
+  const cell = (label, val) => `<div class="kp-sum__cell"><span class="kp-sum__k">${label}</span><span class="kp-sum__v">${val}</span></div>`;
+  return `<div class="kp-sum">
+    <div class="kp-sum__main">
+      <span class="kp-sum__price">${kpPrice(r.price)}</span>
+      <span class="kp-sum__unit">${escapeHtml(item.unit || '')}</span>
+      <span class="kp-sum__date">${escapeHtml(r.date)} 기준</span>
+    </div>
+    <div class="kp-sum__grid">
+      ${cell('거래시장', escapeHtml(item.market || '-'))}
+      ${cell('현물/선물', escapeHtml(item.spotFutures || '-'))}
+      ${cell('전주평균', kpPrice(item.weekAvg))}
+      ${cell('전월평균', kpPrice(item.monthAvg))}
+      ${cell('전일비', kpDelta(r.domValue, r.domPct))}
+      ${cell('전주비', kpDelta(r.wowValue, r.wowPct))}
+      ${cell('전월비', kpDelta(r.momValue, r.momPct))}
+    </div>
+  </div>`;
+}
+
+/** 카드 HTML — 3단계 빈 상태 */
+function renderKoimaPriceHtml() {
+  const head = `<div class="viz-head"><div>
+      <div class="viz-title">일일 국제원자재가격 (KOIMA)</div>
+      <div class="viz-sub">부문별 주요 품목 일별 가격</div>
+    </div></div>`;
+  const cap = '<div class="comp-caption">출처: 한국수입협회 국제원자재가격정보</div>';
+  const ok = _kpData && !_kpData.error && _kpData.categories.length;
+  const cat = ok ? kpCatOf(_kpCat) : null;
+  const item = ok ? kpItemOf(cat, _kpItem) : null;
+  const dis = ok ? '' : ' disabled';
+
+  // 1) 부문 탭 5개
+  const tabSrc = ok ? kpCatsOrdered() : KP_TABS;
+  const tabs = `<div class="icis-years kp-tabs">${tabSrc.map((c) =>
+    `<button class="icis-year kp-tab${c.key === _kpCat ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-cat="${escapeHtml(c.key)}"${dis}>${escapeHtml(c.label)}</button>`).join('')}</div>`;
+
+  // 2) 품목 드롭다운 — 선택된 부문의 품목만
+  const opts = (ok && cat) ? cat.items.map((i) =>
+    `<option value="${escapeHtml(String(i.no))}"${String(i.no) === String(_kpItem) ? ' selected' : ''}>${escapeHtml(i.name)}</option>`).join('') : '';
+  const controls = `<div class="kp-controls">
+    <label class="kp-sel"><span>품목</span>
+      <select class="kp-item"${dis}>${opts}</select></label>
+    ${(ok && cat) ? `<span class="kp-meta">${escapeHtml(cat.label)} ${cat.items.length}개 품목${_kpData.baseDate ? ` · 기준일 ${escapeHtml(_kpData.baseDate)}` : ''}</span>` : ''}
+  </div>`;
+
+  // 3) 기간 칩
+  const chips = `<div class="icis-years kp-ranges">${KP_RANGES.map((r) =>
+    `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
+
+  let body;
+  if (_kpBusy) {                                    // 수집 진행 중
+    body = `<div class="icis-prompt kp-busy">국제원자재가격을 불러오는 중입니다…
+      <span class="kp-busy__sub">60개 품목을 순차 수집합니다 · 2~3분 걸릴 수 있습니다</span></div>`;
+  } else if (!_kpData) {                            // 1) 데이터 없음
+    body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
+  } else if (_kpData.error) {
+    body = `<div class="chart-empty">데이터를 불러오지 못했습니다 (${escapeHtml(_kpData.error)})</div>`;
+  } else if (!_kpRange || !item) {                  // 2) 데이터 있음 · 미선택
+    body = '<div class="icis-prompt">품목과 기간을 선택하세요</div>';
+  } else {                                          // 3) 선택됨
+    const rows = kpSliceRows(item);
+    body = kpSummaryBar(item, rows) + buildKpChart(rows, item, cat)
+      + '<div class="viz-tooltip" id="kpTooltip"></div>' + kpRecentTable(rows, item);
+  }
+  const warn = (ok && _kpData.failures && _kpData.failures.length)
+    ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
+  return `<div class="viz-root viz-figure kp-figure">${head}${tabs}${controls}${chips}${body}${warn}${cap}</div>`;
+}
+
+/** 단일 품목 일별 선그래프 (dot 없음, Y축 auto) */
+function buildKpChart(rows, item, cat) {
+  const n = rows.length;
+  if (!n || !item) { _kpChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
+  const color = KP_COLORS[cat && cat.key] || 'var(--accent)';
+  const dates = rows.map((r) => r.date);
+  const values = rows.map((r) => (r.price == null ? null : r.price));
+  const all = values.filter((v) => v != null);
+  if (!all.length) { _kpChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
+
+  // domain ['auto','auto'] — 0으로 내리지 않는다
+  let ymin = Math.min(...all), ymax = Math.max(...all);
+  const yp = (ymax - ymin) * 0.08 || Math.max(0.5, ymax * 0.05);
+  ymin -= yp; ymax += yp;
+
+  const W = 720, H = 300, padL = 56, padR = 16, padT = 16, padB = 32;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const dec = (ymax - ymin) < 20 ? 2 : 0;   // 값 폭이 좁으면 소수 표시
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}</text>`;
+  }).join('');
+
+  // minTickGap: 날짜 라벨 1개당 최소 86px
+  const maxTicks = Math.max(2, Math.min(8, Math.floor(plotW / 86)));
+  const TICKS = Math.min(maxTicks, n);
+  const tickIdx = [];
+  for (let k = 0; k < TICKS; k++) {
+    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
+    if (!tickIdx.includes(i)) tickIdx.push(i);
+  }
+  const xticks = tickIdx.map((i) => {
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i])}</text>`;
+  }).join('');
+
+  let d = '', started = false;
+  values.forEach((v, i) => {
+    if (v == null) return;
+    d += `${started ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; started = true;
+  });
+  const line = d ? `<path d="${d.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+
+  _kpChart = { dates, values, label: item.name, unit: item.unit, color, geom: { X, Y, n, W, padL } };
+  console.log('[koima-price] 차트 · %s · %s~%s · %d개 점', item.name, dates[0], dates[n - 1], n);
+
+  return `<div class="viz-legend kp-legend"><span class="viz-legend__item">
+      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(item.name)}${item.unit ? ` (${escapeHtml(item.unit)})` : ''}</span></div>
+    <svg class="viz-svg kp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(item.name)} 일별 가격">
+      ${grid}${xticks}${line}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="kp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="kp-dots"></g>
+      <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>`;
+}
+
+/** 최근 12일 표 — 2열(6행씩), 최신일이 왼쪽 위 */
+function kpRecentTable(rows, item) {
+  if (!rows.length || !item) return '';
+  const recent = rows.slice(-12).reverse();
+  const half = Math.ceil(recent.length / 2);
+  const left = recent.slice(0, half), right = recent.slice(half);
+  const cells = (r) => (r
+    ? `<td class="kp-t__d">${escapeHtml(r.date)}</td>
+       <td class="kp-t__v">${kpPrice(r.price)}</td>
+       <td>${kpDelta(r.domValue, r.domPct)}</td>
+       <td>${kpDelta(r.wowValue, r.wowPct)}</td>
+       <td>${kpDelta(r.momValue, r.momPct)}</td>`
+    : '<td colspan="5" class="kp-t__blank"></td>');
+  const body = left.map((r, i) => `<tr>${cells(r)}${cells(right[i])}</tr>`).join('');
+  const hg = '<th>기간</th><th>품목별 가격</th><th>전일비(%)</th><th>전주비(%)</th><th>전월비(%)</th>';
+  return `<h3 class="subhead kp-t__head">${escapeHtml(item.name)} 최근 ${recent.length}일</h3>
+    <div class="kp-t__wrap"><table class="kp-t">
+      <thead><tr>${hg}${hg}</tr></thead><tbody>${body}</tbody>
+    </table></div>`;
+}
+
+/** 크로스헤어 + 툴팁 (날짜 · 품목 · 가격) */
+function wireKpChart() {
+  const fig = document.querySelector('#materialRoot .kp-figure');
+  const tip = document.getElementById('kpTooltip');
+  if (!fig || !tip || !_kpChart) return;
+  const svg = fig.querySelector('.kp-svg');
+  if (!svg) return;
+  const overlay = svg.querySelector('.kp-overlay');
+  const cross = svg.querySelector('.kp-cross');
+  const dots = svg.querySelector('.kp-dots');
+  const c = _kpChart, g = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  overlay.addEventListener('mousemove', (evt) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+    const v = c.values[i];
+    if (v == null) { clear(); return; }
+    const cx = g.X(i);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3" fill="${c.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>
+      <div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>${escapeHtml(c.label)}</span><span class="viz-tt-val">${kpPrice(v)}${c.unit ? ' ' + escapeHtml(c.unit) : ''}</span></div>`;
+    const fr = fig.getBoundingClientRect();
+    let left = evt.clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  });
+  overlay.addEventListener('mouseleave', clear);
+}
+
+/** 탭·품목·기간 이벤트 (검색 버튼 없음 — 바꾸면 즉시 다시 그린다) */
+function wireKpControls(root) {
+  const fig = root.querySelector('.kp-figure');
+  if (!fig) return;
+  const tabsEl = fig.querySelector('.kp-tabs');
+  if (tabsEl) tabsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.kp-tab');
+    if (!b || b.disabled) return;
+    _kpCat = b.dataset.cat;
+    _kpItem = kpFirstItemNo(kpCatOf(_kpCat));   // 부문 변경 시 첫 품목으로 리셋
+    renderMaterial();
+  });
+  const selEl = fig.querySelector('.kp-item');
+  if (selEl) selEl.addEventListener('change', () => {
+    _kpItem = selEl.value;
+    renderMaterial();
+  });
+  const chipsEl = fig.querySelector('.kp-ranges');
+  if (chipsEl) chipsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('.kp-range');
+    if (!b || b.disabled) return;
+    _kpRange = b.dataset.range;
+    renderMaterial();
+  });
+  if (_kpRange && _kpData && !_kpData.error && !_kpBusy) wireKpChart();
+}
+
+
 /* ── 국내외 브랜드 신제품 (Google News RSS) ── */
 let _domestic = null;         // 국내 items
 let _domesticFeatured = null; // 국내 대표 상품
@@ -2691,6 +3033,8 @@ function resetDashboard() {
   _oilForecast = null; // 순수 추가: 유가 예측 초기화(섹션 숨김)
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
+  // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
+  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false;
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
@@ -2721,6 +3065,9 @@ function initUpdate() {
     btn.disabled = true;
     btn.textContent = '불러오는 중…';
     updateWorldWeather();  // 세계 시간: Open-Meteo 날씨(서버 /api/update와 독립) → 마커 표시
+    // 순수 추가: KOIMA 일일가격은 수집이 2~3분 걸려 /api/update 와 분리해 병렬로 돌린다.
+    // await 하지 않는다 — 다른 카드가 이 수집을 기다리지 않게 한다(카드 자체에 진행 표시).
+    fetchKoimaPrice();
     try {
       const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
