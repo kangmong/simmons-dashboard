@@ -811,7 +811,7 @@ function distinct(rows, key) {
    이 값을 공유한다. 차트 높이를 바꾸려면 VIZ_H 한 곳만 고치면 된다.
    ★ 값(데이터)·색상·시리즈 구성·툴팁에는 관여하지 않는 '치수 전용' 상수다. */
 const VIZ_W = 720;            // viewBox 가로(고정) — 실제 크기는 CSS width:100% 로 결정
-const VIZ_H = 190;            // viewBox 세로 ← 기존 300 의 약 63%. 여기만 고치면 전 차트 반영
+const VIZ_H = 158;            // viewBox 세로 ← 300 → 190 → 158 (직전의 83%). 여기만 고치면 전 차트 반영
 const VIZ_PAD_T = 10;         // 위 여백(기존 16~18)
 const VIZ_PAD_B = 24;         // 아래 여백(기존 30~34) — X축 라벨 자리
 const VIZ_FS_AXIS = 8.5;      // 축 눈금 폰트(기존 9~10)
