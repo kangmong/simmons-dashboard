@@ -57,6 +57,16 @@ KP_DAYS = "-1095"
 KP_SLEEP = 0.4              # 요청 간 대기(초) — 병렬 요청 금지
 KP_SOURCE = "KOIMA 국제원자재가격정보 · 일일 국제원자재가격"
 
+# 수집 결과 저장 위치(프로젝트 루트 기준). 프론트는 이 파일을 정적으로 읽는다.
+# ★ /api 엔드포인트로 서빙하지 않는 이유: 60개 품목 수집에 약 167초가 걸려
+#   업데이트 버튼이 그만큼 멈추고, Vercel 함수 한도(최대 60초)도 넘긴다.
+#   미리 수집해 파일로 커밋해 두면 로컬·정적서버·Vercel 어디서나 즉시 동작한다.
+KP_OUT_REL = os.path.join("public", "data", "koima-price.json")
+
+
+def kp_default_out():
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), KP_OUT_REL)
+
 
 def _kp_num(v):
     """'1,005.00' → 1005.0 / 빈 값·'-' → None"""
@@ -350,22 +360,15 @@ if __name__ == "__main__":
         sys.exit(1)
     print("[koima-price] 소요 %.1f초" % (time.time() - t0))
 
-    out = _arg("--out")
-    if out:
-        d = os.path.dirname(os.path.abspath(out))
-        if d and not os.path.isdir(d):
-            os.makedirs(d)
-        with io.open(out, "w", encoding="utf-8") as f:
-            f.write(json.dumps(res, ensure_ascii=False, indent=2))
-        size = os.path.getsize(out)
-        print("[koima-price] 저장: %s (%.1f MB)" % (out, size / 1048576.0))
-    else:
-        brief = dict(res)
-        brief["categories"] = [
-            {"label": c["label"], "no": c["no"], "itemCount": len(c["items"]),
-             "items": [{"name": i["name"], "no": i["no"], "unit": i["unit"],
-                        "rows": len(i["rows"]),
-                        "first": i["rows"][0]["date"], "last": i["rows"][-1]["date"]}
-                       for i in c["items"]]}
-            for c in res["categories"]]
-        print(json.dumps(brief, ensure_ascii=False, indent=2)[:3000])
+    # --out 이 없으면 프론트가 읽는 기본 경로(public/data/koima-price.json)에 저장한다.
+    out = _arg("--out") or kp_default_out()
+    d = os.path.dirname(os.path.abspath(out))
+    if d and not os.path.isdir(d):
+        os.makedirs(d)
+    # 프론트가 바로 읽는 파일이므로 공백 없이 저장(용량 절감)
+    with io.open(out, "w", encoding="utf-8") as f:
+        f.write(json.dumps(res, ensure_ascii=False, separators=(",", ":")))
+    size = os.path.getsize(out)
+    print("[koima-price] 저장: %s (%.2f MB)" % (out, size / 1048576.0))
+    print("[koima-price] 부문별 품목 수: %s"
+          % " · ".join("%s %d개" % (c["label"], len(c["items"])) for c in res["categories"]))

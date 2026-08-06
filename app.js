@@ -2026,12 +2026,16 @@ function renderKoimaSummaryHtml() {
 /* ── 일일 국제원자재가격 (KOIMA) — 순수 추가 카드 ───────────────────────────
    ★ 월간 부문별 지수 카드와 데이터 모양이 다르다(일별 · 품목 2단 구조 ·
      전일/전주/전월 3종 증감 · 전주평균/전월평균). 코드를 복사하지 않고 새로 작성했다.
-   ★ 수집이 2~3분 걸려 /api/update 와 분리된 전용 엔드포인트를 쓴다(_kpBusy 로 진행 표시).
+   ★ 데이터는 미리 수집해 둔 정적 JSON(public/data/koima-price.json)을 읽는다.
+     60개 품목 수집에 약 167초가 걸려 요청 시점에 수집하면 업데이트 버튼이 그만큼 멈추고
+     Vercel 함수 한도(최대 60초)도 넘긴다. 파일로 두면 어디서나 즉시 로드된다.
+     데이터 갱신은 `python koima_price.py` 를 돌려 이 파일을 다시 만드는 방식.
    저장 구조: categories[{no,key,label,items:[{no,name,unit,market,spotFutures,
               weekAvg,monthAvg,rows:[{date,price,domValue,domPct,wowValue,wowPct,
               momValue,momPct}]}]}]  */
 
-const KP_API = '/api/update-koima-price';
+// 정적 데이터 파일(상대경로). Flask(static_folder='.')·정적 서버·Vercel 모두 동일 경로로 서빙된다.
+const KP_DATA_URL = 'public/data/koima-price.json';
 // 부문 색(품목 단일 시리즈에 부문 색을 쓴다)
 const KP_COLORS = {
   petchem: '#C8102E', textile: '#0EA5E9', steel: '#3B82F6',
@@ -2128,12 +2132,14 @@ function applyKoimaPriceUpdate(data) {
   renderMaterial();
 }
 
-/** 업데이트 버튼이 호출: 전용 엔드포인트로 수집(오래 걸리므로 진행 상태를 카드에 표시) */
+/** 업데이트 버튼이 호출: 미리 수집해 둔 정적 JSON을 읽는다(즉시 완료).
+ *  파일이 없으면(404) 수집 스크립트를 돌리라는 안내를 카드에 표시한다. */
 async function fetchKoimaPrice() {
   _kpBusy = true;
   renderMaterial();
   try {
-    const res = await fetch(API_BASE + KP_API, { method: 'GET', cache: 'no-store' });
+    const res = await fetch(KP_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 — python koima_price.py 를 실행해 생성하세요');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     _kpBusy = false;
@@ -2141,7 +2147,7 @@ async function fetchKoimaPrice() {
   } catch (e) {
     _kpBusy = false;
     _kpData = { error: (e && e.message) || String(e) };
-    console.warn('[koima-price] 수집 실패:', e);
+    console.warn('[koima-price] 로드 실패:', e, '(경로:', KP_DATA_URL, ')');
     renderMaterial();
   }
 }
@@ -2200,9 +2206,8 @@ function renderKoimaPriceHtml() {
     `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
 
   let body;
-  if (_kpBusy) {                                    // 수집 진행 중
-    body = `<div class="icis-prompt kp-busy">국제원자재가격을 불러오는 중입니다…
-      <span class="kp-busy__sub">60개 품목을 순차 수집합니다 · 2~3분 걸릴 수 있습니다</span></div>`;
+  if (_kpBusy) {                                    // 로드 중
+    body = '<div class="icis-prompt kp-busy">국제원자재가격을 불러오는 중입니다…</div>';
   } else if (!_kpData) {                            // 1) 데이터 없음
     body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
   } else if (_kpData.error) {
@@ -3065,8 +3070,8 @@ function initUpdate() {
     btn.disabled = true;
     btn.textContent = '불러오는 중…';
     updateWorldWeather();  // 세계 시간: Open-Meteo 날씨(서버 /api/update와 독립) → 마커 표시
-    // 순수 추가: KOIMA 일일가격은 수집이 2~3분 걸려 /api/update 와 분리해 병렬로 돌린다.
-    // await 하지 않는다 — 다른 카드가 이 수집을 기다리지 않게 한다(카드 자체에 진행 표시).
+    // 순수 추가: KOIMA 일일가격 — 미리 수집해 둔 정적 JSON 로드(즉시 완료).
+    // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchKoimaPrice();
     try {
       const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
