@@ -41,6 +41,10 @@ try:
     from oil_forecast import compute_oil_forecast
 except Exception:  # noqa: BLE001
     compute_oil_forecast = None
+try:  # 순수 추가: KOIMA 월간 부문별 지수
+    from koima_index import update_koima_index
+except Exception:  # noqa: BLE001
+    update_koima_index = None
 
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
@@ -1354,6 +1358,8 @@ if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도
     FETCHERS["sr_forecast"] = compute_sr_forecast
 if compute_oil_forecast is not None:  # 순수 추가: 국제유가 예측도 업데이트에 덧붙임
     FETCHERS["oil_forecast"] = compute_oil_forecast
+if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 업데이트에 덧붙임
+    FETCHERS["koima_index"] = update_koima_index
 
 
 def build_payload():
