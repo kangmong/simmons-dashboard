@@ -806,6 +806,39 @@ function distinct(rows, key) {
    5) 원자재 원가 동향 섹션
    ============================================================ */
 
+/* ── 차트 공통 치수 상수 ────────────────────────────────────────────────
+   대시보드의 모든 선그래프(스폰지·정시성·국제유가·월간지수·일일가격·환율)가
+   이 값을 공유한다. 차트 높이를 바꾸려면 VIZ_H 한 곳만 고치면 된다.
+   ★ 값(데이터)·색상·시리즈 구성·툴팁에는 관여하지 않는 '치수 전용' 상수다. */
+const VIZ_W = 720;            // viewBox 가로(고정) — 실제 크기는 CSS width:100% 로 결정
+const VIZ_H = 190;            // viewBox 세로 ← 기존 300 의 약 63%. 여기만 고치면 전 차트 반영
+const VIZ_PAD_T = 10;         // 위 여백(기존 16~18)
+const VIZ_PAD_B = 24;         // 아래 여백(기존 30~34) — X축 라벨 자리
+const VIZ_FS_AXIS = 8.5;      // 축 눈금 폰트(기존 9~10)
+const VIZ_FS_LABEL = 8;       // 데이터 라벨 폰트(기존 10)
+const VIZ_Y_TICKS = 4;        // Y 눈금 개수(기존 5)
+const VIZ_TICK_GAP = 96;      // X 라벨 최소 간격(px) — 겹침 방지
+const VIZ_LABEL_MAX_PTS = 12; // 점이 이 개수 이하일 때만 데이터 라벨 유지(그 외는 툴팁으로만)
+
+/** Y 눈금 위치 비율 배열 (0~1). VIZ_Y_TICKS 개. */
+function vizYFractions() {
+  const n = Math.max(2, VIZ_Y_TICKS);
+  return Array.from({ length: n }, (_, i) => i / (n - 1));
+}
+
+/** X 눈금 인덱스: 라벨 1개당 최소 gap(px) 을 확보해 겹치지 않는 개수만 고른다. */
+function vizTickIdx(n, plotW, gap) {
+  const g = gap || VIZ_TICK_GAP;
+  const maxTicks = Math.max(2, Math.min(8, Math.floor(plotW / g)));
+  const t = Math.min(maxTicks, n);
+  const out = [];
+  for (let k = 0; k < t; k++) {
+    const i = t <= 1 ? 0 : Math.round((k / (t - 1)) * (n - 1));
+    if (!out.includes(i)) out.push(i);
+  }
+  return out;
+}
+
 /* ── 스폰지 주원료 시황 (ICIS Asia, 고정 데이터) ── */
 const ICIS_DATA = {
   periods: ["2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"],
@@ -1010,22 +1043,22 @@ function buildIcisChart(periods, series) {
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.08 || 100; ymin = Math.max(0, ymin - yp); ymax += yp;
 
-  const W = 720, H = 300, padL = 54, padR = 16, padT = 18, padB = 34;
+  const W = VIZ_W, H = VIZ_H, padL = 46, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
   }).join('');
 
-  const step = Math.max(1, Math.ceil(n / 8));
-  const xticks = periods.map((p, i) => {
-    if (!(i % step === 0 || i === n - 1)) return '';
+  // 단일 연도는 'MM월'(짧음)이라 간격을 좁게, 전체 보기는 'YYYY-MM'이라 넓게
+  const xticks = vizTickIdx(n, plotW, singleYear ? 44 : VIZ_TICK_GAP).map((i) => {
+    const p = periods[i];
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${a}" font-size="9.5" fill="var(--muted)">${escapeHtml(singleYear ? p.slice(5) + '월' : p)}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(singleYear ? p.slice(5) + '월' : p)}</text>`;
   }).join('');
 
   const lines = series.map((s) => {
@@ -1040,15 +1073,17 @@ function buildIcisChart(periods, series) {
 
   // 각 데이터 점 표시
   const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
-    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.4" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
-  // 값 라벨: 연도별 보기(12개월)에서만 항상 표시. 시리즈별 위/아래 번갈아 배치로 겹침 완화
-  const labels = singleYear ? series.map((s, si) => s.values.map((v, i) => {
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
+  // 값 라벨 방침: 차트가 낮아진 뒤 실측하니 4개 시리즈(PPG·TDI·MDI·PO)를 겹쳐 그리는
+  // 이 차트는 12개월 보기에서도 라벨이 서로 겹쳤다(2022년 6쌍, 2023년 4쌍).
+  // → 시리즈가 1개일 때만 라벨을 남기고, 그 외에는 툴팁으로만 값을 보여준다.
+  const labels = (singleYear && n <= VIZ_LABEL_MAX_PTS && series.length === 1) ? series.map((s, si) => s.values.map((v, i) => {
     if (v == null) return '';
     const x = X(i), y = Y(v);
-    let ly = (si % 2 === 0) ? y - 7 : y + 13;
-    if (ly < padT + 8) ly = y + 13;
-    if (ly > padT + plotH) ly = y - 7;
-    return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${s.color}">${Math.round(v).toLocaleString('en-US')}</text>`;
+    let ly = (si % 2 === 0) ? y - 6 : y + 11;
+    if (ly < padT + 7) ly = y + 11;
+    if (ly > padT + plotH) ly = y - 6;
+    return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_LABEL}" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${s.color}">${Math.round(v).toLocaleString('en-US')}</text>`;
   }).join('')).join('') : '';
 
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
@@ -1330,19 +1365,20 @@ function buildSrChart(months, series) {
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.12 || 5; ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
 
-  const W = 720, H = 300, padL = 46, padR = 16, padT = 18, padB = 34;
+  const W = VIZ_W, H = VIZ_H, padL = 40, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${Math.round(val)}%</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val)}%</text>`;
   }).join('');
 
-  const xticks = months.map((m, i) =>
-    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${escapeHtml(m)}</text>`).join('');
+  // 월 이름(Jan…)은 짧아 12개를 모두 넣어도 겹치지 않는다(간격 40px 기준)
+  const xticks = vizTickIdx(n, plotW, 40).map((i) =>
+    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(months[i])}</text>`).join('');
 
   const lines = series.map((s) => {
     let path = '', pen = false;
@@ -1355,13 +1391,14 @@ function buildSrChart(months, series) {
   }).join('');
 
   const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
-    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2.4" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
 
-  // 값 라벨: 단일 연도 보기일 때만 각 점에 %(소수1자리) 표시
-  const labels = single ? series[0].values.map((v, i) => {
+  // 값 라벨: 점이 VIZ_LABEL_MAX_PTS 이하인 단일 연도 보기(12개월)에서만 표시.
+  // 여러 연도를 겹쳐 보는 경우는 라벨 없이 툴팁으로만 값을 보여준다.
+  const labels = (single && n <= VIZ_LABEL_MAX_PTS) ? series[0].values.map((v, i) => {
     if (v == null) return '';
-    const x = X(i), y = Y(v) - 8;
-    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${series[0].color}">${v.toFixed(1)}%</text>`;
+    const x = X(i), y = Y(v) - 6;
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_LABEL}" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${series[0].color}">${v.toFixed(1)}%</text>`;
   }).join('') : '';
 
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
@@ -1580,26 +1617,20 @@ function buildOilChart(rows) {
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.1 || 5; ymin = Math.max(0, ymin - yp); ymax += yp;
 
-  const W = 720, H = 300, padL = 48, padR = 16, padT = 16, padB = 32;
+  const W = VIZ_W, H = VIZ_H, padL = 42, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">$${Math.round(val)}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`;
   }).join('');
 
-  const TICKS = Math.min(7, n);
-  const tickIdx = [];
-  for (let k = 0; k < TICKS; k++) {
-    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
-    if (!tickIdx.includes(i)) tickIdx.push(i);
-  }
-  const xticks = tickIdx.map((i) => {
+  const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
   }).join('');
 
   // connectNulls: 결측(null)은 건너뛰되 선은 끊지 않고 다음 값과 이어 그림
@@ -1869,28 +1900,20 @@ function buildKoimaChart(rows, cat) {
   const yp = (ymax - ymin) * 0.08 || Math.max(1, ymax * 0.05);
   ymin -= yp; ymax += yp;
 
-  const W = 720, H = 300, padL = 48, padR = 16, padT = 16, padB = 32;
+  const W = VIZ_W, H = VIZ_H, padL = 42, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${val.toFixed(val >= 100 ? 0 : 1)}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toFixed(val >= 100 ? 0 : 1)}</text>`;
   }).join('');
 
-  // minTickGap 대응: 라벨 1개당 최소 78px 확보 → 겹치지 않는 최대 눈금 수만 그린다
-  const maxTicks = Math.max(2, Math.min(8, Math.floor(plotW / 78)));
-  const TICKS = Math.min(maxTicks, n);
-  const tickIdx = [];
-  for (let k = 0; k < TICKS; k++) {
-    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
-    if (!tickIdx.includes(i)) tickIdx.push(i);
-  }
-  const xticks = tickIdx.map((i) => {
+  const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
   }).join('');
 
   let d = '', started = false;
@@ -2239,29 +2262,22 @@ function buildKpChart(rows, item, cat) {
   const yp = (ymax - ymin) * 0.08 || Math.max(0.5, ymax * 0.05);
   ymin -= yp; ymax += yp;
 
-  const W = 720, H = 300, padL = 56, padR = 16, padT = 16, padB = 32;
+  const W = VIZ_W, H = VIZ_H, padL = 48, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
   const dec = (ymax - ymin) < 20 ? 2 : 0;   // 값 폭이 좁으면 소수 표시
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}</text>`;
   }).join('');
 
-  // minTickGap: 날짜 라벨 1개당 최소 86px
-  const maxTicks = Math.max(2, Math.min(8, Math.floor(plotW / 86)));
-  const TICKS = Math.min(maxTicks, n);
-  const tickIdx = [];
-  for (let k = 0; k < TICKS; k++) {
-    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
-    if (!tickIdx.includes(i)) tickIdx.push(i);
-  }
-  const xticks = tickIdx.map((i) => {
+  // 날짜 라벨은 'YYYY-MM-DD'(10자)로 가장 길어 간격을 더 넓게 잡는다
+  const xticks = vizTickIdx(n, plotW, 108).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i])}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(dates[i])}</text>`;
   }).join('');
 
   let d = '', started = false;
@@ -2646,26 +2662,20 @@ function buildFxChart(slice, cur) {
   if (ymin === ymax) { const d = Math.abs(ymin) * 0.05 || 1; ymin -= d; ymax += d; }
   const yp = (ymax - ymin) * 0.14 || 10; ymin -= yp; ymax += yp;
 
-  const W = 720, H = 280, padL = 52, padR = 16, padT = 16, padB = 30;
+  const W = VIZ_W, H = VIZ_H, padL = 46, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+  const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
   }).join('');
 
-  const TICKS = Math.min(6, n);
-  const tickIdx = [];
-  for (let k = 0; k < TICKS; k++) {
-    const i = TICKS <= 1 ? 0 : Math.round((k / (TICKS - 1)) * (n - 1));
-    if (!tickIdx.includes(i)) tickIdx.push(i);
-  }
-  const xticks = tickIdx.map((i) => {
+  const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${a}" font-size="9" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(dates[i].slice(0, 7))}</text>`;
   }).join('');
 
   const lines = series.map((sr) => {
