@@ -1799,7 +1799,7 @@ function koimaDelta(val, pct) {
 /** KOIMA 카드 HTML — 유가 카드와 동일한 3단계 빈 상태 */
 function renderKoimaHtml() {
   const head = `<div class="viz-head"><div>
-      <div class="viz-title">월간 부문별 지수 (KOIMA)</div>
+      <div class="viz-title">원자재 월간 부문별 지수 (KOIMA)</div>
       <div class="viz-sub">8개 부문 월별 지수 · 2010.12 = 100 기준</div>
     </div></div>`;
   const cap = '<div class="comp-caption">출처: 한국수입협회 국제원자재가격정보</div>';
