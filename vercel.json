@@ -1,7 +1,8 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/update.py", "use": "@vercel/python", "config": { "includeFiles": "*.py" } },
+    { "src": "api/update.py", "use": "@vercel/python",
+      "config": { "includeFiles": ["*.py", "public/data/schedule-reliability.json"] } },
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "app.js", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },

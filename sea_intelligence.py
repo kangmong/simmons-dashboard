@@ -53,15 +53,30 @@ SI_MAX_CANDIDATES = 6                   # 상세 페이지를 열어볼 최대 �
 _SI_CACHE = {}                          # 프로세스 내 1회만 탐색(3개 모듈이 공유)
 
 
+# 직전 데이터이자 폴백 소스. 이 파일 하나가 '기존 상태' 역할을 한다(별도 스냅샷 없음).
+SI_DATA_REL = os.path.join("public", "data", "schedule-reliability.json")
+
+
 def _si_base_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def si_data_path():
+    """커밋되는 데이터 파일 경로. ★ 읽기만 할 때는 디렉터리를 만들지 않는다
+       (배포 번들은 읽기 전용이라 mkdir 자체가 OSError 를 낸다)."""
+    return os.path.join(_si_base_dir(), SI_DATA_REL)
+
+
 def _si_tmp(name):
+    """백업 등 부가 용도. 쓰기 불가 환경이면 OS 임시 디렉터리로 폴백."""
     d = os.path.join(_si_base_dir(), "tmp")
-    if not os.path.isdir(d):
-        os.makedirs(d)
-    return os.path.join(d, name)
+    try:
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        return os.path.join(d, name)
+    except OSError:
+        import tempfile
+        return os.path.join(tempfile.gettempdir(), name)
 
 
 def _si_session():
@@ -262,86 +277,114 @@ def si_validate(parsed, verbose=True):
             % (len(parsed["years"]), si_count_values(parsed["years"])), verbose)
 
 
-SI_SNAPSHOT = "sr-last-good.json"   # 직전 성공분(행 수 비교 + 백업용)
-
-
-def _si_load_snapshot():
-    p = _si_tmp(SI_SNAPSHOT)
-    if not os.path.isfile(p):
-        return None
+def si_load_existing(verbose=False):
+    """커밋된 public/data/schedule-reliability.json 을 '직전 상태'로 읽는다.
+       ★ 절대 예외를 올리지 않는다 — 없거나 못 읽어도 수집을 막으면 안 된다.
+       ★ 디렉터리를 만들지 않는다(읽기 전용 배포 번들 대응)."""
     try:
-        return json.load(io.open(p, encoding="utf-8"))
-    except Exception:  # noqa: BLE001
+        p = si_data_path()
+        if not os.path.isfile(p):
+            return None
+        data = json.load(io.open(p, encoding="utf-8"))
+        if isinstance(data.get("years"), dict) and data["years"]:
+            return data
+        return None
+    except Exception as e:  # noqa: BLE001
+        _si_log("   기존 데이터 읽기 실패(무시하고 진행): %s" % e, verbose)
         return None
 
 
-def _si_save_snapshot(payload, verbose=True):
-    """교체 전 기존 스냅샷을 타임스탬프 백업으로 남기고 새 스냅샷 저장."""
-    p = _si_tmp(SI_SNAPSHOT)
-    if os.path.isfile(p):
-        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        bak = _si_tmp("sr-backup-%s.json" % stamp)
-        try:
-            with io.open(bak, "w", encoding="utf-8") as f:
-                f.write(io.open(p, encoding="utf-8").read())
-            _si_log("   기존 데이터 백업: %s" % bak, verbose)
-        except Exception as e:  # noqa: BLE001
-            _si_log("   백업 실패(계속 진행): %s" % e, verbose)
-    with io.open(p, "w", encoding="utf-8") as f:
-        f.write(json.dumps(payload, ensure_ascii=False, indent=1))
+def si_save_data(payload, verbose=True):
+    """같은 경로에 덮어쓴다. 교체 전 기존 파일을 tmp/ 에 백업.
+       ★ 쓰기 실패(배포 번들=읽기 전용)해도 수집 결과에는 영향을 주지 않는다."""
+    p = si_data_path()
+    try:
+        if os.path.isfile(p):
+            stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            bak = _si_tmp("schedule-reliability-%s.json" % stamp)
+            try:
+                with io.open(bak, "w", encoding="utf-8") as f:
+                    f.write(io.open(p, encoding="utf-8").read())
+                _si_log("   기존 데이터 백업: %s" % bak, verbose)
+            except Exception as e:  # noqa: BLE001
+                _si_log("   백업 실패(계속 진행): %s" % e, verbose)
+        d = os.path.dirname(p)
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        with io.open(p, "w", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False, indent=1))
+        _si_log("   저장: %s" % p, verbose)
+        return True
+    except Exception as e:  # noqa: BLE001
+        # Vercel 등 읽기 전용 환경에서는 정상적인 상황이다(런타임 수집 결과는 그대로 반환).
+        _si_log("   저장 생략(쓰기 불가 환경): %s" % e, verbose)
+        return False
 
 
 def update_schedule_reliability_auto(verbose=True):
     """최신 GLP 자동 탐색 → 수집 → 검증 → 기존 구조 그대로 반환.
 
-    실패하면 status=error 를 돌려주고, 프론트는 기존 데이터를 그대로 유지한다.
+    흐름: 기존 public/data JSON 읽기 → 새로 수집 → 범위·행 수 검증 →
+          통과하면 같은 경로에 덮어쓰기 → 실패하면 기존 파일 유지.
+    ★ 파일 입출력은 전부 best-effort 다. 쓰기 불가 환경(Vercel 배포 번들)에서도
+      수집 결과는 그대로 반환된다 — 예전엔 여기서 OSError 가 나 폴백으로 빠졌다.
     """
+    prev = si_load_existing(verbose)          # 예외를 올리지 않음
+
+    # ── 수집·파싱만 오류로 취급한다(부가 기능 실패로 폴백되지 않게) ──
     try:
         sess = _si_session()
         found = si_discover(sess, verbose)
         url = found["xlsx"] if found else SI_FALLBACK_XLSX
         if not found:
             _si_log("탐색 실패 → 폴백 URL 로 시도: %s" % url, verbose)
-
         blob = si_download(url, sess, verbose)
         parsed = si_parse(blob, verbose)
-        si_validate(parsed, verbose)
-
-        latest = si_latest_period(parsed["years"])
-        n_new = si_count_values(parsed["years"])
-
-        # 안전장치: 값 개수가 직전 성공분보다 적으면 교체하지 않는다
-        snap = _si_load_snapshot()
-        if snap and isinstance(snap.get("years"), dict):
-            n_old = si_count_values(snap["years"])
-            if n_new < n_old:
-                _si_log("⚠ 새 데이터가 기존보다 적음(%d < %d) → 교체하지 않고 기존 유지"
-                        % (n_new, n_old), verbose)
-                out = dict(snap)
-                out["status"] = "ok"
-                out["warning"] = ("새 데이터 값 %d개가 기존 %d개보다 적어 교체하지 않음"
-                                  % (n_new, n_old))
-                return out
-            _si_log("   값 개수 %d → %d (기존 대비 +%d)" % (n_old, n_new, n_new - n_old), verbose)
-
-        payload = {
-            "status": "ok",
-            "months": parsed["months"],
-            "years": parsed["years"],
-            "source": "Sea-Intelligence",
-            "press_title": (found or {}).get("slug"),
-            "press_url": (found or {}).get("url"),
-            "press_date": (found or {}).get("date"),
-            "xlsx_url": url,
-            "latest_period": latest,
-        }
-        _si_save_snapshot(payload, verbose)
-        _si_log("최신 데이터: %s" % latest, verbose)
-        return payload
-    except requests.exceptions.RequestException as e:  # noqa: BLE001
-        return {"status": "error", "reason": "다운로드 실패: %s" % e}
-    except Exception as e:  # noqa: BLE001
+        si_validate(parsed, verbose)          # 0~100% 이탈 시 여기서 중단
+    except Exception as e:  # noqa: BLE001  (RequestException 포함)
+        if prev:
+            _si_log("수집 실패(%s) → 커밋된 기존 데이터 유지: 최신 %s"
+                    % (e, prev.get("latest_period")), verbose)
+            out = dict(prev)
+            out["status"] = "ok"
+            out["warning"] = "수집 실패로 기존 데이터 사용: %s" % e
+            return out
         return {"status": "error", "reason": "수집/파싱 실패: %s" % e}
+
+    latest = si_latest_period(parsed["years"])
+    n_new = si_count_values(parsed["years"])
+
+    # 안전장치: 값 개수가 기존 파일보다 적으면 교체하지 않는다.
+    # ★ 기존 파일이 없는 최초 실행에서는 가드를 건너뛰고 그냥 저장한다.
+    if prev:
+        n_old = si_count_values(prev["years"])
+        if n_new < n_old:
+            _si_log("⚠ 새 데이터가 기존보다 적음(%d < %d) → 교체하지 않고 기존 유지"
+                    % (n_new, n_old), verbose)
+            out = dict(prev)
+            out["status"] = "ok"
+            out["warning"] = ("새 데이터 값 %d개가 기존 %d개보다 적어 교체하지 않음"
+                              % (n_new, n_old))
+            return out
+        _si_log("   값 개수 %d → %d (기존 대비 %+d)" % (n_old, n_new, n_new - n_old), verbose)
+    else:
+        _si_log("   기존 데이터 없음(최초 실행) → 가드 생략하고 저장", verbose)
+
+    payload = {
+        "status": "ok",
+        "months": parsed["months"],
+        "years": parsed["years"],
+        "source": "Sea-Intelligence",
+        "press_title": (found or {}).get("slug"),
+        "press_url": (found or {}).get("url"),
+        "press_date": (found or {}).get("date"),
+        "xlsx_url": url,
+        "latest_period": latest,
+        "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    si_save_data(payload, verbose)            # 실패해도 payload 는 그대로 반환
+    _si_log("최신 데이터: %s" % latest, verbose)
+    return payload
 
 
 def _si_dump(blob):
