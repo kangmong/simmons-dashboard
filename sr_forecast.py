@@ -29,7 +29,15 @@ def _srf_fetch():
     try:
         import io
         import openpyxl
-        r = requests.get(SRF_XLSX_URL, headers=hdr, allow_redirects=True, timeout=15)
+        # 순수 추가: 최신 GLP 편 URL 을 자동 탐색해 쓴다(캐시됨). 실패 시 아래 고정 URL.
+        # ★ 예측 계산 로직은 그대로다 — 입력 데이터만 최신으로 바뀐다.
+        url = SRF_XLSX_URL
+        try:
+            from sea_intelligence import si_latest_xlsx_url
+            url = si_latest_xlsx_url() or SRF_XLSX_URL
+        except Exception:  # noqa: BLE001
+            pass
+        r = requests.get(url, headers=hdr, allow_redirects=True, timeout=15)
         r.raise_for_status()
         if r.content[:2] != b"PK":
             return None

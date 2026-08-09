@@ -45,6 +45,10 @@ try:  # 순수 추가: KOIMA 월간 부문별 지수
     from koima_index import update_koima_index
 except Exception:  # noqa: BLE001
     update_koima_index = None
+try:  # 순수 추가: 해상 정시성 최신 GLP 자동 탐색(실패 시 기존 고정 URL 로 폴백)
+    from sea_intelligence import update_schedule_reliability_auto
+except Exception:  # noqa: BLE001
+    update_schedule_reliability_auto = None
 
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
@@ -1180,9 +1184,17 @@ SR_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 
 def update_schedule_reliability():
-    """Sea-Intelligence 글로벌 해상 정시성(Global Schedule Reliability) 월별 시계열.
+    """★ 순수 추가: sea_intelligence 로 최신 GLP 편을 찾아 쓰고, 실패하면 아래 기존
+       고정 URL 로직으로 폴백한다(하드코딩 URL 은 2026-04 에서 멈춰 있었다).
+
+       Sea-Intelligence 글로벌 해상 정시성(Global Schedule Reliability) 월별 시계열.
        xlsx의 'Fig 1' 시트(행=연도 2021~2026, 열=Jan~Dec, 값=정시성 비율)를 파싱한다.
        접근 차단(403)·타임아웃·형식 오류 등은 서버가 죽지 않도록 status=error + reason 처리."""
+    if update_schedule_reliability_auto is not None:
+        res = update_schedule_reliability_auto(verbose=True)
+        if res.get("status") == "ok":
+            return res
+        print("[sr] 자동 탐색 실패 → 기존 고정 URL 로 폴백: %s" % res.get("reason"))
     hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                          "AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/125.0.0.0 Safari/537.36"}

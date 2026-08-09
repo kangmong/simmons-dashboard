@@ -41,6 +41,11 @@ try:  # 순수 추가: KOIMA 월간 부문별 지수(기존 코드 미변경).
 except Exception:  # noqa: BLE001
     update_koima_index = None
 
+try:  # 순수 추가: 해상 정시성 최신 GLP 자동 탐색(기존 고정 URL 로직은 폴백으로 유지).
+    from sea_intelligence import update_schedule_reliability_auto
+except Exception:  # noqa: BLE001
+    update_schedule_reliability_auto = None
+
 # 순수 추가: KOIMA 일일 국제원자재가격은 서버가 요청 시점에 수집하지 않는다.
 # 수집에 약 167초가 걸려 업데이트 버튼이 멈추고 Vercel 함수 한도(최대 60초)도 넘기므로,
 # `python koima_price.py` 로 미리 수집해 public/data/koima-price.json 에 저장해 두고
@@ -1184,7 +1189,16 @@ SR_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 def update_schedule_reliability():
     """Sea-Intelligence 글로벌 해상 정시성(Global Schedule Reliability) 월별 시계열.
        xlsx의 'Fig 1' 시트(행=연도 2021~2026, 열=Jan~Dec, 값=정시성 비율)를 파싱한다.
-       접근 차단(403)·타임아웃·형식 오류 등은 서버가 죽지 않도록 status=error + reason 처리."""
+       접근 차단(403)·타임아웃·형식 오류 등은 서버가 죽지 않도록 status=error + reason 처리.
+
+       ★ 순수 추가: sea_intelligence 모듈이 있으면 press-room 에서 최신 GLP 편을 찾아
+         그 xlsx 를 쓴다(하드코딩 URL 은 2026-04 에서 멈춰 있었다). 모듈이 없거나
+         탐색이 실패하면 아래 기존 로직(SR_XLSX_URL 고정)이 그대로 동작한다."""
+    if update_schedule_reliability_auto is not None:
+        res = update_schedule_reliability_auto(verbose=True)
+        if res.get("status") == "ok":
+            return res
+        print("[sr] 자동 탐색 실패 → 기존 고정 URL 로 폴백: %s" % res.get("reason"))
     hdr = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                          "AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/125.0.0.0 Safari/537.36"}
