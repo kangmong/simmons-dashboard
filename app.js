@@ -882,10 +882,30 @@ let _matUsdKrw = null;      // USD/KRW 환율(업데이트 시 확보)
 // 해상 정시성(Sea-Intelligence) — 연도별 선 색상 + 상태
 const SR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const SR_YEAR_COLORS = {
-  '2021': '#94A3B8', '2022': '#3B82F6', '2023': '#12B981',
-  '2024': '#F59E0B', '2025': '#8B5CF6', '2026': '#C8102E',
-};
+// 연도별 선 색 — 순환 팔레트.
+// ★ 앞 6색은 기존 SR_YEAR_COLORS(2021~2026)의 값을 순서 그대로 옮긴 것이라
+//   현재 화면의 연도별 색은 변하지 않는다. 2027부터 뒤쪽 색을 이어 쓴다.
+const SR_YEAR_BASE = 2021;          // 팔레트 0번이 대응하는 연도
+const SR_PALETTE = [
+  '#94A3B8', // 2021 (기존)
+  '#3B82F6', // 2022 (기존)
+  '#12B981', // 2023 (기존)
+  '#F59E0B', // 2024 (기존)
+  '#8B5CF6', // 2025 (기존)
+  '#C8102E', // 2026 (기존)
+  '#0EA5E9', // 2027 ↓ 신규
+  '#DB2777', // 2028
+  '#65A30D', // 2029
+  '#F97316', // 2030
+];
+
+/** 연도 → 선 색. 팔레트 10색을 순환하므로 2031년에야 2021과 색이 겹친다. */
+function srYearColor(year) {
+  const n = Number(year);
+  if (!isFinite(n)) return 'var(--slate)';
+  const len = SR_PALETTE.length;
+  return SR_PALETTE[(((n - SR_YEAR_BASE) % len) + len) % len];
+}
 let _srData = null;   // {months, years:{...}} | {error:'reason'} | null
 let _srYear = null;   // '2021'~'2026' | 'all'
 let _srChart = null;
@@ -960,9 +980,15 @@ function renderMaterial() {
     root.innerHTML = emptyState('업데이트 버튼을 누르면 표시됩니다');
     return;
   }
-  const years = ['2021', '2022', '2023', '2024', '2025', '2026', 'all'];
-  const toolbar = `<div class="icis-years">${years.map((y) =>
-    `<button class="icis-year${y === _matYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`;
+  // 연도 칩은 데이터(ICIS_DATA.periods)에서 뽑는다 — 하드코딩 배열이 아니라서
+  // 나중에 2027 데이터가 추가되면 2027 칩이 자동으로 생긴다.
+  const icisYears = Array.from(new Set(ICIS_DATA.periods.map((p) => p.slice(0, 4)))).sort();
+  const years = icisYears.concat(['all']);
+  // 데이터가 비면 칩을 그리지 않는다(빈 툴바가 남아 레이아웃이 뜨는 것 방지).
+  const toolbar = icisYears.length
+    ? `<div class="icis-years">${years.map((y) =>
+      `<button class="icis-year${y === _matYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`
+    : '';
 
   let body;
   if (!_matYear) {
@@ -1225,7 +1251,7 @@ function srViewData(year) {
   const pick = (year === 'all') ? yrs : yrs.filter((y) => y === year);
   const series = pick.map((y) => ({
     key: y,
-    color: SR_YEAR_COLORS[y] || 'var(--slate)',
+    color: srYearColor(y),
     values: (_srData.years[y] || []).slice(0, months.length),
   })).filter((s) => s.values.some((v) => v != null));
   return { months, series };
