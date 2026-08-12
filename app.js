@@ -829,7 +829,11 @@ function vizYFractions() {
 /** X 눈금 인덱스: 라벨 1개당 최소 gap(px) 을 확보해 겹치지 않는 개수만 고른다. */
 function vizTickIdx(n, plotW, gap) {
   const g = gap || VIZ_TICK_GAP;
-  const maxTicks = Math.max(2, Math.min(8, Math.floor(plotW / g)));
+  // 눈금 수는 '라벨 최소 간격(g)'만으로 정한다. 예전엔 여기에 min(8, …) 상한이 있어
+  // 자리가 남는데도 8개로 잘렸고, 12개월 고정 차트(정시성·스폰지 단일연도)에서
+  // Feb/May/Aug/Nov 가 누락됐다. g 가 이미 겹침을 막으므로 별도 상한은 두지 않는다.
+  // (recharts 의 interval={0} 에 해당 — 자리가 되면 전부, 모자라면 g 간격으로 생략)
+  const maxTicks = Math.max(2, Math.floor(plotW / g));
   const t = Math.min(maxTicks, n);
   const out = [];
   for (let k = 0; k < t; k++) {
