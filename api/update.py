@@ -626,40 +626,75 @@ def _brand_logos(brand):
             "https://www.google.com/s2/favicons?sz=128&domain=" + dom, True)
 
 
-# og:image 두 가지 속성 순서(content 앞/뒤) 모두 대응
-_OG_IMAGE_RE = [
-    re.compile(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I),
-    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', re.I),
-]
-
+# (구 _OG_IMAGE_RE 제거 — 브랜드 이미지는 _IMG_METAS(og:image/twitter:image/image_src)를 쓴다)
 
 # Google News 링크는 자체 뷰어의 일반 로고(lh3.googleusercontent 등)만 노출하므로,
 # 아래 도메인의 이미지는 "대표 이미지 아님"으로 보고 버린다(→ 프런트에서 브랜드 이니셜로 대체).
 _GENERIC_IMG_HOSTS = ("googleusercontent.com", "gstatic.com", "google.com")
 
 
-def _og_image(url):
-    """기사 링크에서 <meta property="og:image"> 값을 추출. 실패/일반로고면 None(에러 내지 않음)."""
-    if not url:
+# 매체 로고·기본 썸네일로 흔히 쓰이는 파일명 조각 → 대표 이미지로 쓰지 않는다.
+_BAD_IMG_WORDS = ("logo", "default", "noimage", "no-image", "no_image",
+                  "placeholder", "blank", "sprite", "avatar")
+
+
+def _img_usable(img, base=None):
+    """상대경로면 절대경로로 보정하고, 일반 로고/기본 썸네일이면 버린다.
+       쓸 만하면 URL, 아니면 None."""
+    if not img:
         return None
+    img = img.strip()
+    if base:
+        img = urllib.parse.urljoin(base, img)
+    if not img.startswith(("http://", "https://")):
+        return None
+    p = urllib.parse.urlparse(img)
+    if any(h in p.netloc.lower() for h in _GENERIC_IMG_HOSTS):
+        return None                       # 구글 뷰어 일반 로고
+    name = (p.path.rsplit("/", 1)[-1] or "").lower()
+    if any(w in name for w in _BAD_IMG_WORDS):
+        return None                       # logo.png / default_thumb.jpg 등
+    return img
+
+
+def _meta_image(page_url, timeout=5):
+    """기사 페이지의 '메타 태그만' 보고 대표 이미지를 뽑는다. (실패 사유와 함께 반환)
+       ★ 본문 <img> 크롤링은 하지 않는다 — 매체마다 구조가 달라 광고가 잡힌다."""
+    if not page_url or not page_url.startswith("http"):
+        return None, "링크 없음"
     try:
-        r = requests.get(url, timeout=5, allow_redirects=True,
-                         headers={"User-Agent": "Mozilla/5.0"})
+        r = requests.get(page_url, headers=_GNEWS_UA, timeout=timeout, allow_redirects=True)
         r.raise_for_status()
         html = r.text
-        for rx in _OG_IMAGE_RE:
-            m = rx.search(html)
-            if m:
-                img = m.group(1).strip()
-                if not img.startswith("http"):
-                    continue
-                host = urllib.parse.urlparse(img).netloc.lower()
-                if any(h in host for h in _GENERIC_IMG_HOSTS):
-                    return None  # 구글 뷰어 일반 로고 → 대표 이미지로 쓰지 않음
-                return img
-    except Exception:  # noqa: BLE001 — 이미지 실패는 조용히 넘어감
-        pass
-    return None
+    except requests.exceptions.HTTPError as e:            # 403/404 등
+        return None, "HTTP %s" % getattr(e.response, "status_code", "?")
+    except requests.exceptions.Timeout:
+        return None, "타임아웃(%ds)" % timeout
+    except Exception as e:  # noqa: BLE001
+        return None, "요청 실패(%s)" % type(e).__name__
+    for rx in _IMG_METAS:                                  # og:image → twitter:image → image_src
+        m = rx.search(html)
+        if m:
+            u = _img_usable(m.group(1), page_url)
+            if u:
+                return u, None
+    return None, "메타 태그 없음/부적합"
+
+
+def _brand_image(link, rss_media):
+    """브랜드 기사 대표 이미지. (url, 획득경로|실패사유) 반환.
+       1) RSS 이미지(media:content/thumbnail/enclosure)
+       2) 기사 원문 메타 태그 — ★Google News 링크는 실제 기사 URL로 디코드한 뒤 조회
+          (디코드 없이 열면 구글 뷰어 페이지의 일반 로고만 나와 항상 실패했다)
+       3) 실패 → None (프런트에서 브랜드 로고로 폴백)"""
+    u = _img_usable(rss_media)
+    if u:
+        return u, "rss"
+    real = _decode_gnews_url(link) or link
+    u, why = _meta_image(real)
+    if u:
+        return u, "meta"
+    return None, why or "이미지 없음"
 
 
 # RSS <item> 안의 이미지 태그(media:content / media:thumbnail / enclosure)
@@ -738,15 +773,28 @@ def _brand_news(brands, query_fn, hl, gl):
 
     collected.sort(key=lambda x: x["date"], reverse=True)  # 최신순
 
-    # 이미지 확보(og:image → RSS media): 중복 판정(이미지 URL 신호)·대표 선정에 필요
-    img_cache = {}
+    # 이미지 확보(RSS media → 기사 메타 태그): 중복 판정(이미지 URL 신호)·대표 선정에 필요.
+    # 요청 간 300ms 대기(기사 수만큼 요청이 나간다). 실패는 조용히 로고 폴백.
+    import time as _time
+    img_cache, img_stat, img_fail = {}, {"rss": 0, "meta": 0}, []
 
     def _resolve_img(link):
         if link not in img_cache:
-            img_cache[link] = _og_image(link) or media_by_link.get(link)
+            if img_cache:
+                _time.sleep(0.3)
+            img_cache[link] = _brand_image(link, media_by_link.get(link))
         return img_cache[link]
     for it in collected:
-        it["image"] = _resolve_img(it["link"])
+        img, how = _resolve_img(it["link"])
+        it["image"] = img
+        if img:
+            img_stat[how] = img_stat.get(how, 0) + 1
+        else:
+            img_fail.append((it["brand"], it["title"][:40], it["link"], how))
+    print("[brand_news] 이미지 확보 %d건(RSS %d · 메타 %d) / 로고 폴백 %d건"
+          % (img_stat["rss"] + img_stat["meta"], img_stat["rss"], img_stat["meta"], len(img_fail)))
+    for b, t, lk, why in img_fail:
+        print("  · 폴백 [%s] %s — %s | %s" % (b, t, why, lk[:70]))
 
     # 로고: 상단·하단 공용 소스(_brand_logos)로 모든 기사에 부여 + 매칭 성공/실패 로그
     logo_ok, logo_fail = set(), set()
