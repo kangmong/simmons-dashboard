@@ -670,6 +670,78 @@ def _brand_relevant(title, source, brand=None, desc=None):
         return False, "밴드·공연 키워드(%s)" % bad_w
     return False, "매트리스 관련어 없음"
 
+# ── 신제품 동향 판정 (국내·국외 공통) ───────────────────────────────────
+# 제외: 실적·재무·M&A·인사 기사. 섹션 제목이 '신제품·브랜드 동향'인데 이런 기사가 섞였다.
+# ★ 실적은 '국내외 경쟁사 분기 실적' 섹션이 따로 있어 중복이다.
+# ★ 'names' 단독은 넣지 않는다 — "Names New Collection" 같은 신제품 제목까지 잡는다.
+#   인사 기사는 'names new ceo'/'appoints' 로 좁혀서 잡는다.
+_NEWS_EXCLUDE = (
+    # 실적·재무
+    "reports q1", "reports q2", "reports q3", "reports q4",
+    "first quarter", "second quarter", "third quarter", "fourth quarter",
+    "quarter results", "quarterly results", "earnings", "revenue", "net sales",
+    "fiscal year", "financial results", "guidance", "stock", "shares", "investor",
+    "실적", "매출", "영업이익", "순이익", "주가", "공시",
+    # 인수합병·조직
+    "acquire", "acquisition", "merger", "buyout", "stake", "ipo",
+    "employee count", "headcount", "layoff", "layoffs",
+    "ceo", "appoints", "names new ceo", "steps down",
+    "인수", "합병", "지분", "상장", "인사", "임명", "구조조정",
+    # 소송·파산 — 명세 목록에는 없었으나 실제 수집에서 상위 카드에 올라왔다.
+    # ("Serta Simmons: The Bill Comes Due. Court Awards $400 Million",
+    #  "Rabbi Trust Funds as Property of the Estate: The Sleep Number...")
+    # 실적·M&A 와 같은 성격(신제품 동향 아님)이라 함께 제외한다.
+    "lawsuit", "court", "litigation", "verdict", "settlement", "bankruptcy",
+    "chapter 11", "sues", "sued", "damages", "antitrust", "ruling", "trust funds",
+    "소송", "판결", "법원", "파산", "과징금", "제재",
+)
+# 실적·주식·법률 전문 매체 — 제목만으로 놓칠 때를 위한 보조 신호
+_NEWS_EXCLUDE_SOURCES = (
+    "chapter11cases", "natlawreview", "law360", "lexology",
+    "stocktitan", "tradingview", "quiverquant", "seekingalpha", "fool.com",
+    "benzinga", "marketbeat", "simplywall", "investing.com", "zacks",
+    "revelio", "yahoo finance",
+)
+# 우선: 신제품 발표로 보이는 신호
+_NEWS_PRIORITY = (
+    "launch", "launches", "unveil", "unveils", "introduce", "introduces",
+    "debut", "debuts", "new collection", "new line", "releases", "announces new",
+    "collaboration", "partnership",
+    "출시", "론칭", "선봬", "선보", "공개", "신제품", "컬렉션", "협업",
+)
+
+
+def _find_kw(text, words):
+    """제목에서 첫 매칭 키워드 반환(없으면 None).
+       영문은 단어 경계, 한글은 부분 일치(조사가 붙기 때문)."""
+    for w in words:
+        if re.search(r"[a-z]", w):
+            if re.search(r"\b%s\b" % re.escape(w), text):
+                return w
+        elif w in text:
+            return w
+    return None
+
+
+def _news_grade(title, source=None):
+    """신제품 관련성 등급 → ('exclude'|'priority'|'neutral', 걸린 키워드).
+       1) 제외 키워드(또는 실적·법률 전문 매체) → 무조건 제외
+       2) 우선 키워드 → 상위 노출
+       3) 둘 다 없으면 중립 (리뷰·프로모션 기사가 여기 남는다)"""
+    t = (title or "").lower()
+    kw = _find_kw(t, _NEWS_EXCLUDE)
+    if kw:
+        return "exclude", kw
+    s = (source or "").lower()
+    bad_src = next((d for d in _NEWS_EXCLUDE_SOURCES if d in s), None)
+    if bad_src:
+        return "exclude", "매체:%s" % bad_src
+    kw = _find_kw(t, _NEWS_PRIORITY)
+    if kw:
+        return "priority", kw
+    return "neutral", None
+
+
 # 브랜드 공식 도메인 → 무료 로고 서비스(Clearbit, 키 불필요)로 로고 URL 생성.
 # 기사 사진이 없을 때 프런트에서 이 주소를 img src 로 바로 사용한다.
 BRAND_DOMAINS = {
@@ -853,11 +925,17 @@ def _brand_news(brands, query_fn, hl, gl):
                 if not okrel:
                     dropped.append((title, source, why))
                     continue
+            # 신제품 동향 판정(국내·국외 공통): 실적·M&A·인사 기사 제외
+            grade, gkw = _news_grade(title, source)
+            if grade == "exclude":
+                dropped.append((title, source, "신제품 무관(%s)" % gkw))
+                continue
             media = _rss_media(item)
             if link and media:
                 media_by_link[link] = media
             collected.append({"brand": brand, "title": title, "source": source,
                               "date": _fmt_pubdate(pub), "link": link,
+                              "grade": grade, "grade_kw": gkw,
                               "product_name": _product_name(title, brand, source)})
             cnt += 1
             if cnt >= 3:  # 브랜드별 최신 최대 3건(중복 제거 재료 확보)
@@ -922,6 +1000,11 @@ def _brand_news(brands, query_fn, hl, gl):
 
     reps = [sorted(g["items"], key=_rep_key)[0] for g in groups]  # 그룹 대표: 이미지>날짜>길이
     reps.sort(key=lambda x: x["date"], reverse=True)
+    # 정렬 우선순위: ① 우선 등급 → ② 기사 사진 있는 것 → ③ 최신순
+    # (파이썬 sort 는 안정 정렬이라, 위에서 맞춰 둔 날짜 순서가 동점 구간에 그대로 남는다)
+    # ★ ②는 보조 신호일 뿐이다 — 로고 폴백이라고 제외하지는 않는다(og:image 추출 실패일 수도 있다).
+    reps.sort(key=lambda x: (0 if x.get("grade") == "priority" else 1,
+                             0 if x.get("image") else 1))
 
     def _out(it):
         return {"brand": it["brand"], "title": it["title"], "source": it["source"],
@@ -929,26 +1012,24 @@ def _brand_news(brands, query_fn, hl, gl):
                 "product_name": it.get("product_name"),
                 "logo_url": it.get("logo_url"), "logo_fallback": it.get("logo_fallback")}
 
-    # items: 브랜드별 최소 1건 보장 → 나머지 최신순 채워 6건
+    # items: 브랜드별 최소 1건 보장 → 나머지(우선→중립 순)로 채워 6건
     items, picked = [], set()
-    for r in reps:  # 브랜드별 최신 대표 먼저(브랜드 누락 방지)
+    for r in reps:  # 브랜드별 대표 먼저(브랜드 누락 방지)
         if r["brand"] not in {x["brand"] for x in items}:
             items.append(r)
             picked.add(id(r))
-    for r in reps:  # 남은 슬롯 최신순 채움
+    for r in reps:  # 남은 슬롯 채움
         if id(r) not in picked and len(items) < 6:
             items.append(r)
             picked.add(id(r))
     items = sorted(items[:6], key=lambda x: x["date"], reverse=True)
 
-    # featured(대표 출시 상품): 브랜드당 대표 1건(이미지>날짜>길이) → 최신 3
+    # featured(대표 출시 상품): 브랜드당 1건 → 우선 등급·사진 순으로 3건
     best = {}
-    for r in reps:
-        b = r["brand"]
-        if b not in best or _rep_key(r) < _rep_key(best[b]):
-            best[b] = r
-    featured = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
-    # 카드가 3칸이므로 항상 3개를 채운다 — 브랜드가 모자라면 같은 브랜드의 다음 기사로 보충.
+    for r in reps:                       # reps 는 이미 (우선→중립, 사진, 최신) 순
+        best.setdefault(r["brand"], r)
+    featured = list(best.values())[:3]
+    # 카드가 3칸이므로 항상 3개를 채운다 — 브랜드가 모자라면 중립 기사까지 끌어 쓴다.
     if len(featured) < 3:
         have = {id(f) for f in featured}
         for r in reps:
@@ -957,8 +1038,14 @@ def _brand_news(brands, query_fn, hl, gl):
             if id(r) not in have:
                 featured.append(r)
                 have.add(id(r))
-        featured = sorted(featured, key=lambda x: x["date"], reverse=True)[:3]
         print("[brand_news] featured 부족 → 다른 기사로 보충해 %d건" % len(featured))
+    # 그래도 모자라면 빈 칸 대신 안내 카드를 채운다.
+    while len(featured) < 3:
+        featured.append({"brand": "", "title": "최근 관련 기사 없음", "source": "",
+                         "date": "", "link": "", "image": None, "grade": "empty",
+                         "product_name": "최근 관련 기사 없음",
+                         "logo_url": None, "logo_fallback": None})
+        print("[brand_news] ⚠ 표시할 기사 부족 → '최근 관련 기사 없음' 카드 추가")
 
     empty = [b for b, c in brand_stat.items() if c == 0]
     if empty:
@@ -967,7 +1054,10 @@ def _brand_news(brands, query_fn, hl, gl):
           % ", ".join("%s %d" % (b, c) for b, c in brand_stat.items()))
     print("[brand_news] 최종 선택 featured:")
     for f in featured:
-        print("    ★ [%s] %s (%s · %s)" % (f["brand"], f["title"][:60], f["source"], f["date"]))
+        g = {"priority": "우선", "neutral": "중립", "empty": "빈칸"}.get(f.get("grade"), "중립")
+        kw = (" ← %s" % f.get("grade_kw")) if f.get("grade_kw") else ""
+        print("    ★ [%s] %s (%s · %s) [%s]%s"
+              % (f["brand"], f["title"][:56], f["source"], f["date"], g, kw))
     print("[brand_news] 최종 표시 items %d / featured %d" % (len(items), len(featured)))
     return {"status": "ok", "items": [_out(x) for x in items],
             "featured": [_out(x) for x in featured]}
