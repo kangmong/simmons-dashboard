@@ -587,6 +587,92 @@ def _fmt_pubdate(s):
 DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]           # 국내(한국어 검색)
 GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(영어 검색)
 
+# 이름이 일반 단어·타 고유명사와 충돌하는 브랜드는 정확 구문으로 좁힌다.
+# (기본 쿼리 '"브랜드" (new OR launch OR release OR mattress)' 는 OR 때문에
+#  'Purple' + 'new' 만으로도 걸려 록밴드 Deep Purple 기사가 섞였다)
+# ★ Casper/Nectar/Saatva/Sealy 는 현재 GLOBAL_BRANDS 에 없지만, 나중에 추가해도
+#   바로 안전하도록 미리 넣어 둔다(목록에 없으면 사용되지 않는다).
+GLOBAL_BRAND_QUERY = {
+    # 색상어 + 록밴드 Deep Purple + Purple Rain/Purple Heart 등과 충돌 → 정확 구문만
+    "Purple": '"Purple mattress" OR "Purple Innovation" OR "Purple Mattress Company"',
+    # 유령 캐릭터 Casper 와 충돌
+    "Casper": '"Casper mattress" OR "Casper Sleep" OR "Casper bed"',
+    # 일반 명사(꿀·과즙)와 충돌
+    "Nectar": '"Nectar mattress" OR "Nectar Sleep" OR "Nectar bed"',
+    # 비교적 고유하지만 오탐 여지가 있어 매트리스 맥락을 함께 요구
+    "Serta": '"Serta mattress" OR "Serta Simmons" OR "Serta iComfort" OR "Serta Perfect Sleeper"',
+    "Saatva": '"Saatva mattress" OR "Saatva bed"',
+    "Sealy": '"Sealy mattress" OR "Sealy Posturepedic"',
+}
+
+# ── 국외 기사 관련성 필터 ────────────────────────────────────────────────
+# 매트리스 맥락 단어. 하나라도 있으면 통과시킨다(음악 아티스트 협업 마케팅 등도 살린다).
+_ON_TOPIC_WORDS = ("mattress", "mattresses", "bed", "beds", "bedding", "sleep", "sleeper",
+                   "pillow", "pillows", "foam", "furniture")
+# 명백히 무관한 분야(음악·연예) 매체
+_OFF_TOPIC_SOURCES = ("loudwire", "rollingstone", "billboard", "pitchfork", "consequence",
+                      "spin.com", "nme.com", "kerrang", "revolvermag", "ultimateclassicrock",
+                      "brooklynvegan", "stereogum", "variety", "hollywoodreporter", "tmz")
+# 밴드·앨범·공연 관련어
+_OFF_TOPIC_WORDS = ("band", "album", "tour", "concert", "reunion", "rock", "guitarist",
+                    "drummer", "bassist", "singer", "vocalist", "setlist", "gig",
+                    "festival", "lineup", "song", "frontman", "discography", "tracklist")
+
+
+def _strip_tags(html):
+    """RSS description 의 HTML 태그 제거(관련성 판정용 평문)."""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html or "")).strip()
+
+
+def _has_word(text, words):
+    """단어 경계 기준 포함 검사 — 첫 매칭 단어 반환(없으면 None).
+       'rocket' 이 'rock' 으로 잡히는 식의 오탐을 막는다."""
+    for w in words:
+        if re.search(r"\b%s\b" % re.escape(w), text):
+            return w
+    return None
+
+
+# 브랜드가 '매트리스 회사'임을 확정해 주는 표기 — 모호하지 않은 형태만 넣는다.
+# ★ 'Purple' 단독은 색상·록밴드와 겹치므로 절대 넣지 않는다.
+# 이 표기가 있으면 제목에 mattress/bed 가 없어도 통과시킨다. 그렇게 하지 않으면
+# "Serta Simmons names new CEO", "Purple Innovation reports Q2 earnings" 같은
+# 정작 중요한 경쟁사 실적·인사·M&A 기사가 전부 걸러진다.
+GLOBAL_BRAND_ALIASES = {
+    "Purple": ("purple innovation", "purple mattress"),
+    "Serta": ("serta",),
+    "Sleep Number": ("sleep number",),
+    "Tempur-Pedic": ("tempur",),
+    "Casper": ("casper sleep",),
+    "Nectar": ("nectar sleep",),
+    "Saatva": ("saatva",),
+    "Sealy": ("sealy",),
+}
+
+
+def _brand_relevant(title, source, brand=None, desc=None):
+    """국외(영문) 기사 관련성 판정 → (통과여부, 제외사유).
+       판정 대상은 제목 + RSS 스니펫(description).
+       1) 매트리스 관련어가 있으면 통과 (음악 아티스트 협업 마케팅 기사도 여기서 살아난다)
+       2) 브랜드의 '모호하지 않은 회사 표기'가 있으면 통과 (실적·인사·M&A 기사 보호)
+       3) 음악·연예 매체이거나 밴드 관련어가 있으면 제외
+       4) 아무 근거도 없으면 제외"""
+    t = (title or "").lower()
+    body = (t + " " + _strip_tags((desc or "")).lower()).strip()
+    s = (source or "").lower()
+    if _has_word(body, _ON_TOPIC_WORDS):
+        return True, None
+    for alias in GLOBAL_BRAND_ALIASES.get(brand or "", ()):
+        if alias in body:
+            return True, None
+    bad_src = next((d for d in _OFF_TOPIC_SOURCES if d in s), None)
+    if bad_src:
+        return False, "무관 매체(%s)" % bad_src
+    bad_w = _has_word(t, _OFF_TOPIC_WORDS)
+    if bad_w:
+        return False, "밴드·공연 키워드(%s)" % bad_w
+    return False, "매트리스 관련어 없음"
+
 # 브랜드 공식 도메인 → 무료 로고 서비스(Clearbit, 키 불필요)로 로고 URL 생성.
 # 기사 사진이 없을 때 프런트에서 이 주소를 img src 로 바로 사용한다.
 BRAND_DOMAINS = {
@@ -742,7 +828,7 @@ def _brand_news(brands, query_fn, hl, gl):
     """브랜드별 신제품 뉴스를 모아 {status, items(≤6), featured(브랜드당 1건·≤3)} 반환.
        한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error. (국내·국외 공용)"""
     lang = hl.split("-")[0]
-    collected, media_by_link = [], {}
+    collected, media_by_link, brand_stat = [], {}, {}
     for brand in brands:
         try:
             url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(query_fn(brand))
@@ -752,15 +838,24 @@ def _brand_news(brands, query_fn, hl, gl):
             root = ET.fromstring(resp.content)
         except Exception:  # noqa: BLE001 — 한 브랜드 실패해도 계속
             continue
-        cnt = 0
+        cnt, seen, dropped = 0, 0, []
         for item in root.iter("item"):
             title = (item.findtext("title") or "").strip()
             if not title:
                 continue
+            seen += 1
             link = (item.findtext("link") or "").strip()
             pub = item.findtext("pubDate") or ""
             src_el = item.find("source")
             source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
+            # 국외(영문)만 관련성 필터. 검색어를 좁혀도 새어 나오는 무관 기사를 여기서 막는다.
+            # ★ 필터는 append 전에 두어, 제외된 기사가 '브랜드당 3건' 슬롯을 먹지 않게 한다.
+            if lang == "en":
+                okrel, why = _brand_relevant(title, source, brand,
+                                             item.findtext("description") or "")
+                if not okrel:
+                    dropped.append((title, source, why))
+                    continue
             media = _rss_media(item)
             if link and media:
                 media_by_link[link] = media
@@ -770,6 +865,12 @@ def _brand_news(brands, query_fn, hl, gl):
             cnt += 1
             if cnt >= 3:  # 브랜드별 최신 최대 3건(중복 제거 재료 확보)
                 break
+        brand_stat[brand] = cnt
+        print("[brand_news][%s] 검색 %d건 → 통과 %d건 / 제외 %d건" % (brand, seen, cnt, len(dropped)))
+        for t, s, why in dropped[:6]:
+            print("    ✗ %s%s — %s" % (t[:64], (" (%s)" % s) if s else "", why))
+        if cnt == 0:
+            print("[brand_news][%s] ⚠ 필터 후 기사 0건 — 다른 브랜드 기사로 채웁니다" % brand)
 
     if not collected:
         return {"status": "error", "reason": "브랜드 뉴스를 받지 못했습니다"}
@@ -850,7 +951,26 @@ def _brand_news(brands, query_fn, hl, gl):
         if b not in best or _rep_key(r) < _rep_key(best[b]):
             best[b] = r
     featured = sorted(best.values(), key=lambda x: x["date"], reverse=True)[:3]
+    # 카드가 3칸이므로 항상 3개를 채운다 — 브랜드가 모자라면 같은 브랜드의 다음 기사로 보충.
+    if len(featured) < 3:
+        have = {id(f) for f in featured}
+        for r in reps:
+            if len(featured) >= 3:
+                break
+            if id(r) not in have:
+                featured.append(r)
+                have.add(id(r))
+        featured = sorted(featured, key=lambda x: x["date"], reverse=True)[:3]
+        print("[brand_news] featured 부족 → 다른 기사로 보충해 %d건" % len(featured))
 
+    empty = [b for b, c in brand_stat.items() if c == 0]
+    if empty:
+        print("[brand_news] ⚠ 필터 후 0건 브랜드: %s" % ", ".join(empty))
+    print("[brand_news] 브랜드별 통과 건수: %s"
+          % ", ".join("%s %d" % (b, c) for b, c in brand_stat.items()))
+    print("[brand_news] 최종 선택 featured:")
+    for f in featured:
+        print("    ★ [%s] %s (%s · %s)" % (f["brand"], f["title"][:60], f["source"], f["date"]))
     print("[brand_news] 최종 표시 items %d / featured %d" % (len(items), len(featured)))
     return {"status": "ok", "items": [_out(x) for x in items],
             "featured": [_out(x) for x in featured]}
@@ -861,9 +981,15 @@ def update_domestic():
     return _brand_news(DOMESTIC_BRANDS, lambda b: '"%s" (신제품 OR 출시 OR 론칭)' % b, "ko", "KR")
 
 
+def _global_query(brand):
+    """이름 충돌 브랜드는 GLOBAL_BRAND_QUERY 의 정확 구문을, 나머지는 기본 쿼리를 쓴다."""
+    q = GLOBAL_BRAND_QUERY.get(brand)
+    return q if q else '"%s" (new OR launch OR release OR mattress)' % brand
+
+
 def update_global_brands():
     """국외 브랜드(Sleep Number·Tempur-Pedic·Purple·Serta) 신제품 뉴스 (영어)."""
-    return _brand_news(GLOBAL_BRANDS, lambda b: '"%s" (new OR launch OR release OR mattress)' % b, "en-US", "US")
+    return _brand_news(GLOBAL_BRANDS, _global_query, "en-US", "US")
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
