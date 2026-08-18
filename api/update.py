@@ -18,7 +18,9 @@ SIMMONS 대시보드 — Vercel 서버리스 함수 (/api/update).
 import re
 import os
 import sys
+import io
 import json
+import time
 import datetime
 import urllib.parse
 import concurrent.futures
@@ -689,6 +691,9 @@ def _brand_relevant(title, source, brand=None, desc=None):
         return False, "밴드·공연 키워드(%s)" % bad_w
     return False, "매트리스 관련어 없음"
 
+# 브랜드 기사 이미지 추출 동시 요청 수. 차단되면 낮출 것(보수적으로 4에서 시작).
+BRAND_IMG_WORKERS = 4
+
 # ── 신제품 동향 판정 (국내·국외 공통) ───────────────────────────────────
 # 제외: 실적·재무·M&A·인사 기사. 섹션 제목이 '신제품·브랜드 동향'인데 이런 기사가 섞였다.
 # ★ 실적은 '국내외 경쟁사 분기 실적' 섹션이 따로 있어 중복이다.
@@ -984,17 +989,19 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
 
     # 이미지 확보(RSS media → 기사 메타 태그): 중복 판정(이미지 URL 신호)·대표 선정에 필요.
     # 요청 간 300ms 대기(기사 수만큼 요청이 나간다). 실패는 조용히 로고 폴백.
-    import time as _time
+    # ★ 성능: 기사 1건당 요청 3회(Google News 디코드 GET+POST, 메타 GET)가 나가
+    #   순차로 돌리면 국내 24건에 70초가 걸렸다(전체의 90%). 스레드 풀로 병렬화한다.
+    #   기사마다 언론사가 달라 특정 호스트에 몰리지 않으므로 sleep 없이 동시 4개로 제한.
     img_cache, img_stat, img_fail = {}, {"rss": 0, "meta": 0}, []
-
-    def _resolve_img(link):
-        if link not in img_cache:
-            if img_cache:
-                _time.sleep(0.3)
-            img_cache[link] = _brand_image(link, media_by_link.get(link))
-        return img_cache[link]
+    links = list(dict.fromkeys(it["link"] for it in collected if it.get("link")))
+    if links:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(BRAND_IMG_WORKERS, len(links))) as _ex:
+            for lk, res in zip(links, _ex.map(
+                    lambda l: _brand_image(l, media_by_link.get(l)), links)):
+                img_cache[lk] = res
     for it in collected:
-        img, how = _resolve_img(it["link"])
+        img, how = img_cache.get(it.get("link"), (None, "링크 없음"))
         it["image"] = img
         if img:
             img_stat[how] = img_stat.get(how, 0) + 1
@@ -1693,14 +1700,109 @@ if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 �
     FETCHERS["koima_index"] = update_koima_index
 
 
-def build_payload():
+# ── 수집 실행: 서버별 그룹 병렬 + 월간 데이터 당일 캐시 ────────────────────
+# 같은 외부 서버를 치는 수집기는 한 그룹에 묶어 그룹 '안에서는 순차'로 돌린다.
+# 서로 다른 그룹끼리만 동시에 실행한다.
+FETCH_GROUPS = [
+    ["simmons_news", "domestic", "global_brands"],   # news.google.com
+    ["schedule_reliability", "sr_forecast"],         # sea-intelligence.com
+    ["oil_prices", "oil_forecast"],                  # petronet.co.kr
+    ["usd_krw", "fx"],                               # frankfurter.app
+    ["koima_index"],                                 # koimaindex.com
+    ["competitors"],                                 # SEC EDGAR
+    ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
+]
+# 한 달에 한 번만 바뀌는 데이터 → 같은 날 이미 받았으면 재사용한다.
+MONTHLY_CACHED = ("koima_index", "schedule_reliability", "sr_forecast")
+_UPDATE_CACHE = "update-cache.json"
+
+
+def _cache_path():
+    """쓰기 가능한 위치를 고른다(배포 번들은 읽기 전용이라 임시 디렉터리로 폴백)."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    d = os.path.join(base, "tmp")
+    try:
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        return os.path.join(d, _UPDATE_CACHE)
+    except OSError:
+        import tempfile
+        return os.path.join(tempfile.gettempdir(), _UPDATE_CACHE)
+
+
+def _cache_load():
+    """{name: {"date": "YYYY-MM-DD", "payload": {...}}}. 실패해도 예외를 내지 않는다."""
+    try:
+        p = _cache_path()
+        if os.path.isfile(p):
+            return json.load(io.open(p, encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        pass
+    return {}
+
+
+def _cache_save(cache):
+    try:
+        with io.open(_cache_path(), "w", encoding="utf-8") as f:
+            f.write(json.dumps(cache, ensure_ascii=False))
+    except Exception as e:  # noqa: BLE001
+        print("[update] 캐시 저장 생략(쓰기 불가): %s" % e)
+
+
+def run_fetchers(force=False):
+    """FETCHERS 를 그룹 병렬로 실행해 sections dict 반환.
+       force=True 면 월간 캐시를 무시하고 전부 새로 수집한다."""
+    groups = [[n for n in g if n in FETCHERS] for g in FETCH_GROUPS]
+    listed = {n for g in groups for n in g}
+    groups += [[n] for n in FETCHERS if n not in listed]   # 목록에 없는 수집기는 단독 그룹
+    groups = [g for g in groups if g]
+
+    today = datetime.date.today().isoformat()
+    cache = {} if force else _cache_load()
+    sections, used_cache = {}, []
+
+    def run_group(names):
+        out = {}
+        for n in names:
+            c = cache.get(n)
+            if (not force) and n in MONTHLY_CACHED and c and c.get("date") == today                     and isinstance(c.get("payload"), dict):
+                out[n] = c["payload"]
+                used_cache.append(n)
+                continue
+            t = time.time()
+            try:
+                out[n] = FETCHERS[n]()
+            except Exception as e:  # noqa: BLE001
+                out[n] = {"status": "error", "reason": str(e)}
+            st = out[n].get("status", "?") if isinstance(out[n], dict) else "?"
+            print("[update] %-22s %6.1f초  %s" % (n, time.time() - t, st))
+        return out
+
+    t0 = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(groups))) as ex:
+        for res in ex.map(run_group, groups):
+            sections.update(res)
+
+    if used_cache:
+        print("[update] 당일 캐시 재사용(월간 데이터): %s" % ", ".join(used_cache))
+    new_cache = dict(cache)
+    for n in MONTHLY_CACHED:
+        s = sections.get(n)
+        if isinstance(s, dict) and s.get("status") == "ok" and n not in used_cache:
+            new_cache[n] = {"date": today, "payload": s}
+    if new_cache != cache:
+        _cache_save(new_cache)
+
+    failed = [n for n, s in sections.items()
+              if isinstance(s, dict) and s.get("status") not in ("ok", None)]
+    print("[update] 총 %.1f초 · 그룹 %d개 병렬 · 실패 %s"
+          % (time.time() - t0, len(groups), ", ".join(failed) if failed else "없음"))
+    return sections
+
+
+def build_payload(force=False):
     """모든 fetcher 실행 → dashboard_server.py 와 동일한 응답 dict."""
-    sections = {}
-    for name, fn in FETCHERS.items():
-        try:
-            sections[name] = fn()
-        except Exception as e:  # noqa: BLE001
-            sections[name] = {"status": "error", "reason": str(e)}
+    sections = run_fetchers(force=force)
     updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return {"updated_at": updated_at, "sections": sections}
 
