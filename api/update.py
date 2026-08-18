@@ -581,7 +581,22 @@ def _fmt_pubdate(s):
 
 
 # ── 국내외 브랜드 신제품 — Google News RSS (무료·무키) ───────────────────
-DOMESTIC_BRANDS = ["에이스침대", "씰리", "한샘", "이케아"]           # 국내(한국어 검색)
+DOMESTIC_BRANDS = ["씰리침대", "템퍼", "슬럼버랜드", "킹스다운", "지누스"]  # 국내(한국어 검색)
+
+# 국내 브랜드 검색 쿼리 — 이름이 일반 단어·타 브랜드와 겹치면 '침대/매트리스'를 함께 요구한다.
+# (실측 충돌: "템퍼" → 리더뮨 '템퍼픽션'(구강용해필름) 기사,
+#             "슬럼버랜드" → 애니메이션 영화 Slumberland 기사)
+# ★ 값이 있으면 그 문자열을 그대로 쓴다(신제품 절을 붙이지 않는다).
+#   슬럼버랜드·킹스다운은 국내 기사 수 자체가 적어 신제품 절을 붙이면 0건이 되므로 뺐다.
+#   대신 하류의 _news_grade 가 실적·M&A 기사를 걸러 준다.
+DOMESTIC_BRAND_QUERY = {
+    "씰리침대": '("씰리침대" OR "씰리 매트리스" OR "Sealy") (신제품 OR 출시 OR 론칭)',
+    "템퍼": '("템퍼 매트리스" OR "템퍼코리아" OR "템퍼 침대" OR "템퍼 모션베드" OR "Tempur")'
+            ' (신제품 OR 출시 OR 론칭)',
+    "슬럼버랜드": '("슬럼버랜드 매트리스" OR "슬럼버랜드 침대" OR "슬럼버랜드 호텔")',
+    "킹스다운": '("킹스다운 매트리스" OR "킹스다운 침대")',
+    "지누스": '("지누스" OR "지누스 매트리스" OR "Zinus") (신제품 OR 출시 OR 론칭)',
+}
 GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(영어 검색)
 
 # 이름이 일반 단어·타 고유명사와 충돌하는 브랜드는 정확 구문으로 좁힌다.
@@ -749,6 +764,10 @@ BRAND_DOMAINS = {
     "씰리": "sealy.co.kr",
     "한샘": "hanssem.com",
     "이케아": "ikea.com",
+    "씰리침대": "sealy.co.kr",
+    "슬럼버랜드": "slumberland.co.kr",
+    "킹스다운": "kingsdown.co.kr",
+    "지누스": "zinus.com",
     "Sleep Number": "sleepnumber.com",
     "Tempur-Pedic": "tempurpedic.com",
     "Purple": "purple.com",
@@ -761,7 +780,10 @@ _BRAND_CANON = {
     "에이스침대": "에이스침대", "ace": "에이스침대", "acebed": "에이스침대", "ace침대": "에이스침대",
     "이케아": "이케아", "ikea": "이케아", "이케아코리아": "이케아", "ikeakorea": "이케아",
     "한샘": "한샘", "hanssem": "한샘",
-    "씰리": "씰리", "sealy": "씰리",
+    "씰리": "씰리", "sealy": "씰리", "씰리침대": "씰리침대", "씰리코리아": "씰리침대",
+    "슬럼버랜드": "슬럼버랜드", "slumberland": "슬럼버랜드",
+    "킹스다운": "킹스다운", "kingsdown": "킹스다운",
+    "지누스": "지누스", "zinus": "지누스",
     "sleepnumber": "Sleep Number",
     "tempur-pedic": "Tempur-Pedic", "tempurpedic": "Tempur-Pedic", "tempur": "Tempur-Pedic", "템퍼": "Tempur-Pedic",
     "purple": "Purple", "퍼플": "Purple",
@@ -1063,9 +1085,16 @@ def _brand_news(brands, query_fn, hl, gl):
             "featured": [_out(x) for x in featured]}
 
 
+def _domestic_query(brand):
+    """이름 충돌 브랜드는 DOMESTIC_BRAND_QUERY 의 정확 구문을, 나머지는 기본 쿼리를 쓴다.
+       (검색어는 _brand_news 안에서 urllib.parse.quote 로 인코딩된다)"""
+    q = DOMESTIC_BRAND_QUERY.get(brand)
+    return q if q else '"%s" (신제품 OR 출시 OR 론칭)' % brand
+
+
 def update_domestic():
-    """국내 브랜드(에이스침대·씰리·한샘·이케아) 신제품 뉴스 (한국어)."""
-    return _brand_news(DOMESTIC_BRANDS, lambda b: '"%s" (신제품 OR 출시 OR 론칭)' % b, "ko", "KR")
+    """국내 브랜드(씰리침대·템퍼·슬럼버랜드·킹스다운·지누스) 신제품 뉴스 (한국어)."""
+    return _brand_news(DOMESTIC_BRANDS, _domestic_query, "ko", "KR")
 
 
 def _global_query(brand):
