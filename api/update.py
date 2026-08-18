@@ -581,7 +581,11 @@ def _fmt_pubdate(s):
 
 
 # ── 국내외 브랜드 신제품 — Google News RSS (무료·무키) ───────────────────
-DOMESTIC_BRANDS = ["씰리침대", "템퍼", "슬럼버랜드", "킹스다운", "지누스"]  # 국내(한국어 검색)
+# 국내: 상단(대표 출시 상품)과 하단(기사 목록)이 서로 다른 브랜드를 본다.
+# 수집은 두 목록의 합집합으로 '한 번만' 하고, 표시 단계에서 각각 필터링한다.
+DOMESTIC_FEATURED_BRANDS = ["한샘", "에이스침대", "이케아"]                    # 상단 3칸
+DOMESTIC_ITEM_BRANDS = ["씰리침대", "템퍼", "슬럼버랜드", "킹스다운", "지누스"]   # 하단 목록
+DOMESTIC_BRANDS = DOMESTIC_FEATURED_BRANDS + DOMESTIC_ITEM_BRANDS            # 수집 대상(합집합)
 
 # 국내 브랜드 검색 쿼리 — 이름이 일반 단어·타 브랜드와 겹치면 '침대/매트리스'를 함께 요구한다.
 # (실측 충돌: "템퍼" → 리더뮨 '템퍼픽션'(구강용해필름) 기사,
@@ -915,9 +919,13 @@ def _product_name(title, brand, source):
     return t.strip() or (title or "").strip()
 
 
-def _brand_news(brands, query_fn, hl, gl):
+def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=None):
     """브랜드별 신제품 뉴스를 모아 {status, items(≤6), featured(브랜드당 1건·≤3)} 반환.
-       한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error. (국내·국외 공용)"""
+       한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error. (국내·국외 공용)
+
+       featured_brands / items_brands 를 주면 상단·하단이 서로 다른 브랜드를 본다.
+       (수집은 brands 전체로 한 번만 하고 표시 단계에서 나눈다 — 중복 수집 없음)
+       생략하면 종전처럼 양쪽 모두 전체 브랜드를 대상으로 한다."""
     lang = hl.split("-")[0]
     collected, media_by_link, brand_stat = [], {}, {}
     for brand in brands:
@@ -1034,33 +1042,48 @@ def _brand_news(brands, query_fn, hl, gl):
                 "product_name": it.get("product_name"),
                 "logo_url": it.get("logo_url"), "logo_fallback": it.get("logo_fallback")}
 
-    # items: 브랜드별 최소 1건 보장 → 나머지(우선→중립 순)로 채워 6건
-    items, picked = [], set()
-    for r in reps:  # 브랜드별 대표 먼저(브랜드 누락 방지)
-        if r["brand"] not in {x["brand"] for x in items}:
-            items.append(r)
-            picked.add(id(r))
-    for r in reps:  # 남은 슬롯 채움
-        if id(r) not in picked and len(items) < 6:
-            items.append(r)
-            picked.add(id(r))
-    items = sorted(items[:6], key=lambda x: x["date"], reverse=True)
+    # 상단·하단이 볼 기사 풀을 나눈다(목록을 주지 않으면 종전대로 전체).
+    feat_pool = [r for r in reps if r["brand"] in featured_brands] if featured_brands else reps
+    item_pool = [r for r in reps if r["brand"] in items_brands] if items_brands else reps
+    if featured_brands or items_brands:
+        print("[brand_news] 상단 대상 %s → %d건 / 하단 대상 %s → %d건"
+              % (featured_brands or "전체", len(feat_pool), items_brands or "전체", len(item_pool)))
 
     # featured(대표 출시 상품): 브랜드당 1건 → 우선 등급·사진 순으로 3건
     best = {}
-    for r in reps:                       # reps 는 이미 (우선→중립, 사진, 최신) 순
+    for r in feat_pool:                  # reps 는 이미 (우선→중립, 사진, 최신) 순
         best.setdefault(r["brand"], r)
     featured = list(best.values())[:3]
     # 카드가 3칸이므로 항상 3개를 채운다 — 브랜드가 모자라면 중립 기사까지 끌어 쓴다.
     if len(featured) < 3:
         have = {id(f) for f in featured}
-        for r in reps:
+        for r in feat_pool:
             if len(featured) >= 3:
                 break
             if id(r) not in have:
                 featured.append(r)
                 have.add(id(r))
         print("[brand_news] featured 부족 → 다른 기사로 보충해 %d건" % len(featured))
+
+    # items: 브랜드별 최소 1건 보장 → 나머지(우선→중립 순)로 채워 6건.
+    # ★ 상단에 쓴 기사는 하단에서 뺀다 — 같은 기사가 두 번 보이지 않게.
+    #   (상·하단 브랜드가 겹치지 않으면 원래 안 겹치지만, 한 기사가 여러 브랜드
+    #    쿼리에 동시에 걸릴 수 있어 링크 기준으로 한 번 더 막는다)
+    used_links = {f.get("link") for f in featured if f.get("link")}
+    pool = [r for r in item_pool if r.get("link") not in used_links]
+    dropped_dup = len(item_pool) - len(pool)
+    if dropped_dup:
+        print("[brand_news] 상단과 중복된 기사 %d건을 하단에서 제외" % dropped_dup)
+    items, picked = [], set()
+    for r in pool:  # 브랜드별 대표 먼저(브랜드 누락 방지)
+        if r["brand"] not in {x["brand"] for x in items}:
+            items.append(r)
+            picked.add(id(r))
+    for r in pool:  # 남은 슬롯 채움
+        if id(r) not in picked and len(items) < 6:
+            items.append(r)
+            picked.add(id(r))
+    items = sorted(items[:6], key=lambda x: x["date"], reverse=True)
     # 그래도 모자라면 빈 칸 대신 안내 카드를 채운다.
     while len(featured) < 3:
         featured.append({"brand": "", "title": "최근 관련 기사 없음", "source": "",
@@ -1093,8 +1116,11 @@ def _domestic_query(brand):
 
 
 def update_domestic():
-    """국내 브랜드(씰리침대·템퍼·슬럼버랜드·킹스다운·지누스) 신제품 뉴스 (한국어)."""
-    return _brand_news(DOMESTIC_BRANDS, _domestic_query, "ko", "KR")
+    """국내 브랜드 신제품 뉴스 (한국어).
+       상단: 한샘·에이스침대·이케아 / 하단: 씰리침대·템퍼·슬럼버랜드·킹스다운·지누스."""
+    return _brand_news(DOMESTIC_BRANDS, _domestic_query, "ko", "KR",
+                       featured_brands=DOMESTIC_FEATURED_BRANDS,
+                       items_brands=DOMESTIC_ITEM_BRANDS)
 
 
 def _global_query(brand):
