@@ -1,18 +1,60 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/update.py", "use": "@vercel/python",
-      "config": { "includeFiles": ["*.py", "public/data/schedule-reliability.json"] } },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "app.js", "use": "@vercel/static" },
-    { "src": "styles.css", "use": "@vercel/static" },
-    { "src": "logo.svg", "use": "@vercel/static" },
-    { "src": "world-map.svg", "use": "@vercel/static" },
-    { "src": "public/data/koima-price.json", "use": "@vercel/static" }
+    {
+      "src": "api/update.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": [
+          "*.py",
+          "public/data/schedule-reliability.json"
+        ]
+      }
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "app.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "logo.svg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "world-map.svg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/dashboard.json",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/koima-price.json",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/api/update", "methods": ["GET", "POST"], "dest": "/api/update.py" },
-    { "handle": "filesystem" },
-    { "src": "/", "dest": "/index.html" }
+    {
+      "src": "/api/update",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "dest": "/api/update.py"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    }
   ]
 }

@@ -3097,6 +3097,34 @@ function resetDashboard() {
   refreshSections();
 }
 
+/* ── 데이터 로드: 사전 수집 JSON 우선, 실패 시 실시간 수집으로 폴백 ──────────
+   GitHub Actions 가 매일 새벽 public/data/dashboard.json 을 만들어 커밋한다.
+   그 파일을 읽으면 즉시 완료된다(콜드 수집은 약 30초).
+   파일이 없거나 못 읽으면 종전처럼 /api/update 가 직접 수집한다(로컬 개발 등). */
+const DASH_DATA_URL = 'public/data/dashboard.json';
+
+/** {data, source:'static'|'live'} 반환. 둘 다 실패하면 throw. */
+async function fetchDashboardData() {
+  try {
+    const r = await fetch(DASH_DATA_URL, { cache: 'no-store' });
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.sections && Object.keys(d.sections).length) {
+        console.log('[update] 사전 수집 데이터 사용:', d.updated_at);
+        return { data: d, source: 'static' };
+      }
+      console.warn('[update] 사전 수집 파일이 비어 있음 → 실시간 수집으로 폴백');
+    } else if (r.status !== 404) {
+      console.warn('[update] 사전 수집 파일 HTTP', r.status, '→ 실시간 수집으로 폴백');
+    }
+  } catch (e) {
+    console.warn('[update] 사전 수집 파일 읽기 실패 → 실시간 수집으로 폴백:', e);
+  }
+  const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return { data: await res.json(), source: 'live' };
+}
+
 /** 순수 추가: /api/update 응답에서 '건너뜀(캐시)'·'실패' 섹션을 요약한 문구.
  *  사용자가 "안 돈 것"과 "이미 최신이라 건너뛴 것"을 구분할 수 있게 한다. */
 function updateStatusNote(data) {
@@ -3141,13 +3169,11 @@ function initUpdate() {
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchKoimaPrice();
     try {
-      const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      // 순수 추가: 캐시로 '건너뛴' 수집기와 '실패한' 수집기를 기존 라벨 뒤에 덧붙인다.
-      // (레이아웃은 그대로 — 이미 있는 텍스트 요소의 문구만 늘린다)
+      const { data, source } = await fetchDashboardData();
+      // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를
+      // 기존 라벨 뒤에 덧붙인다. (레이아웃은 그대로 — 문구만 늘린다)
       if (lbl && data.updated_at) lbl.textContent = '마지막 업데이트: ' + data.updated_at
-        + updateStatusNote(data);
+        + (source === 'static' ? ' (사전 수집)' : '') + updateStatusNote(data);
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
       applyFxUpdate(data);

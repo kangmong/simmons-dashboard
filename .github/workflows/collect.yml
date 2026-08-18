@@ -1,0 +1,67 @@
+name: 대시보드 데이터 사전 수집
+
+# 새벽에 미리 수집해 public/data/dashboard.json 으로 커밋한다.
+# 그러면 대시보드의 [업데이트] 버튼은 이 파일만 읽어 즉시 완료된다.
+on:
+  schedule:
+    - cron: '0 20 * * *'      # UTC 20:00 = KST 05:00 (매일)
+  workflow_dispatch:           # 수동 실행(강제 재수집 옵션 제공)
+    inputs:
+      force:
+        description: '캐시를 무시하고 전부 새로 수집'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write              # 결과 JSON 커밋용
+
+concurrency:
+  group: collect-dashboard     # 겹쳐 돌지 않게
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30        # 콜드 수집이 30초라 넉넉하다(네트워크 지연 대비)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 데이터 수집
+        run: python collect_all.py ${{ inputs.force && '--force' || '' }}
+
+      - name: 변경 있을 때만 커밋·푸시
+        run: |
+          if git diff --quiet -- public/data/dashboard.json; then
+            echo "내용 변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/dashboard.json
+          git commit -m "자동 수집: 대시보드 데이터 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'))"
+          git push
+
+      - name: 수집 실패 섹션 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/dashboard.json"
+          if not os.path.isfile(p):
+              print("::warning::dashboard.json 이 없습니다"); raise SystemExit(0)
+          d = json.load(io.open(p, encoding="utf-8"))
+          secs = d.get("sections", {})
+          bad = [n for n, s in secs.items()
+                 if isinstance(s, dict) and s.get("status") not in ("ok", None)]
+          print("수집 시각:", d.get("updated_at"), "· 섹션", len(secs), "· 실패", len(bad))
+          if bad:
+              print("::warning::수집 실패 섹션: %s" % ", ".join(bad))
+          PY
