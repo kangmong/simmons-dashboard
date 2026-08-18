@@ -3097,6 +3097,33 @@ function resetDashboard() {
   refreshSections();
 }
 
+/** 순수 추가: /api/update 응답에서 '건너뜀(캐시)'·'실패' 섹션을 요약한 문구.
+ *  사용자가 "안 돈 것"과 "이미 최신이라 건너뛴 것"을 구분할 수 있게 한다. */
+function updateStatusNote(data) {
+  const secs = (data && data.sections) || {};
+  const skipped = [], failed = [];
+  Object.keys(secs).forEach((k) => {
+    const v = secs[k];
+    if (!v || typeof v !== 'object') return;
+    if (v.cached) skipped.push(SECTION_LABELS[k] || k);
+    else if (v.status && v.status !== 'ok') failed.push(SECTION_LABELS[k] || k);
+  });
+  if (skipped.length) console.log('[update] 건너뜀(캐시 재사용):', skipped.join(', '));
+  if (failed.length) console.warn('[update] 수집 실패:', failed.join(', '));
+  let s = '';
+  if (skipped.length) s += ` · 건너뜀 ${skipped.length}건(${skipped.join(', ')})`;
+  if (failed.length) s += ` · 실패 ${failed.length}건(${failed.join(', ')})`;
+  return s;
+}
+
+/** 섹션 키 → 사람이 읽는 이름(위 문구 전용) */
+const SECTION_LABELS = {
+  simmons_news: '시몬스 소식', usd_krw: '환율(USD)', schedule_reliability: '해상 정시성',
+  oil_prices: '국제유가', domestic: '국내 브랜드', global_brands: '국외 브랜드',
+  competitors: '경쟁사 실적', fx: '환율', icis_forecast: '주원료 예측',
+  sr_forecast: '정시성 예측', oil_forecast: '유가 예측', koima_index: 'KOIMA 월간지수',
+};
+
 /** [업데이트] 버튼: /api/update 호출 → 마지막 업데이트 시각 + 원자재 섹션 갱신 */
 function initUpdate() {
   const btn = document.getElementById('updateBtn');
@@ -3117,7 +3144,10 @@ function initUpdate() {
       const res = await fetch(API_BASE + '/api/update', { method: 'GET', cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      if (lbl && data.updated_at) lbl.textContent = '마지막 업데이트: ' + data.updated_at;
+      // 순수 추가: 캐시로 '건너뛴' 수집기와 '실패한' 수집기를 기존 라벨 뒤에 덧붙인다.
+      // (레이아웃은 그대로 — 이미 있는 텍스트 요소의 문구만 늘린다)
+      if (lbl && data.updated_at) lbl.textContent = '마지막 업데이트: ' + data.updated_at
+        + updateStatusNote(data);
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
       applyFxUpdate(data);

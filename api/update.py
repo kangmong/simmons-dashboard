@@ -21,6 +21,7 @@ import sys
 import io
 import json
 import time
+import threading
 import datetime
 import urllib.parse
 import concurrent.futures
@@ -63,6 +64,27 @@ SIMMONS_OTHER_BRANDS = ["세라젬", "쿤달", "코웨이", "바디프랜드", "
                         "알레르망", "이브자리", "지누스", "웰스"]
 _GNEWS_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
+# ── HTTP 커넥션 재사용 ────────────────────────────────────────────────────
+# requests.get/post 를 매번 호출하면 요청마다 TLS 핸드셰이크가 새로 일어난다.
+# 브랜드 뉴스 이미지 추출은 기사당 3요청(디코드 GET+POST, 메타 GET)이라
+# 같은 호스트(news.google.com)에 수십 번 붙는다 → keep-alive 로 재사용한다.
+# ★ requests.Session 은 스레드 안전이 보장되지 않으므로 스레드별로 하나씩 둔다.
+_HTTP_TLS = threading.local()
+
+
+def _http():
+    s = getattr(_HTTP_TLS, "sess", None)
+    if s is None:
+        s = requests.Session()
+        ad = requests.adapters.HTTPAdapter(pool_connections=16, pool_maxsize=16,
+                                           max_retries=0)
+        s.mount("https://", ad)
+        s.mount("http://", ad)
+        # requests 는 기본으로 Accept-Encoding: gzip, deflate 를 보낸다(압축 수신 OK).
+        _HTTP_TLS.sess = s
+    return s
+
+
 # 기사 페이지에서 대표 이미지 후보 (og:image → twitter:image → link[image_src])
 _IMG_METAS = [
     re.compile(r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)', re.I),
@@ -80,7 +102,7 @@ def _decode_gnews_url(link, timeout=8):
         if not m:
             return link
         gid = m.group(1)
-        r = requests.get("https://news.google.com/rss/articles/" + gid, headers=_GNEWS_UA, timeout=timeout)
+        r = _http().get("https://news.google.com/rss/articles/" + gid, headers=_GNEWS_UA, timeout=timeout)
         r.raise_for_status()
         div = BeautifulSoup(r.text, "html.parser").select_one("c-wiz > div")
         if div is None:
@@ -94,7 +116,7 @@ def _decode_gnews_url(link, timeout=8):
                              "X", "X", 1, [1, 1, 1], 1, 1, None, 0, 0, None, 0],
                             gid, int(ts), sig])
         freq = json.dumps([[["Fbv4je", inner, None, "generic"]]])
-        resp = requests.post("https://news.google.com/_/DotsSplashUi/data/batchexecute",
+        resp = _http().post("https://news.google.com/_/DotsSplashUi/data/batchexecute",
                              headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
                                       **_GNEWS_UA},
                              data={"f.req": freq}, timeout=timeout)
@@ -116,7 +138,7 @@ def _page_image(page_url, timeout=8):
     if not page_url or not page_url.startswith("http"):
         return None
     try:
-        r = requests.get(page_url, headers=_GNEWS_UA, timeout=timeout)
+        r = _http().get(page_url, headers=_GNEWS_UA, timeout=timeout)
         r.raise_for_status()
         html = r.text
     except Exception:  # noqa: BLE001
@@ -692,7 +714,7 @@ def _brand_relevant(title, source, brand=None, desc=None):
     return False, "매트리스 관련어 없음"
 
 # 브랜드 기사 이미지 추출 동시 요청 수. 차단되면 낮출 것(보수적으로 4에서 시작).
-BRAND_IMG_WORKERS = 4
+BRAND_IMG_WORKERS = 8
 
 # ── 신제품 동향 판정 (국내·국외 공통) ───────────────────────────────────
 # 제외: 실적·재무·M&A·인사 기사. 섹션 제목이 '신제품·브랜드 동향'인데 이런 기사가 섞였다.
@@ -852,7 +874,7 @@ def _meta_image(page_url, timeout=5):
     if not page_url or not page_url.startswith("http"):
         return None, "링크 없음"
     try:
-        r = requests.get(page_url, headers=_GNEWS_UA, timeout=timeout, allow_redirects=True)
+        r = _http().get(page_url, headers=_GNEWS_UA, timeout=timeout, allow_redirects=True)
         r.raise_for_status()
         html = r.text
     except requests.exceptions.HTTPError as e:            # 403/404 등
@@ -1712,8 +1734,20 @@ FETCH_GROUPS = [
     ["competitors"],                                 # SEC EDGAR
     ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
 ]
-# 한 달에 한 번만 바뀌는 데이터 → 같은 날 이미 받았으면 재사용한다.
-MONTHLY_CACHED = ("koima_index", "schedule_reliability", "sr_forecast")
+# 수집기별 캐시 유효시간(초). 이 시간 안에 성공한 결과가 있으면 재수집을 건너뛴다.
+# ★ 명세의 "월별 데이터는 마지막 데이터 월이 이번/지난달이면 생략"은 채택하지 않았다.
+#   그 규칙이면 월중에 자료가 새로 올라와도 몇 주씩 못 받는다.
+#   대신 '당일 캐시'로 두어 하루 한 번은 반드시 최신을 확인하게 했다.
+CACHE_TTL = {
+    # 뉴스 — 6시간
+    "simmons_news": 6 * 3600, "domestic": 6 * 3600, "global_brands": 6 * 3600,
+    # 일별 데이터 — 당일(24시간)
+    "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_prices": 24 * 3600,
+    "competitors": 24 * 3600,
+    # 월별 데이터 — 당일(24시간)
+    "koima_index": 24 * 3600, "schedule_reliability": 24 * 3600,
+    "sr_forecast": 24 * 3600, "oil_forecast": 24 * 3600, "icis_forecast": 24 * 3600,
+}
 _UPDATE_CACHE = "update-cache.json"
 
 
@@ -1757,7 +1791,7 @@ def run_fetchers(force=False):
     groups += [[n] for n in FETCHERS if n not in listed]   # 목록에 없는 수집기는 단독 그룹
     groups = [g for g in groups if g]
 
-    today = datetime.date.today().isoformat()
+    now = time.time()
     cache = {} if force else _cache_load()
     sections, used_cache = {}, []
 
@@ -1765,9 +1799,16 @@ def run_fetchers(force=False):
         out = {}
         for n in names:
             c = cache.get(n)
-            if (not force) and n in MONTHLY_CACHED and c and c.get("date") == today                     and isinstance(c.get("payload"), dict):
-                out[n] = c["payload"]
+            ttl = CACHE_TTL.get(n, 0)
+            age = now - float(c.get("ts", 0)) if isinstance(c, dict) else None
+            if (not force) and ttl and isinstance(c, dict) and isinstance(c.get("payload"), dict)                     and age is not None and age < ttl:
+                p = dict(c["payload"])
+                p["cached"] = True                      # 건너뜀 표시(프런트·콘솔 공용)
+                p["cached_at"] = c.get("at")
+                out[n] = p
                 used_cache.append(n)
+                print("[update] %-22s %6s   건너뜀(캐시 %.1f시간 전, TTL %.0f시간)"
+                      % (n, "-", age / 3600.0, ttl / 3600.0))
                 continue
             t = time.time()
             try:
@@ -1784,12 +1825,12 @@ def run_fetchers(force=False):
             sections.update(res)
 
     if used_cache:
-        print("[update] 당일 캐시 재사용(월간 데이터): %s" % ", ".join(used_cache))
+        print("[update] 캐시 재사용(건너뜀): %s" % ", ".join(used_cache))
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new_cache = dict(cache)
-    for n in MONTHLY_CACHED:
-        s = sections.get(n)
-        if isinstance(s, dict) and s.get("status") == "ok" and n not in used_cache:
-            new_cache[n] = {"date": today, "payload": s}
+    for n, s in sections.items():
+        if n in CACHE_TTL and isinstance(s, dict) and s.get("status") == "ok"                 and n not in used_cache:
+            new_cache[n] = {"ts": now, "at": stamp, "payload": s}
     if new_cache != cache:
         _cache_save(new_cache)
 
