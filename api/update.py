@@ -516,6 +516,50 @@ def _simmons_plain_top(cands, n):
     return out
 
 
+# ── 최신 기사 위주 선별 (순수 추가) ──────────────────────────────────────
+# ★ 수집 쿼리·관련성 필터·주제 필터·중복 제거·이미지 추출에는 전혀 손대지 않는다.
+#   위 단계가 끝난 '표시 후보'에서 오래된 것을 걸러내고 최신순으로 세우기만 한다.
+SIMMONS_RECENT_WINDOWS = (30, 60, 90)   # 30일 → 부족하면 60 → 90 순으로 완화
+SIMMONS_SHOW = 6                        # 카드 표시 건수(기존과 동일)
+
+
+def _days_ago(item, today):
+    """발행일이 며칠 전인지. 파싱 불가면 None."""
+    try:
+        y, m, d = (int(v) for v in str(item.get("date", ""))[:10].split("-"))
+        return (today - datetime.date(y, m, d)).days
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _simmons_recent(chosen, need=SIMMONS_SHOW):
+    """최근 N일 이내 기사만 남긴다. 자리(need)를 채우지 못하면 창을 넓히고,
+       90일로도 못 채우면 90일 결과를, 그것도 비면 전체를 그대로 쓴다(카드 비지 않게)."""
+    today = datetime.date.today()
+    aged = [(it, _days_ago(it, today)) for it in chosen]
+    unknown = [it for it, a in aged if a is None]
+    if unknown:
+        print("[simmons_news] 발행일 파싱 불가 %d건(최신 판정에서 제외)" % len(unknown))
+
+    widest = []
+    for w in SIMMONS_RECENT_WINDOWS:
+        sel = [it for it, a in aged if a is not None and a <= w]
+        widest = sel or widest
+        if len(sel) >= need:
+            print("[simmons_news] 최신 %d일 이내 %d건으로 %d칸 채움" % (w, len(sel), need))
+            return sel
+        print("[simmons_news] 최신 %d일 이내 %d건 — %d칸에 부족, 창 확대"
+              % (w, len(sel), need))
+
+    if widest:
+        print("[simmons_news] 최대 %d일까지 완화해 %d건 표시(자리 다 못 채움)"
+              % (SIMMONS_RECENT_WINDOWS[-1], len(widest)))
+        return widest
+    print("[simmons_news] WARN %d일 이내 기사 0건 → 기간 제한 없이 %d건 표시(카드 유지)"
+          % (SIMMONS_RECENT_WINDOWS[-1], len(chosen)))
+    return chosen
+
+
 def update_simmons_news():
     """정밀 쿼리 수집 → 관련성 필터 → 제목 유사도 중복 제거(매체 다양성) → 최신순 6건.
        필터/중복제거 후 부족하면 단계적 완화. 검증 로그는 서버 콘솔에 출력."""
@@ -586,10 +630,18 @@ def update_simmons_news():
                 via = ("  ← %s %.2f" % (rs[0], rs[1])) if rs else "  (기준)"
                 print("     · %s%s%s" % (m["title"], via, "   ★대표" if m is rep else ""))
 
+    # 순수 추가: 최신 기사 위주로 표시 대상을 좁히고 최신순으로 세운다.
+    # (중복 제거 대표는 _rep_key 가 고른 그대로 — 판정 로직은 손대지 않았다)
+    chosen = _simmons_recent(chosen)
+    chosen = sorted(chosen, key=lambda x: str(x.get("date") or ""), reverse=True)
+
     items = [{"title": c["title"], "link": c["link"], "source": c["source"],
-              "date": c["date"], "image": c.get("image")} for c in chosen[:6]]
-    print("[simmons_news] 최종 표시 %d건:\n  - %s"
-          % (len(items), "\n  - ".join(x["title"] for x in items)))
+              "date": c["date"], "image": c.get("image")} for c in chosen[:SIMMONS_SHOW]]
+    _today = datetime.date.today()
+    print("[simmons_news] 최종 표시 %d건(최신순):" % len(items))
+    for x in items:
+        a = _days_ago(x, _today)
+        print("  - %s (%s일 전) %s" % (x["date"], a if a is not None else "?", x["title"]))
     return {"status": "ok", "items": items}
 
 
