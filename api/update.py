@@ -56,7 +56,10 @@ except Exception:  # noqa: BLE001
 
 # ── 시몬스 코리아 소식 — Google News RSS (API 키 불필요) ─────────────────
 # 정밀 쿼리(따옴표+OR)로 관련성 높은 기사만. 결과 부족 시 '시몬스' 광의 검색으로 폴백.
-SIMMONS_NARROW_QUERY = '"시몬스 침대" OR "시몬스코리아" OR "시몬스 그로서리"'
+# 8월 기사 8건 중 정확 구문("시몬스 침대")은 1건만 잡았다. 제목이 "시몬스,"로 시작하는
+# 기사(N32 모션베드·더마테스트 등급·펫침대 체험기 등)를 놓치기 때문.
+# "시몬스코리아"는 최근 3개월 0건이라 제거. 범위가 넓어진 만큼 관련성·나열형 필터가 막는다.
+SIMMONS_NARROW_QUERY = '"시몬스" AND 침대'
 SIMMONS_FALLBACK_QUERY = "시몬스"
 # 제목에 이 브랜드가 함께 있으면 '타 브랜드가 주어'일 수 있어 애매 → 통과시키되 로그로 표시
 SIMMONS_OTHER_BRANDS = ["세라젬", "쿤달", "코웨이", "바디프랜드", "에이스침대", "에이스 침대",
@@ -375,14 +378,48 @@ def _img_norm(u):
     return u.split("?")[0].split("#")[0].rstrip("/").lower()
 
 
+# 중복으로 볼 수 있는 최대 발행일 간격(일).
+# 같은 보도자료 받아쓰기는 며칠 안에 몰린다. 몇 달 벌어진 기사는 다른 사건이다.
+DUP_MAX_GAP_DAYS = 14
+
+
+def _date_ord(s):
+    """'YYYY-MM-DD' → 정렬용 정수(YYYYMMDD). 파싱 불가면 0."""
+    try:
+        y, m, d = (int(v) for v in str(s or "")[:10].split("-"))
+        return y * 10000 + m * 100 + d
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _date_gap_days(a, b):
+    """두 기사의 발행일 간격(일). 한쪽이라도 파싱 불가면 None."""
+    import datetime as _dt
+    try:
+        pa = [int(v) for v in str(a.get("date") or "")[:10].split("-")]
+        pb = [int(v) for v in str(b.get("date") or "")[:10].split("-")]
+        return abs((_dt.date(*pa) - _dt.date(*pb)).days)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _rep_key(it):
-    """그룹 대표 선정 우선순위: 이미지 있음 → 발행일 빠름 → 제목 짧음."""
-    return (0 if it.get("image") else 1, it.get("date") or "", len(it["title"]))
+    """그룹 대표 선정 우선순위: 이미지 있음 → 발행일 최신 → 제목 짧음.
+       ★ 예전에는 '발행일 빠름'이었다. 같은 보도자료를 여러 매체가 동시에 받아쓴 경우
+         원본에 가까운 것을 고르려는 규칙이었는데, 몇 달 간격의 다른 행사가 한 그룹에
+         묶이면 가장 오래된 기사가 대표가 되어 최신 소식이 사라졌다.
+       (sorted(...)[0] 로 최소값을 고르므로 날짜는 음수로 뒤집는다)"""
+    return (0 if it.get("image") else 1, -_date_ord(it.get("date")), len(it["title"]))
 
 
 def _dup_match(a, b, kw_thr, str_thr):
     """두 기사 중복 판정. 반환 (matched, rule, score). 우선순위: 이미지(동일 URL) > 키워드 > 문자열.
        ※ 파일명만 비교는 Google News 이미지 프록시 특성상 서로 다른 기사가 충돌(오결합)해 제외."""
+    # ★ 날짜가 DUP_MAX_GAP_DAYS 를 넘어 벌어지면 유사도와 무관하게 다른 기사로 본다.
+    #   (제목이 비슷해도 3개월 간격이면 같은 보도자료가 아니라 별개 행사다)
+    gap = _date_gap_days(a, b)
+    if gap is not None and gap > DUP_MAX_GAP_DAYS:
+        return False, None, 0.0
     if a.get("_imn") and b.get("_imn") and a["_imn"] == b["_imn"]:
         return True, "이미지(URL)", 1.0
     kj = _set_jaccard(a["_kw"], b["_kw"])
@@ -432,7 +469,9 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
     # 상위 그룹의 (이른 날짜·짧은 제목) 상위 2건만 이미지 확보(비용 제한)
     to_img, seen = [], set()
     for g in head:
-        for m in sorted(g["items"], key=lambda x: ((x["date"] or ""), len(x["title"])))[:2]:
+        # 대표 기준이 '최신'으로 바뀌었으므로 이미지도 최신 기사부터 확보한다.
+        # (이미지가 날짜보다 우선순위가 높아, 옛 기사만 이미지를 가지면 대표가 뒤집힌다)
+        for m in sorted(g["items"], key=lambda x: (-_date_ord(x.get("date")), len(x["title"])))[:2]:
             if m["link"] and m["link"] not in seen:
                 seen.add(m["link"])
                 to_img.append(m)
@@ -454,6 +493,10 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
         imn = rep.get("_imn")
         if imn:
             for mg in merged:
+                # 2차 병합(_dup_match 를 거치지 않는 경로)에도 날짜 근접 조건을 건다
+                g2 = _date_gap_days(mg["rep"], rep)
+                if g2 is not None and g2 > DUP_MAX_GAP_DAYS:
+                    continue
                 if mg["rep"].get("_imn") == imn:
                     mg["items"] += g["items"]
                     mg["merges"].append((rep["title"], "이미지(URL)", 1.0))
