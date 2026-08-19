@@ -1,0 +1,74 @@
+name: KOIMA 일일가격 수집 (주 1회)
+
+# 60개 품목을 순차 수집해 약 3분이 걸리고 결과가 5MB 대라, 매일이 아니라 주 1회만 돈다.
+# (대시보드 12개 수집기는 collect.yml 이 매일 담당한다)
+on:
+  schedule:
+    - cron: '30 19 * * 0'     # UTC 일 19:30 = KST 월 04:30 (주 1회)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-koima-price
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30        # 실측 약 3분
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      # 품목 단위 실패는 건너뛰고 계속 진행하며, 전 품목 실패 시에만 0이 아닌 코드로 끝난다.
+      - name: KOIMA 일일가격 수집
+        run: python koima_price.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/koima-price.json; then
+            echo "내용 변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/koima-price.json
+          git commit -m "자동 수집: KOIMA 일일가격 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git push
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/koima-price.json"
+          if not os.path.isfile(p):
+              print("::error::koima-price.json 이 없습니다"); raise SystemExit(1)
+          d = json.load(io.open(p, encoding="utf-8"))
+          cats = d.get("categories", [])
+          items = sum(len(c.get("items", [])) for c in cats)
+          rows = sum(len(i.get("rows", [])) for c in cats for i in c.get("items", []))
+          fails = d.get("failures", [])
+          s = os.environ.get("GITHUB_STEP_SUMMARY")
+          txt = ["## %s KOIMA 일일가격" % ("⚠️" if fails else "✅"), "",
+                 "- 기준일: `%s`" % d.get("baseDate"),
+                 "- 부문 %d · 품목 %d · %d행" % (len(cats), items, rows),
+                 "- 파일 %.1f MB" % (os.path.getsize(p) / 1048576.0)]
+          if fails:
+              txt += ["", "### 수집 실패 품목", ""] + \
+                     ["- `%s` > `%s` — %s" % (f.get("category"), f.get("item"), f.get("reason")) for f in fails[:20]]
+              print("::warning::품목 %d건 수집 실패" % len(fails))
+          print("\n".join(txt))
+          if s:
+              io.open(s, "a", encoding="utf-8").write("\n".join(txt) + "\n")
+          PY

@@ -50,7 +50,82 @@ def _strip_volatile(obj):
     return obj
 
 
+# ── CI 결과 판정 (--report) ──────────────────────────────────────────────
+# ★ 이 단계는 '커밋·푸시 뒤'에 돌린다. 한 수집기가 실패해도 성공한 나머지는
+#   이미 커밋된 뒤이므로 롤백되지 않는다. 여기서는 알림만 담당한다.
+# 허용 실패 수는 ALLOWED_FAILURES 환경변수로 조정(기본 0 = 하나라도 실패하면 job 실패).
+def report(out=None):
+    out = out or os.path.join(BASE, OUT_REL)
+    allowed = int(os.environ.get("ALLOWED_FAILURES", "0"))
+    lines = []
+
+    def say(s):
+        print(s)
+        lines.append(s)
+
+    if not os.path.isfile(out):
+        print("::error::수집 결과 파일이 없습니다: %s" % OUT_REL)
+        _summary(["## ❌ 수집 실패", "", "결과 파일(`%s`)이 생성되지 않았습니다." % OUT_REL])
+        return 1
+
+    d = json.load(io.open(out, encoding="utf-8"))
+    secs = d.get("sections", {})
+    bad = [(n, (s or {}).get("reason", "")) for n, s in secs.items()
+           if isinstance(s, dict) and s.get("status") not in ("ok", None)]
+    ok_n = len(secs) - len(bad)
+
+    say("## %s 수집 결과" % ("✅" if not bad else "⚠️"))
+    say("")
+    say("- 수집 시각: `%s`" % d.get("updated_at"))
+    say("- 성공 **%d / %d**" % (ok_n, len(secs)))
+
+    # 데이터가 며칠째 갱신되지 않으면 알려준다(스케줄이 멈췄을 수 있다).
+    try:
+        upd = datetime.datetime.strptime(d.get("updated_at", ""), "%Y-%m-%d %H:%M:%S")
+        stale = (datetime.datetime.now() - upd).days
+        if stale >= 2:
+            say("- ⚠️ 마지막 갱신이 **%d일 전**입니다(스케줄 중단 여부 확인)" % stale)
+            print("::warning::데이터가 %d일째 갱신되지 않았습니다" % stale)
+    except Exception:  # noqa: BLE001
+        pass
+
+    if bad:
+        say("")
+        say("### 실패한 수집기")
+        say("")
+        say("| 수집기 | 사유 |")
+        say("| --- | --- |")
+        for n, why in bad:
+            say("| `%s` | %s |" % (n, (why or "(사유 없음)").replace("|", "/")[:160]))
+            # 실패 원인이 이메일·실행 화면에 바로 보이도록 주석(annotation)으로도 남긴다
+            print("::error title=수집 실패: %s::%s" % (n, (why or "사유 없음")[:200]))
+    _summary(lines)
+
+    if len(bad) > allowed:
+        print("::error::수집기 %d개 실패(허용 %d개) → job 을 실패로 표시합니다: %s"
+              % (len(bad), allowed, ", ".join(n for n, _ in bad)))
+        return 1
+    if bad:
+        print("[collect] 실패 %d건이지만 허용치(%d) 이내라 job 은 성공 처리합니다"
+              % (len(bad), allowed))
+    return 0
+
+
+def _summary(lines):
+    """GitHub Actions 실행 화면 요약(Job Summary)에 표로 남긴다."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    try:
+        with io.open(path, "a", encoding="utf-8") as f:
+            f.write(chr(10).join(lines) + chr(10))
+    except Exception as e:  # noqa: BLE001
+        print("[collect] 요약 기록 실패(무시): %s" % e)
+
+
 def main():
+    if "--report" in sys.argv:
+        return report()
     force = "--force" in sys.argv
     out = (sys.argv[sys.argv.index("--out") + 1]
            if "--out" in sys.argv else os.path.join(BASE, OUT_REL))
