@@ -999,7 +999,7 @@ function renderMaterial() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { periods, series } = icisViewData(_matYear);
-    body = buildIcisChart(periods, series) + icisLatest(periods, series) + icisTermsTable()
+    body = buildIcisChart(periods, series) + icisLatest() + icisTermsTable()
       + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
 
@@ -1144,10 +1144,16 @@ function fxAsOfDate() {
   return null;
 }
 
-function icisLatest(periods, series) {
+function icisLatest() {
   const rate = _matUsdKrw;
+  // ★ 선택된 연도 칩과 무관하게 '전체 데이터'의 최신값을 쓴다.
+  //   예전에는 연도로 잘린 series 를 받아 2021 칩에서 2021-12 값이 나왔고,
+  //   라벨('최신값')과 동작이 어긋났다. 아래 예측 섹션의 '최신 데이터' 표기와도
+  //   이제 같은 기준(전체 마지막 월)을 가리킨다.
+  const full = icisViewData('all');
+  const periods = full.periods;
   // 값과 함께 '몇 번째 월의 값인지'(idx)도 잡아 둔다 — 기준 연월 표기용.
-  const items = series.map((s) => {
+  const items = full.series.map((s) => {
     for (let i = s.values.length - 1; i >= 0; i--) {
       if (s.values[i] != null) return { key: s.key, color: s.color, v: s.values[i], idx: i };
     }
@@ -1160,12 +1166,17 @@ function icisLatest(periods, series) {
     const krw = (rate != null) ? ` <span class="icis-krw">≈ 약 ${escapeHtml(fmtKrwShort(it.v * rate))}/톤</span>` : '';
     return `<span class="icis-latest__item"><span class="icis-dot" style="background:${it.color}"></span><b>${it.key}</b> ${it.v.toLocaleString('en-US')} USD/톤${krw}</span>`;
   }).join('');
-  // 적용 환율에도 기준일을 붙인다(국제유가 카드와 같은 형식).
+  // 두 기준을 한 줄에 나란히 두면 어느 게 무엇의 기준인지 안 드러난다.
+  // → 헤드에는 '데이터 기준월'만, 환율 기준은 아랫줄에 작게 분리한다.
   const fxDate = fxAsOfDate();
-  const rateNote = (rate != null)
-    ? `<span class="icis-rate">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원${fxDate ? ` (${escapeHtml(fxDate)} 기준)` : ''}</span>` : '';
-  const asOfNote = asOf ? `<span class="icis-asof">(${escapeHtml(asOf)} 기준)</span>` : '';
-  return `<div class="icis-latest"><div class="icis-latest__head">최신값 ${asOfNote} ${rateNote}</div><div class="icis-latest__row">${rows}</div></div>`;
+  const fxNote = (rate != null)
+    ? `<div class="icis-fxnote">원화 환산은 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원${fxDate ? ` (${escapeHtml(fxDate)})` : ''} 적용</div>` : '';
+  const asOfNote = asOf ? `<span class="icis-asof">· ${escapeHtml(asOf)}</span>` : '';
+  return `<div class="icis-latest">
+    <div class="icis-latest__head">최신값 ${asOfNote}</div>
+    <div class="icis-latest__row">${rows}</div>
+    ${fxNote}
+  </div>`;
 }
 
 /** 원료 용어 설명표 (색 점 매칭) */

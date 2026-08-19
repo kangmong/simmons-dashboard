@@ -1119,5 +1119,7 @@ body {
   .kp-t { font-size: 11.5px; }
 }
 
-/* 순수 추가: '최신값' 옆 데이터 기준 연월 (icis-rate 와 같은 톤) */
+/* 순수 추가: '최신값' 옆 데이터 기준 연월 */
 .icis-asof { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+/* 순수 추가: 환율 기준을 원료 값과 같은 줄에서 떼어내 아래에 작게 둔다 */
+.icis-fxnote { margin-top: 6px; font-size: 11px; color: var(--muted); }
