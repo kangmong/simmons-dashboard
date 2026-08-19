@@ -1118,3 +1118,6 @@ body {
   .kp-sum__price { font-size: 22px; }
   .kp-t { font-size: 11.5px; }
 }
+
+/* 순수 추가: '최신값' 옆 데이터 기준 연월 (icis-rate 와 같은 톤) */
+.icis-asof { font-size: 11.5px; font-weight: 500; color: var(--muted); }

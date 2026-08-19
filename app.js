@@ -1130,20 +1130,42 @@ function buildIcisChart(periods, series) {
 }
 
 /** 최신값 병기 (USD/톤 → ≈ 원/톤) + 적용 환율 */
+/** 순수 추가: 적용 환율의 기준일(YYYY-MM-DD). _fx.series 의 마지막 유효 USD 값 날짜.
+ *  usd_krw 섹션에는 날짜가 없어(rate 만 옴) 같은 값을 주는 _fx 에서 날짜만 빌려온다.
+ *  ★ 환율 값·원화 환산 계산에는 관여하지 않는다(표기용). 없으면 null. */
+function fxAsOfDate() {
+  try {
+    const s = _fx && _fx.series;
+    if (!s || !Array.isArray(s.dates) || !Array.isArray(s.USD)) return null;
+    for (let i = s.USD.length - 1; i >= 0; i--) {
+      if (s.USD[i] != null) return s.dates[i] || null;
+    }
+  } catch (e) { /* 표기용이라 실패해도 무시 */ }
+  return null;
+}
+
 function icisLatest(periods, series) {
   const rate = _matUsdKrw;
+  // 값과 함께 '몇 번째 월의 값인지'(idx)도 잡아 둔다 — 기준 연월 표기용.
   const items = series.map((s) => {
-    for (let i = s.values.length - 1; i >= 0; i--) if (s.values[i] != null) return { key: s.key, color: s.color, v: s.values[i] };
+    for (let i = s.values.length - 1; i >= 0; i--) {
+      if (s.values[i] != null) return { key: s.key, color: s.color, v: s.values[i], idx: i };
+    }
     return null;
   }).filter(Boolean);
   if (!items.length) return '';
+  // 원료별로 마지막 값의 월이 다를 수 있어(PO 결측 구간) 가장 늦은 월을 기준으로 표기한다.
+  const asOf = periods[Math.max.apply(null, items.map((it) => it.idx))] || null;
   const rows = items.map((it) => {
     const krw = (rate != null) ? ` <span class="icis-krw">≈ 약 ${escapeHtml(fmtKrwShort(it.v * rate))}/톤</span>` : '';
     return `<span class="icis-latest__item"><span class="icis-dot" style="background:${it.color}"></span><b>${it.key}</b> ${it.v.toLocaleString('en-US')} USD/톤${krw}</span>`;
   }).join('');
+  // 적용 환율에도 기준일을 붙인다(국제유가 카드와 같은 형식).
+  const fxDate = fxAsOfDate();
   const rateNote = (rate != null)
-    ? `<span class="icis-rate">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원</span>` : '';
-  return `<div class="icis-latest"><div class="icis-latest__head">최신값 ${rateNote}</div><div class="icis-latest__row">${rows}</div></div>`;
+    ? `<span class="icis-rate">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원${fxDate ? ` (${escapeHtml(fxDate)} 기준)` : ''}</span>` : '';
+  const asOfNote = asOf ? `<span class="icis-asof">(${escapeHtml(asOf)} 기준)</span>` : '';
+  return `<div class="icis-latest"><div class="icis-latest__head">최신값 ${asOfNote} ${rateNote}</div><div class="icis-latest__row">${rows}</div></div>`;
 }
 
 /** 원료 용어 설명표 (색 점 매칭) */
@@ -2641,7 +2663,7 @@ function renderFx() {
       ${monChips}
       ${chartBody}
       <div class="viz-tooltip" id="fxTooltip"></div>
-      <div class="comp-caption">출처: Frankfurter (ECB 기반)</div>
+      <div class="comp-caption">${fxAsOfDate() ? `기준일 ${escapeHtml(fxAsOfDate())} · ` : ''}출처: Frankfurter (ECB 기반)</div>
     </div>`;
 
   const curEl = el.querySelector('.fx-curs');
