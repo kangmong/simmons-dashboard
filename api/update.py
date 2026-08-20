@@ -382,6 +382,17 @@ def _img_norm(u):
 # 같은 보도자료 받아쓰기는 며칠 안에 몰린다. 몇 달 벌어진 기사는 다른 사건이다.
 DUP_MAX_GAP_DAYS = 14
 
+# 날짜가 가까울수록 중복 판정을 관대하게 한다(DUP_MAX_GAP_DAYS 의 반대 방향).
+# 같은 보도자료는 거의 같은 날 배포되므로, 같은 날 기사끼리는 제목 표현이 많이 달라도
+# 같은 건일 가능성이 높다. 실측(1일 이내 26쌍)에서 키워드 배율 0.5 적용 시
+# 진짜 중복 4쌍이 새로 잡히고 오판은 0건이었다.
+# ★ 문자열 유사도는 키워드보다 흔들리기 쉬워 배율을 더 보수적으로 둔다.
+DUP_NEAR_TIERS = (
+    # (간격 상한(일), 키워드 임계 배율, 문자열 임계 배율)
+    (1, 0.50, 0.75),
+    (3, 0.70, 0.85),
+)
+
 
 def _date_ord(s):
     """'YYYY-MM-DD' → 정렬용 정수(YYYYMMDD). 파싱 불가면 0."""
@@ -420,14 +431,23 @@ def _dup_match(a, b, kw_thr, str_thr):
     gap = _date_gap_days(a, b)
     if gap is not None and gap > DUP_MAX_GAP_DAYS:
         return False, None, 0.0
+    # 반대로 날짜가 가까우면 임계값을 낮춘다. 호출부가 넘긴 값에 배율을 곱하므로
+    # '완화 재계산'(0.65/0.8) 경로에서도 같은 비율로 동작한다.
+    near = ""
+    if gap is not None:
+        for lim, kf, sf in DUP_NEAR_TIERS:
+            if gap <= lim:
+                kw_thr, str_thr = kw_thr * kf, str_thr * sf
+                near = "·%d일내" % lim
+                break
     if a.get("_imn") and b.get("_imn") and a["_imn"] == b["_imn"]:
         return True, "이미지(URL)", 1.0
     kj = _set_jaccard(a["_kw"], b["_kw"])
     if kj >= kw_thr:
-        return True, "키워드", round(kj, 2)
+        return True, "키워드" + near, round(kj, 2)
     sj = _title_jaccard(a["_sk"], b["_sk"])
     if sj >= str_thr:
-        return True, "문자열", round(sj, 2)
+        return True, "문자열" + near, round(sj, 2)
     return False, None, round(max(kj, sj), 2)
 
 
