@@ -615,6 +615,7 @@ function fmtKrwShort(v) {
 function applyCompetitorsUpdate(data) {
   const cp = data && data.sections && data.sections.competitors;
   if (!cp) return;
+  _competitorsAt = (data && data.updated_at) || null;  // 순수 추가: 수집 시각 표시용
   _competitors = cp.global ? cp : null;
   if (cp.status === 'error') console.warn('[update] competitors error:', cp.reason);
   renderCompetitor();
@@ -671,11 +672,55 @@ function compGlobalCard(c, i, rate) {
       <div class="gco-logo"><span class="gco-logo__txt">${escapeHtml(c.ticker || c.name)}</span>${logoImg}</div>
       <div class="gco-id">
         <div class="gco-name">${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.ticker)})</span></div>
-        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}</div>
+        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}${compQtrLag(c, _compLatest)}</div>
       </div>
     </div>
     <div class="gco-body">${body}</div>
   </div>`;
+}
+
+let _competitorsAt = null;   // 순수 추가: 마지막 수집 시각(카드 표기용)
+let _compLatest = null;      // 순수 추가: 현재 렌더 중인 그룹의 최신 분기(지연 표기 기준)
+
+/* ── 분기 표기 헬퍼 (순수 추가 · 표시 전용) ──────────────────────────────
+   기업마다 공시 시점이 달라 표시 분기가 섞인다. 어느 시점을 보고 있는지
+   한눈에 드러나게 하는 표기만 담당하며, 수집·계산에는 관여하지 않는다. */
+
+/** "2026 Q2" → 20262 (비교용 정수). 형식이 다르면 null. */
+function compQtrOrd(q) {
+  const m = /^(\d{4})\s*Q([1-4])$/.exec(String(q || '').trim());
+  return m ? Number(m[1]) * 10 + Number(m[2]) : null;
+}
+
+/** 정수 → "2026 Q2" */
+function compQtrLabel(o) {
+  return `${Math.floor(o / 10)} Q${o % 10}`;
+}
+
+/** 그룹의 분기 요약 → {label, latest, mixed}. 값이 없으면 null. */
+function compQtrSummary(list) {
+  const ords = (list || []).map((c) => compQtrOrd(c.quarter)).filter((v) => v != null);
+  if (!ords.length) return null;
+  const mn = Math.min.apply(null, ords), mx = Math.max.apply(null, ords);
+  if (mn === mx) return { label: `${compQtrLabel(mx)} 기준`, latest: mx, mixed: false };
+  // 같은 해면 "2026 Q1~Q2", 해를 넘으면 "2025 Q4~2026 Q1"
+  const label = (Math.floor(mn / 10) === Math.floor(mx / 10))
+    ? `${compQtrLabel(mn)}~Q${mx % 10} 기준`
+    : `${compQtrLabel(mn)}~${compQtrLabel(mx)} 기준`;
+  return { label, latest: mx, mixed: true };
+}
+
+/** 최신 분기가 아닌 기업에 붙일 작은 안내(경고 아님). 최신이면 ''. */
+function compQtrLag(c, latest) {
+  const o = compQtrOrd(c.quarter);
+  if (o == null || latest == null || o >= latest) return '';
+  const gap = (Math.floor(latest / 10) - Math.floor(o / 10)) * 4 + (latest % 10 - o % 10);
+  return `<span class="gco-lag">${gap <= 1 ? '직전 분기' : `${gap}분기 전`}</span>`;
+}
+
+/** 순수 추가: 출처 캡션 뒤에 붙일 " · YYYY-MM-DD HH:MM 수집". 시각 없으면 ''. */
+function compFetchedAt() {
+  return _competitorsAt ? ` · ${escapeHtml(String(_competitorsAt).slice(0, 16))} 수집` : '';
 }
 
 /** 분기 매출 막대 (회사별 색). key=값 필드, fmt=포맷터, tkKey=티커/코드 필드 */
@@ -684,19 +729,26 @@ function compRevBars(companies, key, fmt, tkKey) {
   const withRev = companies.filter((c) => c[key] != null && c[key] > 0);
   if (!withRev.length) return '';
   const maxV = Math.max(...withRev.map((c) => c[key]));
+  // 순수 추가: 막대마다 어느 분기 값인지 병기한다(서로 다른 분기를 나란히 비교하게 되므로).
+  const sum = compQtrSummary(companies);
   const bars = companies.map((c, i) => {
     const color = COMP_COLORS[i % COMP_COLORS.length];
     const v = c[key], tk = c[tkKey] || '';
+    const qtr = c.quarter
+      ? `<span class="gbar__qtr">· ${escapeHtml(c.quarter)}</span>${compQtrLag(c, sum && sum.latest)}` : '';
     if (v == null) {
-      return `<div class="gbar"><div class="gbar__head"><span>${escapeHtml(c.name)}</span><span class="gbar__val">—</span></div></div>`;
+      return `<div class="gbar"><div class="gbar__head"><span>${escapeHtml(c.name)} ${qtr}</span><span class="gbar__val">—</span></div></div>`;
     }
     const pct = Math.max(2, (v / maxV) * 100);
     return `<div class="gbar">
-      <div class="gbar__head"><span>${escapeHtml(c.name)} ${tk ? `<span class="gco-tk">(${escapeHtml(tk)})</span>` : ''}</span><span class="gbar__val">${escapeHtml(fmt(v))}</span></div>
+      <div class="gbar__head"><span>${escapeHtml(c.name)} ${tk ? `<span class="gco-tk">(${escapeHtml(tk)})</span>` : ''} ${qtr}</span><span class="gbar__val">${escapeHtml(fmt(v))}</span></div>
       <div class="gbar__track"><div class="gbar__fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
     </div>`;
   }).join('');
-  return `<h3 class="subhead">분기 매출 비교</h3><div class="gbars">${bars}</div>`;
+  // 분기가 섞였을 때만 안내 한 줄(오류가 아니라 정상적인 공시 시차임을 알린다).
+  const note = (sum && sum.mixed)
+    ? '<div class="gbars__note">일부 기업은 최신 분기가 아직 공시되지 않아 직전 분기 기준입니다.</div>' : '';
+  return `<h3 class="subhead">분기 매출 비교</h3>${note}<div class="gbars">${bars}</div>`;
 }
 
 /** 국내 회사 카드 (네이버 금융): 로고 + 회사명/코드 + 분기 + 매출/순이익(원화) + YoY */
@@ -720,7 +772,7 @@ function compKoreaCard(c, i) {
       <div class="gco-logo"><span class="gco-logo__txt">${escapeHtml((c.name || '').slice(0, 2))}</span>${logoImg}</div>
       <div class="gco-id">
         <div class="gco-name">${escapeHtml(c.name)} <span class="gco-tk">(${escapeHtml(c.code || '')})</span></div>
-        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}</div>
+        <div class="gco-qtr">${escapeHtml(c.quarter || '—')}${compQtrLag(c, _compLatest)}</div>
       </div>
     </div>
     <div class="gco-body">${body}</div>
@@ -736,20 +788,24 @@ function renderCompetitor() {
   const rateNote = (rate != null)
     ? `<div class="comp-fxnote">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원</div>`
     : '';
+  const gSum = compQtrSummary(g || []);
   const globalHtml = (g && g.length)
-    ? `<div class="gco-grid">${g.map((c, i) => compGlobalCard(c, i, rate)).join('')}</div>
+    ? (_compLatest = gSum && gSum.latest,
+      `<div class="gco-grid">${g.map((c, i) => compGlobalCard(c, i, rate)).join('')}</div>
        ${rateNote}
        ${compRevBars(g)}
-       <div class="comp-caption">출처: SEC EDGAR</div>`
+       <div class="comp-caption">출처: SEC EDGAR${compFetchedAt()}</div>`)
     : emptyState('국외 경쟁사 데이터 준비중');
 
   // 국내: 배열이면 카드+막대, 아니면 준비중/데이터 없음
   const k = _competitors && _competitors.korea;
   let koreaHtml;
+  const kSum = compQtrSummary(Array.isArray(k) ? k : []);
   if (Array.isArray(k) && k.length) {
+    _compLatest = kSum && kSum.latest;
     koreaHtml = `<div class="gco-grid">${k.map(compKoreaCard).join('')}</div>
        ${compRevBars(k, 'revenue_krw', fmtKrwShort, 'code')}
-       <div class="comp-caption">출처: 네이버 금융</div>`;
+       <div class="comp-caption">출처: 네이버 금융${compFetchedAt()}</div>`;
   } else if (k && k.status && k.status !== '준비중') {
     koreaHtml = '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> 네이버 금융 조회 실패</div>';
   } else {
@@ -758,14 +814,14 @@ function renderCompetitor() {
 
   el.innerHTML = `
     <div class="comp-group">
-      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
+      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span>${kSum ? `<span class="comp-group__qtr">${escapeHtml(kSum.label)}</span>` : ''}</div>
       <div class="comp-group__sub">분기별 실적 (네이버 금융 · 자동 갱신)
         <span class="comp-group__desc">매출·순이익(원화) · 전년 동기 대비(YoY) 기준</span>
       </div>
       ${koreaHtml}
     </div>
     <div class="comp-group">
-      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
+      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span>${gSum ? `<span class="comp-group__qtr">${escapeHtml(gSum.label)}</span>` : ''}</div>
       <div class="comp-group__sub">분기별 실적 (최근 10-Q · 자동 갱신)
         <span class="comp-group__desc">매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR</span>
       </div>

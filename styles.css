@@ -1123,3 +1123,15 @@ body {
 .icis-asof { font-size: 11.5px; font-weight: 500; color: var(--muted); }
 /* 순수 추가: 환율 기준을 원료 값과 같은 줄에서 떼어내 아래에 작게 둔다 */
 .icis-fxnote { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+/* 순수 추가: 경쟁사 카드 분기 표기 (표시 전용 — 레이아웃 구조는 그대로) */
+.comp-group__qtr {
+  margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.gco-lag {
+  margin-left: 5px; font-size: 10.5px; font-weight: 500; color: var(--muted);
+}
+.gbar__qtr { font-size: 11px; font-weight: 500; color: var(--muted); }
+.gbars__note {
+  margin: -2px 0 8px; font-size: 11.5px; color: var(--muted);
+}
