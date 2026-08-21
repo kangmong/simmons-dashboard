@@ -1400,6 +1400,58 @@ function gtItalyTrade() {
 }
 
 /** 국외 섹션 전체(티어 뷰). tier_defs 가 없으면 null → 호출부가 기존 화면으로 폴백 */
+/** 이탈리아 상장사 실적 — 자동 수집 가능한 것만 표로. 차트는 만들지 않는다.
+    ★ 수집되는 곳이 Natuzzi 연간 1곳뿐이라 '분기 추이 + 티어 필터'를 미국처럼
+      구성할 근거가 없고, 연간과 반기를 한 축에 놓으면 왜곡된다. */
+function gtItalyListed() {
+  const L = _europe && _europe.italy_listed;
+  if (!L) return '';
+  if (L.status !== 'ok') {
+    return '<h3 class="subhead">이탈리아 상장사 실적</h3>'
+      + '<div class="gt-hollow">' + escapeHtml(L.reason || '수집 실패') + '</div>';
+  }
+  const eur = krwRate('EUR');
+  const money = (v) => {
+    if (v == null) return '—';
+    const m = '€' + (Math.abs(v) >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : (v / 1e6).toFixed(1) + 'M');
+    const k = (eur != null) ? fmtKrwAxis(v * eur) : null;
+    return escapeHtml(m) + (k ? '<span class="itl-krw">≈ ' + escapeHtml(k) + ' 원</span>' : '');
+  };
+  let body = '';
+  (L.collected || []).forEach((c) => {
+    (c.years || []).forEach((y, i) => {
+      body += '<tr>'
+        + (i === 0 ? '<td rowspan="' + c.years.length + '"><b>' + escapeHtml(c.name) + '</b>'
+          + '<span class="itl-tk">' + escapeHtml(c.ticker) + '</span>'
+          + '<span class="itl-biz">' + escapeHtml(c.business) + '</span></td>' : '')
+        + '<td class="itq-n">' + escapeHtml(String(y.year)) + '</td>'
+        + '<td class="itq-n">' + money(y.total) + '</td>'
+        + '<td class="itq-n">' + money(y.italy) + '</td>'
+        + '<td class="itq-n">' + (y.italy_pct == null ? '—' : escapeHtml(y.italy_pct + '%')) + '</td>'
+        + (i === 0 ? '<td rowspan="' + c.years.length + '">' + escapeHtml(c.period)
+          + '<span class="itl-src">' + escapeHtml(c.source) + '</span></td>' : '')
+        + '</tr>';
+    });
+  });
+  const miss = (L.not_collectible || []).map((x) => '<div class="itl-miss">'
+    + '<div class="itl-miss__h"><b>' + escapeHtml(x.name) + '</b>'
+    + '<span class="itl-tk">' + escapeHtml(x.ticker) + '</span>'
+    + '<span class="itl-badge">실적 미수집</span></div>'
+    + '<div class="itl-miss__b">' + escapeHtml(x.business) + '</div>'
+    + '<div class="itl-miss__r">' + escapeHtml(x.reason)
+    + ' <span class="itl-src">공시 주기 ' + escapeHtml(x.period) + ' · IR ' + escapeHtml(x.ir)
+    + '</span></div></div>').join('');
+  return '<h3 class="subhead">이탈리아 상장사 실적 <span class="gt-cnt">자동 수집분만 · 표</span></h3>'
+    + '<div class="itl-hint">' + escapeHtml(L.note || '') + '</div>'
+    + '<div class="itq-wrap"><table class="itq"><thead><tr>'
+    + '<th>기업</th><th class="itq-n">회계연도</th><th class="itq-n">연결 매출</th>'
+    + '<th class="itq-n">이탈리아 매출</th><th class="itq-n">비중</th><th>주기 · 출처</th>'
+    + '</tr></thead><tbody>' + body + '</tbody></table></div>'
+    + (eur != null ? krwNote('EUR') : '')
+    + '<div class="itl-tier">' + escapeHtml(L.tier_note || '') + '</div>'
+    + miss;
+}
+
 /** 이탈리아 프리미엄 브랜드 — 비상장이라 실적이 없다. 참고 정보만 카드로 둔다.
     브랜드 목록은 백엔드 italy_brands.py 한 곳에서 관리한다. */
 function gtItalyBrands() {
@@ -1451,6 +1503,7 @@ function gtGlobalHtml(list, rate) {
     + '<h3 class="subhead">기업</h3>'
     + cards
     + gtItalyTrade()
+    + gtItalyListed()
     + gtItalyBrands()
     + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()
     + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
