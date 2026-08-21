@@ -45,6 +45,10 @@ HS_CODES = [
 ]
 CODE_PARAM = ",".join(c for c, _ in HS_CODES)
 
+# 수량 단위 코드(공식 레퍼런스 QuantityUnits.json 실측): 5 = "u" 개수, 8 = "kg" 중량.
+# 개수 단가를 낼 때 kg 수량이 섞이면 안 되므로 코드 5 만 개수로 인정한다.
+QTY_ITEMS = 5
+
 START_MONTH = "2020-01"   # 이 달부터 채운다
 PUBLISH_LAG = 3           # 공표 지연(개월) — 이보다 최근 달은 조회하지 않는다
 MAX_NEW = 4               # 한 실행에서 새로 받을 최대 개월(콜드 실행 타임아웃 방지)
@@ -62,14 +66,14 @@ READ_NOTE = ("수입 증가는 해외 브랜드 침투를, 수출 증가는 자�
              "Made in Italy 선호가 강한 시장이라 이 균형이 시장 구도 변화를 보여줍니다.")
 
 
-def _data_path():
-    return os.path.join(BASE, DATA_REL)
+def _data_path(rel=DATA_REL):
+    return os.path.join(BASE, rel)
 
 
-def _load():
+def _load(rel=DATA_REL):
     """기존 수집분. 없으면 빈 구조."""
     try:
-        p = _data_path()
+        p = _data_path(rel)
         if os.path.isfile(p):
             got = json.load(io.open(p, encoding="utf-8"))
             if isinstance(got, dict) and isinstance(got.get("months"), list):
@@ -79,10 +83,10 @@ def _load():
     return {"months": []}
 
 
-def _save(payload):
+def _save(payload, rel=DATA_REL):
     """저장. 쓰기 불가(배포 번들)여도 예외를 내지 않는다."""
     try:
-        p = _data_path()
+        p = _data_path(rel)
         d = os.path.dirname(p)
         if not os.path.isdir(d):
             os.makedirs(d)
@@ -90,7 +94,7 @@ def _save(payload):
             f.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
         return True
     except Exception as e:  # noqa: BLE001
-        print("[italy_trade] 저장 생략(쓰기 불가): %s" % e)
+        print("[comtrade] 저장 생략(쓰기 불가): %s" % e)
         return False
 
 
@@ -116,44 +120,57 @@ def _target_end(today=None):
     return "%04d-%02d" % (y, m)
 
 
-def _fetch_month(month):
-    """한 달 조회 → 금액(exp/imp)과 순중량(expw/impw)을 함께 담는다.
-       ★ 단가(=금액÷중량) 계산에 중량이 필수다. netWgt 는 isNetWgtEstimated=False
-         (추정치 아님)이고, qty 는 isQtyEstimated=True + 단위 라벨이 없어 쓰지 않는다.
-         일부 조합(예: 940421 수입)은 netWgt 가 비어 오므로 그 달·그 코드의
-         단가는 계산하지 않고 비워 둔다."""
-    r = requests.get(URL, params={"reporterCode": REPORTER, "partnerCode": PARTNER,
+def _fetch_month(month, reporter=REPORTER):
+    """한 달 조회 → 금액과 '실제로 보고된' 수량을 담는다.
+
+    ★ 나라마다 실보고 항목이 다르다(2026-08 실측). 그래서 추정 플래그가 붙은
+      수량은 담지 않는다 — 이 한 규칙으로 나라별 분기 없이 올바른 값만 남는다.
+        · 이탈리아(380): netWgt 실보고(isNetWgtEstimated=False) → kg 단가
+          qty 는 isQtyEstimated=True 라 버린다.
+        · 미국(842):    qty 실보고(isQtyEstimated=False, 단위코드 5=개) → 개당 단가
+          netWgt 는 isNetWgtEstimated=True 라 버린다. 실제로 미국 netWgt 는
+          금액÷연도별 고정계수로 역산된 값이다(2024년 전월 7.2196 USD/kg,
+          2025년 전월 6.7784 로 소수 4자리까지 동일). 월별 정보가 없으므로
+          이 값으로 단가 그래프를 그리면 계수 계단만 보인다.
+      금액(primaryValue)은 양국 모두 실보고라 그대로 쓴다."""
+    r = requests.get(URL, params={"reporterCode": reporter, "partnerCode": PARTNER,
                                   "period": month.replace("-", ""), "cmdCode": CODE_PARAM,
                                   "flowCode": FLOWS}, timeout=TIMEOUT, headers=HEADERS)
     r.raise_for_status()
     rows = r.json().get("data") or []
-    exp, imp, expw, impw = {}, {}, {}, {}
+    exp, imp, expw, impw, expq, impq = {}, {}, {}, {}, {}, {}
     known = dict(HS_CODES)
     for x in rows:
         code = str(x.get("cmdCode") or "")
         if code not in known:
             continue
-        out_v = exp if x.get("flowCode") == "X" else imp
-        out_w = expw if x.get("flowCode") == "X" else impw
-        val, wgt = x.get("primaryValue"), x.get("netWgt")
+        is_exp = x.get("flowCode") == "X"
+        out_v = exp if is_exp else imp
+        out_w = expw if is_exp else impw
+        out_q = expq if is_exp else impq
+        val, wgt, qty = x.get("primaryValue"), x.get("netWgt"), x.get("qty")
         if val is not None:
             out_v[code] = round(float(val))
-        if wgt:                      # 0·None 은 담지 않는다(단가가 무한이 된다)
+        # 0·None 은 담지 않는다(단가가 무한이 된다). 추정치도 담지 않는다.
+        if wgt and not x.get("isNetWgtEstimated"):
             out_w[code] = round(float(wgt))
-    return {"exp": exp, "imp": imp, "expw": expw, "impw": impw}
+        if qty and not x.get("isQtyEstimated") and x.get("qtyUnitCode") == QTY_ITEMS:
+            out_q[code] = round(float(qty))
+    return {"exp": exp, "imp": imp, "expw": expw, "impw": impw,
+            "expq": expq, "impq": impq}
 
 
-def _unit_prices(months):
-    """월별 단가(USD/kg) = 금액 ÷ 순중량. 중량이 없는 조합은 None 으로 비운다.
-       ★ 추정치를 만들지 않는다 — 중량이 안 온 달은 계산하지 않는다."""
+def _unit_prices(months, qk="w"):
+    """월별 단가 = 금액 ÷ 수량. qk="w" 면 중량 기준(USD/kg), "q" 면 개수 기준(USD/개).
+       ★ 추정치를 만들지 않는다 — 수량이 안 온 달·코드는 None 으로 비운다."""
     out = []
     for m in months:
         row = {"month": m["month"], "exp": {}, "imp": {}}
-        for flow, vk, wk in (("exp", "exp", "expw"), ("imp", "imp", "impw")):
-            vals, wgts = m.get(vk) or {}, m.get(wk) or {}
+        for flow in ("exp", "imp"):
+            vals, qtys = m.get(flow) or {}, m.get(flow + qk) or {}
             for code, _ in HS_CODES:
-                v, w = vals.get(code), wgts.get(code)
-                row[flow][code] = round(v / w, 3) if (v and w) else None
+                v, q = vals.get(code), qtys.get(code)
+                row[flow][code] = round(v / q, 3) if (v and q) else None
         out.append(row)
     return out
 

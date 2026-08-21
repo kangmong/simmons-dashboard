@@ -7,7 +7,8 @@
       "config": {
         "includeFiles": [
           "*.py",
-          "public/data/schedule-reliability.json"
+          "public/data/schedule-reliability.json",
+          "public/data/*-trade.json"
         ]
       }
     },
@@ -41,6 +42,10 @@
     },
     {
       "src": "public/data/italy-trade.json",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/us-trade.json",
       "use": "@vercel/static"
     }
   ],

@@ -2069,8 +2069,7 @@ FETCH_GROUPS = [
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
-    ["europe_flow"],                                 # SEC 원본 XBRL + Eurostat
-    ["us_market"],                                   # BLS + Census
+    ["europe_flow", "us_market"],                    # SEC XBRL + Eurostat + BLS + UN Comtrade
     ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
 ]
 # 수집기별 캐시 유효시간(초). 이 시간 안에 성공한 결과가 있으면 재수집을 건너뛴다.

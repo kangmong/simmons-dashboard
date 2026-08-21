@@ -814,7 +814,7 @@ function compKoreaCard(c, i) {
      본문이 아니라 필터 옆 ⓘ 툴팁에만 둔다.
    ★ 가격지수는 티어와 무관하게 고정 표시된다. */
 let _europe = null;         // sections.europe_flow
-let _usMarket = null;       // sections.us_market (BLS PPI + Census)
+let _usMarket = null;       // sections.us_market (BLS PPI + UN Comtrade)
 let _gtCharts = {};         // 차트별 툴팁 데이터·기하
 let _usTier = 'all';        // 미국 HS 필터
 let _itTier = 'all';        // 이탈리아 HS 필터
@@ -824,6 +824,12 @@ const G_TIER_HS = { all: ['940421', '940429'], high: ['940421'], premium: ['9404
 const G_TIER_TIP = '티어 버튼은 HS 코드(소재)를 전환합니다 — 하이엔드 940421(폼·라텍스), '
   + '프리미엄 940429(스프링 등). 소재 기준이지 가격대 기준이 아닙니다. '
   + '가격지수는 티어와 무관하게 고정됩니다.';
+const G_TIER_EXTRA = {
+  // ★ 화면 본문을 늘리지 않고 근거만 남긴다. 2022년 미국 수량은 Comtrade 가
+  //   추정치로만 제공해(isQtyEstimated=true) 단가를 계산하지 않았다 — 선이 끊긴다.
+  us: ' 미국 2022년은 수입 수량이 실보고되지 않아(추정치만 제공) 단가를 비웠습니다.',
+  it: '',
+};
 const G_COL_PRICE = 'var(--accent)';
 const G_COL_UNIT = 'var(--blue)';
 
@@ -847,7 +853,7 @@ function gtYUnit(txt) {
 /** 티어(HS) 필터 + ⓘ */
 function gtTierBar(country, cur) {
   const keys = [['all', '전체']].concat((gtDefs() || []).map((t) => [t.key, t.name]));
-  const tip = escapeHtml(G_TIER_TIP);
+  const tip = escapeHtml(G_TIER_TIP + (G_TIER_EXTRA[country] || ''));
   return '<div class="gt-bar" role="group" aria-label="HS 코드 필터">'
     + keys.map((k) => '<button type="button" class="gt-chip'
       + (cur === k[0] ? ' is-on' : '') + '" data-g-tier="' + escapeHtml(country + '|' + k[0])
@@ -1032,7 +1038,16 @@ function gKgRaw(v) {
   return '$' + v.toFixed(2) + '/kg' + (k ? ' ≈ ' + escapeHtml(k) : '');
 }
 
-/** 1. 미국 — BLS PPI + Census 수입단가 */
+/** USD/개 원래 값(+ 원화 변기) — 미국은 수량이 '개' 단위로 보고된다 */
+function gItemRaw(v) {
+  if (v == null) return '';
+  const r = krwRate('USD');
+  let k = (r != null) ? fmtKrwAxis(v * r) : null;
+  if (k && !/원$/.test(k)) k += ' 원';
+  return '$' + v.toFixed(0) + '/개' + (k ? ' ≈ ' + escapeHtml(k) : '');
+}
+
+/** 1. 미국 — BLS PPI + UN Comtrade 수입단가(개당) */
 function gUsBlock() {
   const u = _usMarket, ppi = u && u.ppi;
   const sers = [];
@@ -1043,20 +1058,17 @@ function gUsBlock() {
   }
   const tr = u && u.trade;
   if (tr && tr.status === 'ok' && (tr.months || []).length) {
-    sers.push({ name: '수입단가 (Census)', color: G_COL_UNIT, dash: true,
-      byYear: gUnitByYear(tr.months, G_TIER_HS[_usTier] || G_TIER_HS.all, 'val', 'qty'),
-      fmtRaw: gKgRaw });
+    sers.push({ name: '수입단가 (개당)', color: G_COL_UNIT, dash: true,
+      byYear: gUnitByYear(tr.months, G_TIER_HS[_usTier] || G_TIER_HS.all, 'imp', 'impq'),
+      fmtRaw: gItemRaw });
   }
   const c = sers.length ? gYearChart('gus', sers) : null;
   if (!c) {
     return gtTierBar('us', _usTier)
       + emptyState((ppi && ppi.reason) || '업데이트 버튼을 누르면 표시됩니다');
   }
-  const noKey = (tr && tr.status === 'no_key')
-    ? '<div class="g-note">Census API 키를 넣으면 수입단가 선이 함께 표시됩니다.</div>' : '';
   return gtTierBar('us', _usTier) + gSummary(c) + c.html
-    + '<div class="g-note">매트리스 출고가격과 수입단가 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>'
-    + noKey;
+    + '<div class="g-note">매트리스 출고가격(BLS)과 개당 수입단가(UN Comtrade) 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>';
 }
 
 /** 2. 이탈리아 — Eurostat HICP + UN Comtrade 수입단가 */

@@ -154,23 +154,50 @@ Census ASM 수량 없음, Current Industrial Reports 폐지).
 |---|---|---|---|
 | 매트리스 출고가격 지수 | BLS PPI `PCU337910337910` | **불필요** | 월 |
 | 비교용 전체 상품 PPI | BLS PPI `WPU00000000` | 불필요 | 월 |
-| 매트리스 수입 단가 | Census 국제무역 API · HS 9404 | **필요** | 월 |
+| 매트리스 수입 단가 | UN Comtrade · HS 9404 · reporter=USA(842) | **불필요** | 월 |
 
-### Census API 키 발급
+### 수입 단가는 왜 '개당'인가
 
-1. https://api.census.gov/data/key_signup.html 에서 이메일로 신청한다(무료·즉시).
-2. 메일로 받은 키를 프로젝트 루트 `.env` 에 넣는다.
+미국은 **개당(USD/개)**, 이탈리아는 **kg당(USD/kg)** 이다. 원칙은 하나다 —
+**그 나라가 실제로 보고한 수량을 쓴다.**
 
+| | 중량 netWgt | 수량 qty | 쓰는 단가 |
+|---|---|---|---|
+| 미국(842) | `isNetWgtEstimated=True` (추정) | `isQtyEstimated=False` · 단위 5=개 | **개당** |
+| 이탈리아(380) | `isNetWgtEstimated=False` (실보고) | `isQtyEstimated=True` (추정) | **kg당** |
+
+미국 `netWgt` 은 Comtrade 가 금액을 **연도별 고정계수로 나눠 역산한 값**이다.
+실측하면 금액÷중량이 2024년 전월 `7.2196`, 2025년 전월 `6.7784` USD/kg 로
+소수 4자리까지 같다. 월별 정보가 0 이므로 이 값으로 단가 그래프를 그리면
+Comtrade 계수의 계단만 보인다. 그래서 쓰지 않는다.
+
+수량 단위 코드는 공식 레퍼런스로 확인했다 —
+`https://comtradeapi.un.org/files/v1/app/reference/QuantityUnits.json`
+에서 `5 = "u" Number of items`, `8 = "kg" Weight in kilograms`.
+
+### Census 를 쓰지 않는 이유
+
+Census 국제무역 API 도 무료지만 **키 발급이 필수**다(키 없이 호출하면 JSON 이
+아니라 `Missing Key` HTML 이 200 으로 돌아온다). 키가 없는 동안 수입단가 선이
+아예 비었다. UN Comtrade 공개 preview 는 키가 필요 없고 같은 HS 세분 코드로
+금액·수량이 함께 오므로 2026-08 에 갈아탔다. `CENSUS_API_KEY` 는 더 이상
+쓰지 않는다.
+
+### UN Comtrade 호출 제한
+
+실측(2026-08): 무간격 연속 8회 모두 HTTP 200, 레이트 리밋 헤더는 없다.
+`reporterCode="842,380"` 처럼 두 나라를 한 요청에 넣는 것도 되지만, 이탈리아
+저장 포맷을 건드리지 않기 위해 나라별 파일로 분리했다. 한 실행에서 새로 받는
+달이 나라당 `MAX_NEW=4` 개뿐이라 호출 수는 문제가 되지 않는다(간격 1.2초 유지).
+
+`europe_flow` 와 `us_market` 은 같은 수집 그룹에 두어 두 나라의 Comtrade 호출이
+**동시에 나가지 않게** 했다(그룹끼리는 병렬, 그룹 안은 순차).
+
+과거 구간을 채우려면:
+
+```bash
+python us_trade.py --fill 25
 ```
-CENSUS_API_KEY=여기에_발급받은_키
-```
-
-3. GitHub Actions 자동 수집에도 쓰려면 저장소 Settings → Secrets and variables →
-   Actions 에 `CENSUS_API_KEY` 를 추가하고, `.github/workflows/collect.yml` 의
-   수집 스텝 `env:` 에 `CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}` 를 넣는다.
-
-**키가 없어도 정상 동작한다.** 수입 단가 블록만 숨고 PPI 는 그대로 표시된다.
-`.env` 는 `.gitignore` 에 있어 커밋되지 않는다.
 
 ### BLS 시리즈에 대해
 
