@@ -1204,94 +1204,56 @@ function vizKrwTick(x, y, val, rate) {
    정성: 시장 특성  /  참고: 비상장 브랜드 카드
    ★ Eurostat 소매판매지수는 쓰지 않는다(가구·조명·가정용품이 최소 분류라
      매트리스 관점의 연관성이 떨어진다). */
-let _itCode = '9404';   // 선택된 HS 코드
 let _itMode = 'abs';    // 이탈리아 추이 기준: 'abs' 절대액 / 'index' 지수화
 let _itTier = 'all';    // 단가 티어 필터(경계가 정해지면 활성)
 
-/** HS 코드 칩 */
-function gtTradeChips(codes) {
-  return '<div class="gt-bar" role="group" aria-label="HS 코드 선택">'
-    + codes.map((c) => '<button type="button" class="gt-chip'
-      + (_itCode === c.code ? ' is-on' : '') + '" data-it-code="' + escapeHtml(c.code) + '">'
-      + escapeHtml(c.label) + '<span class="gt-chip__p">HS ' + escapeHtml(c.code) + '</span>'
-      + '</button>').join('') + '</div>';
-}
-
-/** 소재별 구성 — 하위 코드가 잡힐 때 최근 월의 폼/스프링/서포트 비중 */
-function gtTradeMix(t) {
-  const rows = t.months || [];
-  if (!rows.length) return '';
-  const last = rows[rows.length - 1];
-  const SUB = (t.codes || []).filter((c) => c.code !== '9404');
-  if (!SUB.length) return '';
-  const bar = (flowKey, flowName) => {
-    const vals = SUB.map((c) => ({ c: c, v: (last[flowKey] || {})[c.code] }))
-      .filter((x) => x.v != null && x.v > 0);
-    const sum = vals.reduce((a, b) => a + b.v, 0);
-    if (!sum) return '';
-    const COL = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--violet)'];
-    return '<div class="itx-row"><div class="itx-h">' + escapeHtml(flowName)
-      + ' <span class="itx-tot">' + escapeHtml(fmtUsd(sum)) + '</span></div>'
-      + '<div class="itx-bar">'
-      + vals.map((x, i) => '<span class="itx-seg" style="width:' + ((x.v / sum) * 100).toFixed(1)
-        + '%;background:' + COL[i % COL.length] + '" title="' + escapeHtml(x.c.label + ' · '
-        + fmtUsd(x.v) + ' · ' + ((x.v / sum) * 100).toFixed(1) + '%') + '"></span>').join('')
-      + '</div>'
-      + '<div class="itx-leg">' + vals.map((x, i) => '<span class="itx-lg">'
-        + '<i style="background:' + COL[i % COL.length] + '"></i>'
-        + escapeHtml(x.c.label.replace(/\s*\(.*\)$/, '')) + ' '
-        + ((x.v / sum) * 100).toFixed(1) + '%</span>').join('') + '</div></div>';
-  };
-  const b = bar('exp', '수출') + bar('imp', '수입');
-  if (!b) return '';
-  return '<h3 class="subhead">소재별 구성 <span class="gt-cnt">' + escapeHtml(last.month)
-    + ' · HS 하위 코드 기준</span></h3><div class="itx-box">' + b + '</div>';
-}
-
-/** 티어 구분 자리 — 경계가 정해지기 전에는 필터를 켜지 않고 사유를 밝힌다 */
+/** 이탈리아 티어 필터 — 미국과 같은 칩·라벨·위치를 쓴다(tier_defs 를 그대로 읽는다) */
 function gtTradeTier(t) {
   const tier = t.tier || {};
   if (!tier.mode) {
-    return '<div class="itn-pend"><span class="itn-pend__h">티어 구분 대기</span>'
-      + escapeHtml(tier.pending_note || '') + '</div>';
+    return '<div class="gt-hollow">' + escapeHtml(tier.reason || '티어를 산출할 수 없습니다') + '</div>';
   }
-  // 라벨·색상·순서를 미국 티어와 동일하게 맞춘다(tier_defs 를 그대로 쓴다).
   const defs = gtDefs() || [];
-  const keys = [['all', '전체']].concat(defs.map((t) => [t.key, t.name]));
+  const keys = [['all', '전체']].concat(defs.map((x) => [x.key, x.name]));
+  const b = tier.boundary || {};
   return '<div class="gt-bar" role="group" aria-label="단가 티어 필터">'
     + keys.map((k) => '<button type="button" class="gt-chip'
-      + (_itTier === k[0] ? ' is-on' : '') + '" data-it-tier="' + k[0] + '">'
-      + escapeHtml(k[1]) + '</button>').join('') + '</div>'
-    + '<div class="itn-note">' + escapeHtml(tier.disclaimer || '') + '</div>';
+      + (_itTier === k[0] ? ' is-on' : '') + '" data-it-tier="' + escapeHtml(k[0]) + '">'
+      + escapeHtml(k[1])
+      + (k[0] === 'high' && b.high_min != null
+        ? '<span class="gt-chip__p">' + b.high_min.toFixed(2) + '+ USD/kg</span>' : '')
+      + (k[0] === 'premium' && b.premium_min != null
+        ? '<span class="gt-chip__p">' + b.premium_min.toFixed(2) + '~' + b.high_min.toFixed(2) + '</span>' : '')
+      + '</button>').join('')
+    + '</div>'
+    + '<div class="itn-note">' + escapeHtml(tier.disclaimer || '')
+    + ' ' + escapeHtml(tier.scope_note || '') + '</div>';
 }
 
-/** 이탈리아 수출입 차트 — 자동 수집 유일 정량 지표 */
+/** 이탈리아 수출입 차트 — 티어(단가 구간) 연동 */
 function gtItalyTrade() {
   const t = _europe && _europe.italy_trade;
   if (!t) return '';
-  if (t.status !== 'ok' || !(t.months || []).length) {
+  const tier = t.tier || {};
+  if (t.status !== 'ok' || !(tier.series || []).length) {
     return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404</span></h3>'
-      + '<div class="gt-hollow">' + escapeHtml(t.reason || '수집 실패') + '</div>';
+      + '<div class="gt-hollow">' + escapeHtml(t.reason || tier.reason || '수집 실패') + '</div>';
   }
-  const codes = t.codes || [{ code: '9404', label: '전체' }];
-  if (!codes.some((c) => c.code === _itCode)) _itCode = codes[0].code;
-  const rows = (t.months || []).slice(-24);
+  const rows = tier.series.slice(-24);
   const cur = t.currency || 'USD';
   const rate = krwRate(cur);
   const idx = (_itMode === 'index');
+  const pick = (r) => r[_itTier] || {};
 
-  const rawEx = rows.map((m) => (m.exp || {})[_itCode]);
-  const rawIm = rows.map((m) => (m.imp || {})[_itCode]);
-  const rawBal = rows.map((m, i) => (rawEx[i] != null && rawIm[i] != null) ? rawEx[i] - rawIm[i] : null);
+  const rawEx = rows.map((r) => pick(r).exp);
+  const rawIm = rows.map((r) => pick(r).imp);
+  const rawBal = rows.map((r, i) => (rawEx[i] != null && rawIm[i] != null) ? rawEx[i] - rawIm[i] : null);
   if (rawEx.concat(rawIm).filter((v) => v != null).length < 2) {
-    return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS ' + escapeHtml(_itCode) + '</span></h3>'
-      + gtTradeChips(codes) + '<div class="gt-hollow">선택한 코드의 값이 없습니다.</div>';
+    return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404</span></h3>'
+      + gtTradeTier(t) + '<div class="gt-hollow">선택한 티어에 값이 없습니다.</div>';
   }
-  // 지수화: 수출·수입만(무역수지는 음수가 되어 지수화가 성립하지 않는다)
   let baseIdx = -1;
-  for (let i = 0; i < rows.length; i += 1) {
-    if (rawEx[i] != null && rawIm[i] != null) { baseIdx = i; break; }
-  }
+  for (let i = 0; i < rows.length; i += 1) { if (rawEx[i] != null) { baseIdx = i; break; } }
   const scale = (arr) => (idx && baseIdx >= 0 && arr[baseIdx])
     ? arr.map((v) => (v == null ? null : (v / arr[baseIdx]) * 100)) : arr.slice();
   const SER = [{ k: 'exp', name: '수출', color: 'var(--blue)', raw: rawEx, vals: scale(rawEx) },
@@ -1328,7 +1290,7 @@ function gtItalyTrade() {
     grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
       + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
   }
-  if (!idx && lo < 0 && hi > 0) {          // 무역수지 0선
+  if (!idx && lo < 0 && hi > 0) {
     grid += '<line x1="' + padL + '" y1="' + Y(0).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
       + Y(0).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
   }
@@ -1359,11 +1321,11 @@ function gtItalyTrade() {
       rows: SER.map((s) => {
         const v = s.vals[i], raw = s.raw[i];
         if (v == null) return null;
-        const k = (rate != null) ? fmtKrwAxis(raw * rate) : null;
-        const won = k ? ' <span class="gt-tip__abs">≈ ' + escapeHtml(k) + ' 원</span>' : '';
+        const kw = (rate != null) ? fmtKrwAxis(raw * rate) : null;
+        const won = kw ? ' <span class="gt-tip__abs">≈ ' + escapeHtml(kw) + ' 원</span>' : '';
         return { name: s.name, color: s.color, seg: !!s.dash, y: Y(v),
           val: idx ? (Math.round(v) + ' <span class="gt-tip__abs">실제 ' + escapeHtml(fmtUsd(raw))
-            + (k ? ' ≈ ' + escapeHtml(k) + ' 원' : '') + '</span>')
+            + (kw ? ' ≈ ' + escapeHtml(kw) + ' 원' : '') + '</span>')
             : (escapeHtml(fmtUsd(raw)) + won) };
       }),
     })),
@@ -1377,26 +1339,31 @@ function gtItalyTrade() {
   });
   hov += '</g>';
 
-  // 요약 바 — 최신월 수출·수입·무역수지 + 전년 동월 대비
   const last = rows.length - 1;
   const yoy = (arr) => {
-    const cur2 = arr[last], prev = (last - 12 >= 0) ? arr[last - 12] : null;
-    return (cur2 != null && prev) ? ((cur2 - prev) / Math.abs(prev)) * 100 : null;
+    const c = arr[last], prev = (last - 12 >= 0) ? arr[last - 12] : null;
+    return (c != null && prev) ? ((c - prev) / Math.abs(prev)) * 100 : null;
   };
   const cell = (lbl, v, y) => {
-    const k = (v != null && rate != null) ? fmtKrwAxis(v * rate) : null;
+    const kw = (v != null && rate != null) ? fmtKrwAxis(v * rate) : null;
     return '<div class="itt-cell"><span class="itt-k">' + escapeHtml(lbl) + '</span>'
       + '<span class="itt-v' + (v != null && v < 0 ? ' itt-v--neg' : '') + '">'
       + (v == null ? '—' : escapeHtml(fmtUsd(v))) + '</span>'
-      + (k ? '<span class="itt-krw">≈ ' + escapeHtml(k) + ' 원</span>' : '')
+      + (kw ? '<span class="itt-krw">≈ ' + escapeHtml(kw) + ' 원</span>' : '')
       + (y != null ? '<span class="itt-yoy">' + compYoy(Math.round(y * 10) / 10) + '</span>' : '')
       + '</div>';
   };
+  // 선택한 티어에 수입 값이 거의 없으면 그 사실을 숨기지 않는다.
+  const nImp = rawIm.filter((v) => v != null).length;
+  const impWarn = (nImp <= 1)
+    ? '<div class="itn-warn">이 티어에서 수입 값이 있는 달은 ' + nImp + '/' + rows.length
+      + '개월입니다. 이탈리아 수입 단가가 프리미엄 하한('
+      + ((tier.boundary || {}).premium_min != null ? tier.boundary.premium_min.toFixed(2) : '—')
+      + ' USD/kg)보다 낮아 대부분 제외되기 때문이며, 무역수지도 그만큼 계산되지 않습니다.</div>'
+    : '';
 
   return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404 · UN Comtrade · 자동 갱신</span></h3>'
     + gtTradeTier(t)
-    + '<div class="itt-hint">매트리스·매트리스 서포트·침구류 기준. 이탈리아가 자동 수집으로 확보할 수 있는 유일한 정량 지표입니다.</div>'
-    + gtTradeChips(codes)
     + '<div class="itt-sum">'
     + cell('수출 (' + rows[last].month + ')', rawEx[last], yoy(rawEx))
     + cell('수입 (' + rows[last].month + ')', rawIm[last], yoy(rawIm))
@@ -1404,6 +1371,7 @@ function gtItalyTrade() {
     + '<div class="itt-cell itt-cell--wide"><span class="itt-k">수집 구간</span>'
     + '<span class="itt-range">' + escapeHtml(rows[0].month) + ' ~ ' + escapeHtml(rows[last].month)
     + ' · 공표 지연 약 3개월</span></div></div>'
+    + impWarn
     + '<div class="gt-tools" role="group" aria-label="추이 기준">'
     + '<button type="button" class="gt-tg' + (idx ? '' : ' is-on') + '" data-it-mode="abs">절대액</button>'
     + '<button type="button" class="gt-tg' + (idx ? ' is-on' : '') + '" data-it-mode="index">지수화 (기준월=100)</button>'
@@ -1423,66 +1391,12 @@ function gtItalyTrade() {
     + '</div>'
     + (idx ? '<div class="gt-chart__note">지수화 모드에서는 무역수지를 표시하지 않습니다(음수가 되어 지수가 성립하지 않습니다).</div>'
       : krwNote(cur))
-    + '<div class="gt-chart__note">' + escapeHtml(t.read_note || '') + '</div>'
+    + '<div class="gt-chart__note">수입 증가는 해외 브랜드 침투를, 수출 증가는 자국 생산 호조를 시사합니다.</div>'
     + '<div class="gt-ita__src">출처: ' + escapeHtml(t.source || 'UN Comtrade')
-    + (t.updatedAt ? ' · ' + escapeHtml(String(t.updatedAt).slice(0, 16)) + ' 수집' : '') + '</div>'
-    + gtTradeMix(t);
-}
-
-/** 시장 규모·프리미엄 비중·브랜드 점유율 (수동 입력) — 표로만 제시한다.
-    ★ 기관·기준연도·조사범위가 달라 선으로 이으면 기관 차이가 기울기로 보인다. */
-function gtItalyMarket() {
-  const m = _europe && _europe.italy_market;
-  if (!m) return '';
-  if (!m.has_any) {
-    return '<h3 class="subhead">이탈리아 시장 규모 <span class="gt-cnt">시장조사 기관 · 수동 갱신</span></h3>'
-      + '<div class="gt-hollow">' + escapeHtml(m.empty_hint || '') + '</div>';
-  }
-  const src = (r) => [r.source, r.report].filter(Boolean).join(' · ') || '—';
-  const chk = (r) => r.checkedAt ? escapeHtml(r.checkedAt) : '—';
-  let body = '';
-  (m.marketSize || []).forEach((r) => {
-    body += '<tr><td>' + escapeHtml(String(r.year)) + '</td><td>시장 규모</td>'
-      + '<td class="itq-n">' + (r.value == null ? '—'
-        : escapeHtml(r.value.toLocaleString('ko-KR') + ' ' + (r.currency || ''))) + '</td>'
-      + '<td class="itq-n">' + (r.growthPct == null ? '—' : compYoy(r.growthPct)) + '</td>'
-      + '<td>' + escapeHtml(r.scope || '—') + '</td><td>' + escapeHtml(src(r)) + '</td>'
-      + '<td>' + chk(r) + '</td></tr>';
-  });
-  (m.premiumShare || []).forEach((r) => {
-    body += '<tr><td>' + escapeHtml(String(r.year)) + '</td><td>프리미엄 비중</td>'
-      + '<td class="itq-n">' + escapeHtml(String(r.sharePct)) + '%</td><td class="itq-n">—</td>'
-      + '<td>' + escapeHtml(r.definition || '—') + '</td><td>' + escapeHtml(src(r)) + '</td>'
-      + '<td>' + chk(r) + '</td></tr>';
-  });
-  (m.brandShare || []).forEach((r) => {
-    body += '<tr><td>' + escapeHtml(String(r.year)) + '</td><td>'
-      + escapeHtml(r.brand) + ' 점유율</td>'
-      + '<td class="itq-n">' + escapeHtml(String(r.sharePct)) + '%</td><td class="itq-n">—</td>'
-      + '<td>—</td><td>' + escapeHtml(src(r)) + '</td><td>' + chk(r) + '</td></tr>';
-  });
-  return '<h3 class="subhead">이탈리아 시장 규모 <span class="gt-cnt">시장조사 기관 · 수동 갱신'
-    + (m.updatedAt ? ' · ' + escapeHtml(m.updatedAt) : '') + '</span></h3>'
-    + '<div class="itq-hint">기관·기준연도·조사범위가 달라 <b>선으로 잇지 않고 표로만</b> 제시합니다.'
-    + ' 숫자를 비교하기 전에 조사범위를 먼저 확인하세요.</div>'
-    + '<div class="itq-wrap"><table class="itq"><thead><tr>'
-    + '<th>연도</th><th>항목</th><th class="itq-n">값</th><th class="itq-n">증감</th>'
-    + '<th>조사범위 / 정의</th><th>출처기관 · 리포트</th><th>확인일</th>'
-    + '</tr></thead><tbody>' + body + '</tbody></table></div>';
-}
-
-/** 시장 특성 (정성 · 고정 텍스트) */
-function gtItalyTraits() {
-  const t = _europe && _europe.italy_traits;
-  const items = (t && t.items) || [];
-  if (!items.length) return '';
-  const rows = items.map((x) => '<div class="itr-row"><span class="itr-t">' + escapeHtml(x.title)
-    + '</span><span class="itr-b">' + escapeHtml(x.body)
-    + (x.source ? ' <span class="itr-s">' + escapeHtml(x.source) + '</span>'
-      : ' <span class="itr-s itr-s--none">출처 확인 필요</span>') + '</span></div>').join('');
-  return '<h3 class="subhead">이탈리아 시장 특성 <span class="gt-cnt">' + escapeHtml(t.note || '')
-    + (t.updatedAt ? ' · ' + escapeHtml(t.updatedAt) + ' 갱신' : '') + '</span></h3>'
-    + '<div class="itr-box">' + rows + '</div>';
+    + (t.updatedAt ? ' · ' + escapeHtml(String(t.updatedAt).slice(0, 16)) + ' 수집' : '')
+    + ((tier.dist || {}).n ? ' · 단가 분포 n=' + tier.dist.n + ' (최소 ' + tier.dist.min
+      + ' · 중앙 ' + tier.dist.median + ' · Q3 ' + tier.dist.q3 + ' · 최대 ' + tier.dist.max
+      + ' USD/kg)' : '') + '</div>';
 }
 
 /** 국외 섹션 전체(티어 뷰). tier_defs 가 없으면 null → 호출부가 기존 화면으로 폴백 */
@@ -1537,8 +1451,6 @@ function gtGlobalHtml(list, rate) {
     + '<h3 class="subhead">기업</h3>'
     + cards
     + gtItalyTrade()
-    + gtItalyMarket()
-    + gtItalyTraits()
     + gtItalyBrands()
     + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()
     + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
@@ -1608,8 +1520,6 @@ function wireGtControls() {
     if (tb) { _gtTier = tb.getAttribute('data-gt-tier'); renderCompetitor(); return; }
     const mb = ev.target.closest && ev.target.closest('[data-gt-mode]');
     if (mb) { _gtMode = mb.getAttribute('data-gt-mode'); renderCompetitor(); return; }
-    const cb = ev.target.closest && ev.target.closest('[data-it-code]');
-    if (cb) { _itCode = cb.getAttribute('data-it-code'); renderCompetitor(); return; }
     const im = ev.target.closest && ev.target.closest('[data-it-mode]');
     if (im) { _itMode = im.getAttribute('data-it-mode'); renderCompetitor(); return; }
     const itb = ev.target.closest && ev.target.closest('[data-it-tier]');

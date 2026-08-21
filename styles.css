@@ -1341,78 +1341,17 @@ body {
 .itt-krw { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .itt-range { font-size: 12px; font-weight: 600; color: var(--ink); }
 
-/* 이탈리아 시장 규모(수동) */
-.itm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.itm-card {
-  padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-1); border-top: 3px solid var(--slate);
-}
-.itm-head { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
-.itm-val { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.itm-g { font-size: 13px; }
-.itm-scope { margin-top: 6px; font-size: 11px; line-height: 1.5; color: var(--text); }
-.itm-src {
-  margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line);
-  font-size: 10.5px; line-height: 1.5; color: var(--muted);
-}
 
-/* 이탈리아 시장 특성(정성) */
-.itr-box {
-  padding: 4px 13px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-1);
-}
-.itr-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
-.itr-row:last-child { border-bottom: none; }
-.itr-t { flex: 0 0 88px; font-size: 12px; font-weight: 700; color: var(--ink); }
-.itr-b { min-width: 0; font-size: 12px; line-height: 1.55; color: var(--text); }
-.itr-s { font-size: 10.5px; color: var(--muted); }
-.itr-s--none { color: var(--amber); font-weight: 600; }
 
-@media (max-width: 900px) { .itm-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) {
-  .itm-grid { grid-template-columns: 1fr; }
-  .itr-row { flex-direction: column; gap: 2px; }
-  .itr-t { flex-basis: auto; }
-}
 
 /* ── 이탈리아 티어·소재·시장 규모 표 (순수 추가) ─────────────────────────── */
-.itn-pend {
-  margin: 0 0 10px; padding: 9px 11px;
-  border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--amber-soft); color: var(--text); font-size: 12px; line-height: 1.6;
-}
-.itn-pend__h {
-  display: block; margin-bottom: 2px;
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--amber);
-}
 .itn-note { margin: -2px 0 10px; font-size: 11px; line-height: 1.55; color: var(--muted); }
 .itt-yoy { margin-top: 1px; }
 
-/* 소재별 구성 */
-.itx-box {
-  padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-1);
+/* 티어 필터 아래 안내 · 수입 결측 경고 (이탈리아) */
+.itn-note { margin: -2px 0 12px; font-size: 11px; line-height: 1.55; color: var(--muted); }
+.itn-warn {
+  margin: -4px 0 12px; padding: 9px 11px;
+  border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--amber-soft); color: var(--text); font-size: 11.5px; line-height: 1.6;
 }
-.itx-row + .itx-row { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
-.itx-h { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 5px; }
-.itx-tot { margin-left: 5px; font-size: 11.5px; font-weight: 500; color: var(--muted); }
-.itx-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); }
-.itx-seg { height: 100%; }
-.itx-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
-.itx-lg { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text); }
-.itx-lg i { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
-
-/* 시장 규모 참고 표 */
-.itq-hint { margin: -4px 0 8px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
-.itq-hint b { color: var(--text); font-weight: 700; }
-.itq-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.itq { width: 100%; border-collapse: collapse; font-size: 11.5px; background: var(--surface-1); }
-.itq th, .itq td { padding: 8px 10px; text-align: left; vertical-align: top; line-height: 1.5; }
-.itq thead th {
-  background: var(--slate-soft); color: var(--muted);
-  font-size: 10.5px; font-weight: 700; white-space: nowrap;
-}
-.itq tbody tr + tr td { border-top: 1px solid var(--line); }
-.itq tbody td { color: var(--text); }
-.itq .itq-n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.itq tbody td:first-child { font-weight: 700; color: var(--ink); white-space: nowrap; }

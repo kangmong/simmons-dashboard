@@ -31,11 +31,6 @@ try:  # 이탈리아 수출입(자동) — UN Comtrade
 except Exception:  # noqa: BLE001
     update_italy_trade = None
 
-try:  # 이탈리아 시장 규모(수동) + 시장 특성(정성)
-    from italy_market import load_italy_market, italy_traits_payload
-except Exception:  # noqa: BLE001
-    load_italy_market = italy_traits_payload = None
-
 # Tempur Sealy(현 Somnigroup International) CIK. 사명이 바뀌어도 CIK 는 그대로다.
 TPX_CIK = 1206264
 SEC_HEADERS = {"User-Agent": "Simmons Dashboard contact@example.com"}
@@ -198,14 +193,11 @@ def update_europe_flow():
     seg = fetch_tpx_segments()
     trade = (update_italy_trade() if update_italy_trade
              else {"status": "error", "reason": "수출입 수집 모듈을 불러오지 못했습니다"})
-    market = load_italy_market() if load_italy_market else None
-    traits = italy_traits_payload() if italy_traits_payload else None
     brands = italy_brands_payload() if italy_brands_payload else None
     ok = (seg.get("status") == "ok") or (trade.get("status") == "ok")
     return {"status": "ok" if ok else "error",
             "reason": None if ok else (seg.get("reason") or trade.get("reason")),
-            "segments": seg, "italy_trade": trade, "italy_market": market,
-            "italy_traits": traits, "italy_brands": brands}
+            "segments": seg, "italy_trade": trade, "italy_brands": brands}
 
 
 
