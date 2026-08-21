@@ -813,6 +813,8 @@ function compKoreaCard(c, i) {
 let _gtTier = 'all';        // 'all' | tier key
 let _gtMode = 'index';      // 'index' = 기준분기 100 지수화(기본) / 'abs' = 절대액
 let _europe = null;         // sections.europe_flow
+let _gtTip = null;          // 추이 차트 hover 툴팁 데이터(분기별)
+let _gtGeom = null;         // 차트 기하(툴팁 위치 계산용)
 
 /** 티어 정의 배열(없으면 null → 기존 국외 화면으로 폴백) */
 function gtDefs() {
@@ -870,7 +872,7 @@ function gtSummary(companies) {
   return { sum: nSum ? sum : null, nSum: nSum, yoy: yoy, nYoy: nYoy, pub: pub, priv: priv };
 }
 
-/** 티어 면책 문구(payload 제공). ⓘ 툴팁과 '데이터 한계' 줄이 같은 원문을 쓴다. */
+/** 티어 면책 문구(payload 제공) — ⓘ 툴팁에서만 보여준다. */
 function gtTierNote() {
   return (_competitors && _competitors.tier_note) || '';
 }
@@ -1002,6 +1004,11 @@ function gtTrendChart(companies) {
 
   // 인수 반영 시점 세로 기준선 — 인수로 늘어난 매출을 시장 성장으로 오독하지 않게 한다
   const acq = (_europe && _europe.segments && _europe.segments.acq_quarter) || null;
+  const acqDate = (_europe && _europe.segments && _europe.segments.acq_date) || null;
+  const acqLbl = acqDate
+    ? (acqDate.slice(0, 4) + '.' + Number(acqDate.slice(5, 7)) + '.' + Number(acqDate.slice(8, 10))
+      + ' Mattress Firm 인수')
+    : 'Mattress Firm 인수';
   const acqOrd = acq ? compQtrOrd(acq) : null;
   const acqIdx = (acqOrd == null) ? -1 : xs.indexOf(acqOrd);
   let acqMark = '';
@@ -1010,7 +1017,7 @@ function gtTrendChart(companies) {
     acqMark = '<line x1="' + ax.toFixed(1) + '" y1="' + VIZ_PAD_T + '" x2="' + ax.toFixed(1)
       + '" y2="' + (VIZ_PAD_T + plotH) + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>'
       + '<text x="' + (ax + 3).toFixed(1) + '" y="' + (VIZ_PAD_T + 8) + '" font-size="' + VIZ_FS_LABEL
-      + '" fill="var(--accent)">Mattress Firm 인수 반영</text>';
+      + '" fill="var(--accent)">' + escapeHtml(acqLbl) + '</text>';
   }
 
   const keep = vizTickIdx(xs.length, plotW, VIZ_TICK_GAP);
@@ -1033,15 +1040,38 @@ function gtTrendChart(companies) {
         + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"'
         + (s.seg ? ' stroke-dasharray="5 3"' : '') + '/>';
     }
-    const rm = gtRevMap(s.c);
-    s.pts.forEach((v, i) => {          // 값 확인용 투명 히트영역
-      if (v == null) return;
-      const tip = (s.c.name || s.c.label) + ' · ' + compQtrLabel(xs[i]) + ' · ' + fmtUsd(rm[xs[i]])
-        + (_gtMode === 'index' ? ' (지수 ' + Math.round(v) + ')' : '');
-      lines += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(v).toFixed(1)
-        + '" r="7" fill="transparent"><title>' + escapeHtml(tip) + '</title></circle>';
-    });
   });
+
+  // ── hover/탭 툴팁용 데이터 ───────────────────────────────────────────────
+  // dot 은 그리지 않지만(선이 지저분해진다) 가리킨 분기에는 activeDot 을 띄운다.
+  // 지수화 모드에서는 지수와 실제 매출액을 함께 보여준다.
+  _gtTip = xs.map((o, i) => ({
+    q: compQtrLabel(o),
+    rows: series.map((s) => {
+      const v = s.pts[i];
+      if (v == null) return null;
+      const raw = gtRevMap(s.c)[o];
+      return {
+        name: s.c.name || s.c.label,
+        color: s.color,
+        seg: s.seg,
+        y: Y(v),
+        val: (_gtMode === 'index')
+          ? (Math.round(v) + ' <span class="gt-tip__abs">실제 ' + fmtUsd(raw) + '</span>')
+          : fmtUsd(raw),
+      };
+    }),
+  }));
+  _gtGeom = { padL: padL, plotW: plotW, n: xs.length, top: VIZ_PAD_T, bot: VIZ_PAD_T + plotH };
+
+  // 커서선 + series 개수만큼의 activeDot (기본 숨김, hover 시 위치만 옮긴다)
+  let hov = '<g class="gt-hov" aria-hidden="true">'
+    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>';
+  series.forEach((s, si) => {
+    hov += '<circle class="gt-adot" data-si="' + si + '" r="3.5" cx="-99" cy="-99"'
+      + ' fill="var(--card)" stroke="' + s.color + '" stroke-width="2"/>';
+  });
+  hov += '</g>';
 
   const legend = series.map((s) => '<span class="gt-lg' + (s.seg ? ' gt-lg--seg' : '') + '">'
     + '<i style="background:' + s.color + '"></i>'
@@ -1058,9 +1088,13 @@ function gtTrendChart(companies) {
     + '" data-gt-mode="index">지수화 (기준분기=100)</button>'
     + '<button type="button" class="gt-tg' + (_gtMode === 'abs' ? ' is-on' : '')
     + '" data-gt-mode="abs">절대액</button></div>'
+    + '<div class="gt-chartwrap">'
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="분기별 매출 추이">'
-    + grid + acqMark + lines + xlab + '</svg>'
+    + grid + acqMark + lines + xlab + hov + '</svg>'
+    + '<div class="gt-tip" hidden></div>'
+    + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 분기별 값이 보입니다.</div>'
+    + '</div>'
     + '<div class="gt-legend">' + legend + '</div>';
   return {
     html: html,
@@ -1088,20 +1122,13 @@ function gtChartGuide(info) {
       + ' 회사 규모 차이가 커서 작은 기업의 변화는 잘 보이지 않을 수 있습니다.</p>');
     L.push('<ul class="gt-gd__how"><li>규모 대신 성장 속도를 보려면 <b>지수화</b>로 바꾸세요.</li></ul>');
   }
-  const lim = ['<li>' + escapeHtml(gtTierNote()) + '</li>'];
-  if (info.acq) {
-    lim.push('<li>Tempur Sealy 는 <b>' + escapeHtml(info.acq) + '</b>부터 Mattress Firm(소매 체인) 실적이'
-      + ' 합쳐져 매출이 계단식으로 늘었습니다. 시장이 커진 것이 아니라 인수 효과입니다.</li>');
+  // 인수 설명만 남긴다(그래프 해석에 필수). 티어 면책은 ⓘ 툴팁에만 둔다.
+  const seg = _europe && _europe.segments;
+  const acqText = (seg && seg.acq_text) || '';
+  if (info.acq && acqText) {
+    L.push('<div class="gt-gd__acq"><span class="gt-gd__acqm">인수 반영 구간</span>'
+      + escapeHtml(acqText) + '</div>');
   }
-  if (info.hasEu) {
-    lim.push('<li>점선 라인은 Tempur Sealy 의 <b>미국 외(International) 세그먼트</b>로, 별도 기업이 아닙니다.'
-      + ' 공시가 미국/미국 외로만 나뉘어 유럽·이탈리아만 떼어낼 수 없습니다.</li>');
-  }
-  if ((info.miss || []).length) {
-    lim.push('<li>' + escapeHtml(info.miss.join(', ')) + ' 는 값이 없습니다.'
-      + ' 미국 기업은 4분기 실적을 10-K 로 내는데, 최근 10-K 는 분기별 수치를 따로 표기하지 않습니다.</li>');
-  }
-  L.push('<div class="gt-gd__lim"><span class="gt-gd__limh">데이터 한계</span><ul>' + lim.join('') + '</ul></div>');
   return '<div class="gt-gd">' + L.join('') + '</div>';
 }
 
@@ -1141,6 +1168,37 @@ function gtItalyBlock() {
 }
 
 /** 국외 섹션 전체(티어 뷰). tier_defs 가 없으면 null → 호출부가 기존 화면으로 폴백 */
+/** 이탈리아 프리미엄 브랜드 — 비상장이라 실적이 없다. 참고 정보만 카드로 둔다.
+    브랜드 목록은 백엔드 italy_brands.py 한 곳에서 관리한다. */
+function gtItalyBrands() {
+  const ib = _europe && _europe.italy_brands;
+  const list = (ib && ib.brands) || [];
+  if (!list.length) return '';
+  const cards = list.map((b) => {
+    const rows = [];
+    if (b.founded) rows.push(['설립', b.founded + '년']);
+    if (b.hq) rows.push(['본사', b.hq]);
+    if (b.entity) rows.push(['법인', b.entity]);
+    const meta = rows.map((r) => '<div class="itb-row"><span class="itb-k">' + escapeHtml(r[0])
+      + '</span><span class="itb-v">' + escapeHtml(r[1]) + '</span></div>').join('');
+    const unk = (!b.founded && !b.hq)
+      ? '<div class="itb-row"><span class="itb-k">설립·본사</span><span class="itb-v itb-v--none">확인되지 않아 비워 둠</span></div>'
+      : '';
+    return '<div class="itb-card' + (b.verified ? '' : ' itb-card--chk') + '">'
+      + '<div class="itb-head"><span class="itb-name">' + escapeHtml(b.name) + '</span>'
+      + (b.verified ? '' : '<span class="itb-chk">확인 필요</span>') + '</div>'
+      + (b.positioning ? '<div class="itb-pos">' + escapeHtml(b.positioning) + '</div>' : '')
+      + meta + unk
+      + (b.note ? '<div class="itb-note">' + escapeHtml(b.note) + '</div>' : '')
+      + '</div>';
+  }).join('');
+  return '<h3 class="subhead">이탈리아 프리미엄 시장 <span class="gt-cnt">'
+    + escapeHtml((ib && ib.note) || '참고 정보') + '</span></h3>'
+    + '<div class="itb-hint">비상장 기업이라 분기 실적이 없어 차트 라인으로는 넣을 수 없습니다.'
+    + ' 추정 매출을 만들지 않고 확인된 사실만 적었습니다.</div>'
+    + '<div class="itb-grid">' + cards + '</div>';
+}
+
 function gtGlobalHtml(list, rate) {
   if (!gtDefs()) return null;
   const inTier = gtInTier(list, _gtTier);
@@ -1168,11 +1226,58 @@ function gtGlobalHtml(list, rate) {
     + cards
     + supHtml
     + gtItalyBlock()
+    + gtItalyBrands()
     + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()
     + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
 }
 
-/** 티어 필터·추이 토글 이벤트(위임 1회 등록) */
+/** 포인터 x좌표 → 분기 인덱스. 차트 밖이면 null */
+function gtHitIndex(svg, clientX) {
+  if (!_gtGeom || !_gtTip || !_gtTip.length) return null;
+  const r = svg.getBoundingClientRect();
+  if (!r.width) return null;
+  const vb = ((clientX - r.left) / r.width) * VIZ_W;      // viewBox 좌표로 환산
+  const { padL, plotW, n } = _gtGeom;
+  if (n < 2) return 0;
+  const i = Math.round(((vb - padL) / plotW) * (n - 1));
+  return Math.max(0, Math.min(n - 1, i));
+}
+
+/** 툴팁·activeDot 표시. i=null 이면 감춘다. */
+function gtShowTip(wrap, i) {
+  const svg = wrap.querySelector('.gt-chart');
+  const tip = wrap.querySelector('.gt-tip');
+  const hov = wrap.querySelector('.gt-hov');
+  if (!svg || !tip || !hov) return;
+  if (i == null || !_gtTip || !_gtTip[i]) {
+    tip.hidden = true; hov.classList.remove('is-on');
+    wrap.querySelectorAll('.gt-adot').forEach((c) => { c.setAttribute('cx', '-99'); });
+    return;
+  }
+  const { padL, plotW, n } = _gtGeom;
+  const x = padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const line = hov.querySelector('.gt-hov__l');
+  if (line) { line.setAttribute('x1', x.toFixed(1)); line.setAttribute('x2', x.toFixed(1)); }
+  const rows = _gtTip[i].rows;
+  wrap.querySelectorAll('.gt-adot').forEach((c) => {
+    const r = rows[Number(c.getAttribute('data-si'))];
+    if (r) { c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', r.y.toFixed(1)); }
+    else { c.setAttribute('cx', '-99'); }
+  });
+  hov.classList.add('is-on');
+  const body = rows.filter(Boolean).map((r) => '<div class="gt-tip__r">'
+    + '<i style="background:' + r.color + (r.seg ? ';border-radius:0' : '') + '"></i>'
+    + '<span class="gt-tip__n">' + escapeHtml(r.name) + '</span>'
+    + '<span class="gt-tip__v">' + r.val + '</span></div>').join('');
+  tip.innerHTML = '<div class="gt-tip__q">' + escapeHtml(_gtTip[i].q) + '</div>' + body;
+  tip.hidden = false;
+  const pct = Math.max(0, Math.min(100, (x / VIZ_W) * 100));
+  tip.style.left = pct.toFixed(2) + '%';
+  // 오른쪽 끝에서는 툴팁을 왼쪽으로 붙여 화면을 넘지 않게 한다
+  tip.style.transform = (pct > 72) ? 'translateX(-100%)' : (pct < 28 ? 'none' : 'translateX(-50%)');
+}
+
+/** 티어 필터·추이 토글 + 차트 툴팁(위임 1회 등록) */
 function wireGtControls() {
   const el = document.getElementById('compRoot');
   if (!el || el.dataset.gtWired === '1') return;
@@ -1182,6 +1287,22 @@ function wireGtControls() {
     if (tb) { _gtTier = tb.getAttribute('data-gt-tier'); renderCompetitor(); return; }
     const mb = ev.target.closest && ev.target.closest('[data-gt-mode]');
     if (mb) { _gtMode = mb.getAttribute('data-gt-mode'); renderCompetitor(); }
+  });
+  // hover(데스크톱) + pointerdown(모바일 탭) 모두 같은 경로로 처리한다.
+  const move = (ev) => {
+    const svg = ev.target.closest && ev.target.closest('.gt-chart');
+    if (!svg) return;
+    const wrap = svg.closest('.gt-chartwrap');
+    if (wrap) gtShowTip(wrap, gtHitIndex(svg, ev.clientX));
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerdown', move);
+  el.addEventListener('pointerleave', () => {
+    el.querySelectorAll('.gt-chartwrap').forEach((w) => gtShowTip(w, null));
+  }, true);
+  el.addEventListener('pointerout', (ev) => {
+    const wrap = ev.target.closest && ev.target.closest('.gt-chartwrap');
+    if (wrap && !wrap.contains(ev.relatedTarget)) gtShowTip(wrap, null);
   });
 }
 

@@ -1151,7 +1151,7 @@ body {
 }
 .gt-chip__p { font-size: 10.5px; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
 
-/* 티어 면책 문구는 배너 대신 ⓘ 툴팁으로 (같은 내용이 '데이터 한계' 줄에도 있다) */
+/* 티어 면책 문구는 배너 대신 ⓘ 툴팁에서만 보여준다 */
 .gt-info {
   position: relative; display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; margin-left: 2px; border-radius: 50%;
@@ -1240,12 +1240,6 @@ body {
 .gt-gd__how { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 .gt-gd__how li { font-size: 12px; line-height: 1.55; color: var(--text); }
 .gt-gd__how b { color: var(--ink); font-weight: 700; }
-.gt-gd__lim { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
-.gt-gd__limh { display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700;
-  letter-spacing: .04em; color: var(--muted); }
-.gt-gd__lim ul { margin: 0; padding-left: 15px; display: flex; flex-direction: column; gap: 2px; }
-.gt-gd__lim li { font-size: 11px; line-height: 1.55; color: var(--muted); }
-.gt-gd__lim b { color: var(--text); font-weight: 600; }
 
 /* 이탈리아 소매판매 지수 */
 .gt-ita {
@@ -1265,3 +1259,63 @@ body {
   .gt-sum__val { font-size: 15px; }
   .gco-meta__k { flex-basis: 48px; }
 }
+
+/* 인수 반영 구간 설명 — 그래프 해석에 필수라서 남긴다 */
+.gt-gd__acq {
+  margin-top: 8px; padding: 9px 11px;
+  border-left: 3px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--accent-soft); color: var(--text);
+  font-size: 12px; line-height: 1.6;
+}
+.gt-gd__acqm {
+  display: block; margin-bottom: 2px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--accent);
+}
+
+/* 차트 hover/탭 툴팁 */
+.gt-chartwrap { position: relative; }
+.gt-chart { touch-action: pan-y; }
+.gt-hov { opacity: 0; transition: opacity 90ms ease; }
+.gt-hov.is-on { opacity: 1; }
+.gt-hov__l { stroke: var(--slate); stroke-width: 1; stroke-dasharray: 2 2; }
+.gt-tip {
+  position: absolute; top: 2px; z-index: 15; pointer-events: none;
+  min-width: 168px; max-width: 300px; padding: 8px 10px;
+  border-radius: var(--radius-sm); background: var(--ink); color: var(--card);
+  box-shadow: var(--shadow-hover); font-size: 11.5px; line-height: 1.5;
+  word-break: keep-all;   /* 한국어: "(미국 외)" 같은 묶음이 갈라지지 않게 */
+}
+.gt-tip__q { margin-bottom: 4px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gt-tip__r { display: flex; align-items: baseline; gap: 6px; }
+.gt-tip__r i { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.gt-tip__n { flex: 1 1 auto; min-width: 0; opacity: .88; }
+.gt-tip__v { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gt-tip__abs { margin-left: 4px; font-weight: 500; opacity: .72; }
+.gt-tip__hint { margin-top: 2px; font-size: 10.5px; color: var(--muted); }
+
+/* 이탈리아 프리미엄 브랜드 카드 */
+.itb-hint { margin: -4px 0 10px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.itb-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.itb-card {
+  padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-1); border-top: 3px solid var(--slate);
+}
+.itb-card--chk { border-top-color: var(--amber); }
+.itb-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+.itb-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+.itb-chk {
+  padding: 1px 7px; border-radius: 999px; background: var(--amber-soft);
+  color: var(--amber); font-size: 10.5px; font-weight: 700;
+}
+.itb-pos { margin-bottom: 7px; font-size: 12px; line-height: 1.55; color: var(--text); }
+.itb-row { display: flex; gap: 8px; margin-top: 3px; font-size: 11.5px; line-height: 1.45; }
+.itb-k { flex: 0 0 52px; color: var(--muted); }
+.itb-v { min-width: 0; color: var(--text); }
+.itb-v--none { color: var(--muted); font-style: italic; }
+.itb-note {
+  margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--line);
+  font-size: 11px; line-height: 1.55; color: var(--muted);
+}
+
+@media (max-width: 900px) { .itb-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .itb-grid { grid-template-columns: 1fr; } }

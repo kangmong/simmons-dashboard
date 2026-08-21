@@ -19,11 +19,27 @@ import xml.etree.ElementTree as ET
 
 import requests
 
+try:  # 브랜드 상수(단일 관리 지점). 로드 실패해도 나머지는 정상.
+    from italy_brands import italy_brands_payload
+except Exception:  # noqa: BLE001
+    italy_brands_payload = None
+
 # Tempur Sealy(현 Somnigroup International) CIK. 사명이 바뀌어도 CIK 는 그대로다.
 TPX_CIK = 1206264
 SEC_HEADERS = {"User-Agent": "Simmons Dashboard contact@example.com"}
 SEC_FILINGS = 6            # 최근 10-Q/10-K 몇 건을 읽을지(6건이면 약 8분기)
 SEC_TIMEOUT = 60
+
+# Mattress Firm 인수 완료일 — Somnigroup 10-K(2026-02-27 제출) 본문에
+# "Mattress Firm Acquisition" 이 February 5, 2025 로 명시되어 있고,
+# 같은 날짜의 8-K(report date 2025-02-05)가 있다. 사명 변경(Somnigroup)은
+# 2025-02-18 부터다. 2025 Q1 은 2/5~3/31 부분 기간만 합산된다.
+MF_ACQ_DATE = "2025-02-05"
+MF_ACQ_TEXT = ("Tempur Sealy 가 2025년 2월 5일 매트리스 유통업체 Mattress Firm 인수를 "
+               "완료해 그 실적이 합산되었습니다. 이후 구간의 증가분에는 인수 효과가 "
+               "포함되어 있어 시장 성장과 구분해서 보아야 합니다. "
+               "인수가 분기 중간에 이뤄져 2025 Q1 은 2월 5일부터의 부분 기간만 "
+               "합산되었습니다.")
 
 XBRLI = "{http://www.xbrl.org/2003/instance}"
 XBRLDI = "{http://xbrl.org/2006/xbrldi}"
@@ -154,6 +170,7 @@ def fetch_tpx_segments():
             break
     return {"status": "ok", "series": series, "filings_read": read,
             "filings_failed": failed, "acq_quarter": acq,
+            "acq_date": MF_ACQ_DATE, "acq_text": MF_ACQ_TEXT,
             "note": ("International 은 '미국 외' 전체(유럽·아시아 등)입니다. "
                      "공시의 지리 구분이 미국/미국 외 둘뿐이라 유럽만 분리할 수 없습니다.")}
 
@@ -208,9 +225,10 @@ def update_europe_flow():
     seg = fetch_tpx_segments()
     ita = fetch_italy_retail()
     ok = (seg.get("status") == "ok") or (ita.get("status") == "ok")
+    brands = italy_brands_payload() if italy_brands_payload else None
     return {"status": "ok" if ok else "error",
             "reason": None if ok else (seg.get("reason") or ita.get("reason")),
-            "segments": seg, "italy": ita}
+            "segments": seg, "italy": ita, "italy_brands": brands}
 
 
 if __name__ == "__main__":
