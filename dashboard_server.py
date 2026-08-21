@@ -30,6 +30,11 @@ try:  # 순수 추가: 다음 달 주원료 예측(기존 코드 미변경). 로
 except Exception:  # noqa: BLE001
     compute_icis_forecast = None
 
+try:  # 순수 추가: 국외 가계 티어 정의(tiers.py 단일 관리).
+    import tiers as gtiers
+except Exception:  # noqa: BLE001
+    gtiers = None
+
 try:  # 순수 추가: 다음 달 해상 정시성 예측(기존 코드 미변경).
     from sr_forecast import compute_sr_forecast
 except Exception:  # noqa: BLE001
@@ -1433,6 +1438,8 @@ GLOBAL_COMPETITORS = [
     ("Purple Innovation", "PRPL", 1643953, "purple.com"),
     ("Leggett & Platt", "LEG", 58492, "leggett.com"),
 ]
+# 순수 추가: 추이 차트에 실을 분기 수(최심 기준)
+COMP_TREND_QUARTERS = 10
 REVENUE_KEYS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "Revenues",
@@ -1682,6 +1689,22 @@ def update_domestic_financials():
     return out
 
 
+def _stamp_tier_meta(entry):
+    """순수 추가 — 표시 계산용 티어/메타를 entry 에 붙인다(SEC 수집 로직 불변).
+       tiers.py 로드가 실패하면 기존과 동일한 payload 를 그대로 낸다."""
+    if gtiers is None:
+        return entry
+    m = gtiers.meta_for(entry.get("ticker"))
+    entry["tiers"] = gtiers.tiers_for(entry.get("ticker"))
+    entry["brands"] = m.get("brands") or []
+    entry["hq"] = m.get("hq") or ""
+    entry["hq_note"] = m.get("hq_note") or ""
+    entry["public"] = bool(m.get("public", True))
+    entry["role"] = m.get("role") or "brand"
+    entry["segment_note"] = gtiers.SEGMENT_NOTE
+    return entry
+
+
 def update_competitors():
     """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
        국내(Korea)는 네이버 금융 크롤링. 한 회사 실패해도 나머지 반환."""
@@ -1696,7 +1719,8 @@ def update_competitors():
         entry = {"name": name, "ticker": ticker, "quarter": None,
                  "revenue": None, "revenue_yoy": None,
                  "net_income": None, "net_income_yoy": None,
-                 "logo_urls": _logo_candidates(domain)}
+                 "logo_urls": _logo_candidates(domain), "quarters": []}
+        _stamp_tier_meta(entry)
         cik = _resolve_cik(ticker, cikmap, fallback)
         if cik is None:
             entry["error"] = "CIK 없음"
@@ -1710,20 +1734,43 @@ def update_competitors():
             entry["quarter"] = qlabel or qlabel2
             entry["revenue"], entry["revenue_yoy"] = qrev, qrev_yoy
             entry["net_income"], entry["net_income_yoy"] = qni, qni_yoy
+            # 순수 추가: 추이 차트욨 분기 매울 시계열(기존 _quarterly_series 그대로 사용).
+            _qs = _quarterly_series(facts, REVENUE_KEYS)
+            entry["quarters"] = [
+                {"q": x["label"], "end": x["end"].isoformat(), "revenue": x["val"]}
+                for x in sorted(_qs.values(), key=lambda z: z["end"])[-COMP_TREND_QUARTERS:]
+            ]
             if qrev is not None or qni is not None:
                 any_ok = True
         except Exception as e:  # noqa: BLE001
             entry["error"] = str(e)
         glob.append(entry)
 
+    # 순수 추가: 보상장 기업은 실적이 없다. 자리만 만들고 숫자는 만들지 않는다.
+    if gtiers is not None:
+        for pc in gtiers.PRIVATE_COMPANIES:
+            pe = {"name": pc["name"], "ticker": pc["ticker"], "quarter": None,
+                  "revenue": None, "revenue_yoy": None,
+                  "net_income": None, "net_income_yoy": None, "quarters": [],
+                  "logo_urls": _logo_candidates(pc["domain"])}
+            _stamp_tier_meta(pe)
+            glob.append(pe)
+
     try:
         korea = update_domestic_financials()
     except Exception:  # noqa: BLE001
         korea = {"status": "데이터 없음"}
+    extra = {}
+    if gtiers is not None:
+        extra = {"tier_defs": gtiers.tier_defs_payload(),
+                 "tier_note": gtiers.TIER_NOTE,
+                 "news_brand_tiers": dict(gtiers.NEWS_BRAND_TIERS),
+                 "trend_quarters": COMP_TREND_QUARTERS}
     if not any_ok:
-        return {"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
-                "global": glob, "korea": korea, "usd_krw_rate": usd_krw}
-    return {"status": "ok", "global": glob, "korea": korea, "usd_krw_rate": usd_krw}
+        return dict({"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
+                     "global": glob, "korea": korea, "usd_krw_rate": usd_krw}, **extra)
+    return dict({"status": "ok", "global": glob, "korea": korea,
+                 "usd_krw_rate": usd_krw}, **extra)
 
 
 # ── 환율 EUR/KRW — Frankfurter(ECB 기반, 무료·무키) ──────────────────────

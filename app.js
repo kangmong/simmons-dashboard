@@ -652,6 +652,23 @@ function compMetricRow(label, usd, yoy, rate) {
   </div>`;
 }
 
+/** 순수 추가: 카드 하단 메타 — 티어 배지 / 대표 브랜드 / 본사 소재지.
+    티어 정보가 없는 payload(구버전)에서는 아무것도 그리지 않는다. */
+function gtCardMeta(c) {
+  const badges = (c.tiers || []).map((k) => '<span class="gt-badge gt-badge--' + escapeHtml(k) + '">'
+    + escapeHtml(gtName(k)) + '</span>').join('');
+  const brands = (c.brands || []).length
+    ? '<div class="gco-meta__row"><span class="gco-meta__k">대표 브랜드</span><span class="gco-meta__v">'
+      + escapeHtml((c.brands || []).join(', ')) + '</span></div>' : '';
+  const hq = c.hq
+    ? '<div class="gco-meta__row"><span class="gco-meta__k">본사</span><span class="gco-meta__v">'
+      + escapeHtml(c.hq) + (c.hq_note ? ' <span class="gco-meta__note">' + escapeHtml(c.hq_note) + '</span>' : '')
+      + '</span></div>' : '';
+  if (!badges && !brands && !hq) return '';
+  return '<div class="gco-meta">' + (badges ? '<div class="gco-meta__tiers">' + badges + '</div>' : '')
+    + brands + hq + '</div>';
+}
+
 /** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 USD·KRW + YoY) */
 function compGlobalCard(c, i, rate) {
   const color = COMP_COLORS[i % COMP_COLORS.length];
@@ -663,10 +680,13 @@ function compGlobalCard(c, i, rate) {
     ? `<img class="gco-logo__img" src="${escapeHtml(srcs[0])}" alt="${escapeHtml(c.name)}" loading="lazy" referrerpolicy="no-referrer" data-srcs="${escapeHtml(srcs.slice(1).join('|'))}" onerror="cLogoNext(this)">`
     : '';
   const hasData = c.revenue != null || c.net_income != null;
+  // 순수 추가: 비상장 기업은 실적이 없다 — 추정치를 만들지 않고 그대로 알린다.
+  const emptyTxt = (c.public === false) ? '비상장 · 실적 미공시' : '데이터 준비중';
   const body = hasData
     ? compMetricRow('매출', c.revenue, c.revenue_yoy, rate)
       + compMetricRow('순이익', c.net_income, c.net_income_yoy, rate)
-    : '<div class="gco-empty">데이터 준비중</div>';
+    : '<div class="gco-empty' + (c.public === false ? ' gco-empty--priv' : '') + '">'
+      + emptyTxt + '</div>';
   return `<div class="gco-card" style="--c:${color}">
     <div class="gco-head">
       <div class="gco-logo"><span class="gco-logo__txt">${escapeHtml(c.ticker || c.name)}</span>${logoImg}</div>
@@ -676,6 +696,7 @@ function compGlobalCard(c, i, rate) {
       </div>
     </div>
     <div class="gco-body">${body}</div>
+    ${gtCardMeta(c)}
   </div>`;
 }
 
@@ -780,6 +801,332 @@ function compKoreaCard(c, i) {
 }
 
 /** 경쟁사 분석 전체 렌더 (국외 + 국내) */
+/* ── 국외(Global) 가격 티어별 시장 동향 (순수 추가) ────────────────────────
+   티어 정의·기업 매핑·본사 소재지는 백엔드 tiers.py 한 곳에서 관리하고,
+   여기서는 payload(tier_defs / news_brand_tiers)를 읽어 화면만 만든다.
+   ★ 기업 실적은 티어별로 공시되지 않는다. 티어 필터는 "그 티어에 진출한
+     기업들의 전사 실적을 묶어 보는 것"이며, 그 사실을 필터 바로 아래에
+     상시 노출한다(tier_note). 숨기거나 툴팁에 넣지 않는다. */
+let _gtTier = 'all';        // 'all' | tier key
+let _gtMode = 'index';      // 'index' = 기준분기 100 지수화(기본) / 'abs' = 절대액
+
+/** 티어 정의 배열(없으면 null → 기존 국외 화면으로 폴백) */
+function gtDefs() {
+  const d = _competitors && _competitors.tier_defs;
+  return (Array.isArray(d) && d.length) ? d : null;
+}
+
+/** 티어 key → 표시 이름 */
+function gtName(key) {
+  const hit = (gtDefs() || []).filter((t) => t.key === key)[0];
+  return hit ? hit.name : key;
+}
+
+/** 선택 티어에 속한 브랜드 기업. supplier(부품 공급사)는 티어 밖이라 제외. */
+function gtInTier(list, tier) {
+  return (list || []).filter((c) => (c.role || 'brand') === 'brand'
+    && (tier === 'all' || (c.tiers || []).indexOf(tier) >= 0));
+}
+
+/** 부품 공급사(티어 무관 — 항상 별도 표시) */
+function gtSuppliers(list) {
+  return (list || []).filter((c) => c.role === 'supplier');
+}
+
+/** 기업의 분기서수 → 매출 맵 */
+function gtRevMap(c) {
+  const m = {};
+  (c.quarters || []).forEach((x) => {
+    const o = compQtrOrd(x.q);
+    if (o != null && x.revenue != null) m[o] = x.revenue;
+  });
+  return m;
+}
+
+/** 전년 동기(4분기 전) 매출. 없으면 null */
+function gtPrevYear(c, q) {
+  const o = compQtrOrd(q);
+  if (o == null) return null;
+  const v = gtRevMap(c)[o - 10];
+  return v == null ? null : v;
+}
+
+/** 티어 요약: 합산 매출 / 합산 YoY / 포함 기업. 비상장은 합산에서 제외. */
+function gtSummary(companies) {
+  const pub = companies.filter((c) => c.public !== false);
+  const priv = companies.filter((c) => c.public === false);
+  let sum = 0, nSum = 0, cur = 0, prev = 0, nYoy = 0;
+  pub.forEach((c) => {
+    if (c.revenue == null) return;
+    sum += c.revenue; nSum += 1;
+    const p = gtPrevYear(c, c.quarter);
+    if (p != null) { cur += c.revenue; prev += p; nYoy += 1; }
+  });
+  const yoy = (nYoy && prev) ? ((cur - prev) / Math.abs(prev)) * 100 : null;
+  return { sum: nSum ? sum : null, nSum: nSum, yoy: yoy, nYoy: nYoy, pub: pub, priv: priv };
+}
+
+/** (1) 티어 필터 칩 */
+function gtFilterBar() {
+  const defs = gtDefs() || [];
+  const chip = (key, name, price) => '<button type="button" class="gt-chip' + (_gtTier === key ? ' is-on' : '')
+    + '" data-gt-tier="' + escapeHtml(key) + '">' + escapeHtml(name)
+    + (price ? '<span class="gt-chip__p">' + escapeHtml(price) + '</span>' : '') + '</button>';
+  return '<div class="gt-bar" role="group" aria-label="가격 티어 필터">'
+    + chip('all', '전체', '')
+    + defs.map((t) => chip(t.key, t.name, t.price)).join('')
+    + '</div>';
+}
+
+/** (2) 티어 요약 바 */
+function gtSummaryBar(companies, rate) {
+  const s = gtSummary(companies);
+  const withRev = s.pub.filter((c) => c.revenue != null);
+  const qs = compQtrSummary(withRev);
+  const krw = (rate != null && s.sum != null) ? fmtKrwShort(s.sum * rate) : null;
+  const names = withRev.map((c) => c.name);
+  const excl = s.priv.length
+    ? '<div class="gt-sum__excl">합산 제외: '
+      + s.priv.map((c) => escapeHtml(c.name) + '(비상장 · 실적 미공시)').join(' · ') + '</div>'
+    : '';
+  const yoyNote = (s.nYoy && s.nYoy < s.nSum)
+    ? '<span class="gt-sum__sub">' + s.nYoy + '/' + s.nSum + '곳 기준(전년 동기 값이 있는 기업만)</span>' : '';
+  return '<div class="gt-sum">'
+    + '<div class="gt-sum__cell"><span class="gt-sum__lbl">합산 매출'
+    + (qs ? ' <span class="gt-sum__sub">' + escapeHtml(qs.label) + '</span>' : '')
+    + '</span><span class="gt-sum__val">' + (s.sum == null ? '—' : escapeHtml(fmtUsd(s.sum))) + '</span>'
+    + (krw ? '<span class="gt-sum__krw">≈ ' + escapeHtml(krw) + '</span>' : '') + '</div>'
+    + '<div class="gt-sum__cell"><span class="gt-sum__lbl">전년 동기 대비 ' + yoyNote + '</span>'
+    + '<span class="gt-sum__val">' + (s.yoy == null ? '—' : compYoy(Math.round(s.yoy * 10) / 10)) + '</span></div>'
+    + '<div class="gt-sum__cell gt-sum__cell--wide"><span class="gt-sum__lbl">포함 기업 ' + s.nSum + '곳</span>'
+    + '<span class="gt-sum__names">' + (names.length ? escapeHtml(names.join(' · ')) : '—') + '</span></div>'
+    + excl + '</div>';
+}
+
+/** (3) 추이 차트 — 분기별 매출, 기업별 라인. 지수화 기본. */
+function gtTrendChart(companies) {
+  const withQ = companies.filter((c) => (c.quarters || []).length);
+  if (!withQ.length) return emptyState('분기 추이 데이터 준비중');
+  const N = (_competitors && _competitors.trend_quarters) || 10;
+  const maps = withQ.map(gtRevMap);
+  const ordSet = {};
+  maps.forEach((m) => Object.keys(m).forEach((o) => { ordSet[o] = 1; }));
+  const xs = Object.keys(ordSet).map(Number).sort((a, b) => a - b).slice(-N);
+  if (xs.length < 2) return emptyState('분기 추이 데이터 준비중');
+
+  // 지수화 기준 분기: 선택된 기업 전부가 값을 가진 가장 이른 분기.
+  // (기업마다 기준이 다르면 100 출발점이 어긋나 비교가 깨진다)
+  let baseIdx = -1;
+  for (let i = 0; i < xs.length; i += 1) {
+    if (maps.every((m) => m[xs[i]] != null)) { baseIdx = i; break; }
+  }
+  const perOwn = (_gtMode === 'index' && baseIdx < 0);
+
+  const series = withQ.map((c, i) => {
+    const m = maps[i];
+    let base = null;
+    if (_gtMode === 'index') {
+      if (baseIdx >= 0) base = m[xs[baseIdx]];
+      else {
+        for (let k = 0; k < xs.length; k += 1) { if (m[xs[k]] != null) { base = m[xs[k]]; break; } }
+      }
+    }
+    const pts = xs.map((o) => {
+      const v = m[o];
+      if (v == null) return null;
+      return (_gtMode === 'index') ? (base ? (v / base) * 100 : null) : v;
+    });
+    return { c: c, pts: pts, color: COMP_COLORS[i % COMP_COLORS.length] };
+  }).filter((s) => s.pts.some((v) => v != null));
+  if (!series.length) return emptyState('분기 추이 데이터 준비중');
+
+  const flat = [];
+  series.forEach((s) => s.pts.forEach((v) => { if (v != null) flat.push(v); }));
+  let lo = Math.min.apply(null, flat), hi = Math.max.apply(null, flat);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;      // Y domain: auto
+
+  const padL = 46, padR = 8;
+  const plotW = VIZ_W - padL - padR;
+  const plotH = VIZ_H - VIZ_PAD_T - VIZ_PAD_B;
+  const X = (i) => padL + (xs.length === 1 ? plotW / 2 : (i / (xs.length - 1)) * plotW);
+  const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
+  const fmtY = (v) => (_gtMode === 'index' ? String(Math.round(v)) : fmtUsd(v));
+
+  let grid = '';
+  for (let t = 0; t <= VIZ_Y_TICKS; t += 1) {
+    const v = lo + ((hi - lo) * t) / VIZ_Y_TICKS, y = Y(v);
+    grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="' + y.toFixed(1)
+      + '" stroke="var(--line)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(fmtY(v)) + '</text>';
+  }
+  if (_gtMode === 'index' && lo < 100 && hi > 100) {   // 지수화 기준선
+    grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
+      + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
+  }
+
+  const keep = vizTickIdx(xs.length, plotW, VIZ_TICK_GAP);
+  let xlab = '';
+  xs.forEach((o, i) => {
+    if (keep.indexOf(i) < 0) return;
+    xlab += '<text x="' + X(i).toFixed(1) + '" y="' + (VIZ_H - 8) + '" text-anchor="middle" font-size="'
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(compQtrLabel(o)) + '</text>';
+  });
+
+  // connectNulls: 값이 있는 점만 이어 결측 분기를 건너뛰고 연결한다. 시각적 dot 은 없다.
+  let lines = '';
+  series.forEach((s) => {
+    const seg = [];
+    s.pts.forEach((v, i) => {
+      if (v != null) seg.push((seg.length ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1));
+    });
+    if (seg.length) {
+      lines += '<path d="' + seg.join(' ') + '" fill="none" stroke="' + s.color
+        + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    }
+    const rm = gtRevMap(s.c);
+    s.pts.forEach((v, i) => {          // 값 확인용 투명 히트영역
+      if (v == null) return;
+      const tip = s.c.name + ' · ' + compQtrLabel(xs[i]) + ' · ' + fmtUsd(rm[xs[i]])
+        + (_gtMode === 'index' ? ' (지수 ' + Math.round(v) + ')' : '');
+      lines += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(v).toFixed(1)
+        + '" r="7" fill="transparent"><title>' + escapeHtml(tip) + '</title></circle>';
+    });
+  });
+
+  const legend = series.map((s) => '<span class="gt-lg"><i style="background:' + s.color + '"></i>'
+    + escapeHtml(s.c.name) + '</span>').join('');
+  // 10-Q 만 쓰므로 Q4 는 값이 없다. 축이 시간에 비례하지 않는다는 사실을 숨기지 않는다.
+  const miss = [];
+  for (let o = xs[0]; o < xs[xs.length - 1]; o = (o % 10 < 4) ? (o + 1) : ((Math.floor(o / 10) + 1) * 10 + 1)) {
+    if (xs.indexOf(o) < 0) miss.push(compQtrLabel(o));
+  }
+  const missNote = miss.length
+    ? '<div class="gt-chart__note">비어 있는 분기 ' + escapeHtml(miss.join(', '))
+      + ' — 10-Q(분기보고서)가 없는 4분기라 값이 없습니다. 축 간격이 시간에 비례하지 않습니다.</div>'
+    : '';
+  let baseNote;
+  if (_gtMode === 'index') {
+    baseNote = perOwn
+      ? '<div class="gt-chart__note">공통 분기가 없어 기업별 첫 분기를 각각 100으로 두었습니다. 출발점이 다르므로 기울기만 비교하세요.</div>'
+      : '<div class="gt-chart__note">기준 분기 ' + escapeHtml(compQtrLabel(xs[baseIdx]))
+        + ' = 100. 규모가 아니라 성장률을 비교합니다.</div>';
+  } else {
+    baseNote = '<div class="gt-chart__note">절대액 기준 — 기업 간 매출 규모 차이가 커서 작은 기업의 흐름은 눌려 보입니다.</div>';
+  }
+  baseNote += missNote;
+
+  return '<div class="gt-tools" role="group" aria-label="추이 기준">'
+    + '<button type="button" class="gt-tg' + (_gtMode === 'index' ? ' is-on' : '')
+    + '" data-gt-mode="index">지수화 (기준분기=100)</button>'
+    + '<button type="button" class="gt-tg' + (_gtMode === 'abs' ? ' is-on' : '')
+    + '" data-gt-mode="abs">절대액</button></div>'
+    + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="분기별 매출 추이">'
+    + grid + lines + xlab + '</svg>'
+    + '<div class="gt-legend">' + legend + '</div>' + baseNote;
+}
+
+/** (5) 기사 → 티어 분류. 제품 라인명 우선, 없으면 브랜드의 진출 티어. 못 찾으면 []. */
+function gtNewsTiers(it) {
+  const t = String(it.title || '').toLowerCase();
+  const hit = [];
+  (gtDefs() || []).forEach((d) => {
+    (d.brands || []).forEach((b) => {
+      if (t.indexOf(String(b).toLowerCase()) >= 0 && hit.indexOf(d.key) < 0) hit.push(d.key);
+    });
+  });
+  if (hit.length) return hit;
+  const map = (_competitors && _competitors.news_brand_tiers) || {};
+  const got = map[it.brand];
+  return Array.isArray(got) ? got.slice() : [];
+}
+
+/** (5) 뉴스 활동량 — 기존 국외 브랜드 뉴스 결과를 그대로 재사용(추가 수집 없음) */
+function gtNews() {
+  const pool = [], seen = {};
+  [].concat(_globalFeatured || [], _globalBrands || []).forEach((x) => {
+    if (!x || !x.link || seen[x.link]) return;
+    seen[x.link] = 1; pool.push(x);
+  });
+  const now = Date.now();
+  const within = pool.filter((x) => {
+    const ms = Date.parse(String(x.date || ''));
+    return isFinite(ms) && (now - ms) <= 30 * 864e5;
+  });
+  const tagged = within.map((x) => ({ it: x, tiers: gtNewsTiers(x) })).filter((r) => r.tiers.length);
+  const rows = (_gtTier === 'all') ? tagged : tagged.filter((r) => r.tiers.indexOf(_gtTier) >= 0);
+  const skipped = within.length - tagged.length;
+  const note = skipped > 0
+    ? '<span class="gt-news__skip">브랜드를 확인할 수 없어 분류하지 않은 기사 ' + skipped + '건</span>' : '';
+  if (!rows.length) {
+    return '<h3 class="subhead">뉴스 활동량 <span class="gt-news__cnt">최근 30일 0건</span></h3>'
+      + '<div class="gt-news__none">선택한 티어에서 최근 30일 기사가 없습니다.' + (note ? ' ' + note : '') + '</div>';
+  }
+  const list = rows.slice().sort((a, b) => String(b.it.date || '').localeCompare(String(a.it.date || '')))
+    .map((r) => {
+      const badges = r.tiers.map((k) => '<span class="gt-badge gt-badge--' + escapeHtml(k) + '">'
+        + escapeHtml(gtName(k)) + '</span>').join('');
+      const href = safeUrl(r.it.link);
+      const title = escapeHtml(r.it.title || '');
+      return '<li class="gt-news__row"><span class="gt-news__meta">'
+        + escapeHtml(r.it.date || '') + ' · ' + escapeHtml(r.it.brand || '') + badges + '</span>'
+        + (href
+          ? '<a class="gt-news__t" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + title + '</a>'
+          : '<span class="gt-news__t">' + title + '</span>')
+        + '</li>';
+    }).join('');
+  return '<h3 class="subhead">뉴스 활동량 <span class="gt-news__cnt">최근 30일 ' + rows.length + '건</span>'
+    + note + '</h3>'
+    + '<div class="gt-news__hint">실적이 잡지 못하는 신제품·가격정책 움직임을 보완하는 지표입니다.</div>'
+    + '<ul class="gt-news">' + list + '</ul>';
+}
+
+/** 국외 섹션 전체(티어 뷰). tier_defs 가 없으면 null → 호출부가 기존 화면으로 폴백 */
+function gtGlobalHtml(list, rate) {
+  if (!gtDefs()) return null;
+  const inTier = gtInTier(list, _gtTier);
+  const sup = gtSuppliers(list);
+  const rateNote = (rate != null)
+    ? '<div class="comp-fxnote">적용 환율: 1 USD = ' + Math.round(rate).toLocaleString('ko-KR') + '원</div>' : '';
+  const segNote = (list.filter((c) => c.segment_note)[0] || {}).segment_note || '';
+  const nq = (_competitors && _competitors.trend_quarters) || 10;
+  const cards = inTier.length
+    ? '<div class="gco-grid">' + inTier.map((c, i) => compGlobalCard(c, i, rate)).join('') + '</div>'
+    : emptyState('선택한 티어에 해당하는 기업이 없습니다');
+  const supHtml = sup.length
+    ? '<h3 class="subhead">부품 공급사 <span class="gt-cnt">티어 무관</span></h3>'
+      + '<div class="gt-suphint">완제품 브랜드가 아니라 스프링·폼 등을 공급하는 업체입니다. 티어 합산·추이에서는 제외하고 원가 흐름 참고용으로만 둡니다.</div>'
+      + '<div class="gco-grid">' + sup.map((c, i) => compGlobalCard(c, i + 3, rate)).join('') + '</div>'
+    : '';
+  return gtFilterBar()
+    + '<div class="gt-note">' + escapeHtml((_competitors && _competitors.tier_note) || '') + '</div>'
+    + gtSummaryBar(inTier, rate)
+    + rateNote
+    + '<h3 class="subhead">분기 매출 추이 <span class="gt-cnt">최근 ' + nq + '분기</span></h3>'
+    + gtTrendChart(inTier)
+    + '<h3 class="subhead">기업</h3>'
+    + cards
+    + supHtml
+    + gtNews()
+    + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()
+    + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
+}
+
+/** 티어 필터·추이 토글 이벤트(위임 1회 등록) */
+function wireGtControls() {
+  const el = document.getElementById('compRoot');
+  if (!el || el.dataset.gtWired === '1') return;
+  el.dataset.gtWired = '1';
+  el.addEventListener('click', (ev) => {
+    const tb = ev.target.closest && ev.target.closest('[data-gt-tier]');
+    if (tb) { _gtTier = tb.getAttribute('data-gt-tier'); renderCompetitor(); return; }
+    const mb = ev.target.closest && ev.target.closest('[data-gt-mode]');
+    if (mb) { _gtMode = mb.getAttribute('data-gt-mode'); renderCompetitor(); }
+  });
+}
+
 function renderCompetitor() {
   const el = document.getElementById('compRoot');
   if (!el) return;
@@ -789,13 +1136,20 @@ function renderCompetitor() {
     ? `<div class="comp-fxnote">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원</div>`
     : '';
   const gSum = compQtrSummary(g || []);
-  const globalHtml = (g && g.length)
-    ? (_compLatest = gSum && gSum.latest,
-      `<div class="gco-grid">${g.map((c, i) => compGlobalCard(c, i, rate)).join('')}</div>
+  // 순수 추가: 티어 뷰(payload 에 tier_defs 가 오면). 구버전 payload 면 기존 화면 그대로.
+  let globalHtml, gTier = false;
+  if (g && g.length) {
+    _compLatest = gSum && gSum.latest;
+    const tierHtml = gtGlobalHtml(g, rate);
+    gTier = !!tierHtml;
+    globalHtml = tierHtml
+      || `<div class="gco-grid">${g.map((c, i) => compGlobalCard(c, i, rate)).join('')}</div>
        ${rateNote}
        ${compRevBars(g)}
-       <div class="comp-caption">출처: SEC EDGAR${compFetchedAt()}</div>`)
-    : emptyState('국외 경쟁사 데이터 준비중');
+       <div class="comp-caption">출처: SEC EDGAR${compFetchedAt()}</div>`;
+  } else {
+    globalHtml = emptyState('국외 경쟁사 데이터 준비중');
+  }
 
   // 국내: 배열이면 카드+막대, 아니면 준비중/데이터 없음
   const k = _competitors && _competitors.korea;
@@ -822,11 +1176,12 @@ function renderCompetitor() {
     </div>
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span>${gSum ? `<span class="comp-group__qtr">${escapeHtml(gSum.label)}</span>` : ''}</div>
-      <div class="comp-group__sub">분기별 실적 (최근 10-Q · 자동 갱신)
-        <span class="comp-group__desc">매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR</span>
+      <div class="comp-group__sub">${gTier ? '가격 티어별 시장 동향' : '분기별 실적'} (최근 10-Q · 자동 갱신)
+        <span class="comp-group__desc">${gTier ? '퀸 사이즈 미국 소매가 기준 티어 · 매출 추이·뉴스 활동량 연동' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;
+  wireGtControls();
 }
 
 /* ============================================================

@@ -1131,3 +1131,107 @@ body {
 .gbars__note {
   margin: -2px 0 8px; font-size: 11.5px; color: var(--muted);
 }
+
+/* ============================================================
+   국외(Global) 가격 티어별 시장 동향 — 순수 추가
+   ============================================================ */
+
+/* (1) 티어 필터 */
+.gt-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.gt-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--text);
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.gt-chip:hover { background: var(--row-hover); }
+.gt-chip.is-on {
+  background: var(--accent); border-color: var(--accent); color: var(--card);
+}
+.gt-chip__p { font-size: 10.5px; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
+
+/* 티어 면책 문구 — 필터 바로 아래 상시 노출(숨기지 않는다) */
+.gt-note {
+  margin: 0 0 12px; padding: 8px 11px;
+  border-left: 3px solid var(--amber); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--amber-soft); color: var(--text);
+  font-size: 12px; line-height: 1.5;
+}
+
+/* (2) 티어 요약 바 */
+.gt-sum {
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 22px;
+  padding: 11px 13px; margin-bottom: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-1);
+}
+.gt-sum__cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gt-sum__cell--wide { flex: 1 1 220px; }
+.gt-sum__lbl { font-size: 11.5px; color: var(--muted); }
+.gt-sum__sub { font-size: 10.5px; color: var(--muted); font-weight: 500; }
+.gt-sum__val { font-size: 17px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.gt-sum__krw { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gt-sum__names { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.45; }
+.gt-sum__excl {
+  flex: 1 1 100%; padding-top: 8px; border-top: 1px dashed var(--line);
+  font-size: 11.5px; color: var(--muted);
+}
+
+/* (3) 추이 차트 */
+.gt-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.gt-tg {
+  padding: 5px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--muted);
+  font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.gt-tg:hover { background: var(--row-hover); }
+.gt-tg.is-on { background: var(--slate-soft); border-color: var(--slate); color: var(--ink); }
+.gt-chart { width: 100%; height: auto; display: block; overflow: visible; }
+.gt-chart text { font-family: inherit; }
+.gt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
+.gt-lg { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text); }
+.gt-lg i { width: 10px; height: 3px; border-radius: 2px; flex: 0 0 auto; }
+.gt-chart__note { margin: 6px 0 16px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+/* 티어 배지 */
+.gt-badge {
+  display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; white-space: nowrap;
+}
+.gt-badge--high { background: var(--accent-soft); color: var(--accent); }
+.gt-badge--premium { background: var(--slate-soft); color: var(--slate); }
+.gt-badge--mid { background: var(--green-soft); color: var(--green); }
+
+/* (4) 카드 하단 메타 — 티어/브랜드/본사 */
+.gco-meta { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+.gco-meta__tiers { margin: 0 0 6px -4px; }
+.gco-meta__row { display: flex; gap: 8px; margin-top: 3px; font-size: 11.5px; line-height: 1.45; }
+.gco-meta__k { flex: 0 0 56px; color: var(--muted); }
+.gco-meta__v { min-width: 0; color: var(--text); }
+.gco-meta__note { color: var(--muted); font-size: 10.5px; }
+.gco-empty--priv { font-weight: 600; color: var(--slate); }
+
+/* 부품 공급사 안내 */
+.gt-suphint { margin: -4px 0 10px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+/* (5) 뉴스 활동량 */
+.gt-cnt,
+.gt-news__cnt { margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.gt-news__skip { margin-left: 8px; font-size: 11px; font-weight: 500; color: var(--muted); }
+.gt-news__hint { margin: -6px 0 10px; font-size: 11.5px; color: var(--muted); }
+.gt-news__none {
+  padding: 12px 13px; border: 1px dashed var(--line); border-radius: var(--radius-sm);
+  font-size: 12.5px; color: var(--muted);
+}
+.gt-news { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.gt-news__row { display: flex; flex-direction: column; gap: 2px; }
+.gt-news__meta { font-size: 11px; color: var(--muted); }
+.gt-news__t { font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none; line-height: 1.45; }
+a.gt-news__t:hover { color: var(--accent); text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .gt-sum { gap: 10px 16px; }
+  .gt-sum__val { font-size: 15px; }
+  .gco-meta__k { flex-basis: 48px; }
+}
