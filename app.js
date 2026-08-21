@@ -1617,7 +1617,7 @@ function renderCompetitor() {
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
       <div class="comp-group__sub">${gTier ? '해외 침대시장 분석' : '분기별 실적'}
-        <span class="comp-group__desc">${gTier ? '가격지수와 수입단가 · 연도별 지수(2020=100) · 자동 갱신' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
+        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '목표: 미국, 이탈리아 침대시장의 하이엔드·프리미엄 구간별 가격지수·수입단가 추이 비교 분석' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;

@@ -1412,3 +1412,7 @@ body {
 .sm-seg:hover { opacity: .8; }
 .sm-dc1 { font-size: 13px; font-weight: 700; fill: var(--ink); }
 .sm-dc2 { font-size: 9.5px; fill: var(--slate); }
+
+/* 국외 소제목 설명만 제목 아래 한 줄로 내린다. 폰트·색은 .comp-group__desc 를
+   그대로 상속하고 배치만 바꾼다 — 국내 카드의 설명은 기존대로 제목 옆에 붙는다. */
+.comp-group__desc--own { display: block; margin-left: 0; margin-top: 4px; }
