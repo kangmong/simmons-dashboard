@@ -208,3 +208,53 @@ python us_trade.py --fill 25
 BLS 원지수는 기준연도가 시리즈마다 달라 수준 비교가 성립하지 않는다. 그래서
 화면 기본값은 **표시 구간 첫 달 = 100** 으로 재산정한 지수이고, `원지수` 토글로
 BLS 원값도 볼 수 있다.
+
+## 국내 실적·점유율 (시몬스·코웨이·에이스침대)
+
+`public/data/simmons-market.json` **한 파일이 국내 섹션 세 차트의 유일한 소스**다.
+차트에 값을 하드코딩하지 않으므로 이 파일만 고치면 배포 시 반영된다.
+
+| 차트 | 내용 | JSON 키 |
+|---|---|---|
+| A | 시몬스 최근 실적 추이 (매출 막대 + 영업이익 라인) | `simmonsPerformance` |
+| B | 3사 지난해 매출 비교 + 증감률 | `competitorRevenueLastYear` |
+| C | 시장 점유율 도넛 | `marketShare2025` |
+
+★ **시몬스는 비상장사다.** DART 등 공시 API 로 자동 조회가 되지 않는다. 수치는
+실적 발표 기사(헤럴드경제·아주경제·인더스트리뉴스 등)를 보고 수기 입력한 값이며,
+같은 사실을 차트 A 우측 상단 ⓘ 툴팁에 표시한다.
+
+`isProvisional: true` 로 두면 **잠정치** 배지가 뜬다(확정 실적 발표 전 1~2월용).
+연도별로 표시하려면 해당 `simmonsPerformance` 항목에 `"provisional": true` 를 넣는다.
+
+### 새 연도 실적 자동 감지
+
+`.github/workflows/check-simmons-earnings.yml` → `scripts/check-earnings.js`
+
+- 실행 시점: **3월 1~31일 + 4월 1~15일 매일 06:00 UTC(15:00 KST)**.
+  cron 은 이 구간을 한 줄로 못 쓰므로 두 줄로 나눠 뒀다. 수동 실행도 된다
+  (`workflow_dispatch`, `dry_run` 입력 지원).
+- Anthropic Messages API + `web_search` 도구로 시몬스·에이스침대·코웨이의
+  새 연도(보유 최신 연도 + 1) 실적을 찾는다. 2단계로 나눠 호출한다 —
+  ① 검색(도구 사용) ② 도구 없이 JSON 추출. 서버 도구와 클라이언트 도구를
+  한 턴에 섞지 않기 위한 구성이다. `pause_turn` 도 처리한다.
+- **자동 merge 하지 않는다.** 새 브랜치 + PR 만 만들고, PR 본문에 원문 URL·인용
+  문장·검수 체크리스트를 넣는다. 비상장사 수치라 오탐이 가능해 사람이 확인한다.
+- 못 찾으면 아무것도 하지 않고 조용히 종료한다(매일 돌므로 기사가 뜨면 며칠 내 잡힘).
+- 오탐 방어: 연도 불일치 / `confidence: low` / 매출 500~50000억 범위 밖 /
+  영업이익 -5000~10000억 범위 밖 / 이미 있는 연도 → 전부 버린다.
+  경쟁사 비교는 3사가 모두 확인될 때만 갈아탄다(반쪽 비교를 만들지 않는다).
+  점유율(`marketShare2025`)은 조사기관 추정치라 건드리지 않는다.
+
+필요한 것은 **`ANTHROPIC_API_KEY`** 하나다.
+저장소 Settings → Secrets and variables → Actions → New repository secret.
+모델을 바꾸려면 같은 화면 Variables 탭에 `EARNINGS_MODEL` 을 넣는다.
+
+★ 기본 모델은 `claude-sonnet-5` 다. 스펙에 적혀 있던 `claude-sonnet-4-6` 은
+  실재하지 않는 ID여서 쓰지 않았다.
+
+로컬에서 로직만 확인하려면(실제 API 호출 없음):
+
+```bash
+node scripts/check-earnings.js --dry-run     # 키가 있으면 실제 호출
+```

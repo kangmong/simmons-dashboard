@@ -1202,6 +1202,203 @@ function gItBlock() {
     + gExplain('it', c);
 }
 
+/* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (public/data/simmons-market.json) ══
+   ★ 값을 하드코딩하지 않는다. 이 파일 하나만 갱신되면 차트가 자동으로 따라간다.
+   ★ 시몬스는 비상장사라 공시 API 자동 조회가 안 된다 — 수기 입력값임을 ⓘ 로 밝힌다. */
+const SM_DATA_URL = 'public/data/simmons-market.json';
+const SM_COL_REV = 'var(--accent)';                 // 매출 — 빨강(차트 A·B)
+const SM_COL_OP = 'var(--blue)';                    // 영업이익 — 파랑
+const SM_SHARE_COL = {                              // 점유율 — 브랜드 구분색, 기타는 회색
+  '코웨이': '#3B82F6',
+  '시몬스': 'var(--accent)',
+  '에이스침대': '#F59E0B',
+  '기타업체': '#9CA3AF',
+};
+const SM_TIP = '시몬스는 비상장사로 DART 등 공시 API 자동 조회가 불가능합니다. '
+  + '표시된 수치는 각 연도 실적 발표 기사(헤럴드경제·아주경제·인더스트리뉴스 등)를 '
+  + '기준으로 수기 입력한 값이며, 감사보고서 확정치와 다를 수 있습니다.';
+let _smData = null;      // {status:'ok'|'error', ...} — 로드 결과
+const SM_W = 720;        // 차트 A viewBox 가로(다른 차트와 같은 기준)
+
+/** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다. */
+async function fetchSimmonsMarket() {
+  try {
+    const res = await fetch(SM_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + SM_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !Array.isArray(d.simmonsPerformance)) throw new Error('형식이 올바르지 않습니다');
+    _smData = Object.assign({ status: 'ok' }, d);
+  } catch (e) {
+    _smData = { status: 'error', reason: (e && e.message) || String(e) };
+    console.warn('[simmons-market] 로드 실패:', e);
+  }
+  renderCompetitor();
+}
+
+/** 억원 정수 — 3,239 */
+function smNum(v) {
+  if (v == null) return '—';
+  return Number(v).toLocaleString('ko-KR');
+}
+
+/** 증감률 배지. 양수 초록 ▲ / 음수 빨강 ▼ */
+function smDelta(pct) {
+  if (pct == null) return '';
+  const up = pct > 0, flat = pct === 0;
+  const cls = flat ? 'flat' : (up ? 'up' : 'down');
+  const ar = flat ? '–' : (up ? '▲' : '▼');
+  return '<span class="sm-delta ' + cls + '">' + ar + ' '
+    + Math.abs(pct).toFixed(1) + '%</span>';
+}
+
+/** 차트 A — 시몬스 최근 실적 추이. 매출 막대 + 영업이익 라인(같은 억원 축). */
+function smPerfChart(d) {
+  const rows = (d.simmonsPerformance || []).slice().sort((a, b) => a.year - b.year);
+  if (!rows.length) return '';
+  const H = 208, padL = 46, padR = 14, padT = 26, padB = 30;
+  const plotW = SM_W - padL - padR, plotH = H - padT - padB;
+  const maxV = Math.max.apply(null, rows.map((r) =>
+    Math.max(r.revenue || 0, r.operatingProfit || 0)));
+  const top = maxV * 1.14 || 1;
+  const y = (v) => padT + plotH - (v / top) * plotH;
+  const slot = plotW / rows.length;
+  const bw = Math.min(52, slot * 0.42);
+  const cx = (i) => padL + slot * (i + 0.5);
+
+  let grid = '';
+  for (let t = 0; t <= VIZ_Y_TICKS; t += 1) {
+    const v = (top / VIZ_Y_TICKS) * t, yy = y(v);
+    grid += '<line class="sm-grid" x1="' + padL + '" x2="' + (SM_W - padR)
+      + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '"/>'
+      + '<text class="sm-ax" x="' + (padL - 6) + '" y="' + (yy + 3).toFixed(1)
+      + '" text-anchor="end">' + smNum(Math.round(v)) + '</text>';
+  }
+  const bars = rows.map((r, i) => {
+    const yy = y(r.revenue), h = Math.max(0, padT + plotH - yy);
+    return '<rect class="sm-bar" x="' + (cx(i) - bw / 2).toFixed(1) + '" y="' + yy.toFixed(1)
+      + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1)
+      + '" rx="2" fill="' + SM_COL_REV + '"/>'
+      + '<text class="sm-lab" x="' + cx(i).toFixed(1) + '" y="' + (yy - 5).toFixed(1)
+      + '" text-anchor="middle" fill="' + SM_COL_REV + '">' + smNum(r.revenue) + '</text>';
+  }).join('');
+  const pts = rows.map((r, i) => cx(i).toFixed(1) + ',' + y(r.operatingProfit).toFixed(1));
+  const line = '<polyline class="sm-line" points="' + pts.join(' ')
+    + '" fill="none" stroke="' + SM_COL_OP + '"/>';
+  const dots = rows.map((r, i) => '<circle class="sm-dot" cx="' + cx(i).toFixed(1)
+    + '" cy="' + y(r.operatingProfit).toFixed(1) + '" r="3" fill="' + SM_COL_OP + '"/>'
+    + '<text class="sm-lab" x="' + cx(i).toFixed(1) + '" y="'
+    + (y(r.operatingProfit) - 7).toFixed(1) + '" text-anchor="middle" fill="' + SM_COL_OP
+    + '">' + smNum(r.operatingProfit) + '</text>').join('');
+  const xs = rows.map((r, i) => '<text class="sm-ax" x="' + cx(i).toFixed(1)
+    + '" y="' + (H - 9) + '" text-anchor="middle">' + r.year + '</text>').join('');
+
+  return '<svg class="sm-svg" viewBox="0 0 ' + SM_W + ' ' + H
+    + '" role="img" aria-label="시몬스 최근 실적 추이">'
+    + grid + bars + line + dots + xs + '</svg>'
+    + '<div class="sm-legend">'
+    + '<span><i style="background:' + SM_COL_REV + '"></i>매출</span>'
+    + '<span><i class="sm-legend__l" style="background:' + SM_COL_OP + '"></i>영업이익</span>'
+    + '</div>';
+}
+
+/** 차트 B — 지난해 매출 비교(가로 막대) + 증감률 + note 각주 */
+function smRevCompare(d) {
+  const c = d.competitorRevenueLastYear;
+  if (!c || !Array.isArray(c.companies) || !c.companies.length) return '';
+  const rows = c.companies.slice().sort((a, b) => (b.revenue || 0) - (a.revenue || 0));
+  const max = Math.max.apply(null, rows.map((r) => r.revenue || 0)) || 1;
+  const bars = rows.map((r) => {
+    const w = Math.max(2, ((r.revenue || 0) / max) * 100);
+    const mine = String(r.name).indexOf('시몬스') === 0;
+    return '<div class="sm-hrow' + (mine ? ' is-mine' : '') + '">'
+      + '<div class="sm-hname" title="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1) + '%"></div></div>'
+      + '<div class="sm-hval">' + smNum(r.revenue) + ' ' + smDelta(r.yoyChangePct) + '</div>'
+      + '</div>';
+  }).join('');
+  return '<div class="sm-hbars">' + bars + '</div>'
+    + (c.note ? '<div class="sm-foot">※ ' + escapeHtml(c.note) + '</div>' : '');
+}
+
+/** 차트 C — 점유율 도넛. 중앙에 제목 + 출처. */
+function smShareDonut(d) {
+  const m = d.marketShare2025;
+  if (!m || !Array.isArray(m.data) || !m.data.length) return '';
+  const rows = m.data.filter((r) => r && r.share > 0);
+  const tot = rows.reduce((s, r) => s + r.share, 0) || 1;
+  const S = 200, cc = S / 2, R = 78, TH = 26;
+  const rr = R - TH / 2;
+  const circ = 2 * Math.PI * rr;
+  let acc = 0;
+  const segs = rows.map((r) => {
+    const frac = r.share / tot;
+    const seg = '<circle class="sm-seg" cx="' + cc + '" cy="' + cc + '" r="' + rr
+      + '" fill="none" stroke="' + (SM_SHARE_COL[r.name] || '#9CA3AF')
+      + '" stroke-width="' + TH + '" stroke-dasharray="'
+      + (circ * frac).toFixed(2) + ' ' + (circ * (1 - frac)).toFixed(2) + '"'
+      + ' stroke-dashoffset="' + (-circ * acc).toFixed(2) + '">'
+      + '<title>' + escapeHtml(r.name) + ' ' + r.share + '%</title></circle>';
+    acc += frac;
+    return seg;
+  }).join('');
+  const yr = String(m.year || 2025);
+  const center = '<text class="sm-dc1" x="' + cc + '" y="' + (cc - 4)
+    + '" text-anchor="middle">' + escapeHtml(yr) + '년 시장 점유율</text>'
+    + '<text class="sm-dc2" x="' + cc + '" y="' + (cc + 12)
+    + '" text-anchor="middle">' + escapeHtml(m.source || '') + '</text>';
+  const legend = rows.map((r) => '<span><i style="background:'
+    + (SM_SHARE_COL[r.name] || '#9CA3AF') + '"></i>' + escapeHtml(r.name)
+    + ' <b>' + r.share + '%</b></span>').join('');
+  return '<div class="sm-donutwrap">'
+    + '<svg class="sm-donut" viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="'
+    + escapeHtml(yr) + '년 시장 점유율">'
+    + '<g transform="rotate(-90 ' + cc + ' ' + cc + ')">' + segs + '</g>'
+    + center + '</svg>'
+    + '<div class="sm-legend sm-legend--wrap">' + legend + '</div></div>';
+}
+
+/** 국내 섹션 본문 — 차트 A 풀와이드 / 차트 B·C 2열 */
+function smKoreaHtml() {
+  if (!_smData) {
+    return '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
+      + ' 업데이트 버튼을 누르면 표시됩니다</div>';
+  }
+  if (_smData.status !== 'ok') {
+    return '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> '
+      + escapeHtml(_smData.reason || '로드 실패') + '</div>';
+  }
+  const d = _smData;
+  const perf = (d.simmonsPerformance || []).slice().sort((a, b) => a.year - b.year);
+  const lastYear = perf.length ? perf[perf.length - 1].year : null;
+  const prov = d.isProvisional === true
+    || (perf.length > 0 && perf[perf.length - 1].provisional === true);
+  const badge = '<div class="sm-badge">'
+    + (prov ? '<span class="sm-badge__prov">잠정치</span>' : '')
+    + (lastYear ? escapeHtml(lastYear + '년 12월 결산 기준') + ' · ' : '')
+    + '최종 업데이트 ' + escapeHtml(d.lastUpdated || '—')
+    + '<span class="sm-info" tabindex="0" role="note" aria-label="' + escapeHtml(SM_TIP)
+    + '" title="' + escapeHtml(SM_TIP) + '">ⓘ<span class="sm-info__bub">'
+    + escapeHtml(SM_TIP) + '</span></span></div>';
+  const unit = escapeHtml(d.unit || '억원');
+  const cy = d.competitorRevenueLastYear && d.competitorRevenueLastYear.year;
+  const sy = (d.marketShare2025 && d.marketShare2025.year) || 2025;
+
+  return '<div class="sm-wrap">'
+    + '<div class="sm-card sm-card--full">'
+    + '<div class="sm-h">시몬스 최근 실적 추이 <span class="sm-h__u">(단위: ' + unit + ')</span>'
+    + badge + '</div>' + smPerfChart(d) + '</div>'
+    + '<div class="sm-grid2">'
+    + '<div class="sm-card"><div class="sm-h">코웨이·시몬스·에이스침대 '
+    + (cy ? escapeHtml(String(cy)) + '년' : '지난해') + ' 매출 비교'
+    + ' <span class="sm-h__u">(단위: ' + unit + ')</span></div>'
+    + smRevCompare(d) + '</div>'
+    + '<div class="sm-card"><div class="sm-h">' + escapeHtml(String(sy))
+    + '년 침대 매트리스 시장 점유율</div>'
+    + smShareDonut(d) + '</div>'
+    + '</div></div>';
+}
+
 /** 국외 섹션 — 나라별 블록 둘. 그 외에는 아무것도 만들지 않는다. */
 function gtGlobalHtml() {
   if (!gtDefs()) return null;
@@ -1403,30 +1600,17 @@ function renderCompetitor() {
   } else {
     globalHtml = emptyState('국외 경쟁사 데이터 준비중');
   }
-  // 순수 추가: "10-Q" 는 SEC 분기보고서 서식명이라 "10개 분기"로 오해된다.
-  // 서식명을 풀어 쓰고, 실제로 몇 분기를 보여주는지 함께 밝힌다.
 
 
-  // 국내: 배열이면 카드+막대, 아니면 준비중/데이터 없음
-  const k = _competitors && _competitors.korea;
-  let koreaHtml;
-  const kSum = compQtrSummary(Array.isArray(k) ? k : []);
-  if (Array.isArray(k) && k.length) {
-    _compLatest = kSum && kSum.latest;
-    koreaHtml = `<div class="gco-grid">${k.map(compKoreaCard).join('')}</div>
-       ${compRevBars(k, 'revenue_krw', fmtKrwShort, 'code')}
-       <div class="comp-caption">출처: 네이버 금융${compFetchedAt()}</div>`;
-  } else if (k && k.status && k.status !== '준비중') {
-    koreaHtml = '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> 네이버 금융 조회 실패</div>';
-  } else {
-    koreaHtml = '<div class="comp-todo"><span class="comp-todo__badge">준비중</span> 국내 브랜드 재무 (네이버 금융)</div>';
-  }
+  // 국내: 시몬스/경쟁사 실적·점유율 — public/data/simmons-market.json 단일 소스.
+  // (네이버 금융 분기 수집기는 그대로 두되 이 자리에는 더 쓰지 않는다)
+  const koreaHtml = smKoreaHtml();
 
   el.innerHTML = `
     <div class="comp-group">
-      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span>${kSum ? `<span class="comp-group__qtr">${escapeHtml(kSum.label)}</span>` : ''}</div>
-      <div class="comp-group__sub">분기별 실적 (네이버 금융 · 자동 갱신)
-        <span class="comp-group__desc">매출·순이익(원화) · 전년 동기 대비(YoY) 기준</span>
+      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
+      <div class="comp-group__sub">시몬스·경쟁사 실적과 시장 점유율
+        <span class="comp-group__desc">단위 억원 · 비상장사 수기 입력 · 출처는 각 차트에 표기</span>
       </div>
       ${koreaHtml}
     </div>
@@ -3868,6 +4052,9 @@ function initUpdate() {
     // 순수 추가: KOIMA 일일가격 — 미리 수집해 둔 정적 JSON 로드(즉시 완료).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchKoimaPrice();
+    // 순수 추가: 국내 실적·점유율 정적 JSON. await 하지 않는다 —
+    // 다른 카드가 이 로드를 기다리지 않게 하고, 끝나면 스스로 다시 그린다.
+    fetchSimmonsMarket();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

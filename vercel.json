@@ -47,6 +47,10 @@
     {
       "src": "public/data/us-trade.json",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/simmons-market.json",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
