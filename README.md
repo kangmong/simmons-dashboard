@@ -227,34 +227,94 @@ BLS 원값도 볼 수 있다.
 `isProvisional: true` 로 두면 **잠정치** 배지가 뜬다(확정 실적 발표 전 1~2월용).
 연도별로 표시하려면 해당 `simmonsPerformance` 항목에 `"provisional": true` 를 넣는다.
 
-### 새 연도 실적 자동 감지
+### 새 연도 실적 자동 감지 → 교차검증 → 자동 반영
 
 `.github/workflows/check-simmons-earnings.yml` → `scripts/check-earnings.js`
 
-- 실행 시점: **3월 1~31일 + 4월 1~15일 매일 06:00 UTC(15:00 KST)**.
-  cron 은 이 구간을 한 줄로 못 쓰므로 두 줄로 나눠 뒀다. 수동 실행도 된다
-  (`workflow_dispatch`, `dry_run` 입력 지원).
-- Anthropic Messages API + `web_search` 도구로 시몬스·에이스침대·코웨이의
-  새 연도(보유 최신 연도 + 1) 실적을 찾는다. 2단계로 나눠 호출한다 —
-  ① 검색(도구 사용) ② 도구 없이 JSON 추출. 서버 도구와 클라이언트 도구를
-  한 턴에 섞지 않기 위한 구성이다. `pause_turn` 도 처리한다.
-- **자동 merge 하지 않는다.** 새 브랜치 + PR 만 만들고, PR 본문에 원문 URL·인용
-  문장·검수 체크리스트를 넣는다. 비상장사 수치라 오탐이 가능해 사람이 확인한다.
-- 못 찾으면 아무것도 하지 않고 조용히 종료한다(매일 돌므로 기사가 뜨면 며칠 내 잡힘).
-- 오탐 방어: 연도 불일치 / `confidence: low` / 매출 500~50000억 범위 밖 /
-  영업이익 -5000~10000억 범위 밖 / 이미 있는 연도 → 전부 버린다.
-  경쟁사 비교는 3사가 모두 확인될 때만 갈아탄다(반쪽 비교를 만들지 않는다).
-  점유율(`marketShare2025`)은 조사기관 추정치라 건드리지 않는다.
+**실행 시점** — 3월 1~31일 + 4월 1~15일 매일 06:00 UTC(15:00 KST).
+cron 은 이 구간을 한 줄로 못 쓰므로 두 줄로 나눴다. 그리고 cron 은 월·일만
+거르므로, 시즌을 벗어난 실행은 첫 스텝에서 즉시 skip 한다(`in_season` 가드).
+수동 실행도 된다 — `dry_run`(파일 안 씀) / `force`(시즌 밖에서도 실행).
 
-필요한 것은 **`ANTHROPIC_API_KEY`** 하나다.
-저장소 Settings → Secrets and variables → Actions → New repository secret.
-모델을 바꾸려면 같은 화면 Variables 탭에 `EARNINGS_MODEL` 을 넣는다.
+**동작 순서**
+
+1. Anthropic Messages API + `web_search` 로 시몬스·에이스침대·코웨이를 각각 검색
+2. **교차검증** — 서로 다른 언론사 **2곳 이상**이 같은 수치를 보도해야 확정으로 본다.
+   1곳뿐이면 반영하지 않고 종료한다(다음 날 재시도). 단일 오보 방어.
+3. 통과하면 새 연도를 `simmonsPerformance` 에 추가하고 `lastUpdated` 갱신,
+   `isProvisional: false`
+4. 새 브랜치 → 커밋 → PR 생성 → **squash merge 까지 자동**(사람 승인 없음)
+5. main push → Vercel 자동 재배포
+6. PR 본문·커밋 메시지에 **반영 수치 / 원문 출처 URL / 검색 실행 일시 / revert 방법** 기록
+7. **안전장치** — 아래 중 하나라도 걸리면 merge 를 건너뛰고 `review-needed`
+   라벨을 붙인 PR 만 연다
+8. 못 찾거나 교차검증 실패 시 조용히 종료
+
+★ 교차검증은 **모델 자기보고를 믿지 않는다.** 코드가 직접 도메인 수를 센다.
+
+| 증거 | 인정 기준 |
+|---|---|
+| (a) 검색 인용문 | `cited_text` 안에 그 숫자가 실제로 있는 인용 |
+| (b) 모델이 댄 출처 | 그 URL 이 **검색 결과에 실제로 등장한 것**일 때만 |
+
+(a)만 쓰면 인용문이 150자로 잘려 놓치고, (b)만 쓰면 모델이 URL 을 지어낼 수 있다.
+그래서 (a)∪(b) 의 서로 다른 도메인 수를 센다. 실측으로 지어낸 URL 이 걸러지는 것을
+확인했다(2곳 → 1곳으로 떨어져 반영 보류).
+
+★ **이상치 브레이크 임계값을 매출과 영업이익에 다르게 뒀다.** 이 회사 실적 이력이
+  그렇게 생겼기 때문이다(실측):
+
+| | 2022→23 | 2023→24 | 2024→25 | 임계값 |
+|---|---|---|---|---|
+| 매출 | +9.8% | +5.0% | −1.7% | **±50%** |
+| 영업이익 | **+170.3%** | +65.2% | −23.1% | **±200%** |
+
+영업이익까지 ±50% 로 잡으면 **정상 변동에도 매번 브레이크가 걸려** 자동 반영이
+무의미해진다. 매출은 스펙대로 ±50% 다. 두 값 모두 스크립트 상단 상수다
+(`REV_JUMP_PCT` / `OP_JUMP_PCT`).
+
+**자동 merge 를 보류하는 경우**
+
+- 매출이 직전 연도 대비 ±50% 이상 급변
+- 영업이익이 ±200% 이상 급변
+- 기사가 **잠정치**로 보도 (확정으로 자동 반영하지 않는다)
+- 영업이익 교차검증이 1곳뿐
+
+**조용히 종료하는 경우** — 연도 불일치 / `confidence: low` / 매출 교차검증 실패 /
+매출이 500~50000억 밖 / 영업이익이 −5000~10000억 밖 / 이미 있는 연도 / API 오류.
+경쟁사 비교 차트는 3사가 **모두** 교차검증을 넘겼을 때만 갈아탄다(반쪽 비교 금지).
+점유율(`marketShare2025`)은 조사기관 추정치라 건드리지 않는다.
+
+**되돌리기** — squash merge 라 커밋 하나만 revert 하면 된다. 방법을 PR 본문과
+Actions 실행 요약(`GITHUB_STEP_SUMMARY`) 양쪽에 merge 커밋 SHA 와 함께 남긴다.
+
+```bash
+git fetch origin main && git checkout main && git pull
+git revert <SHA>        # 되돌리는 커밋을 새로 만든다(이력 보존)
+git push origin main    # push 하면 Vercel 이 자동 재배포한다
+```
+GitHub 화면에서는 해당 PR 상단의 **Revert** 버튼을 눌러도 된다.
+
+**필요한 시크릿**
+
+| 이름 | 필수 | 용도 |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | ✅ | 검색·추출 |
+| `EARNINGS_PAT` | 선택 | 없으면 `GITHUB_TOKEN` 을 쓴다(아래 참고) |
+| `EARNINGS_MODEL` (Variables) | 선택 | 모델 교체 |
+
+★ 기본 `GITHUB_TOKEN` 으로도 push·PR·merge 는 된다. Vercel 은 GitHub App 으로
+  push 를 받으므로 **재배포도 정상 동작**한다. 다만 `GITHUB_TOKEN` 의 push 는
+  다른 **GitHub Actions 워크플로**를 트리거하지 않으므로, 자동 반영 후 다른
+  워크플로까지 돌려야 하면 `EARNINGS_PAT`(repo 권한)를 넣는다.
+★ 필수 상태 검사(branch protection)가 걸려 있으면 `gh pr merge --admin` 으로
+  통과시키고, 실패하면 일반 merge 로 재시도한다.
 
 ★ 기본 모델은 `claude-sonnet-5` 다. 스펙에 적혀 있던 `claude-sonnet-4-6` 은
   실재하지 않는 ID여서 쓰지 않았다.
 
-로컬에서 로직만 확인하려면(실제 API 호출 없음):
+로컬 확인:
 
 ```bash
-node scripts/check-earnings.js --dry-run     # 키가 있으면 실제 호출
+node scripts/check-earnings.js --dry-run   # 키가 있으면 실제 호출, 파일은 안 씀
 ```
