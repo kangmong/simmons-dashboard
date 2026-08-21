@@ -830,12 +830,8 @@ function gtName(key) {
 /** 선택 티어에 속한 브랜드 기업. supplier(부품 공급사)는 티어 밖이라 제외. */
 function gtInTier(list, tier) {
   return (list || []).filter((c) => (c.role || 'brand') === 'brand'
+    && (c.tiers || []).length                      // 티어가 없는 기업은 '전체'에서도 뺀다
     && (tier === 'all' || (c.tiers || []).indexOf(tier) >= 0));
-}
-
-/** 부품 공급사(티어 무관 — 항상 별도 표시) */
-function gtSuppliers(list) {
-  return (list || []).filter((c) => c.role === 'supplier');
 }
 
 /** 기업의 분기서수 → 매출 맵 */
@@ -869,6 +865,12 @@ function gtSummary(companies) {
   });
   const yoy = (nYoy && prev) ? ((cur - prev) / Math.abs(prev)) * 100 : null;
   return { sum: nSum ? sum : null, nSum: nSum, yoy: yoy, nYoy: nYoy, pub: pub, priv: priv };
+}
+
+/** Y축 단위 라벨 — 두 차트가 같은 위치·같은 스타일을 쓴다.
+    눈금값과 겹치지 않게 차트 위 한 줄로 두고, 눈금보다 작은 회색 글씨로. */
+function gtYUnit(txt) {
+  return '<div class="gt-yunit">' + escapeHtml(txt) + '</div>';
 }
 
 /** 티어 면책 문구(payload 제공) — ⓘ 툴팁에서만 보여준다. */
@@ -1001,24 +1003,6 @@ function gtTrendChart(companies) {
       + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
   }
 
-  // 인수 반영 시점 세로 기준선 — 인수로 늘어난 매출을 시장 성장으로 오독하지 않게 한다
-  const acq = (_europe && _europe.segments && _europe.segments.acq_quarter) || null;
-  const acqDate = (_europe && _europe.segments && _europe.segments.acq_date) || null;
-  const acqLbl = acqDate
-    ? (acqDate.slice(0, 4) + '.' + Number(acqDate.slice(5, 7)) + '.' + Number(acqDate.slice(8, 10))
-      + ' Mattress Firm 인수')
-    : 'Mattress Firm 인수';
-  const acqOrd = acq ? compQtrOrd(acq) : null;
-  const acqIdx = (acqOrd == null) ? -1 : xs.indexOf(acqOrd);
-  let acqMark = '';
-  if (acqIdx >= 0) {
-    const ax = X(acqIdx);
-    acqMark = '<line x1="' + ax.toFixed(1) + '" y1="' + VIZ_PAD_T + '" x2="' + ax.toFixed(1)
-      + '" y2="' + (VIZ_PAD_T + plotH) + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"/>'
-      + '<text x="' + (ax + 3).toFixed(1) + '" y="' + (VIZ_PAD_T + 8) + '" font-size="' + VIZ_FS_LABEL
-      + '" fill="var(--accent)">' + escapeHtml(acqLbl) + '</text>';
-  }
-
   const keep = vizTickIdx(xs.length, plotW, VIZ_TICK_GAP);
   let xlab = '';
   xs.forEach((o, i) => {
@@ -1089,9 +1073,11 @@ function gtTrendChart(companies) {
     + '<button type="button" class="gt-tg' + (_gtMode === 'abs' ? ' is-on' : '')
     + '" data-gt-mode="abs">절대액</button></div>'
     + '<div class="gt-chartwrap" data-gt-chart="us">'
+    + gtYUnit(_gtMode === 'index'
+      ? '지수 (기준분기=100)' : '매출 (USD)')
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="분기별 매출 추이">'
-    + grid + acqMark + lines + xlab + hov + '</svg>'
+    + grid + lines + xlab + hov + '</svg>'
     + '<div class="gt-tip" hidden></div>'
     + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 분기별 값이 보입니다.</div>'
     + '</div>'
@@ -1099,7 +1085,7 @@ function gtTrendChart(companies) {
   return {
     html: html,
     base: (perOwn || baseIdx < 0) ? null : compQtrLabel(xs[baseIdx]),
-    perOwn: perOwn, miss: miss, acq: (acqIdx >= 0) ? acq : null, hasEu: !!eu,
+    perOwn: perOwn, miss: miss, hasEu: !!eu,
   };
 }
 
@@ -1121,13 +1107,6 @@ function gtChartGuide(info) {
     L.push('<p class="gt-gd__lead">각 기업의 <b>실제 분기 매출액</b>입니다.'
       + ' 회사 규모 차이가 커서 작은 기업의 변화는 잘 보이지 않을 수 있습니다.</p>');
     L.push('<ul class="gt-gd__how"><li>규모 대신 성장 속도를 보려면 <b>지수화</b>로 바꾸세요.</li></ul>');
-  }
-  // 인수 설명만 남긴다(그래프 해석에 필수). 티어 면책은 ⓘ 툴팁에만 둔다.
-  const seg = _europe && _europe.segments;
-  const acqText = (seg && seg.acq_text) || '';
-  if (info.acq && acqText) {
-    L.push('<div class="gt-gd__acq"><span class="gt-gd__acqm">인수 반영 구간</span>'
-      + escapeHtml(acqText) + '</div>');
   }
   return '<div class="gt-gd">' + L.join('') + '</div>';
 }
@@ -1167,8 +1146,6 @@ function gtItalyBlock() {
     grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
       + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
   }
-  grid += '<text x="' + padL + '" y="' + (VIZ_PAD_T - 2) + '" font-size="' + VIZ_FS_AXIS
-    + '" fill="var(--muted)">지수 (2021=100)</text>';
 
   const keep = vizTickIdx(pts.length, plotW, VIZ_TICK_GAP);
   let xlab = '';
@@ -1203,6 +1180,7 @@ function gtItalyBlock() {
     + '<span class="gt-ita__val">' + escapeHtml(String(it.latest.value)) + '</span>'
     + '<span class="gt-ita__m">' + escapeHtml(it.latest.month) + '</span>' + yoy + '</div>'
     + '<div class="gt-chartwrap" data-gt-chart="ita">'
+    + gtYUnit('지수 (2021=100)')
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="이탈리아 소매판매 지수 추이">'
     + grid + line + xlab + hov + '</svg>'
@@ -1251,7 +1229,6 @@ function gtItalyBrands() {
 function gtGlobalHtml(list, rate) {
   if (!gtDefs()) return null;
   const inTier = gtInTier(list, _gtTier);
-  const sup = gtSuppliers(list);
   const rateNote = (rate != null)
     ? '<div class="comp-fxnote">적용 환율: 1 USD = ' + Math.round(rate).toLocaleString('ko-KR') + '원</div>' : '';
   const segNote = (list.filter((c) => c.segment_note)[0] || {}).segment_note || '';
@@ -1260,11 +1237,6 @@ function gtGlobalHtml(list, rate) {
   const cards = inTier.length
     ? '<div class="gco-grid">' + inTier.map((c, i) => compGlobalCard(c, i, rate)).join('') + '</div>'
     : emptyState('선택한 티어에 해당하는 기업이 없습니다');
-  const supHtml = sup.length
-    ? '<h3 class="subhead">부품 공급사 <span class="gt-cnt">티어 무관</span></h3>'
-      + '<div class="gt-suphint">완제품 브랜드가 아니라 스프링·폼 등을 공급하는 업체입니다. 티어 합산·추이에서는 제외하고 원가 흐름 참고용으로만 둡니다.</div>'
-      + '<div class="gco-grid">' + sup.map((c, i) => compGlobalCard(c, i + 3, rate)).join('') + '</div>'
-    : '';
   return gtFilterBar()
     + gtSummaryBar(inTier, rate)
     + rateNote
@@ -1273,7 +1245,6 @@ function gtGlobalHtml(list, rate) {
     + gtChartGuide(chart)
     + '<h3 class="subhead">기업</h3>'
     + cards
-    + supHtml
     + gtItalyBlock()
     + gtItalyBrands()
     + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()

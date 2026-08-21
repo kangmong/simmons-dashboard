@@ -34,6 +34,7 @@ SEC_TIMEOUT = 60
 # "Mattress Firm Acquisition" 이 February 5, 2025 로 명시되어 있고,
 # 같은 날짜의 8-K(report date 2025-02-05)가 있다. 사명 변경(Somnigroup)은
 # 2025-02-18 부터다. 2025 Q1 은 2/5~3/31 부분 기간만 합산된다.
+# ★ 현재 화면에서는 사용하지 않는다(인수 표시 제거 지시). 조사 결과를 잃지 않게 기록은 남긴다.
 MF_ACQ_DATE = "2025-02-05"
 MF_ACQ_TEXT = ("Tempur Sealy 가 2025년 2월 5일 매트리스 유통업체 Mattress Firm 인수를 "
                "완료해 그 실적이 합산되었습니다. 이후 구간의 증가분에는 인수 효과가 "
@@ -161,7 +162,7 @@ def fetch_tpx_segments():
         return {"status": "error",
                 "reason": "공시 %d건을 읽었지만 세그먼트 매출 태그를 찾지 못했습니다" % read}
 
-    # Mattress Firm 세그먼트가 0에서 처음 값이 생긴 분기 = 인수 반영 시점.
+    # Mattress Firm 세그먼트가 0에서 처음 값이 생긴 분기(현재 화면에서는 쓰지 않는다).
     acq = None
     mf = series.get("mattress_firm", {}).get("quarters") or []
     for p in mf:
@@ -170,7 +171,6 @@ def fetch_tpx_segments():
             break
     return {"status": "ok", "series": series, "filings_read": read,
             "filings_failed": failed, "acq_quarter": acq,
-            "acq_date": MF_ACQ_DATE, "acq_text": MF_ACQ_TEXT,
             "note": ("International 은 '미국 외' 전체(유럽·아시아 등)입니다. "
                      "공시의 지리 구분이 미국/미국 외 둘뿐이라 유럽만 분리할 수 없습니다.")}
 

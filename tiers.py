@@ -44,18 +44,17 @@ TIER_KEYS = [t["key"] for t in TIERS]
 TIER_NAME = {t["key"]: t["name"] for t in TIERS}
 
 # ── 기업 ↔ 티어 진출 매핑 ──────────────────────────────────────────────────
-# 티커를 키로 쓴다(SEC 수집 결과와 붙이는 기준). 비상장은 의사 티커.
+# 티커를 키로 쓴다(SEC 수집 결과와 붙이는 기준).
 COMPANY_TIERS = {
     "TPX": ["high", "premium", "mid"],
-    "SSB": ["high", "premium", "mid"],   # 비상장
     "SNBR": ["premium", "mid"],
     "PRPL": ["premium", "mid"],
-    "LEG": [],                            # 부품 공급사 — 티어에 속하지 않는다
+    "LEG": [],   # 부품 공급사 — 어느 티어에도 속하지 않아 화면에서 제외된다
 }
 
 # ── 기업 메타 (대표 브랜드 · 본사 소재지 · 상장 여부 · 역할) ───────────────
 # role: "brand" = 매트리스 브랜드사(티어 집계 대상) / "supplier" = 부품 공급사(집계 제외)
-# public: False 면 실적이 없다. 추정치를 만들지 않고 "비상장 · 실적 미공시"로 표시한다.
+# public: False 면 실적이 없어 화면에서 제외된다(추정치를 만들지 않는다).
 COMPANY_META = {
     "TPX": {
         "brands": ["Tempur-Pedic", "Stearns & Foster",
@@ -63,13 +62,6 @@ COMPANY_META = {
         "hq": "렉싱턴, KY",
         "hq_note": "유럽 사업은 International 세그먼트",
         "public": True,
-        "role": "brand",
-    },
-    "SSB": {
-        "brands": ["Beautyrest Black", "Beautyrest Harmony", "Serta Perfect Sleeper"],
-        "hq": "애틀랜타(도라빌), GA",
-        "hq_note": "",
-        "public": False,
         "role": "brand",
     },
     "SNBR": {
@@ -95,10 +87,10 @@ COMPANY_META = {
     },
 }
 
-# 비상장 기업(실적 없음) — 카드 자리는 만들되 숫자는 만들지 않는다.
-PRIVATE_COMPANIES = [
-    {"name": "Serta Simmons Bedding", "ticker": "SSB", "domain": "serta.com"},
-]
+# 비상장 기업 카드 — 현재 없음.
+# Serta Simmons Bedding 은 비상장이라 분기 실적이 없어 티어 화면에서 제외했다.
+# (실적 라인도, 안내 카드도 두지 않는다) 필요해지면 아래에 다시 추가한다.
+PRIVATE_COMPANIES = []
 
 # ── 뉴스 → 티어 분류 ──────────────────────────────────────────────────────
 # 1순위: 제목에 제품 라인명이 있으면 그 라인의 티어(가장 정확).
