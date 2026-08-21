@@ -115,9 +115,11 @@ TIER_NOTE = ("기업 실적은 티어별로 공시되지 않습니다. 아래 �
              "선택한 티어에 진출한 기업들의 전사(연결) 실적을 묶어 본 것이며, "
              "그 티어만의 매출이 아닙니다.")
 
-# 세그먼트 분리 가능 여부 — SEC companyfacts 는 차원(dimension) 없는 연결 실적만
-# 제공하므로 North America / International 분리가 불가능하다(실측 확인).
-SEGMENT_NOTE = "전사(연결) 기준 — SEC companyfacts 는 세그먼트별 값을 제공하지 않습니다."
+# 카드 수치의 기준. companyfacts 는 차원(dimension) 없는 연결 실적만 주므로 카드는
+# 전사 기준이다. 지리 세그먼트는 공시 원본 XBRL 에서 따로 뽑아(europe_flow.py)
+# 추이 차트에만 점선으로 얹는다.
+SEGMENT_NOTE = ("기업 카드 수치는 전사(연결) 기준입니다. "
+                "지리 세그먼트는 공시 원본에서 따로 추출해 추이 차트에만 표시합니다.")
 
 
 def _line_tier_index():

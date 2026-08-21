@@ -41,6 +41,11 @@ try:  # 순수 추가: 국외 가계 티어 정의(tiers.py 단일 관리).
     import tiers as gtiers
 except Exception:  # noqa: BLE001
     gtiers = None
+
+try:  # 순수 추가: 유럽 흔름(TPX 세그먼트 + 이할리아 소매지수).
+    from europe_flow import update_europe_flow
+except Exception:  # noqa: BLE001
+    update_europe_flow = None
 try:
     from sr_forecast import compute_sr_forecast
 except Exception:  # noqa: BLE001
@@ -1436,6 +1441,8 @@ GLOBAL_COMPETITORS = [
 ]
 # 순수 추가: 추이 차트에 실을 분기 수(최심 기준)
 COMP_TREND_QUARTERS = 10
+QUARTER_FORMS = ("10-Q", "10-K")   # 분기 단일 실적이 들어 있는 양식
+_FY_MONTH_Q = {3: "Q1", 6: "Q2", 9: "Q3", 12: "Q4"}   # 10-K 내 분기는 종료월로 구분
 REVENUE_KEYS = [
     "RevenueFromContractWithCustomerExcludingAssessedTax",
     "Revenues",
@@ -1492,20 +1499,34 @@ def _quarterly_series(facts, keys, unit="USD"):
         for d in arr:
             val, fp, form = d.get("val"), d.get("fp"), d.get("form")
             start, end, fy = d.get("start"), d.get("end"), d.get("fy")
-            if val is None or not start or not end or form != "10-Q":
-                continue
-            if fp not in ("Q1", "Q2", "Q3", "Q4"):
+            if val is None or not start or not end or form not in QUARTER_FORMS:
                 continue
             try:
                 s = datetime.datetime.strptime(start, "%Y-%m-%d").date()
                 e = datetime.datetime.strptime(end, "%Y-%m-%d").date()
             except Exception:  # noqa: BLE001
                 continue
-            if not (80 <= (e - s).days <= 100):  # 단일 분기(3개월)만 → YTD 제외
+            if not (80 <= (e - s).days <= 100):  # 단일 분기만 → YTD·연간 배제
                 continue
-            key = (int(fy) if fy is not None else e.year, fp)
-            if key not in out or e > out[key]["end"]:  # 정정치는 end 최신 우선
-                out[key] = {"val": val, "end": e, "label": "%s %s" % (key[0], fp)}
+            if form == "10-Q":
+                if fp not in ("Q1", "Q2", "Q3", "Q4"):
+                    continue
+                key = (int(fy) if fy is not None else e.year, fp)
+                pri = 0
+            else:
+                # 10-K 는 4분기 단일 실적을 들고 있는 유일한 양식이다.
+                # 단 fp 가 "FY" 로 오고 지난 분기 비교값도 섞여 있어,
+                # fy(제출 연도)가 아니라 종료월로 분기를 정한다.
+                q = _FY_MONTH_Q.get(e.month)
+                if not q:
+                    continue
+                key = (e.year, q)
+                pri = 1
+            cur = out.get(key)
+            # 10-Q 우선 — 기존 Q1~Q3 값이 10-K 로 바뀌지 않게 한다.
+            if cur is None or pri < cur["pri"] or (pri == cur["pri"] and e > cur["end"]):
+                out[key] = {"val": val, "end": e, "pri": pri,
+                            "label": "%s %s" % (key[0], key[1])}
         if out:
             return out
     return {}
@@ -2016,6 +2037,8 @@ FETCHERS = {
 }
 if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
     FETCHERS["icis_forecast"] = compute_icis_forecast
+if update_europe_flow is not None:  # 순수 추가: 유럽 흔름 수집기
+    FETCHERS["europe_flow"] = update_europe_flow
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
     FETCHERS["sr_forecast"] = compute_sr_forecast
 if compute_oil_forecast is not None:  # 순수 추가: 국제유가 예측도 업데이트에 덧붙임
@@ -2034,6 +2057,7 @@ FETCH_GROUPS = [
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
+    ["europe_flow"],                                 # SEC 원본 XBRL + Eurostat
     ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
 ]
 # 수집기별 캐시 유효시간(초). 이 시간 안에 성공한 결과가 있으면 재수집을 건너뛴다.
@@ -2046,6 +2070,7 @@ CACHE_TTL = {
     # 일별 데이터 — 당일(24시간)
     "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_prices": 24 * 3600,
     "competitors": 24 * 3600,
+    "europe_flow": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
     "koima_index": 24 * 3600, "schedule_reliability": 24 * 3600,
     "sr_forecast": 24 * 3600, "oil_forecast": 24 * 3600, "icis_forecast": 24 * 3600,
