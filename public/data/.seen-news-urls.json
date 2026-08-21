@@ -1,0 +1,5 @@
+{
+  "_comment": "알림을 이미 보낸 기사 링크. 같은 기사로 중복 알림이 가지 않게 대조용으로만 쓴다. scripts/check-news-alert.js 가 자동으로 갱신한다.",
+  "updatedAt": "2026-08-21",
+  "urls": []
+}

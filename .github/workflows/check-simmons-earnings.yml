@@ -1,10 +1,12 @@
-name: 시몬스 새 연도 실적 감지·자동 반영
+name: 실적 뉴스 알림 (무료)
 
+# Google 뉴스 RSS 로 새 연도 실적 기사가 떴는지만 확인해 Issue 를 연다.
+# ★ API 키·결제 없음. 데이터 파일은 이 자동화가 고치지 않는다 — 사람이 손으로 반영한다.
+#
 # 국내 실적 발표는 3월~4월 중순에 몰린다. 그 기간만 매일 돌린다.
 # cron 은 "3월 1일~4월 15일" 을 한 줄로 못 쓰므로 두 줄로 나눈다.
 #   06:00 UTC = 15:00 KST
-# ★ cron 은 월/일만 거르므로, 시즌을 벗어난 실행(수동·설정 변경 등)은
-#   첫 스텝에서 즉시 skip 한다.
+# ★ cron 은 월·일만 거르므로, 시즌을 벗어난 실행은 첫 스텝에서 즉시 skip 한다.
 on:
   schedule:
     - cron: '0 6 * 3 *'       # 3월 1~31일 매일
@@ -12,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: '파일을 쓰지 않고 결과만 확인'
+        description: 'Issue 를 만들지 않고 결과만 확인'
         type: boolean
         default: false
       force:
@@ -20,17 +22,17 @@ on:
         type: boolean
         default: false
 
-# 자동 merge 를 하므로 쓰기 권한이 필요하다.
+# Issue 생성 + seen 파일 커밋에 필요한 최소 권한. 기본 GITHUB_TOKEN 으로 충분하다.
 permissions:
   contents: write
-  pull-requests: write
+  issues: write
 
 concurrency:
-  group: simmons-earnings
+  group: simmons-news-alert
   cancel-in-progress: false
 
 jobs:
-  check:
+  alert:
     runs-on: ubuntu-latest
     steps:
       # ── 0) 시즌 밖이면 즉시 종료 (3월 1일 ~ 4월 15일만 통과)
@@ -52,128 +54,50 @@ jobs:
 
       - uses: actions/checkout@v4
         if: steps.season.outputs.in_season == 'true'
-        with:
-          fetch-depth: 0        # revert 안내를 위해 전체 이력을 받는다
-          # 자동 merge 후 다른 워크플로도 돌게 하려면 PAT 를 쓴다(없으면 기본 토큰).
-          token: ${{ secrets.EARNINGS_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         if: steps.season.outputs.in_season == 'true'
         with:
-          node-version: '20'    # 전역 fetch 사용 — 의존성 설치 없음
+          node-version: '20'    # 내장 https 만 쓴다 — 의존성 설치 없음
 
-      - name: 실적 검색·교차검증·JSON 갱신
+      - name: 뉴스 확인 및 Issue 생성
         id: check
         if: steps.season.outputs.in_season == 'true'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          EARNINGS_MODEL: ${{ vars.EARNINGS_MODEL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          node scripts/check-earnings.js ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
+          node scripts/check-news-alert.js ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
 
-      # ── 1) 브랜치 + 커밋 + PR
-      - name: PR 생성
-        id: pr
-        if: steps.check.outputs.changed == 'true'
+      # ── 알림을 보낸 링크 목록을 커밋해 다음 실행에서 중복 알림을 막는다
+      - name: 알림 기록 커밋
+        if: steps.check.outputs.found == 'true'
         env:
-          GH_TOKEN: ${{ secrets.EARNINGS_PAT || secrets.GITHUB_TOKEN }}
           YEAR: ${{ steps.check.outputs.year }}
-          PROV: ${{ steps.check.outputs.provisional }}
-          BODY: ${{ steps.check.outputs.body_path }}
-          OUTLETS: ${{ steps.check.outputs.outlets }}
-          AUTO: ${{ steps.check.outputs.auto_merge }}
-          HOLD: ${{ steps.check.outputs.hold_reason }}
+          COUNT: ${{ steps.check.outputs.count }}
+          ISSUE: ${{ steps.check.outputs.issue_url }}
         run: |
           set -euo pipefail
-          BRANCH="earnings/${YEAR}-$(date -u +%Y%m%d%H%M)"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          SUFFIX=""
-          if [ "$PROV" = "true" ]; then SUFFIX=" (잠정치)"; fi
-          TITLE="국내 실적 데이터: ${YEAR}년 자동 반영${SUFFIX}"
-          if [ "$AUTO" != "true" ]; then
-            TITLE="[검수 필요] ${YEAR}년 국내 실적 자동 감지${SUFFIX}"
+          git add public/data/.seen-news-urls.json
+          if git diff --cached --quiet; then
+            echo "기록 변경 없음"
+            exit 0
           fi
-
-          git checkout -b "$BRANCH"
-          git add public/data/simmons-market.json
           git commit \
-            -m "$TITLE" \
-            -m "서로 다른 언론사 ${OUTLETS}곳이 같은 수치를 보도해 교차검증을 통과했다." \
-            -m "검색 실행 일시와 원문 출처 URL 은 PR 본문에 기록했다." \
-            -m "되돌리려면: git revert <이 커밋 SHA> 후 push (Vercel 이 자동 재배포)." \
+            -m "실적 뉴스 알림 기록: ${YEAR}년 기사 ${COUNT}건" \
+            -m "중복 알림 방지용 링크 목록만 갱신한다. 실적 데이터는 사람이 손으로 반영한다." \
+            -m "Issue: ${ISSUE}" \
             -m "Co-Authored-By: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-          git push origin "$BRANCH"
-
-          PR_URL=$(gh pr create \
-            --base "${{ github.event.repository.default_branch }}" \
-            --head "$BRANCH" \
-            --title "$TITLE" \
-            --body-file "$BODY")
-          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          echo "::notice::PR 생성: $PR_URL"
-
-      # ── 2) 교차검증 통과 + 이상치 없음 → 사람 승인 없이 자동 merge
-      - name: 자동 merge
-        if: steps.check.outputs.changed == 'true' && steps.check.outputs.auto_merge == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.EARNINGS_PAT || secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ steps.pr.outputs.pr_url }}
-          YEAR: ${{ steps.check.outputs.year }}
-        run: |
-          set -euo pipefail
-          # squash merge — 되돌릴 때 커밋 하나만 revert 하면 된다.
-          # --admin 은 필수 체크가 걸려 있어도 통과시킨다(없으면 일반 merge 로 재시도).
-          gh pr merge "$PR_URL" --squash --delete-branch --admin \
-            || gh pr merge "$PR_URL" --squash --delete-branch
-
-          git fetch origin "${{ github.event.repository.default_branch }}"
-          SHA=$(git rev-parse --short "origin/${{ github.event.repository.default_branch }}")
-          echo "::notice::${YEAR}년 실적을 main 에 자동 반영했습니다. merge 커밋 $SHA"
+          git push
           {
-            echo "### ${YEAR}년 실적 자동 반영 완료"
+            echo "### ${YEAR}년 실적 기사 ${COUNT}건 발견"
             echo ""
-            echo "- PR: $PR_URL"
-            echo "- merge 커밋: \`$SHA\`"
-            echo "- Vercel 은 main push 를 받아 자동 재배포합니다."
-            echo ""
-            echo "#### 문제가 있으면 되돌리는 방법"
-            echo ""
-            echo '```bash'
-            echo "git fetch origin main && git checkout main && git pull"
-            echo "git revert $SHA      # 되돌리는 커밋을 새로 만든다(이력 보존)"
-            echo "git push origin main # push 하면 Vercel 이 자동 재배포한다"
-            echo '```'
-            echo ""
-            echo "GitHub 화면에서는 위 PR 상단의 **Revert** 버튼을 눌러도 됩니다."
+            echo "- Issue: ${ISSUE}"
+            echo "- 데이터 반영은 **수동**입니다. Issue 의 체크리스트를 따라 주세요."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ── 3) 이상치·잠정치 → merge 하지 않고 라벨만 붙여 사람에게 넘긴다
-      - name: 검수 필요 라벨
-        if: steps.check.outputs.changed == 'true' && steps.check.outputs.auto_merge != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.EARNINGS_PAT || secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ steps.pr.outputs.pr_url }}
-          HOLD: ${{ steps.check.outputs.hold_reason }}
-        run: |
-          set -euo pipefail
-          gh label create "review-needed" \
-            --color "D93F0B" \
-            --description "자동 반영을 보류하고 사람 검수가 필요한 변경" 2>/dev/null || true
-          gh pr edit "$PR_URL" --add-label "review-needed"
-          echo "::warning::자동 merge 를 보류했습니다 — $HOLD"
-          {
-            echo "### 자동 merge 보류"
-            echo ""
-            echo "사유: $HOLD"
-            echo ""
-            echo "PR: $PR_URL (라벨 \`review-needed\`)"
-            echo ""
-            echo "수치를 확인한 뒤 직접 merge 하거나 PR 을 닫아 주세요."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: 변경 없음
-        if: steps.season.outputs.in_season == 'true' && steps.check.outputs.changed != 'true'
-        run: echo "::notice::새 연도 실적을 찾지 못했거나 교차검증을 통과하지 못했습니다. 내일 다시 확인합니다."
+      - name: 알림 없음
+        if: steps.season.outputs.in_season == 'true' && steps.check.outputs.found != 'true'
+        run: echo "::notice::새 기사가 없습니다. 내일 다시 확인합니다."

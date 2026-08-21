@@ -227,94 +227,56 @@ BLS 원값도 볼 수 있다.
 `isProvisional: true` 로 두면 **잠정치** 배지가 뜬다(확정 실적 발표 전 1~2월용).
 연도별로 표시하려면 해당 `simmonsPerformance` 항목에 `"provisional": true` 를 넣는다.
 
-### 새 연도 실적 자동 감지 → 교차검증 → 자동 반영
+### 새 연도 실적 기사 알림 (무료 · 수동 반영)
 
-`.github/workflows/check-simmons-earnings.yml` → `scripts/check-earnings.js`
+`.github/workflows/check-simmons-earnings.yml` → `scripts/check-news-alert.js`
+
+★ **API 키도 결제도 필요 없다.** 예전에 있던 Anthropic API 기반 "자동 검색 +
+  자동 merge" 파이프라인은 걷어냈다. 이제 이 자동화는 **알림만 보낸다** —
+  데이터 파일은 건드리지 않고, 사람이 Issue 를 보고 손으로 반영한다.
+
+**쓰는 것**
+
+| | |
+|---|---|
+| 뉴스 검색 | Google 뉴스 RSS `news.google.com/rss/search` — 키 불필요 |
+| HTTP | Node 내장 `https` 모듈 (라이브러리 설치 없음) |
+| XML 파싱 | 정규식으로 `<item>` 의 `<title>`·`<link>` 만 추출 (파서 불필요) |
+| Issue 생성 | GitHub REST API · 기본 `GITHUB_TOKEN` |
 
 **실행 시점** — 3월 1~31일 + 4월 1~15일 매일 06:00 UTC(15:00 KST).
-cron 은 이 구간을 한 줄로 못 쓰므로 두 줄로 나눴다. 그리고 cron 은 월·일만
-거르므로, 시즌을 벗어난 실행은 첫 스텝에서 즉시 skip 한다(`in_season` 가드).
-수동 실행도 된다 — `dry_run`(파일 안 씀) / `force`(시즌 밖에서도 실행).
+cron 은 이 구간을 한 줄로 못 쓰므로 두 줄로 나눴고, cron 은 월·일만 거르므로
+시즌을 벗어난 실행은 첫 스텝에서 즉시 skip 한다. 수동 실행도 된다 —
+`dry_run`(Issue 안 만듦) / `force`(시즌 밖에서도 실행).
 
-**동작 순서**
+**동작**
 
-1. Anthropic Messages API + `web_search` 로 시몬스·에이스침대·코웨이를 각각 검색
-2. **교차검증** — 서로 다른 언론사 **2곳 이상**이 같은 수치를 보도해야 확정으로 본다.
-   1곳뿐이면 반영하지 않고 종료한다(다음 날 재시도). 단일 오보 방어.
-3. 통과하면 새 연도를 `simmonsPerformance` 에 추가하고 `lastUpdated` 갱신,
-   `isProvisional: false`
-4. 새 브랜치 → 커밋 → PR 생성 → **squash merge 까지 자동**(사람 승인 없음)
-5. main push → Vercel 자동 재배포
-6. PR 본문·커밋 메시지에 **반영 수치 / 원문 출처 URL / 검색 실행 일시 / revert 방법** 기록
-7. **안전장치** — 아래 중 하나라도 걸리면 merge 를 건너뛰고 `review-needed`
-   라벨을 붙인 PR 만 연다
-8. 못 찾거나 교차검증 실패 시 조용히 종료
+1. `simmonsPerformance` 의 **마지막 연도 + 1** 을 계산한다.
+   연도를 하드코딩하지 않으므로 2027년에도 코드를 고칠 필요가 없다.
+2. 검색어 3개를 각각 따로 호출 — `시몬스 {연도}년 매출` /
+   `에이스침대 {연도}년 매출` / `코웨이 {연도}년 매트리스 매출`
+3. 제목에 **그 연도 숫자**가 있고 **`매출` 또는 `억원`** 이 있는 것만 남긴다.
+   (예: `시몬스 "작년 매출 3천239억원"` 은 연도 숫자가 없어 걸러진다 — 지난해 기사다)
+4. `public/data/.seen-news-urls.json` 과 대조해 **새 링크만** 남긴다.
+   같은 기사로 매일 중복 알림이 가지 않게 한다.
+5. 하나라도 남으면 Issue 를 열고, 알림 보낸 링크를 seen 파일에 기록해 커밋한다.
+   (Issue 생성이 성공한 뒤에만 기록한다 — 실패하면 다음 날 다시 알린다)
+6. 없으면 아무것도 하지 않고 조용히 종료한다.
 
-★ 교차검증은 **모델 자기보고를 믿지 않는다.** 코드가 직접 도메인 수를 센다.
+Issue 본문에는 검색어별 기사 제목·링크와 반영 체크리스트가 들어간다. RSS 검색은
+관련도 기준이라 **분기 실적 기사가 섞일 수 있어서**, 체크리스트에 "연간(12월 결산)
+수치인가", "서로 다른 언론사 2곳 이상에서 같은 수치인가" 를 넣어 뒀다.
 
-| 증거 | 인정 기준 |
-|---|---|
-| (a) 검색 인용문 | `cited_text` 안에 그 숫자가 실제로 있는 인용 |
-| (b) 모델이 댄 출처 | 그 URL 이 **검색 결과에 실제로 등장한 것**일 때만 |
+**필요한 권한** — 기본 `GITHUB_TOKEN` 으로 충분하다(`issues: write` + `contents: write`).
+따로 발급할 시크릿이 없다.
 
-(a)만 쓰면 인용문이 150자로 잘려 놓치고, (b)만 쓰면 모델이 URL 을 지어낼 수 있다.
-그래서 (a)∪(b) 의 서로 다른 도메인 수를 센다. 실측으로 지어낸 URL 이 걸러지는 것을
-확인했다(2곳 → 1곳으로 떨어져 반영 보류).
-
-★ **이상치 브레이크 임계값을 매출과 영업이익에 다르게 뒀다.** 이 회사 실적 이력이
-  그렇게 생겼기 때문이다(실측):
-
-| | 2022→23 | 2023→24 | 2024→25 | 임계값 |
-|---|---|---|---|---|
-| 매출 | +9.8% | +5.0% | −1.7% | **±50%** |
-| 영업이익 | **+170.3%** | +65.2% | −23.1% | **±200%** |
-
-영업이익까지 ±50% 로 잡으면 **정상 변동에도 매번 브레이크가 걸려** 자동 반영이
-무의미해진다. 매출은 스펙대로 ±50% 다. 두 값 모두 스크립트 상단 상수다
-(`REV_JUMP_PCT` / `OP_JUMP_PCT`).
-
-**자동 merge 를 보류하는 경우**
-
-- 매출이 직전 연도 대비 ±50% 이상 급변
-- 영업이익이 ±200% 이상 급변
-- 기사가 **잠정치**로 보도 (확정으로 자동 반영하지 않는다)
-- 영업이익 교차검증이 1곳뿐
-
-**조용히 종료하는 경우** — 연도 불일치 / `confidence: low` / 매출 교차검증 실패 /
-매출이 500~50000억 밖 / 영업이익이 −5000~10000억 밖 / 이미 있는 연도 / API 오류.
-경쟁사 비교 차트는 3사가 **모두** 교차검증을 넘겼을 때만 갈아탄다(반쪽 비교 금지).
-점유율(`marketShare2025`)은 조사기관 추정치라 건드리지 않는다.
-
-**되돌리기** — squash merge 라 커밋 하나만 revert 하면 된다. 방법을 PR 본문과
-Actions 실행 요약(`GITHUB_STEP_SUMMARY`) 양쪽에 merge 커밋 SHA 와 함께 남긴다.
+로컬 테스트 (Issue 생성·파일 쓰기 없이 미리보기만):
 
 ```bash
-git fetch origin main && git checkout main && git pull
-git revert <SHA>        # 되돌리는 커밋을 새로 만든다(이력 보존)
-git push origin main    # push 하면 Vercel 이 자동 재배포한다
+node scripts/check-news-alert.js --dry-run
 ```
-GitHub 화면에서는 해당 PR 상단의 **Revert** 버튼을 눌러도 된다.
 
-**필요한 시크릿**
-
-| 이름 | 필수 | 용도 |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | ✅ | 검색·추출 |
-| `EARNINGS_PAT` | 선택 | 없으면 `GITHUB_TOKEN` 을 쓴다(아래 참고) |
-| `EARNINGS_MODEL` (Variables) | 선택 | 모델 교체 |
-
-★ 기본 `GITHUB_TOKEN` 으로도 push·PR·merge 는 된다. Vercel 은 GitHub App 으로
-  push 를 받으므로 **재배포도 정상 동작**한다. 다만 `GITHUB_TOKEN` 의 push 는
-  다른 **GitHub Actions 워크플로**를 트리거하지 않으므로, 자동 반영 후 다른
-  워크플로까지 돌려야 하면 `EARNINGS_PAT`(repo 권한)를 넣는다.
-★ 필수 상태 검사(branch protection)가 걸려 있으면 `gh pr merge --admin` 으로
-  통과시키고, 실패하면 일반 merge 로 재시도한다.
-
-★ 기본 모델은 `claude-sonnet-5` 다. 스펙에 적혀 있던 `claude-sonnet-4-6` 은
-  실재하지 않는 ID여서 쓰지 않았다.
-
-로컬 확인:
-
-```bash
-node scripts/check-earnings.js --dry-run   # 키가 있으면 실제 호출, 파일은 안 씀
-```
+★ `.github/workflows/collect.yml` 에는 `ANTHROPIC_API_KEY` 참조가 남아 있는데
+  **이건 실적 알림과 무관하다.** 예측 카드의 해설 문장(`icis_forecast.py` /
+  `oil_forecast.py` / `sr_forecast.py`)이 쓰는 것이고, 키가 없으면 통계 예측값만
+  표시하는 폴백으로 동작한다. 그래서 지우지 않았다.
