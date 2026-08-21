@@ -52,6 +52,31 @@ SLEEP = 1.2               # 요청 간격(초) — 레이트 리밋 회피
 TIMEOUT = 60
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+# ── 티어 구분(단가 기반) ──────────────────────────────────────────────────
+# ★ 경계와 방식은 사용자가 단가 분포를 보고 정한다. 임의로 채우지 않는다.
+#   TIER_MODE 가 None 이면 화면에 '경계 미정'으로 표시하고 티어 필터를 켜지 않는다.
+#
+#   실측한 분포(2024-01~2026-05, USD/kg, HS6 3코드 × 수출·수입 = 167건):
+#     전체 풀   최소 2.11 · Q1 4.14 · 중앙 6.75 · Q3 8.08 · 최대 10.32
+#     수출만    최소 5.98 · Q1 7.62 · 중앙 8.05 · Q3 8.79 · 최대 10.32
+#     수입만    최소 2.11 · Q1 3.12 · 중앙 4.10 · Q3 5.75 · 최대  6.75
+#
+#   ★★ 단일 경계는 티어가 아니라 '수출/수입 방향'을 가른다(실측):
+#      경계 6.75(중앙값) → 방향과 일치 97.0%  (프리미엄=수출 83 / 수입 1)
+#      경계 8.08(Q3)     → 방향과 일치 73.7%  (프리미엄에 수입 0건)
+#      즉 수입은 영구히 '미드'가 되어 '해외 브랜드 침투'를 볼 수 없다.
+#   → 그래서 방식(mode)까지 정해야 한다:
+#      "global"  전체 풀에 단일 경계 (위 문제를 감수)
+#      "by_flow" 수출·수입 각각의 분포에 경계 (같은 방향 안에서 고가/저가)
+#      "by_code" 소재(HS6)별 경계 (같은 소재 안에서 고가/저가)
+TIER_MODE = None            # None | "global" | "by_flow" | "by_code"
+TIER_BOUNDARY = None        # USD/kg (global) 또는 분위(0~1, by_flow/by_code)
+TIER_DISCLAIMER = ("무역 단가를 기준으로 한 구분이며, 브랜드 가격대와 정확히 일치하지 "
+                   "않습니다. 미국 섹션의 티어 구분(브랜드 가격대 기준)과는 산출 방식이 "
+                   "다릅니다.")
+TIER_PENDING = ("단가 경계가 아직 정해지지 않아 티어 구분을 표시하지 않습니다. "
+                "단가 분포를 확인한 뒤 경계와 방식을 정하면 이 자리에 필터가 생깁니다.")
+
 SOURCE = "UN Comtrade · HS 9404 · reporter=Italy(380) · partner=World · 월별"
 READ_NOTE = ("수입 증가는 해외 브랜드 침투를, 수출 증가는 자국 생산 호조를 시사합니다. "
              "Made in Italy 선호가 강한 시장이라 이 균형이 시장 구도 변화를 보여줍니다.")
@@ -112,26 +137,58 @@ def _target_end(today=None):
 
 
 def _fetch_month(month):
-    """한 달 조회 → {'exp': {code: val}, 'imp': {...}}. 미공표면 빈 dict."""
+    """한 달 조회 → 금액(exp/imp)과 순중량(expw/impw)을 함께 담는다.
+       ★ 단가(=금액÷중량) 계산에 중량이 필수다. netWgt 는 isNetWgtEstimated=False
+         (추정치 아님)이고, qty 는 isQtyEstimated=True + 단위 라벨이 없어 쓰지 않는다.
+         일부 조합(예: 940421 수입)은 netWgt 가 비어 오므로 그 달·그 코드의
+         단가는 계산하지 않고 비워 둔다."""
     r = requests.get(URL, params={"reporterCode": REPORTER, "partnerCode": PARTNER,
                                   "period": month.replace("-", ""), "cmdCode": CODE_PARAM,
                                   "flowCode": FLOWS}, timeout=TIMEOUT, headers=HEADERS)
     r.raise_for_status()
     rows = r.json().get("data") or []
-    exp, imp = {}, {}
+    exp, imp, expw, impw = {}, {}, {}, {}
+    known = dict(HS_CODES)
     for x in rows:
         code = str(x.get("cmdCode") or "")
-        val = x.get("primaryValue")
-        if val is None or code not in dict(HS_CODES):
+        if code not in known:
             continue
-        (exp if x.get("flowCode") == "X" else imp)[code] = round(float(val))
-    return {"exp": exp, "imp": imp}
+        out_v = exp if x.get("flowCode") == "X" else imp
+        out_w = expw if x.get("flowCode") == "X" else impw
+        val, wgt = x.get("primaryValue"), x.get("netWgt")
+        if val is not None:
+            out_v[code] = round(float(val))
+        if wgt:                      # 0·None 은 담지 않는다(단가가 무한이 된다)
+            out_w[code] = round(float(wgt))
+    return {"exp": exp, "imp": imp, "expw": expw, "impw": impw}
+
+
+def _unit_prices(months):
+    """월별 단가(USD/kg) = 금액 ÷ 순중량. 중량이 없는 조합은 None 으로 비운다.
+       ★ 추정치를 만들지 않는다 — 중량이 안 온 달은 계산하지 않는다."""
+    out = []
+    for m in months:
+        row = {"month": m["month"], "exp": {}, "imp": {}}
+        for flow, vk, wk in (("exp", "exp", "expw"), ("imp", "imp", "impw")):
+            vals, wgts = m.get(vk) or {}, m.get(wk) or {}
+            for code, _ in HS_CODES:
+                v, w = vals.get(code), wgts.get(code)
+                row[flow][code] = round(v / w, 3) if (v and w) else None
+        out.append(row)
+    return out
 
 
 def update_italy_trade():
     """빠진 월만 채워 저장하고 payload 를 돌려준다."""
     store = _load()
-    have = {m["month"]: m for m in store["months"] if isinstance(m, dict) and m.get("month")}
+    have = {}
+    for m in store["months"]:
+        if not isinstance(m, dict) or not m.get("month"):
+            continue
+        # 중량(expw/impw)이 없는 구버전 레코드는 다시 받는다(단가 계산에 필요).
+        if "expw" not in m and "impw" not in m:
+            continue
+        have[m["month"]] = m
     end = _target_end()
     want = _month_range(START_MONTH, end)
     missing = [m for m in want if m not in have]
@@ -157,12 +214,18 @@ def update_italy_trade():
         "reason": None if months else "수집된 월이 없습니다",
         "source": SOURCE,
         "currency": "USD",
+        "weight_unit": "kg",
+        "unit_price_unit": "USD/kg",
         "codes": [{"code": c, "label": l} for c, l in HS_CODES],
         "read_note": READ_NOTE,
         "months": months,
         "latest": months[-1]["month"] if months else None,
         "target_end": end,
         "pending": max(0, len(missing) - MAX_NEW),
+        "unit_prices": _unit_prices(months),
+        "tier": {"mode": TIER_MODE, "boundary": TIER_BOUNDARY,
+                 "disclaimer": TIER_DISCLAIMER,
+                 "pending_note": None if TIER_MODE else TIER_PENDING},
         "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     if fetched:
