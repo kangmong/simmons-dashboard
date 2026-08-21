@@ -1047,6 +1047,110 @@ function gItemRaw(v) {
   return '$' + v.toFixed(0) + '/개' + (k ? ' ≈ ' + escapeHtml(k) : '');
 }
 
+/* ── 지표 설명표 (접기/펼치기) ────────────────────────────────────────────
+   ★ 기존 '원료 용어 설명' 표와 같은 마크업(.icis-terms / .icis-termtable)을 쓴다.
+   ★ 기본은 접힌 상태다 — 항상 펼쳐두면 화면이 무거워진다.
+   ★ 티어 버튼을 눌러 다시 그려도 펼친 상태가 유지되도록 _gExpl 에 기억한다. */
+const _gExpl = { us: false, it: false };
+
+// 나라별로 다른 것만 모아 둔다(가격지수 출처가 다르다).
+const G_EXPL = {
+  us: {
+    priceWhat: '2020년 출고가를 100으로 봤을 때의 현재 수준. 120이면 20% 올랐다는 뜻',
+    gapWhat: '두 지수의 차이. 국내 출고가는 오르는데 수입 원가는 내려 격차가 벌어진 정도',
+    priceSrc: 'BLS 생산자물가지수(PPI)',
+    priceDesc: '미국 매트리스 제조사 출고가격 추이',
+    unitDesc: '수입금액 ÷ 수입수량(개)으로 계산한 단가 추이',
+    onlyPrice: '국내 제조 원가·마진 상승, 수입은 저가화',
+  },
+  it: {
+    priceWhat: '2020년 가구 가격을 100으로 봤을 때의 현재 수준. 120이면 20% 올랐다는 뜻',
+    gapWhat: '두 지수의 차이. 현지 가구 가격은 오르는데 수입 원가는 내려 격차가 벌어진 정도',
+    priceSrc: 'Eurostat 소비자물가지수(HICP · CP05111)',
+    priceDesc: '이탈리아 가정용 가구 가격 추이 (매트리스 전용 지수는 없음)',
+    unitDesc: '수입금액 ÷ 수입중량(kg)으로 계산한 단가 추이',
+    onlyPrice: '현지 가구 가격 상승, 수입은 저가화',
+  },
+};
+
+/** gSummary 와 같은 방식으로 '화면에 실제로 뜬' 요약 항목 라벨을 뽑는다.
+    없는 항목은 설명하지 않기 위해 존재 여부까지 함께 돌려준다. */
+function gExplLabels(c) {
+  const last = (s2) => {
+    for (let i = c.years.length - 1; i >= 0; i -= 1) {
+      if (s2.vals[i] != null) return c.years[i];
+    }
+    return null;
+  };
+  const nm = (s2) => s2.name.split(' (')[0];
+  const py = last(c.live[0]);
+  const out = { price: (py != null ? py + ' ' : '') + nm(c.live[0]), unit: null, gap: null };
+  if (c.live[1]) {
+    const uy = last(c.live[1]);
+    out.unit = (uy != null ? uy + ' ' : '') + nm(c.live[1]);
+    let gi = -1;
+    for (let i = c.years.length - 1; i >= 0; i -= 1) {
+      if (c.live[0].vals[i] != null && c.live[1].vals[i] != null) { gi = i; break; }
+    }
+    out.gap = (gi >= 0 ? c.years[gi] + ' ' : '') + '단가−지수 격차';
+  }
+  return out;
+}
+
+/** 차트 아래 '지표 설명' — country: 'us' | 'it', c: gYearChart 결과 */
+function gExplain(country, c) {
+  const g = G_EXPL[country];
+  if (!g || !c) return '';
+  const L = gExplLabels(c);
+  const hasUnit = !!c.live[1];
+  const tbl = (title, head, rows) => '<div class="icis-terms">'
+    + '<h3 class="subhead">' + escapeHtml(title) + '</h3>'
+    + '<div class="icis-term-wrap"><table class="icis-termtable"><thead><tr>'
+    + head.map((h) => '<th>' + escapeHtml(h) + '</th>').join('')
+    + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  const tr = (cells) => '<tr>' + cells.map((x) => '<td>' + x + '</td>').join('') + '</tr>';
+  const dot = (color) => '<span class="icis-dot" style="background:' + color + '"></span>';
+
+  // 표 1 — 상단 탭. 하이엔드가 프리미엄보다 상위 등급이다(순서 고정).
+  const t1 = tbl('상단 탭 (제품 구분)', ['탭', '무엇을 고르는 것인가'],
+    tr(['전체', '매트리스 수입 전체 (HS 940421 + 940429)'])
+    + tr(['하이엔드', '폼·라텍스 매트리스 (HS 940421) — 상대적 고가 소재'])
+    + tr(['프리미엄', '스프링 등 기타 매트리스 (HS 940429)']))
+    + '<div class="gx-note">가격대가 아니라 소재(HS 코드) 기준 구분입니다.'
+    + ' 공개 통계에는 가격대별 분류가 없습니다.</div>';
+
+  // 표 2 — 상단 숫자. 화면에 뜬 항목만 넣는다.
+  let r2 = tr([escapeHtml(L.price), escapeHtml(g.priceWhat)]);
+  if (hasUnit) {
+    r2 += tr([escapeHtml(L.unit),
+      '2020년 수입단가를 100으로 봤을 때의 현재 수준. 73이면 27% 내렸다는 뜻']);
+    r2 += tr([escapeHtml(L.gap), escapeHtml(g.gapWhat)]);
+  }
+  const t2 = tbl('상단 숫자', ['항목', '뜻'], r2);
+
+  // 표 3 — 두 선. 색은 차트와 같은 CSS 변수를 쓴다.
+  let r3 = tr([dot(G_COL_PRICE) + '빨간 실선', '가격지수',
+    escapeHtml(g.priceSrc) + '<br>' + escapeHtml(g.priceDesc)]);
+  if (hasUnit) {
+    r3 += tr([dot(G_COL_UNIT) + '파란 점선', '수입단가',
+      'UN Comtrade 무역통계<br>' + escapeHtml(g.unitDesc)]);
+  }
+  const t3 = tbl('그래프의 두 선', ['선', '이름', '출처와 의미'], r3);
+
+  // 표 4 — 읽는 법. 한 줄씩만.
+  const t4 = tbl('이 그래프로 알 수 있는 것', ['그래프 모양', '해석'],
+    tr(['두 선이 함께 상승', '시장 전반의 가격 상승'])
+    + tr(['가격지수만 상승', escapeHtml(g.onlyPrice)])
+    + tr(['수입단가만 상승', '고가 제품 수입 증가'])
+    + tr(['두 선이 함께 하락', '시장 가격 하락 압력']));
+
+  return '<details class="gx"' + (_gExpl[country] ? ' open' : '') + '>'
+    + '<summary class="gx__sum" data-g-expl="' + country + '">지표 설명</summary>'
+    + '<div class="gx__body">' + t1 + t2 + t3 + t4
+    + '<div class="gx-limit">시장 규모가 아니라 가격 흐름을 보는 지표입니다.'
+    + ' 가격대별 시장 규모는 공개 통계에 존재하지 않습니다.</div></div></details>';
+}
+
 /** 1. 미국 — BLS PPI + UN Comtrade 수입단가(개당) */
 function gUsBlock() {
   const u = _usMarket, ppi = u && u.ppi;
@@ -1068,7 +1172,8 @@ function gUsBlock() {
       + emptyState((ppi && ppi.reason) || '업데이트 버튼을 누르면 표시됩니다');
   }
   return gtTierBar('us', _usTier) + gSummary(c) + c.html
-    + '<div class="g-note">매트리스 출고가격(BLS)과 개당 수입단가(UN Comtrade) 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>';
+    + '<div class="g-note">매트리스 출고가격(BLS)과 개당 수입단가(UN Comtrade) 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>'
+    + gExplain('us', c);
 }
 
 /** 2. 이탈리아 — Eurostat HICP + UN Comtrade 수입단가 */
@@ -1093,7 +1198,8 @@ function gItBlock() {
       + emptyState((h && h.reason) || (t && t.reason) || '업데이트 버튼을 누르면 표시됩니다');
   }
   return gtTierBar('it', _itTier) + gSummary(c) + c.html
-    + '<div class="g-note">매트리스 전용 가격지수가 없어 가정용 가구 지수를 씁니다. kg 단가는 절대 수준보다 방향을 보십시오.</div>';
+    + '<div class="g-note">매트리스 전용 가격지수가 없어 가정용 가구 지수를 씁니다. kg 단가는 절대 수준보다 방향을 보십시오.</div>'
+    + gExplain('it', c);
 }
 
 /** 국외 섹션 — 나라별 블록 둘. 그 외에는 아무것도 만들지 않는다. */
@@ -1240,6 +1346,15 @@ function wireGtControls() {
   if (!el || el.dataset.gtWired === '1') return;
   el.dataset.gtWired = '1';
   el.addEventListener('click', (ev) => {
+    // '지표 설명' 펼침 상태를 기억한다 — 티어 버튼으로 다시 그려도 유지되게.
+    // (열고 닫는 동작 자체는 <details> 기본 동작에 맡기고 상태만 기록한다)
+    const sm = ev.target.closest && ev.target.closest('[data-g-expl]');
+    if (sm) {
+      const ck = sm.getAttribute('data-g-expl');
+      const dt = sm.closest('details');
+      _gExpl[ck] = !(dt && dt.open);   // 이 클릭으로 바뀔 값
+      return;
+    }
     const tb = ev.target.closest && ev.target.closest('[data-g-tier]');
     if (!tb) return;
     const p2 = String(tb.getAttribute('data-g-tier')).split('|');
