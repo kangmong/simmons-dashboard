@@ -924,7 +924,7 @@ function gtEuSeries() {
   if (!seg || seg.status !== 'ok') return null;
   const s = seg.series && seg.series.international;
   if (!s || !(s.quarters || []).length) return null;
-  return { label: s.label + ' (미국 외)', quarters: s.quarters, isSegment: true };
+  return { label: s.label, note: s.note || '', quarters: s.quarters, isSegment: true };
 }
 
 /** 분기 서수 다음 값 (Q4 다음은 다음 해 Q1) */
@@ -1060,6 +1060,11 @@ function gtTrendChart(companies) {
   const legend = series.map((s) => '<span class="gt-lg' + (s.seg ? ' gt-lg--seg' : '') + '">'
     + '<i style="background:' + s.color + '"></i>'
     + escapeHtml(s.c.name || s.c.label) + '</span>').join('');
+  // 세그먼트 라인은 기업 라인과 성격이 달라(한 기업의 일부 지역) 범례 바로 아래에
+  // 무엇을 합산한 값인지 밝힌다. 이탈리아 시장 지표로 오해되지 않게 하는 장치다.
+  const segNotes = series.filter((s) => s.seg && s.c.note)
+    .map((s) => '<div class="gt-lgnote"><i></i><span><b>' + escapeHtml(s.c.label) + '</b> — '
+      + escapeHtml(s.c.note) + '</span></div>').join('');
 
   // 결측 분기(10-K 가 분기값을 태깅하지 않아 비는 4분기 등)
   const miss = [];
@@ -1081,7 +1086,7 @@ function gtTrendChart(companies) {
     + '<div class="gt-tip" hidden></div>'
     + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 분기별 값이 보입니다.</div>'
     + '</div>'
-    + '<div class="gt-legend">' + legend + '</div>';
+    + '<div class="gt-legend">' + legend + '</div>' + segNotes;
   return {
     html: html,
     base: (perOwn || baseIdx < 0) ? null : compQtrLabel(xs[baseIdx]),
@@ -1189,7 +1194,9 @@ function gtItalyBlock() {
     + '</div>'
     + '<div class="gt-ita__note">' + escapeHtml(it.unit) + ' · <b>기업 실적이 아니라 이탈리아 현지 소매'
     + ' 수요 지표</b>입니다. 아래 세 브랜드의 매출이 아니며, 매트리스 단독 통계가 없어 가구를 포함한'
-    + ' 가정용품 전문점 기준입니다.</div>'
+    + ' 가정용품 전문점 기준입니다.<br>위 추이 차트의 점선(Tempur Sealy 해외부문)은'
+    + ' <b>글로벌 업체의 북미 외 실적</b>이고, 이 지표는 <b>이탈리아 현지 수요</b>입니다 —'
+    + ' 서로 다른 성격의 값입니다.</div>'
     + '<div class="gt-ita__src">출처: ' + escapeHtml(it.source || 'Eurostat') + '</div>'
     + '</div>';
 }

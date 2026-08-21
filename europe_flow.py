@@ -6,9 +6,11 @@
       세그먼트가 안 나온다. 대신 공시 원본 XBRL 인스턴스에는 세그먼트 축이
       태깅되어 있어(us-gaap:StatementBusinessSegmentsAxis) 여기서 뽑는다.
 
-★ International 세그먼트는 '미국 외' 전체(유럽·아시아 등)다. 유럽 단독도,
-  이탈리아 단독도 아니다. 공시의 지리 축(srt:StatementGeographicalAxis)에는
-  country:US 와 us-gaap:NonUsMember 둘뿐이어서 유럽만 떼어낼 수 없다(실측).
+★ International 세그먼트는 '북미 외' 전체다. 10-K 정의상 북미부문이
+  미국·캐나다·멕시코를 포함하므로, 해외부문은 유럽·아시아태평양·중남미
+  (멕시코 제외) 합산이다. 유럽 단독도, 이탈리아 단독도 아니다.
+  공시의 지리 축(srt:StatementGeographicalAxis)에도 country:US 와
+  us-gaap:NonUsMember 둘뿐이어서 유럽만 떼어낼 수 없다(실측).
   → 이탈리아는 Eurostat 소매판매 지수로 따로 본다(기업 실적이 아니라 시장 수요).
 
 ★ 추정치를 만들지 않는다. 값이 없는 분기는 비워 둔다.
@@ -47,11 +49,22 @@ XBRLDI = "{http://xbrl.org/2006/xbrldi}"
 SEG_AXIS = "us-gaap:StatementBusinessSegmentsAxis"
 REV_TAG = "RevenueFromContractWithCustomerExcludingAssessedTax"
 
-# 세그먼트 멤버 → (내부 key, 표시명). 멤버 이름이 바뀌면 여기만 고친다.
+# 세그먼트 멤버 → (내부 key, 표시명, 짧은 설명). 이름이 바뀌면 여기만 고친다.
+# ★ 세그먼트 범위는 Somnigroup 10-K(2026-02-27) 본문에서 확인했다.
+#   North America  : "located in the U.S., Canada and Mexico
+#                     (other than Mattress Firm retail and distribution locations)"
+#   International  : "located in Europe, Asia-Pacific and Latin America
+#                     (other than Mexico)"
+#   → International 은 미국·캐나다뿐 아니라 멕시코도 제외한 '북미 외' 전체다.
 SEGMENTS = [
-    ("TempurSealyInternationalSegmentMember", "international", "Tempur Sealy International"),
-    ("TempurSealyNorthAmericaSegmentMember", "north_america", "Tempur Sealy North America"),
-    ("MattressFirmSegmentMember", "mattress_firm", "Mattress Firm"),
+    ("TempurSealyInternationalSegmentMember", "international",
+     "Tempur Sealy 해외부문 (미국·캐나다·멕시코 제외)",
+     "유럽·아시아태평양·중남미(멕시코 제외) 합산입니다. "
+     "글로벌 업체의 해외 실적이며, 이탈리아 단독 수치는 공시되지 않습니다."),
+    ("TempurSealyNorthAmericaSegmentMember", "north_america",
+     "Tempur Sealy 북미부문 (미국·캐나다·멕시코)", ""),
+    ("MattressFirmSegmentMember", "mattress_firm",
+     "Mattress Firm (북미 소매 체인)", ""),
 ]
 _MONTH_Q = {3: "Q1", 6: "Q2", 9: "Q3", 12: "Q4"}
 
@@ -152,11 +165,11 @@ def fetch_tpx_segments():
             merged.setdefault(k, v)      # 최신 공시 값을 우선(먼저 들어온 것 유지)
 
     series = {}
-    for member, key, label in SEGMENTS:
+    for member, key, label, note in SEGMENTS:
         pts = sorted(((q, v) for (m, q), v in merged.items() if m == member),
                      key=lambda z: _qord(z[0]))
         if pts:
-            series[key] = {"label": label,
+            series[key] = {"label": label, "note": note,
                            "quarters": [{"q": q, "revenue": v} for q, v in pts]}
     if not series:
         return {"status": "error",
@@ -171,8 +184,8 @@ def fetch_tpx_segments():
             break
     return {"status": "ok", "series": series, "filings_read": read,
             "filings_failed": failed, "acq_quarter": acq,
-            "note": ("International 은 '미국 외' 전체(유럽·아시아 등)입니다. "
-                     "공시의 지리 구분이 미국/미국 외 둘뿐이라 유럽만 분리할 수 없습니다.")}
+            "note": ("해외부문은 유럽·아시아태평양·중남미(멕시코 제외) 합산입니다. "
+                     "공시가 북미/북미 외로만 나뉘어 이탈리아만 분리할 수 없습니다.")}
 
 
 def _qord(q):

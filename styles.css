@@ -1204,6 +1204,16 @@ body {
 .gt-lg--seg { color: var(--muted); }
 .gt-lg--seg i { height: 0; border-top: 3px dashed var(--slate); background: none !important; }
 .gt-chart__note { margin: 6px 0 16px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+/* 세그먼트 라인 설명 — 기업 라인과 성격이 달라 범례 아래에 한 줄로 붙인다 */
+.gt-lgnote {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: 4px;
+  font-size: 11px; line-height: 1.55; color: var(--muted);
+}
+.gt-lgnote i {
+  width: 10px; height: 0; margin-top: 8px; flex: 0 0 auto;
+  border-top: 3px dashed var(--slate);
+}
+.gt-lgnote b { color: var(--text); font-weight: 600; }
 
 /* 티어 배지 */
 .gt-badge {
