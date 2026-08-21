@@ -21,20 +21,15 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-try:  # 브랜드 상수(단일 관리 지점). 로드 실패해도 나머지는 정상.
-    from italy_brands import italy_brands_payload
-except Exception:  # noqa: BLE001
-    italy_brands_payload = None
-
 try:  # 이탈리아 수출입(자동) — UN Comtrade
     from italy_trade import update_italy_trade
 except Exception:  # noqa: BLE001
     update_italy_trade = None
 
-try:  # 이탈리아 상장사 실적(자동 수집 가능한 것만) — Natuzzi 연간
-    from italy_listed import update_italy_listed
+try:  # 이탈리아 가격지수 — Eurostat HICP
+    from italy_hicp import fetch_italy_hicp
 except Exception:  # noqa: BLE001
-    update_italy_listed = None
+    fetch_italy_hicp = None
 
 # Tempur Sealy(현 Somnigroup International) CIK. 사명이 바뀌어도 CIK 는 그대로다.
 TPX_CIK = 1206264
@@ -198,14 +193,12 @@ def update_europe_flow():
     seg = fetch_tpx_segments()
     trade = (update_italy_trade() if update_italy_trade
              else {"status": "error", "reason": "수출입 수집 모듈을 불러오지 못했습니다"})
-    brands = italy_brands_payload() if italy_brands_payload else None
-    listed = (update_italy_listed() if update_italy_listed
-              else {"status": "error", "reason": "상장사 수집 모듈을 불러오지 못했습니다"})
+    hicp = (fetch_italy_hicp() if fetch_italy_hicp
+            else {"status": "error", "reason": "가격지수 모듈을 불러오지 못했습니다"})
     ok = (seg.get("status") == "ok") or (trade.get("status") == "ok")
     return {"status": "ok" if ok else "error",
             "reason": None if ok else (seg.get("reason") or trade.get("reason")),
-            "segments": seg, "italy_trade": trade,
-            "italy_listed": listed, "italy_brands": brands}
+            "segments": seg, "italy_trade": trade, "italy_hicp": hicp}
 
 
 

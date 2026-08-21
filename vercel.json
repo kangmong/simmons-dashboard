@@ -42,10 +42,6 @@
     {
       "src": "public/data/italy-trade.json",
       "use": "@vercel/static"
-    },
-    {
-      "src": "public/data/italy-listed.json",
-      "use": "@vercel/static"
     }
   ],
   "routes": [

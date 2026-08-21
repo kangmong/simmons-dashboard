@@ -45,7 +45,7 @@ HS_CODES = [
 ]
 CODE_PARAM = ",".join(c for c, _ in HS_CODES)
 
-START_MONTH = "2024-01"   # 이 달부터 채운다
+START_MONTH = "2020-01"   # 이 달부터 채운다
 PUBLISH_LAG = 3           # 공표 지연(개월) — 이보다 최근 달은 조회하지 않는다
 MAX_NEW = 4               # 한 실행에서 새로 받을 최대 개월(콜드 실행 타임아웃 방지)
 SLEEP = 1.2               # 요청 간격(초) — 레이트 리밋 회피
