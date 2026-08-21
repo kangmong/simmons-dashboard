@@ -378,6 +378,128 @@ def _img_norm(u):
     return u.split("?")[0].split("#")[0].rstrip("/").lower()
 
 
+# ── 이미지 지각 해시(dHash) ────────────────────────────────────────────────
+# 같은 보도자료를 받아쓴 기사는 제목이 완전히 달라도 사진은 같다.
+# 제목만으로는 못 잡는 쌍(실측: 공통 2-gram 이 '팝업' 하나, 문자열 유사도 0.074)을
+# 잡기 위한 최우선 신호. 후보 94건·이미지 88건·3828쌍 실측 분포는
+#   거리 0~2 : 53쌍   거리 3~13 : 0쌍   거리 14+ : 나머지
+# 로 완전히 이분됐다. 비어 있는 구간 안쪽의 보수적인 값을 임계로 쓴다.
+# ★ 같은 사진을 여러 보도자료에 재사용하는 경우가 있어(간격 26·45·118일 쌍이
+#   거리 0으로 나왔다) DUP_MAX_GAP_DAYS 게이트는 해시 규칙보다 먼저 적용한다.
+DUP_IMG_HAMMING = 5
+IMG_HASH_TIMEOUT = 3           # 이미지 다운로드 타임아웃(초)
+IMG_HASH_MAX_BYTES = 4 << 20   # 이보다 큰 이미지는 해시하지 않는다
+IMG_HASH_WORKERS = 8
+_IMG_HASH_FILE = "img-hash.json"
+_IMG_HASH_MEM = {}             # 기사 URL → dHash(hex) | None
+_IMG_HASH_LOADED = [False]
+_IMG_HASH_LOCK = threading.Lock()
+
+
+def _img_hash_path():
+    """해시 캐시 경로(_cache_path 와 같은 규칙, 쓰기 불가면 임시 디렉터리)."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    d = os.path.join(base, "tmp")
+    try:
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        return os.path.join(d, _IMG_HASH_FILE)
+    except OSError:
+        import tempfile
+        return os.path.join(tempfile.gettempdir(), _IMG_HASH_FILE)
+
+
+def _img_hash_load():
+    """디스크 캐시를 한 번만 읽는다. 실패해도 예외를 내지 않는다."""
+    with _IMG_HASH_LOCK:
+        if _IMG_HASH_LOADED[0]:
+            return
+        _IMG_HASH_LOADED[0] = True
+        try:
+            p = _img_hash_path()
+            if os.path.isfile(p):
+                got = json.load(io.open(p, encoding="utf-8"))
+                if isinstance(got, dict):
+                    _IMG_HASH_MEM.update({k: v for k, v in got.items() if v})
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _img_hash_save():
+    """성공한 해시만 남긴다(실패를 굳히면 다음 수집에서 영구히 재시도하지 않는다)."""
+    try:
+        with _IMG_HASH_LOCK:
+            keep = {k: v for k, v in _IMG_HASH_MEM.items() if v}
+        with io.open(_img_hash_path(), "w", encoding="utf-8") as f:
+            f.write(json.dumps(keep, ensure_ascii=False))
+    except Exception as e:  # noqa: BLE001
+        print("[update] 이미지 해시 캐시 저장 생략: %s" % e)
+
+
+def _dhash(raw, size=8):
+    """그레이스케일 (size+1)×size 축소 후 가로 인접 픽셀 대소 비교 → size² 비트."""
+    from PIL import Image
+    im = Image.open(io.BytesIO(raw)).convert("L").resize((size + 1, size), Image.LANCZOS)
+    px = im.tobytes()  # mode 'L' → 행 우선 1바이트/픽셀
+    bits = 0
+    for r in range(size):
+        o = r * (size + 1)
+        for c in range(size):
+            bits = (bits << 1) | (1 if px[o + c] < px[o + c + 1] else 0)
+    return "%016x" % bits
+
+
+def _img_hash(link, img_url):
+    """기사 URL 기준 캐싱. 실패는 조용히 None → 호출부는 텍스트 규칙으로 판정한다."""
+    if not link or not img_url:
+        return None
+    _img_hash_load()
+    with _IMG_HASH_LOCK:
+        if link in _IMG_HASH_MEM:
+            return _IMG_HASH_MEM[link]
+    h = None
+    try:
+        # 앞부분만 받아서는 해시가 달라진다(실측 5/12 일치) → 전체를 받되 상한을 둔다.
+        r = _http().get(img_url, timeout=IMG_HASH_TIMEOUT, stream=True)
+        r.raise_for_status()
+        raw = r.raw.read(IMG_HASH_MAX_BYTES + 1, decode_content=True)
+        if raw and len(raw) <= IMG_HASH_MAX_BYTES:
+            h = _dhash(raw)
+    except Exception:  # noqa: BLE001  네트워크/디코드 실패는 무시(기사는 살린다)
+        h = None
+    with _IMG_HASH_LOCK:
+        _IMG_HASH_MEM[link] = h
+    return h
+
+
+def _img_hash_dist(a, b):
+    """해밍 거리. 둘 중 하나라도 없으면 None(= 비교 불가)."""
+    if not a or not b:
+        return None
+    try:
+        return bin(int(a, 16) ^ int(b, 16)).count("1")
+    except (TypeError, ValueError):
+        return None
+
+
+def _img_hash_fill(items, workers=IMG_HASH_WORKERS):
+    """items 의 image/link 로 _ih 를 병렬 계산. 이미지가 없는 항목은 건드리지 않는다."""
+    todo = [it for it in items
+            if it.get("image") and it.get("link") and "_ih" not in it]
+    if not todo:
+        return
+    try:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(workers, len(todo))) as ex:
+            for it, h in zip(todo, ex.map(
+                    lambda x: _img_hash(x["link"], x["image"]), todo)):
+                it["_ih"] = h
+    except Exception:  # noqa: BLE001
+        for it in todo:
+            it.setdefault("_ih", None)
+    _img_hash_save()
+
+
 # 중복으로 볼 수 있는 최대 발행일 간격(일).
 # 같은 보도자료 받아쓰기는 며칠 안에 몰린다. 몇 달 벌어진 기사는 다른 사건이다.
 DUP_MAX_GAP_DAYS = 14
@@ -440,8 +562,14 @@ def _dup_match(a, b, kw_thr, str_thr):
                 kw_thr, str_thr = kw_thr * kf, str_thr * sf
                 near = "·%d일내" % lim
                 break
+    # 1) 이미지 지각 해시 — 토사 생산 상 가장 강한 신호. 텍스트 유사도와 무관하게 통과시킨다.
+    dist = _img_hash_dist(a.get("_ih"), b.get("_ih"))
+    if dist is not None and dist <= DUP_IMG_HAMMING:
+        return True, "이미지(해시 %d)" % dist, 1.0
+    # 2) 이미지 URL 동일
     if a.get("_imn") and b.get("_imn") and a["_imn"] == b["_imn"]:
         return True, "이미지(URL)", 1.0
+    # 3) 기존 텍스트 귬칙(임계값 변경 없음)
     kj = _set_jaccard(a["_kw"], b["_kw"])
     if kj >= kw_thr:
         return True, "키워드" + near, round(kj, 2)
@@ -459,6 +587,10 @@ def _cluster_articles(items, kw_thr=0.5, str_thr=0.7, same_fn=None):
         it["_kw"] = _wc_keywords(it["title"])
         it["_sk"] = _wc_strkey(it["title"])
         it["_imn"] = _img_norm(it.get("image"))
+    # 이미지가 이 시점에 이미 부여된 섬션(밑 버드 동향)에서만 해시를 계산한다.
+    # 시몬스 섬션은 텍스트 귬칙을 이미지 없이 진행하므로 여기에서는 아무것도 하지 않고,
+    # 이미지를 확보한 뒤 _simmons_dedup 의 2차 병합 단계에서 해시를 비교한다.
+    _img_hash_fill(items)
     groups = []
     for it in items:
         placed = False
@@ -504,6 +636,7 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
             pass
     for m in to_img:
         m["_imn"] = _img_norm(m.get("image"))
+    _img_hash_fill(to_img)  # 대표 후보에만 한정(보통 20건 전후)
     for g in head:
         g["rep"] = sorted(g["items"], key=_rep_key)[0]  # 대표: 이미지>날짜>길이
     # 동일 이미지 URL 그룹 2차 병합(문자열론 못 잡는 같은 보도자료)
@@ -511,17 +644,24 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
     for g in head:
         rep, done = g["rep"], False
         imn = rep.get("_imn")
-        if imn:
+        if imn or rep.get("_ih"):
             for mg in merged:
                 # 2차 병합(_dup_match 를 거치지 않는 경로)에도 날짜 근접 조건을 건다
                 g2 = _date_gap_days(mg["rep"], rep)
                 if g2 is not None and g2 > DUP_MAX_GAP_DAYS:
                     continue
-                if mg["rep"].get("_imn") == imn:
-                    mg["items"] += g["items"]
-                    mg["merges"].append((rep["title"], "이미지(URL)", 1.0))
-                    done = True
-                    break
+                # 해시 근접 > URL 동일 순서(_dup_match 와 같은 우선순위)
+                dist = _img_hash_dist(mg["rep"].get("_ih"), rep.get("_ih"))
+                if dist is not None and dist <= DUP_IMG_HAMMING:
+                    rule = "이미지(해시 %d)" % dist
+                elif imn and mg["rep"].get("_imn") == imn:
+                    rule = "이미지(URL)"
+                else:
+                    continue
+                mg["items"] += g["items"]
+                mg["merges"].append((rep["title"], rule, 1.0))
+                done = True
+                break
         if not done:
             merged.append(g)
     chosen, used_src, seen_img = [], set(), set()
