@@ -813,8 +813,7 @@ function compKoreaCard(c, i) {
 let _gtTier = 'all';        // 'all' | tier key
 let _gtMode = 'index';      // 'index' = 기준분기 100 지수화(기본) / 'abs' = 절대액
 let _europe = null;         // sections.europe_flow
-let _gtTip = null;          // 추이 차트 hover 툴팁 데이터(분기별)
-let _gtGeom = null;         // 차트 기하(툴팁 위치 계산용)
+let _gtCharts = {};        // 차트별 툴팁 데이터·기하 — { key: {tip, geom} }
 
 /** 티어 정의 배열(없으면 null → 기존 국외 화면으로 폴백) */
 function gtDefs() {
@@ -1045,7 +1044,7 @@ function gtTrendChart(companies) {
   // ── hover/탭 툴팁용 데이터 ───────────────────────────────────────────────
   // dot 은 그리지 않지만(선이 지저분해진다) 가리킨 분기에는 activeDot 을 띄운다.
   // 지수화 모드에서는 지수와 실제 매출액을 함께 보여준다.
-  _gtTip = xs.map((o, i) => ({
+  const tipRows = xs.map((o, i) => ({
     q: compQtrLabel(o),
     rows: series.map((s) => {
       const v = s.pts[i];
@@ -1062,7 +1061,8 @@ function gtTrendChart(companies) {
       };
     }),
   }));
-  _gtGeom = { padL: padL, plotW: plotW, n: xs.length, top: VIZ_PAD_T, bot: VIZ_PAD_T + plotH };
+  _gtCharts.us = { tip: tipRows,
+    geom: { padL: padL, plotW: plotW, n: xs.length } };
 
   // 커서선 + series 개수만큼의 activeDot (기본 숨김, hover 시 위치만 옮긴다)
   let hov = '<g class="gt-hov" aria-hidden="true">'
@@ -1088,7 +1088,7 @@ function gtTrendChart(companies) {
     + '" data-gt-mode="index">지수화 (기준분기=100)</button>'
     + '<button type="button" class="gt-tg' + (_gtMode === 'abs' ? ' is-on' : '')
     + '" data-gt-mode="abs">절대액</button></div>'
-    + '<div class="gt-chartwrap">'
+    + '<div class="gt-chartwrap" data-gt-chart="us">'
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="분기별 매출 추이">'
     + grid + acqMark + lines + xlab + hov + '</svg>'
@@ -1142,27 +1142,76 @@ function gtItalyBlock() {
   }
   const pts = (it.points || []).slice(-24);
   if (pts.length < 2) return '';
+
+  // 축·격자·폰트는 미국 차트와 같은 공용 상수를 쓴다(VIZ_*).
   const vs = pts.map((p) => p.value);
   let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
   if (lo === hi) { lo -= 1; hi += 1; }
-  const W = 720, H = 44, PL = 2, PR = 2, PT = 6, PB = 6;
-  const X = (i) => PL + (i / (pts.length - 1)) * (W - PL - PR);
-  const Y = (v) => PT + (H - PT - PB) - ((v - lo) / (hi - lo)) * (H - PT - PB);
-  const dseg = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.value).toFixed(1)).join(' ');
-  const hits = pts.map((p, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.value).toFixed(1)
-    + '" r="6" fill="transparent"><title>' + escapeHtml(p.month + ' · ' + p.value) + '</title></circle>').join('');
+  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+  const padL = 46, padR = 8;
+  const plotW = VIZ_W - padL - padR;
+  const plotH = VIZ_H - VIZ_PAD_T - VIZ_PAD_B;
+  const X = (i) => padL + (pts.length === 1 ? plotW / 2 : (i / (pts.length - 1)) * plotW);
+  const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
+
+  let grid = '';
+  for (let t = 0; t <= VIZ_Y_TICKS; t += 1) {
+    const v = lo + ((hi - lo) * t) / VIZ_Y_TICKS, y = Y(v);
+    grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="' + y.toFixed(1)
+      + '" stroke="var(--line)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + v.toFixed(1) + '</text>';
+  }
+  // 기준선 100 (2021년 평균) — 위/아래를 바로 읽을 수 있게
+  if (lo < 100 && hi > 100) {
+    grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
+      + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
+  }
+  grid += '<text x="' + padL + '" y="' + (VIZ_PAD_T - 2) + '" font-size="' + VIZ_FS_AXIS
+    + '" fill="var(--muted)">지수 (2021=100)</text>';
+
+  const keep = vizTickIdx(pts.length, plotW, VIZ_TICK_GAP);
+  let xlab = '';
+  pts.forEach((pt, i) => {
+    if (keep.indexOf(i) < 0) return;
+    xlab += '<text x="' + X(i).toFixed(1) + '" y="' + (VIZ_H - 8) + '" text-anchor="middle" font-size="'
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(pt.month) + '</text>';
+  });
+
+  const dseg = pts.map((pt, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(pt.value).toFixed(1)).join(' ');
+  const line = '<path d="' + dseg + '" fill="none" stroke="var(--green)" stroke-width="2"'
+    + ' stroke-linejoin="round" stroke-linecap="round"/>';
+
+  // 미국 차트와 같은 툴팁 경로를 쓴다(gtShowTip). 라인이 하나라 activeDot 도 하나.
+  _gtCharts.ita = {
+    tip: pts.map((pt) => ({
+      q: pt.month,
+      rows: [{ name: it.label, color: 'var(--green)', seg: false, y: Y(pt.value),
+        val: String(pt.value) + ' <span class="gt-tip__abs">2021=100</span>' }],
+    })),
+    geom: { padL: padL, plotW: plotW, n: pts.length },
+  };
+  const hov = '<g class="gt-hov" aria-hidden="true">'
+    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>'
+    + '<circle class="gt-adot" data-si="0" r="3.5" cx="-99" cy="-99" fill="var(--card)"'
+    + ' stroke="var(--green)" stroke-width="2"/></g>';
+
   const yoy = (it.yoy == null) ? '—' : compYoy(it.yoy);
   return '<h3 class="subhead">이탈리아 시장 수요 <span class="gt-cnt">최근 24개월</span></h3>'
     + '<div class="gt-ita">'
     + '<div class="gt-ita__head"><span class="gt-ita__lbl">' + escapeHtml(it.label) + '</span>'
     + '<span class="gt-ita__val">' + escapeHtml(String(it.latest.value)) + '</span>'
     + '<span class="gt-ita__m">' + escapeHtml(it.latest.month) + '</span>' + yoy + '</div>'
-    + '<svg class="gt-ita__spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img"'
-    + ' aria-label="이탈리아 소매판매 지수 추이">'
-    + '<path d="' + dseg + '" fill="none" stroke="var(--green)" stroke-width="2" stroke-linejoin="round"/>'
-    + hits + '</svg>'
-    + '<div class="gt-ita__note">' + escapeHtml(it.unit) + ' · 기업 실적이 아니라 현지 소매 수요 지표입니다.'
-    + ' 매트리스 단독 통계가 없어 가구를 포함한 가정용품 전문점 기준입니다.</div>'
+    + '<div class="gt-chartwrap" data-gt-chart="ita">'
+    + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="이탈리아 소매판매 지수 추이">'
+    + grid + line + xlab + hov + '</svg>'
+    + '<div class="gt-tip" hidden></div>'
+    + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 월별 값이 보입니다.</div>'
+    + '</div>'
+    + '<div class="gt-ita__note">' + escapeHtml(it.unit) + ' · <b>기업 실적이 아니라 이탈리아 현지 소매'
+    + ' 수요 지표</b>입니다. 아래 세 브랜드의 매출이 아니며, 매트리스 단독 통계가 없어 가구를 포함한'
+    + ' 가정용품 전문점 기준입니다.</div>'
     + '<div class="gt-ita__src">출처: ' + escapeHtml(it.source || 'Eurostat') + '</div>'
     + '</div>';
 }
@@ -1231,34 +1280,42 @@ function gtGlobalHtml(list, rate) {
     + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
 }
 
-/** 포인터 x좌표 → 분기 인덱스. 차트 밖이면 null */
-function gtHitIndex(svg, clientX) {
-  if (!_gtGeom || !_gtTip || !_gtTip.length) return null;
+/** wrap 의 차트 상태(툴팁 데이터·기하). 없으면 null */
+function gtState(wrap) {
+  const k = wrap && wrap.getAttribute('data-gt-chart');
+  const st = k ? _gtCharts[k] : null;
+  return (st && st.tip && st.tip.length && st.geom) ? st : null;
+}
+
+/** 포인터 x좌표 → 인덱스. 차트 밖이면 null */
+function gtHitIndex(wrap, svg, clientX) {
+  const st = gtState(wrap);
+  if (!st) return null;
   const r = svg.getBoundingClientRect();
   if (!r.width) return null;
   const vb = ((clientX - r.left) / r.width) * VIZ_W;      // viewBox 좌표로 환산
-  const { padL, plotW, n } = _gtGeom;
-  if (n < 2) return 0;
-  const i = Math.round(((vb - padL) / plotW) * (n - 1));
-  return Math.max(0, Math.min(n - 1, i));
+  const g = st.geom;
+  if (g.n < 2) return 0;
+  const i = Math.round(((vb - g.padL) / g.plotW) * (g.n - 1));
+  return Math.max(0, Math.min(g.n - 1, i));
 }
 
-/** 툴팁·activeDot 표시. i=null 이면 감춘다. */
+/** 툴팁·activeDot 표시. i=null 이면 감춘다. 미국·이탈리아 차트가 같은 경로를 쓴다. */
 function gtShowTip(wrap, i) {
-  const svg = wrap.querySelector('.gt-chart');
   const tip = wrap.querySelector('.gt-tip');
   const hov = wrap.querySelector('.gt-hov');
-  if (!svg || !tip || !hov) return;
-  if (i == null || !_gtTip || !_gtTip[i]) {
+  const st = gtState(wrap);
+  if (!tip || !hov) return;
+  if (!st || i == null || !st.tip[i]) {
     tip.hidden = true; hov.classList.remove('is-on');
     wrap.querySelectorAll('.gt-adot').forEach((c) => { c.setAttribute('cx', '-99'); });
     return;
   }
-  const { padL, plotW, n } = _gtGeom;
-  const x = padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const g = st.geom;
+  const x = g.padL + (g.n === 1 ? g.plotW / 2 : (i / (g.n - 1)) * g.plotW);
   const line = hov.querySelector('.gt-hov__l');
   if (line) { line.setAttribute('x1', x.toFixed(1)); line.setAttribute('x2', x.toFixed(1)); }
-  const rows = _gtTip[i].rows;
+  const rows = st.tip[i].rows;
   wrap.querySelectorAll('.gt-adot').forEach((c) => {
     const r = rows[Number(c.getAttribute('data-si'))];
     if (r) { c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', r.y.toFixed(1)); }
@@ -1269,7 +1326,7 @@ function gtShowTip(wrap, i) {
     + '<i style="background:' + r.color + (r.seg ? ';border-radius:0' : '') + '"></i>'
     + '<span class="gt-tip__n">' + escapeHtml(r.name) + '</span>'
     + '<span class="gt-tip__v">' + r.val + '</span></div>').join('');
-  tip.innerHTML = '<div class="gt-tip__q">' + escapeHtml(_gtTip[i].q) + '</div>' + body;
+  tip.innerHTML = '<div class="gt-tip__q">' + escapeHtml(st.tip[i].q) + '</div>' + body;
   tip.hidden = false;
   const pct = Math.max(0, Math.min(100, (x / VIZ_W) * 100));
   tip.style.left = pct.toFixed(2) + '%';
@@ -1293,7 +1350,7 @@ function wireGtControls() {
     const svg = ev.target.closest && ev.target.closest('.gt-chart');
     if (!svg) return;
     const wrap = svg.closest('.gt-chartwrap');
-    if (wrap) gtShowTip(wrap, gtHitIndex(svg, ev.clientX));
+    if (wrap) gtShowTip(wrap, gtHitIndex(wrap, svg, ev.clientX));
   };
   el.addEventListener('pointermove', move);
   el.addEventListener('pointerdown', move);
@@ -1329,6 +1386,10 @@ function renderCompetitor() {
   } else {
     globalHtml = emptyState('국외 경쟁사 데이터 준비중');
   }
+  // 순수 추가: "10-Q" 는 SEC 분기보고서 서식명이라 "10개 분기"로 오해된다.
+  // 서식명을 풀어 쓰고, 실제로 몇 분기를 보여주는지 함께 밝힌다.
+  const gQtrLabel = 'SEC 분기공시(10-Q/10-K) 기준 · 최근 '
+    + (((_competitors && _competitors.trend_quarters) || 10) + '개 분기');
 
   // 국내: 배열이면 카드+막대, 아니면 준비중/데이터 없음
   const k = _competitors && _competitors.korea;
@@ -1355,8 +1416,8 @@ function renderCompetitor() {
     </div>
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span>${gSum ? `<span class="comp-group__qtr">${escapeHtml(gSum.label)}</span>` : ''}</div>
-      <div class="comp-group__sub">${gTier ? '가격 티어별 시장 동향' : '분기별 실적'} (최근 10-Q · 자동 갱신)
-        <span class="comp-group__desc">${gTier ? '퀸 사이즈 미국 소매가 기준 티어 · 매출 추이·뉴스 활동량 연동' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
+      <div class="comp-group__sub">${gTier ? '가격 티어별 시장 동향' : '분기별 실적'} (${gQtrLabel} · 자동 갱신)
+        <span class="comp-group__desc">${gTier ? '퀸 사이즈 미국 소매가 기준 티어 · 티어 선택에 요약·추이·기업 카드가 연동' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;
