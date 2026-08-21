@@ -152,3 +152,41 @@ python italy_trade.py --fill 10   # 최대 10회 반복 실행
 
 경계는 매 실행에서 재계산되고 수집 로그에 분포·경계·티어별 건수가 찍힌다.
 방식을 바꾸려면 `italy_trade.py` 의 `TIER_MODE` / `TIER_HS` 를 고친다.
+
+## 미국 매트리스 가격·교역 지표
+
+`us_market.py` 가 두 소스를 모은다. **'시장 규모'가 아니다** — 무료 공개 통계에
+티어별·전체 시장 규모가 존재하지 않음이 조사로 확인됐다(ISPA 회원 전용,
+Census ASM 수량 없음, Current Industrial Reports 폐지).
+
+| 지표 | 소스 | 키 | 주기 |
+|---|---|---|---|
+| 매트리스 출고가격 지수 | BLS PPI `PCU337910337910` | **불필요** | 월 |
+| 비교용 전체 상품 PPI | BLS PPI `WPU00000000` | 불필요 | 월 |
+| 매트리스 수입 단가 | Census 국제무역 API · HS 9404 | **필요** | 월 |
+
+### Census API 키 발급
+
+1. https://api.census.gov/data/key_signup.html 에서 이메일로 신청한다(무료·즉시).
+2. 메일로 받은 키를 프로젝트 루트 `.env` 에 넣는다.
+
+```
+CENSUS_API_KEY=여기에_발급받은_키
+```
+
+3. GitHub Actions 자동 수집에도 쓰려면 저장소 Settings → Secrets and variables →
+   Actions 에 `CENSUS_API_KEY` 를 추가하고, `.github/workflows/collect.yml` 의
+   수집 스텝 `env:` 에 `CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}` 를 넣는다.
+
+**키가 없어도 정상 동작한다.** 수입 단가 블록만 숨고 PPI 는 그대로 표시된다.
+`.env` 는 `.gitignore` 에 있어 커밋되지 않는다.
+
+### BLS 시리즈에 대해
+
+조사에서 실재를 확인한 코드만 쓴다. 후보로 시험한 `WPU121103` / `WPU1210` /
+`PCU33791033791011` 은 모두 "Series does not exist" 였다. 다른 코드를 추측해
+넣지 말 것.
+
+BLS 원지수는 기준연도가 시리즈마다 달라 수준 비교가 성립하지 않는다. 그래서
+화면 기본값은 **표시 구간 첫 달 = 100** 으로 재산정한 지수이고, `원지수` 토글로
+BLS 원값도 볼 수 있다.

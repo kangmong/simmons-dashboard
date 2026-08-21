@@ -35,6 +35,11 @@ try:  # 순수 추가: 국외 가계 티어 정의(tiers.py 단일 관리).
 except Exception:  # noqa: BLE001
     gtiers = None
 
+try:  # 순수 추가: 미국 매트리스 가계·교여 지표(BLS PPI + Census)
+    from us_market import update_us_market
+except Exception:  # noqa: BLE001
+    update_us_market = None
+
 try:  # 순수 추가: 유럽 흔름(TPX 세그먼트 + 이할리아 소매지수).
     from europe_flow import update_europe_flow
 except Exception:  # noqa: BLE001
@@ -2044,6 +2049,8 @@ if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업�
     FETCHERS["icis_forecast"] = compute_icis_forecast
 if update_europe_flow is not None:  # 순수 추가: 유럽 흔름 수집기
     FETCHERS["europe_flow"] = update_europe_flow
+if update_us_market is not None:  # 순수 추가: 미국 가계·교여 지표
+    FETCHERS["us_market"] = update_us_market
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
     FETCHERS["sr_forecast"] = compute_sr_forecast
 if compute_oil_forecast is not None:  # 순수 추가: 국제유가 예측도 업데이트에 덧붙임
@@ -2063,6 +2070,7 @@ FETCH_GROUPS = [
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
     ["europe_flow"],                                 # SEC 원본 XBRL + Eurostat
+    ["us_market"],                                   # BLS + Census
     ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
 ]
 # 수집기별 캐시 유효시간(초). 이 시간 안에 성공한 결과가 있으면 재수집을 건너뛴다.
@@ -2076,6 +2084,7 @@ CACHE_TTL = {
     "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_prices": 24 * 3600,
     "competitors": 24 * 3600,
     "europe_flow": 24 * 3600,
+    "us_market": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
     "koima_index": 24 * 3600, "schedule_reliability": 24 * 3600,
     "sr_forecast": 24 * 3600, "oil_forecast": 24 * 3600, "icis_forecast": 24 * 3600,

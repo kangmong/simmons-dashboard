@@ -52,26 +52,10 @@ SLEEP = 1.2               # 요청 간격(초) — 레이트 리밋 회피
 TIMEOUT = 60
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# ── 티어 구분(단가 기반) ──────────────────────────────────────────────────
-# 단가 = 금액 ÷ 순중량(USD/kg). 개당 단가는 산출 불가(qty 가 추정치·단위 없음).
-#
-# 방식: 하위 50%(저단가) 구간을 먼저 제외하고, 남은 상위 50%를 다시 둘로 나눈다.
-#   상위 25%      (단가 ≥ Q3)      → 하이엔드
-#   25~50% 구간   (Q2 ≤ 단가 < Q3) → 프리미엄
-#   하위 50%      (단가 < Q2)      → 어느 티어에도 넣지 않는다(저가 물량)
-# 경계는 전체 관측치의 분위수로 매 실행 재계산하고 payload 에 실어 보낸다.
-#
-# ★ 대상은 매트리스 3개 하위코드(9404.10/.21/.29)다. HS 9404 합계에는 베개·이불
-#   등(9404.30/.90)이 섞여 매트리스 티어로 보기 어렵다.
-# ★ 어느 경계를 쓰든 하이엔드는 사실상 수출만 들어간다 — 이탈리아 수입 단가
-#   최대치가 수출 단가 하위권보다 낮기 때문이다(실측). 화면에 그 사실을 적는다.
-TIER_MODE = "upper_split"
-TIER_HS = ("940410", "940421", "940429")
-TIER_DISCLAIMER = ("무역 단가 기준 구분이며, 미국 섹션의 브랜드 가격대 기준과 "
-                   "산출 방식이 다릅니다.")
-TIER_SCOPE_NOTE = ("매트리스 3개 하위코드(HS 9404.10·.21·.29) 기준입니다. "
-                   "저단가 하위 50% 구간은 제외했고, 하이엔드는 단가 특성상 "
-                   "대부분 수출로 채워집니다.")
+# ★ 단가 기반 티어 구분은 폐기했다. 실적으로 확인하니 단가 경계는
+#   티어가 아니라 수출/수입 방향을 가를다(중앙값 경계에서 방향 일치 97%).
+#   근거 없는 구분을 만들지 않는다. 티어 필터는 보랜드 가계대 기준인
+#   기업 실적 차트에만 둔다. 단가 시계열(unit_prices)은 그대로 남긴다.
 
 SOURCE = "UN Comtrade · HS 9404 · reporter=Italy(380) · partner=World · 월별"
 READ_NOTE = ("수입 증가는 해외 브랜드 침투를, 수출 증가는 자국 생산 호조를 시사합니다. "
@@ -174,66 +158,6 @@ def _unit_prices(months):
     return out
 
 
-def _tier_block(months):
-    """단가 분위로 티어 경계를 잡고 월별 티어 합계를 만든다.
-       ★ 추정치를 만들지 않는다 — 중량이 없어 단가를 못 구한 관측치는 제외한다."""
-    obs = []          # (month, flow, code, unit_price, value)
-    for m in months:
-        for flow, vk, wk in (("exp", "exp", "expw"), ("imp", "imp", "impw")):
-            vals, wgts = m.get(vk) or {}, m.get(wk) or {}
-            for code in TIER_HS:
-                v, w = vals.get(code), wgts.get(code)
-                if v and w:
-                    obs.append((m["month"], flow, code, v / w, v))
-    if len(obs) < 8:
-        return {"mode": None, "reason": "단가 관측치가 부족합니다(%d건)" % len(obs)}
-    ps = sorted(o[3] for o in obs)
-
-    def pct(q):
-        return ps[min(len(ps) - 1, int(round(q * (len(ps) - 1))))]
-
-    q1, q2, q3 = pct(.25), pct(.5), pct(.75)
-    band = {}
-    for month, flow, code, price, val in obs:
-        if price < q2:
-            key = "excluded"
-        elif price < q3:
-            key = "premium"
-        else:
-            key = "high"
-        d = band.setdefault(month, {"high": {"exp": 0, "imp": 0}, "premium": {"exp": 0, "imp": 0},
-                                    "excluded": {"exp": 0, "imp": 0}})
-        d[key][flow] += val
-    series = []
-    for m in months:
-        d = band.get(m["month"])
-        if not d:
-            continue
-        row = {"month": m["month"]}
-        for k in ("high", "premium"):
-            row[k] = {"exp": d[k]["exp"] or None, "imp": d[k]["imp"] or None}
-        # 전체 = 하이엔드 + 프리미엄 (저단가 제외 구간은 넣지 않는다 → 세 값이 맞물린다)
-        row["all"] = {"exp": (d["high"]["exp"] + d["premium"]["exp"]) or None,
-                      "imp": (d["high"]["imp"] + d["premium"]["imp"]) or None}
-        series.append(row)
-    cnt = {"high": 0, "premium": 0, "excluded": 0}
-    for _, _, _, price, _ in obs:
-        cnt["excluded" if price < q2 else ("premium" if price < q3 else "high")] += 1
-    print("[italy_trade] 단가 분포(USD/kg, n=%d) 최소 %.2f · Q1 %.2f · 중앙 %.2f · Q3 %.2f · 최대 %.2f"
-          % (len(ps), ps[0], q1, q2, q3, ps[-1]))
-    print("[italy_trade] 티어 경계 — 하이엔드 ≥ %.2f · 프리미엄 %.2f~%.2f · 제외 < %.2f"
-          % (q3, q2, q3, q2))
-    print("[italy_trade] 티어별 관측 건수 — 하이엔드 %d · 프리미엄 %d · 제외 %d"
-          % (cnt["high"], cnt["premium"], cnt["excluded"]))
-    return {"mode": TIER_MODE, "unit": "USD/kg",
-            "dist": {"n": len(ps), "min": round(ps[0], 2), "q1": round(q1, 2),
-                     "median": round(q2, 2), "q3": round(q3, 2), "max": round(ps[-1], 2)},
-            "boundary": {"high_min": round(q3, 2), "premium_min": round(q2, 2)},
-            "counts": cnt, "codes": list(TIER_HS),
-            "series": series,
-            "disclaimer": TIER_DISCLAIMER, "scope_note": TIER_SCOPE_NOTE}
-
-
 def update_italy_trade():
     """빠진 월만 채워 저장하고 payload 를 돌려준다."""
     store = _load()
@@ -279,7 +203,6 @@ def update_italy_trade():
         "target_end": end,
         "pending": max(0, len(missing) - MAX_NEW),
         "unit_prices": _unit_prices(months),
-        "tier": _tier_block(months),
         "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     if fetched:
