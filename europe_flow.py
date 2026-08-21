@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""유럽 흐름 지표 — Tempur Sealy 지리적 세그먼트 + 이탈리아 소매판매 지수.
+"""유럽 흐름 지표 — Tempur Sealy 지리적 세그먼트 + 이탈리아 블록 조립.
 
 배경: 티어별 시장 동향에 올라간 3개 기업이 모두 미국 회사라 유럽 흐름이 보이지
       않았다. SEC companyfacts 는 차원(dimension) 없는 연결 실적만 주므로
@@ -11,7 +11,7 @@
   (멕시코 제외) 합산이다. 유럽 단독도, 이탈리아 단독도 아니다.
   공시의 지리 축(srt:StatementGeographicalAxis)에도 country:US 와
   us-gaap:NonUsMember 둘뿐이어서 유럽만 떼어낼 수 없다(실측).
-  → 이탈리아는 Eurostat 소매판매 지수로 따로 본다(기업 실적이 아니라 시장 수요).
+  → 이탈리아는 HS 9404 수출입 통계(italy_trade.py)로 따로 본다.
 
 ★ 추정치를 만들지 않는다. 값이 없는 분기는 비워 둔다.
 """
@@ -25,6 +25,16 @@ try:  # 브랜드 상수(단일 관리 지점). 로드 실패해도 나머지는
     from italy_brands import italy_brands_payload
 except Exception:  # noqa: BLE001
     italy_brands_payload = None
+
+try:  # 이탈리아 수출입(자동) — UN Comtrade
+    from italy_trade import update_italy_trade
+except Exception:  # noqa: BLE001
+    update_italy_trade = None
+
+try:  # 이탈리아 시장 규모(수동) + 시장 특성(정성)
+    from italy_market import load_italy_market, italy_traits_payload
+except Exception:  # noqa: BLE001
+    load_italy_market = italy_traits_payload = None
 
 # Tempur Sealy(현 Somnigroup International) CIK. 사명이 바뀌어도 CIK 는 그대로다.
 TPX_CIK = 1206264
@@ -58,8 +68,8 @@ REV_TAG = "RevenueFromContractWithCustomerExcludingAssessedTax"
 #   → International 은 미국·캐나다뿐 아니라 멕시코도 제외한 '북미 외' 전체다.
 SEGMENTS = [
     ("TempurSealyInternationalSegmentMember", "international",
-     "Tempur Sealy 해외부문 (미국·캐나다·멕시코 제외)",
-     "유럽·아시아태평양·중남미(멕시코 제외) 합산입니다. "
+     "Tempur Sealy 해외부문 (미국·캐나다 제외)",
+     "유럽·아시아 등 북미 외 전 지역 합산입니다(공시 정의상 멕시코도 북미에 포함). "
      "글로벌 업체의 해외 실적이며, 이탈리아 단독 수치는 공시되지 않습니다."),
     ("TempurSealyNorthAmericaSegmentMember", "north_america",
      "Tempur Sealy 북미부문 (미국·캐나다·멕시코)", ""),
@@ -67,21 +77,6 @@ SEGMENTS = [
      "Mattress Firm (북미 소매 체인)", ""),
 ]
 _MONTH_Q = {3: "Q1", 6: "Q2", 9: "Q3", 12: "Q4"}
-
-# ── 이탈리아 소매판매(Eurostat sts_trtu_m) ────────────────────────────────
-# G475 = 가정용품 전문점 소매(가구 포함). 이 데이터셋에서 가구만 떼는 더 세분한
-# 코드는 제공되지 않아 G475 가 최소 단위다(실측).
-EU_URL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/sts_trtu_m"
-EU_PARAMS = {
-    "format": "JSON", "lang": "EN",
-    "geo": "IT",            # 이탈리아
-    "nace_r2": "G475",      # 가정용품 전문점 소매
-    "indic_bt": "NETTUR",   # 순매출
-    "s_adj": "SCA",         # 계절·영업일 조정
-    "unit": "I21",          # 지수 2021=100
-}
-EU_SINCE = "2023-01"
-EU_TIMEOUT = 30
 
 
 def _get(url, **kw):
@@ -197,51 +192,21 @@ def _qord(q):
         return 0
 
 
-def fetch_italy_retail():
-    """이탈리아 가정용품 전문점 소매 순매출 지수(월간, 2021=100)."""
-    try:
-        p = dict(EU_PARAMS, sinceTimePeriod=EU_SINCE)
-        j = _get(EU_URL, params=p, timeout=EU_TIMEOUT,
-                 headers={"User-Agent": "Mozilla/5.0"}).json()
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "Eurostat 조회 실패: %s" % e}
-    dim = j.get("dimension", {})
-    idx = dim.get("time", {}).get("category", {}).get("index", {})
-    vals = j.get("value", {})
-    if not idx or not vals:
-        return {"status": "error", "reason": "Eurostat 응답에 관측치가 없습니다"}
-    pts = []
-    for month in sorted(idx, key=lambda k: idx[k]):
-        v = vals.get(str(idx[month]))
-        if v is not None:
-            pts.append({"month": month, "value": round(float(v), 1)})
-    if not pts:
-        return {"status": "error", "reason": "Eurostat 관측치가 비어 있습니다"}
-    latest = pts[-1]
-    prev = None
-    want = "%d-%s" % (int(latest["month"][:4]) - 1, latest["month"][5:])
-    for p2 in pts:
-        if p2["month"] == want:
-            prev = p2
-            break
-    yoy = None
-    if prev and prev["value"]:
-        yoy = round((latest["value"] - prev["value"]) / abs(prev["value"]) * 100.0, 1)
-    return {"status": "ok", "points": pts, "latest": latest, "yoy": yoy,
-            "unit": "지수 (2021=100, 계절·영업일 조정)",
-            "label": "이탈리아 가정용품 전문점 소매 순매출",
-            "source": "Eurostat sts_trtu_m · NACE G475 · geo IT"}
-
-
 def update_europe_flow():
-    """FETCHERS 등록용 — 세그먼트와 이탈리아 지수를 한 섹션으로 묶어 반환."""
+    """FETCHERS 등록용 — 유럽/이탈리아 블록을 한 섹션으로 묶어 반환.
+       자동(세그먼트·수출입)과 수동(시장 규모·특성)을 명확히 나눠 담는다."""
     seg = fetch_tpx_segments()
-    ita = fetch_italy_retail()
-    ok = (seg.get("status") == "ok") or (ita.get("status") == "ok")
+    trade = (update_italy_trade() if update_italy_trade
+             else {"status": "error", "reason": "수출입 수집 모듈을 불러오지 못했습니다"})
+    market = load_italy_market() if load_italy_market else None
+    traits = italy_traits_payload() if italy_traits_payload else None
     brands = italy_brands_payload() if italy_brands_payload else None
+    ok = (seg.get("status") == "ok") or (trade.get("status") == "ok")
     return {"status": "ok" if ok else "error",
-            "reason": None if ok else (seg.get("reason") or ita.get("reason")),
-            "segments": seg, "italy": ita, "italy_brands": brands}
+            "reason": None if ok else (seg.get("reason") or trade.get("reason")),
+            "segments": seg, "italy_trade": trade, "italy_market": market,
+            "italy_traits": traits, "italy_brands": brands}
+
 
 
 if __name__ == "__main__":

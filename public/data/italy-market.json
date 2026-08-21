@@ -1,0 +1,35 @@
+{
+  "updatedAt": "",
+  "marketSize": [
+    {
+      "year": 2025,
+      "value": null,
+      "currency": "EUR",
+      "growthPct": null,
+      "scope": "",
+      "source": "",
+      "report": "",
+      "checkedAt": ""
+    }
+  ],
+  "premiumShare": [
+    {
+      "year": 2025,
+      "sharePct": null,
+      "definition": "",
+      "source": "",
+      "report": "",
+      "checkedAt": ""
+    }
+  ],
+  "brandShare": [
+    {
+      "year": 2025,
+      "brand": "",
+      "sharePct": null,
+      "source": "",
+      "report": "",
+      "checkedAt": ""
+    }
+  ]
+}

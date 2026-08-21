@@ -38,6 +38,14 @@
     {
       "src": "public/data/koima-price.json",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/italy-trade.json",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/data/italy-market.json",
+      "use": "@vercel/static"
     }
   ],
   "routes": [

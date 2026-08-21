@@ -124,3 +124,64 @@ git push
 
 스폰지 주원료(PPG·TDI·MDI·PO) 월별 시황은 `app.js` 의 `ICIS_DATA` 상수로 그립니다(외부 호출 없음).
 그 아래 "주요 시황 원자재 링크"는 `MATERIAL_LINKS` 상수의 외부 사이트로 연결됩니다.
+
+## 이탈리아 시장 수동 입력
+
+이탈리아 블록은 **자동으로 되는 것과 안 되는 것을 나눠서** 관리한다.
+
+| 항목 | 방식 | 소스 |
+|---|---|---|
+| 수출입 통계 (HS 9404) | 자동 | UN Comtrade → `public/data/italy-trade.json` |
+| 시장 규모·프리미엄 비중·브랜드 점유율 | **수동** | `public/data/italy-market.json` |
+| 시장 특성 (정성) | 수동 | `italy_market.py` 의 `MARKET_TRAITS` |
+| 브랜드 정보 | 수동 | `italy_brands.py` 의 `ITALY_BRANDS` |
+
+시장 규모·세그먼트 비중·점유율은 유료 조사기관 추정치로만 존재하고 공공 통계에
+없어서 자동 수집이 원리적으로 불가능하다. 그래서 파일 하나로 직접 관리한다.
+
+### 입력 절차
+
+1. `public/data/italy-market.json` 을 편집한다.
+2. 값을 채우면 화면에 카드가 생기고, `null` 이면 그 블록은 **숨는다**(빈 카드를 띄우지 않는다).
+3. 커밋하면 배포에 반영된다. 수집기를 돌릴 필요는 없다.
+
+```json
+{
+  "updatedAt": "2026-08-21",
+  "marketSize": [
+    { "year": 2025, "value": 1200000000, "currency": "EUR", "growthPct": 3.4,
+      "scope": "매트리스 단품(프레임·베드베이스 제외), 소매 기준",
+      "source": "조사기관명", "report": "리포트명/발행연도", "checkedAt": "2026-08-21" }
+  ],
+  "premiumShare": [
+    { "year": 2025, "sharePct": 28.0,
+      "definition": "퀸 기준 소매가 1,500유로 이상",
+      "source": "조사기관명", "report": "리포트명", "checkedAt": "2026-08-21" }
+  ],
+  "brandShare": [
+    { "year": 2025, "brand": "Dorelan", "sharePct": 7.5,
+      "source": "조사기관명", "report": "리포트명", "checkedAt": "2026-08-21" }
+  ]
+}
+```
+
+### 지켜야 할 것
+
+- **출처 없는 수치는 넣지 않는다.** `source` 와 `report` 를 비우지 말 것.
+- **검색 엔진 요약을 그대로 옮기지 않는다.** 원 리포트에서 확인한 수치만 넣는다.
+- **`scope` / `definition` 을 반드시 적는다.** 조사기관마다 "매트리스 시장" 범위가
+  달라(프레임 포함 여부 등) 적어두지 않으면 다른 리포트 수치와 비교할 수 없다.
+- `checkedAt` 에 확인한 날짜를 남긴다. 화면 출처 줄에 함께 표시된다.
+
+### 수출입 통계 (참고)
+
+`italy_trade.py` 가 UN Comtrade 공개 preview 엔드포인트로 월별 값을 받는다.
+한 요청에 기간 1개만 허용되고 초당 1회 수준의 레이트 리밋이 있어 **증분 수집**이다.
+받아둔 월은 `public/data/italy-trade.json` 에 커밋해 두고, 실행마다 빠진 월만
+최대 4개씩 채운다. 과거 구간을 한 번에 채우려면:
+
+```bash
+python italy_trade.py --fill 10   # 최대 10회 반복 실행
+```
+
+공표 지연이 약 3개월이라 최신 확정치는 항상 2~3개월 전 데이터다.

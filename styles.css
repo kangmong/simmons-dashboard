@@ -1322,3 +1322,56 @@ body {
 
 @media (max-width: 900px) { .itb-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .itb-grid { grid-template-columns: 1fr; } }
+
+/* ── 원화 병기 · 이탈리아 시장 블록 (순수 추가) ────────────────────────── */
+.viz-fxnote { margin: 2px 0 8px; font-size: 10.5px; color: var(--muted); }
+.viz-fxnote__d { opacity: .8; }
+
+/* 이탈리아 수출입 */
+.itt-hint { margin: -4px 0 8px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.itt-sum {
+  display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 8px 0 12px;
+  padding: 10px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.itt-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.itt-cell--wide { flex: 1 1 200px; }
+.itt-k { font-size: 11px; color: var(--muted); }
+.itt-v { font-size: 16px; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; }
+.itt-v--neg { color: var(--accent); }
+.itt-krw { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.itt-range { font-size: 12px; font-weight: 600; color: var(--ink); }
+
+/* 이탈리아 시장 규모(수동) */
+.itm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.itm-card {
+  padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-1); border-top: 3px solid var(--slate);
+}
+.itm-head { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.itm-val { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.itm-g { font-size: 13px; }
+.itm-scope { margin-top: 6px; font-size: 11px; line-height: 1.5; color: var(--text); }
+.itm-src {
+  margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line);
+  font-size: 10.5px; line-height: 1.5; color: var(--muted);
+}
+
+/* 이탈리아 시장 특성(정성) */
+.itr-box {
+  padding: 4px 13px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+.itr-row { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.itr-row:last-child { border-bottom: none; }
+.itr-t { flex: 0 0 88px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.itr-b { min-width: 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+.itr-s { font-size: 10.5px; color: var(--muted); }
+.itr-s--none { color: var(--amber); font-weight: 600; }
+
+@media (max-width: 900px) { .itm-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) {
+  .itm-grid { grid-template-columns: 1fr; }
+  .itr-row { flex-direction: column; gap: 2px; }
+  .itr-t { flex-basis: auto; }
+}

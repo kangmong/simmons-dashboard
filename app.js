@@ -989,6 +989,7 @@ function gtTrendChart(companies) {
   const X = (i) => padL + (xs.length === 1 ? plotW / 2 : (i / (xs.length - 1)) * plotW);
   const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
   const fmtY = (v) => (_gtMode === 'index' ? String(Math.round(v)) : fmtUsd(v));
+  const usdKrw = krwRate('USD');   // 기존 환율 데이터만 참조
 
   let grid = '';
   for (let t = 0; t <= VIZ_Y_TICKS; t += 1) {
@@ -996,7 +997,8 @@ function gtTrendChart(companies) {
     grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="' + y.toFixed(1)
       + '" stroke="var(--line)" stroke-width="1"/>'
       + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(fmtY(v)) + '</text>';
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(fmtY(v)) + '</text>'
+      + (_gtMode === 'abs' ? vizKrwTick(padL - 6, y, v, usdKrw) : '');
   }
   if (_gtMode === 'index' && lo < 100 && hi > 100) {   // 지수화 기준선
     grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
@@ -1039,9 +1041,13 @@ function gtTrendChart(companies) {
         color: s.color,
         seg: s.seg,
         y: Y(v),
-        val: (_gtMode === 'index')
-          ? (Math.round(v) + ' <span class="gt-tip__abs">실제 ' + fmtUsd(raw) + '</span>')
-          : fmtUsd(raw),
+        val: (function () {
+          const k = (usdKrw != null) ? fmtKrwAxis(raw * usdKrw) : null;
+          const won = k ? (' ≈ ' + k + ' 원') : '';
+          return (_gtMode === 'index')
+            ? (Math.round(v) + ' <span class="gt-tip__abs">실제 ' + fmtUsd(raw) + won + '</span>')
+            : (fmtUsd(raw) + (k ? ' <span class="gt-tip__abs">≈ ' + k + ' 원</span>' : ''));
+        }()),
       };
     }),
   }));
@@ -1078,15 +1084,16 @@ function gtTrendChart(companies) {
     + '<button type="button" class="gt-tg' + (_gtMode === 'abs' ? ' is-on' : '')
     + '" data-gt-mode="abs">절대액</button></div>'
     + '<div class="gt-chartwrap" data-gt-chart="us">'
-    + gtYUnit(_gtMode === 'index'
-      ? '지수 (기준분기=100)' : '매출 (USD)')
+    + gtYUnit(_gtMode === 'index' ? '지수 (기준분기=100)'
+      : ('매출 (USD' + (usdKrw != null ? ' · 아랫줄 원화 환산' : '') + ')'))
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="분기별 매출 추이">'
     + grid + lines + xlab + hov + '</svg>'
     + '<div class="gt-tip" hidden></div>'
     + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 분기별 값이 보입니다.</div>'
     + '</div>'
-    + '<div class="gt-legend">' + legend + '</div>' + segNotes;
+    + '<div class="gt-legend">' + legend + '</div>' + segNotes
+    + (_gtMode === 'abs' ? krwNote('USD') : '');
   return {
     html: html,
     base: (perOwn || baseIdx < 0) ? null : compQtrLabel(xs[baseIdx]),
@@ -1117,88 +1124,275 @@ function gtChartGuide(info) {
 }
 
 /** 이탈리아 소매판매 지수 — 기업 실적으로는 안 잡히는 현지 수요 흐름 */
-function gtItalyBlock() {
-  const it = _europe && _europe.italy;
-  if (!it) return '';
-  if (it.status !== 'ok') {
-    return '<h3 class="subhead">이탈리아 시장 수요</h3>'
-      + '<div class="gt-hollow">' + escapeHtml(it.reason || '조회 실패') + '</div>';
-  }
-  const pts = (it.points || []).slice(-24);
-  if (pts.length < 2) return '';
+/* ── 원화 병기 공용 헬퍼 (순수 추가) ─────────────────────────────────────
+   ★ 저장된 값은 원래 통화로 유지하고, 표시할 때만 환율을 곱한다.
+   ★ 환율을 못 읽으면 null 을 돌려 호출부가 외화만 표시하게 한다. */
 
-  // 축·격자·폰트는 미국 차트와 같은 공용 상수를 쓴다(VIZ_*).
-  const vs = pts.map((p) => p.value);
-  let lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs);
+/** 축·툴팁용 원화 축약: 3.2조 / 7,974억 / 5,200만 / 1,200원 */
+function fmtKrwAxis(v) {
+  if (v == null || !isFinite(v)) return null;
+  const sign = v < 0 ? '-' : '';
+  const a = Math.abs(v);
+  // 축약 규칙: 조는 소수 한 자리, 억·만은 정수(3.2조 / 7,974억 / 5,200만)
+  const n1 = (x) => x.toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+  const n0 = (x) => Math.round(x).toLocaleString('ko-KR');
+  if (a >= 1e12) return sign + n1(a / 1e12) + '조';
+  if (a >= 1e8) return sign + n0(a / 1e8) + '억';
+  if (a >= 1e4) return sign + n0(a / 1e4) + '만';
+  return sign + n0(a) + '원';
+}
+
+/** 단위 문자열 → KRW 환산 배율. 원화·미지원 통화면 null.
+    KOIMA 일일가격처럼 품목마다 단위가 다른 경우에 쓴다($/ton, ￠/lb, CNY/tonne …). */
+function krwFactor(unit) {
+  const u = String(unit || "").trim();
+  const r = krwRate("USD");
+  if (r == null) return null;
+  if (u.charAt(0) === "$") return r;              // $/ton, $/tonne, $/mmbtu
+  if (u.charAt(0) === "￠") return r / 100;      // ￠/lb — 미국 센트
+  return null;                                    // CNY·원·천원 단위는 환산하지 않는다
+}
+
+/** 통화 → KRW 환율. 기존 환율 데이터만 참조하고 새로 수집하지 않는다. */
+function krwRate(cur) {
+  const c = String(cur || 'USD').toUpperCase();
+  if (c === 'KRW') return 1;
+  if (c === 'USD' && _matUsdKrw != null) return _matUsdKrw;
+  try {
+    const s = _fx && _fx.series;
+    const arr = s && s[c];
+    if (Array.isArray(arr)) {
+      for (let i = arr.length - 1; i >= 0; i -= 1) if (arr[i] != null) return arr[i];
+    }
+  } catch (e) { /* 표기용이라 실패해도 무시 */ }
+  return null;
+}
+
+/** 환율 기준일(해당 통화의 마지막 관측일). 없으면 null */
+function krwAsOf(cur) {
+  const c = String(cur || 'USD').toUpperCase();
+  try {
+    const s = _fx && _fx.series;
+    if (!s || !Array.isArray(s.dates) || !Array.isArray(s[c])) return null;
+    for (let i = s[c].length - 1; i >= 0; i -= 1) if (s[c][i] != null) return s.dates[i] || null;
+  } catch (e) { /* 무시 */ }
+  return null;
+}
+
+/** 차트 근처에 한 번만 붙이는 "적용 환율" 문구. 환율 없으면 '' */
+function krwNote(cur) {
+  const c = String(cur || 'USD').toUpperCase();
+  const r = krwRate(c);
+  if (r == null) return '';
+  const d = krwAsOf(c);
+  return '<div class="viz-fxnote">적용 환율 1 ' + escapeHtml(c) + ' = '
+    + Math.round(r).toLocaleString('ko-KR') + '원'
+    + (d ? ' <span class="viz-fxnote__d">(' + escapeHtml(d) + ' 기준)</span>' : '') + '</div>';
+}
+
+/** Y축 눈금 아래에 붙일 원화 둘째 줄. 환율 없으면 '' */
+function vizKrwTick(x, y, val, rate) {
+  if (rate == null || val == null || val === 0) return '';
+  const t = fmtKrwAxis(val * rate);
+  if (!t) return '';
+  return '<text x="' + x + '" y="' + (y + 9.5).toFixed(1) + '" text-anchor="end" font-size="7"'
+    + ' fill="var(--muted)" opacity=".78">' + escapeHtml(t) + '</text>';
+}
+
+/* ── 이탈리아 시장 블록 (순수 추가) ───────────────────────────────────────
+   자동: HS 9404 수출입(UN Comtrade)  /  수동: 시장 규모·비중·점유율
+   정성: 시장 특성  /  참고: 비상장 브랜드 카드
+   ★ Eurostat 소매판매지수는 쓰지 않는다(가구·조명·가정용품이 최소 분류라
+     매트리스 관점의 연관성이 떨어진다). */
+let _itCode = '9404';   // 선택된 HS 코드
+
+/** HS 코드 칩 */
+function gtTradeChips(codes) {
+  return '<div class="gt-bar" role="group" aria-label="HS 코드 선택">'
+    + codes.map((c) => '<button type="button" class="gt-chip'
+      + (_itCode === c.code ? ' is-on' : '') + '" data-it-code="' + escapeHtml(c.code) + '">'
+      + escapeHtml(c.label) + '<span class="gt-chip__p">HS ' + escapeHtml(c.code) + '</span>'
+      + '</button>').join('') + '</div>';
+}
+
+/** 이탈리아 수출입 차트 — 자동 수집 유일 정량 지표 */
+function gtItalyTrade() {
+  const t = _europe && _europe.italy_trade;
+  if (!t) return '';
+  if (t.status !== 'ok' || !(t.months || []).length) {
+    return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404</span></h3>'
+      + '<div class="gt-hollow">' + escapeHtml(t.reason || '수집 실패') + '</div>';
+  }
+  const codes = t.codes || [{ code: '9404', label: '전체' }];
+  if (!codes.some((c) => c.code === _itCode)) _itCode = codes[0].code;
+  const rows = (t.months || []).slice(-24);
+  const cur = t.currency || 'USD';
+  const rate = krwRate(cur);
+
+  const ex = rows.map((m) => (m.exp || {})[_itCode]);
+  const im = rows.map((m) => (m.imp || {})[_itCode]);
+  const flat = ex.concat(im).filter((v) => v != null);
+  if (flat.length < 2) {
+    return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS ' + escapeHtml(_itCode) + '</span></h3>'
+      + gtTradeChips(codes) + '<div class="gt-hollow">선택한 코드의 값이 없습니다.</div>';
+  }
+  let lo = Math.min.apply(null, flat), hi = Math.max.apply(null, flat);
   if (lo === hi) { lo -= 1; hi += 1; }
-  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
-  const padL = 46, padR = 8;
+  const pad = (hi - lo) * 0.1; lo = Math.max(0, lo - pad); hi += pad;
+
+  const padL = 62, padR = 8;
   const plotW = VIZ_W - padL - padR;
   const plotH = VIZ_H - VIZ_PAD_T - VIZ_PAD_B;
-  const X = (i) => padL + (pts.length === 1 ? plotW / 2 : (i / (pts.length - 1)) * plotW);
+  const X = (i) => padL + (rows.length === 1 ? plotW / 2 : (i / (rows.length - 1)) * plotW);
   const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
 
   let grid = '';
-  for (let t = 0; t <= VIZ_Y_TICKS; t += 1) {
-    const v = lo + ((hi - lo) * t) / VIZ_Y_TICKS, y = Y(v);
-    grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="' + y.toFixed(1)
-      + '" stroke="var(--line)" stroke-width="1"/>'
+  for (let k = 0; k <= VIZ_Y_TICKS; k += 1) {
+    const v = lo + ((hi - lo) * k) / VIZ_Y_TICKS, y = Y(v);
+    grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
+      + y.toFixed(1) + '" stroke="var(--line)" stroke-width="1"/>'
       + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + v.toFixed(1) + '</text>';
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(fmtUsd(v)) + '</text>'
+      + vizKrwTick(padL - 6, y, v, rate);
   }
-  // 기준선 100 (2021년 평균) — 위/아래를 바로 읽을 수 있게
-  if (lo < 100 && hi > 100) {
-    grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
-      + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
-  }
-
-  const keep = vizTickIdx(pts.length, plotW, VIZ_TICK_GAP);
+  const keep = vizTickIdx(rows.length, plotW, VIZ_TICK_GAP);
   let xlab = '';
-  pts.forEach((pt, i) => {
+  rows.forEach((m, i) => {
     if (keep.indexOf(i) < 0) return;
     xlab += '<text x="' + X(i).toFixed(1) + '" y="' + (VIZ_H - 8) + '" text-anchor="middle" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(pt.month) + '</text>';
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + escapeHtml(m.month) + '</text>';
   });
 
-  const dseg = pts.map((pt, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(pt.value).toFixed(1)).join(' ');
-  const line = '<path d="' + dseg + '" fill="none" stroke="var(--green)" stroke-width="2"'
-    + ' stroke-linejoin="round" stroke-linecap="round"/>';
+  const SER = [{ k: 'exp', name: '수출', color: 'var(--blue)', vals: ex },
+    { k: 'imp', name: '수입', color: 'var(--accent)', vals: im }];
+  let lines = '';
+  SER.forEach((s) => {
+    const seg = [];
+    s.vals.forEach((v, i) => {
+      if (v != null) seg.push((seg.length ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1));
+    });
+    if (seg.length) {
+      lines += '<path d="' + seg.join(' ') + '" fill="none" stroke="' + s.color
+        + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    }
+  });
 
-  // 미국 차트와 같은 툴팁 경로를 쓴다(gtShowTip). 라인이 하나라 activeDot 도 하나.
-  _gtCharts.ita = {
-    tip: pts.map((pt) => ({
-      q: pt.month,
-      rows: [{ name: it.label, color: 'var(--green)', seg: false, y: Y(pt.value),
-        val: String(pt.value) + ' <span class="gt-tip__abs">2021=100</span>' }],
+  // 미국 차트와 같은 툴팁 경로
+  _gtCharts.itrade = {
+    tip: rows.map((m, i) => ({
+      q: m.month,
+      rows: SER.map((s) => {
+        const v = s.vals[i];
+        if (v == null) return null;
+        const k = (rate != null) ? fmtKrwAxis(v * rate) : null;
+        return { name: s.name, color: s.color, seg: false, y: Y(v),
+          val: escapeHtml(fmtUsd(v)) + (k ? ' <span class="gt-tip__abs">≈ ' + escapeHtml(k) + ' 원</span>' : '') };
+      }),
     })),
-    geom: { padL: padL, plotW: plotW, n: pts.length },
+    geom: { padL: padL, plotW: plotW, n: rows.length },
   };
-  const hov = '<g class="gt-hov" aria-hidden="true">'
-    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>'
-    + '<circle class="gt-adot" data-si="0" r="3.5" cx="-99" cy="-99" fill="var(--card)"'
-    + ' stroke="var(--green)" stroke-width="2"/></g>';
+  let hov = '<g class="gt-hov" aria-hidden="true">'
+    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>';
+  SER.forEach((s, si) => {
+    hov += '<circle class="gt-adot" data-si="' + si + '" r="3.5" cx="-99" cy="-99"'
+      + ' fill="var(--card)" stroke="' + s.color + '" stroke-width="2"/>';
+  });
+  hov += '</g>';
 
-  const yoy = (it.yoy == null) ? '—' : compYoy(it.yoy);
-  return '<h3 class="subhead">이탈리아 시장 수요 <span class="gt-cnt">최근 24개월</span></h3>'
-    + '<div class="gt-ita">'
-    + '<div class="gt-ita__head"><span class="gt-ita__lbl">' + escapeHtml(it.label) + '</span>'
-    + '<span class="gt-ita__val">' + escapeHtml(String(it.latest.value)) + '</span>'
-    + '<span class="gt-ita__m">' + escapeHtml(it.latest.month) + '</span>' + yoy + '</div>'
-    + '<div class="gt-chartwrap" data-gt-chart="ita">'
-    + gtYUnit('지수 (2021=100)')
+  // 무역수지(보조 지표) — 최신 월과 최근 12개월 누계
+  const last = rows[rows.length - 1];
+  const bal = (last.exp || {})[_itCode] != null && (last.imp || {})[_itCode] != null
+    ? (last.exp[_itCode] - last.imp[_itCode]) : null;
+  const y12 = rows.slice(-12);
+  let cx = 0, cm = 0, n12 = 0;
+  y12.forEach((m) => {
+    if ((m.exp || {})[_itCode] != null && (m.imp || {})[_itCode] != null) {
+      cx += m.exp[_itCode]; cm += m.imp[_itCode]; n12 += 1;
+    }
+  });
+  const bal12 = n12 ? (cx - cm) : null;
+  const balCell = (lbl, v) => {
+    const k = (v != null && rate != null) ? fmtKrwAxis(v * rate) : null;
+    return '<div class="itt-cell"><span class="itt-k">' + escapeHtml(lbl) + '</span>'
+      + '<span class="itt-v' + (v != null && v < 0 ? ' itt-v--neg' : '') + '">'
+      + (v == null ? '—' : escapeHtml(fmtUsd(v))) + '</span>'
+      + (k ? '<span class="itt-krw">≈ ' + escapeHtml(k) + ' 원</span>' : '') + '</div>';
+  };
+
+  return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404 · UN Comtrade · 자동 갱신</span></h3>'
+    + '<div class="itt-hint">매트리스 서포트·침구류 기준. 이탈리아가 자동 수집으로 확보할 수 있는 유일한 정량 지표입니다.</div>'
+    + gtTradeChips(codes)
+    + '<div class="itt-sum">' + balCell('무역수지 (' + last.month + ')', bal)
+    + balCell('최근 ' + n12 + '개월 누계', bal12)
+    + '<div class="itt-cell itt-cell--wide"><span class="itt-k">수집 구간</span>'
+    + '<span class="itt-range">' + escapeHtml(rows[0].month) + ' ~ ' + escapeHtml(last.month)
+    + ' · 공표 지연 약 3개월</span></div></div>'
+    + '<div class="gt-chartwrap" data-gt-chart="itrade">'
+    + gtYUnit('수출입액 (' + escapeHtml(cur) + (rate != null ? ' · 아랫줄 원화 환산' : '') + ')')
     + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
-    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="이탈리아 소매판매 지수 추이">'
-    + grid + line + xlab + hov + '</svg>'
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="이탈리아 HS 9404 수출입">'
+    + grid + lines + xlab + hov + '</svg>'
     + '<div class="gt-tip" hidden></div>'
     + '<div class="gt-tip__hint">그래프에 마우스를 올리거나 화면을 탭하면 월별 값이 보입니다.</div>'
     + '</div>'
-    + '<div class="gt-ita__note">' + escapeHtml(it.unit) + ' · <b>기업 실적이 아니라 이탈리아 현지 소매'
-    + ' 수요 지표</b>입니다. 아래 세 브랜드의 매출이 아니며, 매트리스 단독 통계가 없어 가구를 포함한'
-    + ' 가정용품 전문점 기준입니다.<br>위 추이 차트의 점선(Tempur Sealy 해외부문)은'
-    + ' <b>글로벌 업체의 북미 외 실적</b>이고, 이 지표는 <b>이탈리아 현지 수요</b>입니다 —'
-    + ' 서로 다른 성격의 값입니다.</div>'
-    + '<div class="gt-ita__src">출처: ' + escapeHtml(it.source || 'Eurostat') + '</div>'
-    + '</div>';
+    + '<div class="gt-legend">'
+    + SER.map((s) => '<span class="gt-lg"><i style="background:' + s.color + '"></i>'
+      + escapeHtml(s.name) + '</span>').join('') + '</div>'
+    + krwNote(cur)
+    + '<div class="gt-chart__note">' + escapeHtml(t.read_note || '') + '</div>'
+    + '<div class="gt-ita__src">출처: ' + escapeHtml(t.source || 'UN Comtrade')
+    + (t.updatedAt ? ' · ' + escapeHtml(String(t.updatedAt).slice(0, 16)) + ' 수집' : '') + '</div>';
+}
+
+/** 시장 규모·프리미엄 비중·브랜드 점유율 (수동 입력). 값이 없으면 블록을 숨긴다. */
+function gtItalyMarket() {
+  const m = _europe && _europe.italy_market;
+  if (!m) return '';
+  if (!m.has_any) {
+    return '<h3 class="subhead">이탈리아 시장 규모 <span class="gt-cnt">시장조사 기관 · 수동 갱신</span></h3>'
+      + '<div class="gt-hollow">' + escapeHtml(m.empty_hint || '') + '</div>';
+  }
+  const src = (r) => {
+    const bits = [r.source, r.report, r.checkedAt ? r.checkedAt + ' 확인' : ''].filter(Boolean);
+    return bits.length ? '<div class="itm-src">' + escapeHtml(bits.join(' · ')) + '</div>' : '';
+  };
+  let out = '';
+  (m.marketSize || []).forEach((r) => {
+    out += '<div class="itm-card"><div class="itm-head">' + escapeHtml(String(r.year)) + ' 시장 규모</div>'
+      + '<div class="itm-val">' + (r.value == null ? '—'
+        : escapeHtml(r.value.toLocaleString('ko-KR') + ' ' + (r.currency || '')))
+      + (r.growthPct != null ? ' <span class="itm-g">' + compYoy(r.growthPct) + '</span>' : '') + '</div>'
+      + (r.scope ? '<div class="itm-scope">범위: ' + escapeHtml(r.scope) + '</div>' : '')
+      + src(r) + '</div>';
+  });
+  (m.premiumShare || []).forEach((r) => {
+    out += '<div class="itm-card"><div class="itm-head">' + escapeHtml(String(r.year))
+      + ' 프리미엄 비중</div><div class="itm-val">' + escapeHtml(String(r.sharePct)) + '%</div>'
+      + (r.definition ? '<div class="itm-scope">정의: ' + escapeHtml(r.definition) + '</div>' : '')
+      + src(r) + '</div>';
+  });
+  (m.brandShare || []).forEach((r) => {
+    out += '<div class="itm-card"><div class="itm-head">' + escapeHtml(r.brand) + ' 점유율 ('
+      + escapeHtml(String(r.year)) + ')</div><div class="itm-val">' + escapeHtml(String(r.sharePct))
+      + '%</div>' + src(r) + '</div>';
+  });
+  return '<h3 class="subhead">이탈리아 시장 규모 <span class="gt-cnt">시장조사 기관 · 수동 갱신'
+    + (m.updatedAt ? ' · ' + escapeHtml(m.updatedAt) : '') + '</span></h3>'
+    + '<div class="itm-grid">' + out + '</div>';
+}
+
+/** 시장 특성 (정성 · 고정 텍스트) */
+function gtItalyTraits() {
+  const t = _europe && _europe.italy_traits;
+  const items = (t && t.items) || [];
+  if (!items.length) return '';
+  const rows = items.map((x) => '<div class="itr-row"><span class="itr-t">' + escapeHtml(x.title)
+    + '</span><span class="itr-b">' + escapeHtml(x.body)
+    + (x.source ? ' <span class="itr-s">' + escapeHtml(x.source) + '</span>'
+      : ' <span class="itr-s itr-s--none">출처 확인 필요</span>') + '</span></div>').join('');
+  return '<h3 class="subhead">이탈리아 시장 특성 <span class="gt-cnt">' + escapeHtml(t.note || '')
+    + (t.updatedAt ? ' · ' + escapeHtml(t.updatedAt) + ' 갱신' : '') + '</span></h3>'
+    + '<div class="itr-box">' + rows + '</div>';
 }
 
 /** 국외 섹션 전체(티어 뷰). tier_defs 가 없으면 null → 호출부가 기존 화면으로 폴백 */
@@ -1252,7 +1446,9 @@ function gtGlobalHtml(list, rate) {
     + gtChartGuide(chart)
     + '<h3 class="subhead">기업</h3>'
     + cards
-    + gtItalyBlock()
+    + gtItalyTrade()
+    + gtItalyMarket()
+    + gtItalyTraits()
     + gtItalyBrands()
     + '<div class="comp-caption">출처: SEC EDGAR' + compFetchedAt()
     + (segNote ? ' · ' + escapeHtml(segNote) : '') + '</div>';
@@ -1321,7 +1517,9 @@ function wireGtControls() {
     const tb = ev.target.closest && ev.target.closest('[data-gt-tier]');
     if (tb) { _gtTier = tb.getAttribute('data-gt-tier'); renderCompetitor(); return; }
     const mb = ev.target.closest && ev.target.closest('[data-gt-mode]');
-    if (mb) { _gtMode = mb.getAttribute('data-gt-mode'); renderCompetitor(); }
+    if (mb) { _gtMode = mb.getAttribute('data-gt-mode'); renderCompetitor(); return; }
+    const cb = ev.target.closest && ev.target.closest('[data-it-code]');
+    if (cb) { _itCode = cb.getAttribute('data-it-code'); renderCompetitor(); }
   });
   // hover(데스크톱) + pointerdown(모바일 탭) 모두 같은 경로로 처리한다.
   const move = (ev) => {
@@ -1710,7 +1908,7 @@ function buildIcisChart(periods, series) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>${vizKrwTick(padL - 6, y, val, _matUsdKrw)}`;
   }).join('');
 
   // 단일 연도는 'MM월'(짧음)이라 간격을 좁게, 전체 보기는 'YYYY-MM'이라 넓게
@@ -2317,7 +2515,7 @@ function buildOilChart(rows) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>${vizKrwTick(padL - 6, y, val, _matUsdKrw)}`;
   }).join('');
 
   const xticks = vizTickIdx(n, plotW).map((i) => {
@@ -2963,7 +3161,7 @@ function buildKpChart(rows, item, cat) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}</text>${vizKrwTick(padL - 6, y, val, krwFactor(item.unit))}`;
   }).join('');
 
   // 날짜 라벨은 'YYYY-MM-DD'(10자)로 가장 길어 간격을 더 넓게 잡는다
