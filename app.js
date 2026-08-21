@@ -1255,7 +1255,9 @@ function gtTradeTier(t) {
     return '<div class="itn-pend"><span class="itn-pend__h">티어 구분 대기</span>'
       + escapeHtml(tier.pending_note || '') + '</div>';
   }
-  const keys = [['all', '전체'], ['premium', '프리미엄'], ['mid', '미드']];
+  // 라벨·색상·순서를 미국 티어와 동일하게 맞춘다(tier_defs 를 그대로 쓴다).
+  const defs = gtDefs() || [];
+  const keys = [['all', '전체']].concat(defs.map((t) => [t.key, t.name]));
   return '<div class="gt-bar" role="group" aria-label="단가 티어 필터">'
     + keys.map((k) => '<button type="button" class="gt-chip'
       + (_itTier === k[0] ? ' is-on' : '') + '" data-it-tier="' + k[0] + '">'
@@ -1392,8 +1394,8 @@ function gtItalyTrade() {
   };
 
   return '<h3 class="subhead">이탈리아 수출입 <span class="gt-cnt">HS 9404 · UN Comtrade · 자동 갱신</span></h3>'
-    + '<div class="itt-hint">매트리스·매트리스 서포트·침구류 기준. 이탈리아가 자동 수집으로 확보할 수 있는 유일한 정량 지표입니다.</div>'
     + gtTradeTier(t)
+    + '<div class="itt-hint">매트리스·매트리스 서포트·침구류 기준. 이탈리아가 자동 수집으로 확보할 수 있는 유일한 정량 지표입니다.</div>'
     + gtTradeChips(codes)
     + '<div class="itt-sum">'
     + cell('수출 (' + rows[last].month + ')', rawEx[last], yoy(rawEx))

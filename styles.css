@@ -1222,7 +1222,6 @@ body {
 }
 .gt-badge--high { background: var(--accent-soft); color: var(--accent); }
 .gt-badge--premium { background: var(--slate-soft); color: var(--slate); }
-.gt-badge--mid { background: var(--green-soft); color: var(--green); }
 
 /* (4) 카드 하단 메타 — 티어/브랜드/본사 */
 .gco-meta { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }

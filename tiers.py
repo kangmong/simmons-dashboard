@@ -13,6 +13,7 @@
 """
 
 # ── 티어 정의 (퀸 사이즈 미국 소매가 기준) ─────────────────────────────────
+# ★ 하이엔드·프리미엄 둘만 쓴다(미드 제거). 프리미엄 이상 시장만 본다.
 # key   : 내부 식별자(프런트 필터 값). 표시 텍스트가 아니므로 바꾸지 말 것.
 # name  : 화면 표시 이름
 # price : 가격대 표시 문자열
@@ -22,21 +23,13 @@ TIERS = [
         "key": "high",
         "name": "하이엔드",
         "price": "$3,000+",
-        "brands": ["Tempur-Pedic", "Stearns & Foster", "Beautyrest Black"],
+        "brands": ["Tempur-Pedic", "Stearns & Foster"],
     },
     {
         "key": "premium",
         "name": "프리미엄",
         "price": "$1,500~3,000",
-        "brands": ["Sealy Posturepedic Plus", "Beautyrest Harmony",
-                   "Sleep Number i-Series", "Purple Restore"],
-    },
-    {
-        "key": "mid",
-        "name": "미드",
-        "price": "$700~1,500",
-        "brands": ["Serta Perfect Sleeper", "Sealy Essentials",
-                   "Purple Original", "Sleep Number c-Series"],
+        "brands": ["Sealy Posturepedic Plus", "Sleep Number i-Series", "Purple Restore"],
     },
 ]
 
@@ -46,9 +39,9 @@ TIER_NAME = {t["key"]: t["name"] for t in TIERS}
 # ── 기업 ↔ 티어 진출 매핑 ──────────────────────────────────────────────────
 # 티커를 키로 쓴다(SEC 수집 결과와 붙이는 기준).
 COMPANY_TIERS = {
-    "TPX": ["high", "premium", "mid"],
-    "SNBR": ["premium", "mid"],
-    "PRPL": ["premium", "mid"],
+    "TPX": ["high", "premium"],
+    "SNBR": ["premium"],
+    "PRPL": ["premium"],
     "LEG": [],   # 부품 공급사 — 어느 티어에도 속하지 않아 화면에서 제외된다
 }
 
@@ -57,22 +50,21 @@ COMPANY_TIERS = {
 # public: False 면 실적이 없어 화면에서 제외된다(추정치를 만들지 않는다).
 COMPANY_META = {
     "TPX": {
-        "brands": ["Tempur-Pedic", "Stearns & Foster",
-                   "Sealy Posturepedic Plus", "Sealy Essentials"],
+        "brands": ["Tempur-Pedic", "Stearns & Foster", "Sealy Posturepedic Plus"],
         "hq": "렉싱턴, KY",
         "hq_note": "유럽 사업은 International 세그먼트",
         "public": True,
         "role": "brand",
     },
     "SNBR": {
-        "brands": ["Sleep Number i-Series", "Sleep Number c-Series"],
+        "brands": ["Sleep Number i-Series"],
         "hq": "미니애폴리스, MN",
         "hq_note": "",
         "public": True,
         "role": "brand",
     },
     "PRPL": {
-        "brands": ["Purple Restore", "Purple Original"],
+        "brands": ["Purple Restore"],
         "hq": "리하이, UT",
         "hq_note": "",
         "public": True,
@@ -98,9 +90,8 @@ PRIVATE_COMPANIES = []
 # ★ 브랜드도 라인명도 못 찾으면 분류하지 않는다(억지로 넣지 않는다).
 NEWS_BRAND_TIERS = {
     "Tempur-Pedic": ["high"],
-    "Sleep Number": ["premium", "mid"],
-    "Purple": ["premium", "mid"],
-    "Serta": ["mid"],
+    "Sleep Number": ["premium"],
+    "Purple": ["premium"],
 }
 
 TIER_NOTE = ("기업 실적은 티어별로 공시되지 않습니다. 아래 수치는 "
