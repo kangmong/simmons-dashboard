@@ -1151,6 +1151,27 @@ function gExplain(country, c) {
     + ' 가격대별 시장 규모는 공개 통계에 존재하지 않습니다.</div></div></details>';
 }
 
+/** 수집 시각 여러 개 중 가장 최근 날짜(YYYY-MM-DD). 하나도 없으면 null. */
+function gSrcDate() {
+  let best = null;
+  for (let i = 0; i < arguments.length; i += 1) {
+    const s = arguments[i];
+    if (!s) continue;
+    const d = String(s).slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (best == null || d > best)) best = d;
+  }
+  return best;
+}
+
+/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다.
+    ★ 문구는 실제 수집 코드에서 확인한 소스다(범례 라벨 추정이 아니다).
+      미국 가격지수는 BLS PCU337910337910 = 매트리스 제조업(NAICS 337910)이고
+      '가구 부문'이 아니다. 가구 부문인 것은 이탈리아 HICP CP05111 쪽이다. */
+function gSrcFoot(text, date) {
+  return '<div class="sm-foot">' + escapeHtml(text)
+    + (date ? ' · 최종 업데이트: ' + escapeHtml(date) : '') + '</div>';
+}
+
 /** 1. 미국 — BLS PPI + UN Comtrade 수입단가(개당) */
 function gUsBlock() {
   const u = _usMarket, ppi = u && u.ppi;
@@ -1173,6 +1194,9 @@ function gUsBlock() {
   }
   return gtTierBar('us', _usTier) + gSummary(c) + c.html
     + '<div class="g-note">매트리스 출고가격(BLS)과 개당 수입단가(UN Comtrade) 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>'
+    + gSrcFoot('출처: 가격지수 — 미국 노동통계국(BLS) 생산자물가지수(PPI), 매트리스 제조업'
+      + '(NAICS 337910 · PCU337910337910) | 수입단가 — UN Comtrade, 미국 매트리스 수입 통계'
+      + ' HS 940421·940429 (개당 단가)', gSrcDate(tr && tr.updatedAt))
     + gExplain('us', c);
 }
 
@@ -1199,6 +1223,9 @@ function gItBlock() {
   }
   return gtTierBar('it', _itTier) + gSummary(c) + c.html
     + '<div class="g-note">매트리스 전용 가격지수가 없어 가정용 가구 지수를 씁니다. kg 단가는 절대 수준보다 방향을 보십시오.</div>'
+    + gSrcFoot('출처: 가격지수 — 유럽연합 통계청(Eurostat) 조화소비자물가지수(HICP), 가구 부문'
+      + '(COICOP CP05111 Household furniture) | 수입단가 — UN Comtrade, 이탈리아 매트리스'
+      + ' 수입 통계 HS 940421·940429 (kg당 단가)', gSrcDate(h && h.updatedAt, t && t.updatedAt))
     + gExplain('it', c);
 }
 
