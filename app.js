@@ -885,17 +885,26 @@ function gPpiChart(key, years, unitLabel) {
 function gPpiSummary(u) {
   const ys = u.years || [], last = u.latest;
   if (!ys.length || !last) return '';
-  const cell = (k, v) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
-    + '</span><span class="gs-v">' + v + '</span></div>';
+  // d = 큰 숫자 아래에 붙는 한 줄 설명(caption). 세 숫자가 각각 무엇인지 그 자리에서
+  // 읽히게 한다 — 표로 빼지 않는다. 크기·색은 각주(.sm-foot)와 같다.
+  const cell = (k, v, d) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
+    + '</span><span class="gs-v">' + v + '</span>'
+    + (d ? '<span class="gs-d">' + escapeHtml(d) + '</span>' : '') + '</div>';
   const cur = ys[ys.length - 1], first = ys[0];
-  let out = cell('최근 값 (' + last.month + ')', last.value.toFixed(1));
+  let out = cell('최근 값 (' + last.month + ')', last.value.toFixed(1),
+    '가장 최근 발표된 한 달 수치');
+  // ★ 1~2월에는 BLS 가 새해 첫 달을 아직 공표하지 않아 마지막 해가 '올해'가 아니다.
+  //   그때만 연도를 밝혀 '올해'라는 말이 틀리지 않게 한다(연도는 하드코딩하지 않는다).
+  const isThisYear = cur.year === new Date().getFullYear();
   out += cell(cur.year + '년 평균' + (cur.complete ? '' : ' (' + cur.months + '개월)'),
-    cur.value.toFixed(1));
+    cur.value.toFixed(1),
+    isThisYear ? '올해 발표된 달까지의 평균' : cur.year + '년에 발표된 달까지의 평균');
   if (first.value) {
     const chg = ((last.value - first.value) / first.value) * 100;
     out += cell(first.year + '년 대비',
       '<span class="gs-gap' + (chg < 0 ? ' gs-gap--neg' : '') + '">'
-      + (chg > 0 ? '+' : '') + chg.toFixed(1) + '%</span>');
+      + (chg > 0 ? '+' : '') + chg.toFixed(1) + '%</span>',
+      '기준 연도 대비 변화율');
   }
   return '<div class="gs">' + out + '</div>';
 }
