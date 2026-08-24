@@ -20,6 +20,7 @@
   --green-soft: #E6F7F0;
   --amber-soft: #FDF1DD;
   --slate-soft: #EEF1F5;
+  --blue-soft: #E8F1FE;
   --field: #FBFCFD;         /* 드롭존/입력 배경 */
   --row-hover: #FAFBFC;     /* 테이블 행 hover */
   --radius-sm: 10px;
@@ -1209,6 +1210,25 @@ body {
   margin-bottom: 10px; font-size: 14px; font-weight: 800; color: var(--ink);
   letter-spacing: -.01em;
 }
+/* 제목 옆 약어 배지 — 배지 자체가 뜻을 담고, hover/포커스 시 정의를 띄운다 */
+.gc-abbr {
+  position: relative; display: inline-block; margin-left: 7px; padding: 2px 8px;
+  border-radius: 999px; background: var(--blue-soft); color: var(--blue);
+  font-size: 11px; font-weight: 700; letter-spacing: 0; white-space: nowrap;
+  vertical-align: 1px; cursor: help;
+}
+.gc-abbr:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.gc-abbr__bub {
+  position: absolute; left: 0; top: calc(100% + 7px); z-index: 20;
+  width: max-content; max-width: 320px; padding: 8px 10px;
+  border-radius: var(--radius-sm); background: var(--ink); color: var(--card);
+  font-size: 11.5px; font-weight: 500; line-height: 1.55; letter-spacing: 0;
+  text-align: left; white-space: normal; word-break: keep-all;
+  box-shadow: var(--shadow-hover);
+  opacity: 0; visibility: hidden; transition: opacity 140ms ease;
+}
+.gc-abbr:hover .gc-abbr__bub,
+.gc-abbr:focus-visible .gc-abbr__bub { opacity: 1; visibility: visible; }
 /* 요약 3개 */
 .gs { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-bottom: 14px; }
 .gs-cell { display: flex; flex-direction: column; gap: 1px; }

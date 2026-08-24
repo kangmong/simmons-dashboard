@@ -1152,12 +1152,26 @@ function smKoreaHtml() {
     + '</div></div>';
 }
 
+/** 제목 옆 약어 배지 + hover/포커스 툴팁.
+    ★ 약어를 그 자리에서 풀어 준다 — 'PPI' 만 보고 뜻을 몰라 멈추는 일이 없게.
+      배지 텍스트에 이미 우리말 뜻이 들어가고, 툴팁은 원어와 정의를 덧붙인다.
+    ★ 툴팁 문구는 DOM 안에 그대로 있어 스크린리더도 읽는다(title 중복 방지). */
+function gcAbbr(label, tip) {
+  return '<span class="gc-abbr" tabindex="0" role="note">' + escapeHtml(label)
+    + '<span class="gc-abbr__bub">' + escapeHtml(tip) + '</span></span>';
+}
+
+const PPI_ABBR = 'PPI(생산자물가지수)';
+const PPI_ABBR_TIP = 'PPI = Producer Price Index, 생산자물가지수 — '
+  + '공장이 도매로 파는 판매가격의 변화를 측정하는 지표';
+
 /** 국외 섹션 — 미국 매트리스 제조업 PPI 블록 하나. 그 외에는 만들지 않는다.
     payload 에 us_ppi 섹션이 없으면(구버전 dashboard.json) null 을 돌려
     호출부가 기존 SEC 분기 실적 카드를 그대로 쓰게 한다. */
 function gtGlobalHtml() {
   if (!_usPpi) return null;
-  return '<div class="gc-block"><div class="gc-h">미국 매트리스 제조업 PPI</div>'
+  return '<div class="gc-block"><div class="gc-h">미국 매트리스 제조업'
+    + gcAbbr(PPI_ABBR, PPI_ABBR_TIP) + '</div>'
     + gUsPpiBlock() + '</div>';
 }
 
