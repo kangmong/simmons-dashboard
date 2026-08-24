@@ -1133,53 +1133,10 @@ body {
 }
 
 /* ============================================================
-   국외(Global) 가격 티어별 시장 동향 — 순수 추가
+   국외(Global) 미국 매트리스 제조업 PPI
    ============================================================ */
 
-/* (1) 티어 필터 */
-.gt-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.gt-chip {
-  display: inline-flex; align-items: baseline; gap: 5px;
-  padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px;
-  background: var(--card); color: var(--text);
-  font-family: inherit; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
-}
-.gt-chip:hover { background: var(--row-hover); }
-.gt-chip.is-on {
-  background: var(--accent); border-color: var(--accent); color: var(--card);
-}
-.gt-chip__p { font-size: 10.5px; font-weight: 500; opacity: .8; font-variant-numeric: tabular-nums; }
-
-/* 티어 면책 문구는 배너 대신 ⓘ 툴팁에서만 보여준다 */
-.gt-info {
-  position: relative; display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; margin-left: 2px; border-radius: 50%;
-  color: var(--muted); font-size: 13px; cursor: help; flex: 0 0 auto;
-}
-.gt-info:hover, .gt-info:focus-visible { color: var(--accent); background: var(--accent-soft); outline: none; }
-.gt-info__bub {
-  position: absolute; left: 50%; top: calc(100% + 7px); transform: translateX(-50%);
-  width: max-content; max-width: 300px; padding: 8px 10px; z-index: 20;
-  border-radius: var(--radius-sm); background: var(--ink); color: var(--card);
-  font-size: 11.5px; font-weight: 500; line-height: 1.5; text-align: left;
-  box-shadow: var(--shadow-hover); opacity: 0; visibility: hidden;
-  transition: opacity 140ms ease;
-}
-.gt-info:hover .gt-info__bub, .gt-info:focus-visible .gt-info__bub { opacity: 1; visibility: visible; }
-
-/* (2) 티어 요약 바 */
-
 /* (3) 추이 차트 */
-.gt-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.gt-tg {
-  padding: 5px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--card); color: var(--muted);
-  font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
-}
-.gt-tg:hover { background: var(--row-hover); }
-.gt-tg.is-on { background: var(--slate-soft); border-color: var(--slate); color: var(--ink); }
 .gt-chart { width: 100%; height: auto; display: block; overflow: visible; }
 .gt-chart text { font-family: inherit; }
 .gt-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
@@ -1188,28 +1145,7 @@ body {
 .gt-lg--seg { color: var(--muted); }
 .gt-lg--seg i { height: 0; border-top: 3px dashed var(--slate); background: none !important; }
 
-/* 티어 배지 */
-.gt-badge {
-  display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 700; white-space: nowrap;
-}
-.gt-badge--high { background: var(--accent-soft); color: var(--accent); }
-.gt-badge--premium { background: var(--slate-soft); color: var(--slate); }
-
 .gco-empty--priv { font-weight: 600; color: var(--slate); }
-
-
-.gt-ita {
-  padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-1);
-}
-.gt-ita__head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
-.gt-ita__lbl { font-size: 12.5px; font-weight: 600; color: var(--ink); }
-.gt-ita__val { font-size: 18px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.gt-ita__m { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.gt-ita .gt-chartwrap { margin: 6px 0 4px; }
-.gt-ita__note { font-size: 11px; line-height: 1.55; color: var(--muted); }
-.gt-ita__src { margin-top: 3px; font-size: 10.5px; color: var(--muted); }
 
 
 /* 차트 hover/탭 툴팁 */
@@ -1267,41 +1203,12 @@ body {
 .viz-fxnote { margin: 2px 0 8px; font-size: 10.5px; color: var(--muted); }
 .viz-fxnote__d { opacity: .8; }
 
-/* 이탈리아 수출입 */
-
-
-
-/* ── 국외 · 해외 침대시장 분석 (재구성) ─────────────────────────────────── */
+/* ── 국외 · 미국 매트리스 제조업 PPI ────────────────────────────────────── */
 .gc-block + .gc-block { margin-top: 30px; }
 .gc-h {
   margin-bottom: 10px; font-size: 14px; font-weight: 800; color: var(--ink);
   letter-spacing: -.01em;
 }
-.gt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 14px; }
-.gt-chip {
-  padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px;
-  background: var(--card); color: var(--text);
-  font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
-}
-.gt-chip:hover { background: var(--row-hover); }
-.gt-chip.is-on { background: var(--accent); border-color: var(--accent); color: var(--card); }
-.gt-info {
-  position: relative; display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
-  color: var(--muted); font-size: 13px; cursor: help; flex: 0 0 auto;
-}
-.gt-info:hover, .gt-info:focus-visible { color: var(--accent); background: var(--accent-soft); outline: none; }
-.gt-info__bub {
-  position: absolute; left: 0; top: calc(100% + 7px);
-  width: max-content; max-width: 320px; padding: 8px 10px; z-index: 20;
-  border-radius: var(--radius-sm); background: var(--ink); color: var(--card);
-  font-size: 11.5px; font-weight: 500; line-height: 1.55; text-align: left;
-  word-break: keep-all; box-shadow: var(--shadow-hover);
-  opacity: 0; visibility: hidden; transition: opacity 140ms ease;
-}
-.gt-info:hover .gt-info__bub, .gt-info:focus-visible .gt-info__bub { opacity: 1; visibility: visible; }
-
 /* 요약 3개 */
 .gs { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-bottom: 14px; }
 .gs-cell { display: flex; flex-direction: column; gap: 1px; }
@@ -1319,7 +1226,7 @@ body {
 .gt-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 6px; }
 .gt-lg { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text); }
 .gt-lg i { width: 10px; height: 3px; border-radius: 2px; flex: 0 0 auto; }
-.gt-lg--seg i { height: 0; border-top: 3px dashed var(--blue); background: none !important; }
+.gt-lg--seg i { height: 0; border-top: 3px dashed var(--accent); background: none !important; }
 .g-note { margin-top: 10px; font-size: 11.5px; line-height: 1.55; color: var(--muted); }
 .gt-tip {
   position: absolute; top: 2px; z-index: 15; pointer-events: none;
@@ -1336,22 +1243,6 @@ body {
 .gt-adot { pointer-events: none; }
 .gs-gap { color: var(--accent); }
 .gs-gap--neg { color: var(--green); }
-
-/* 국외 차트 아래 '지표 설명' — 기본 접힘. 표 자체는 기존 .icis-termtable 을 그대로 쓴다. */
-.gx { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
-.gx__sum { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--slate);
-  list-style: none; display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 0; user-select: none; }
-.gx__sum::-webkit-details-marker { display: none; }
-.gx__sum::before { content: '▸'; font-size: 11px; line-height: 1; transition: transform .12s ease; }
-.gx[open] > .gx__sum::before { transform: rotate(90deg); }
-.gx__sum:hover { color: var(--ink); }
-.gx__sum:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-.gx__body { padding-bottom: 4px; }
-/* 표 사이 여백은 기존 .icis-terms(margin-top:22px)를 따르되 첫 표만 붙인다 */
-.gx__body > .icis-terms:first-child { margin-top: 12px; }
-.gx-note { margin-top: 7px; font-size: 12px; color: var(--slate); line-height: 1.55; }
-.gx-limit { margin-top: 18px; font-size: 11.5px; color: var(--slate); line-height: 1.55; }
 
 /* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (simmons-market.json) ══ */
 .sm-wrap { display: flex; flex-direction: column; gap: 14px; }

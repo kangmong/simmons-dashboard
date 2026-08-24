@@ -37,20 +37,11 @@ try:
 except Exception:  # noqa: BLE001
     compute_icis_forecast = None
 
-try:  # 순수 추가: 국외 가계 티어 정의(tiers.py 단일 관리).
-    import tiers as gtiers
+try:  # 미국 매트리스 제조업 PPI — BLS 공개 API(키 불필요).
+    from us_ppi import update_us_ppi
 except Exception:  # noqa: BLE001
-    gtiers = None
+    update_us_ppi = None
 
-try:  # 순수 추가: 미국 매트리스 가계·교여 지표(BLS PPI + Census)
-    from us_market import update_us_market
-except Exception:  # noqa: BLE001
-    update_us_market = None
-
-try:  # 순수 추가: 유럽 흔름(TPX 세그먼트 + 이할리아 소매지수).
-    from europe_flow import update_europe_flow
-except Exception:  # noqa: BLE001
-    update_europe_flow = None
 try:
     from sr_forecast import compute_sr_forecast
 except Exception:  # noqa: BLE001
@@ -1711,22 +1702,6 @@ def update_domestic_financials():
     return out
 
 
-def _stamp_tier_meta(entry):
-    """순수 추가 — 표시 계산용 티어/메타를 entry 에 붙인다(SEC 수집 로직 불변).
-       tiers.py 로드가 실패하면 기존과 동일한 payload 를 그대로 낸다."""
-    if gtiers is None:
-        return entry
-    m = gtiers.meta_for(entry.get("ticker"))
-    entry["tiers"] = gtiers.tiers_for(entry.get("ticker"))
-    entry["brands"] = m.get("brands") or []
-    entry["hq"] = m.get("hq") or ""
-    entry["hq_note"] = m.get("hq_note") or ""
-    entry["public"] = bool(m.get("public", True))
-    entry["role"] = m.get("role") or "brand"
-    entry["segment_note"] = gtiers.SEGMENT_NOTE
-    return entry
-
-
 def update_competitors():
     """경쟁사 분석 — 국외(Global) 4곳의 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
        국내(Korea)는 네이버 금융 크롤링. 한 회사 실패해도 나머지 반환."""
@@ -1742,7 +1717,6 @@ def update_competitors():
                  "revenue": None, "revenue_yoy": None,
                  "net_income": None, "net_income_yoy": None,
                  "logo_urls": _logo_candidates(domain), "quarters": []}
-        _stamp_tier_meta(entry)
         cik = _resolve_cik(ticker, cikmap, fallback)
         if cik is None:
             entry["error"] = "CIK 없음"
@@ -1768,26 +1742,11 @@ def update_competitors():
             entry["error"] = str(e)
         glob.append(entry)
 
-    # 순수 추가: 보상장 기업은 실적이 없다. 자리만 만들고 숫자는 만들지 않는다.
-    if gtiers is not None:
-        for pc in gtiers.PRIVATE_COMPANIES:
-            pe = {"name": pc["name"], "ticker": pc["ticker"], "quarter": None,
-                  "revenue": None, "revenue_yoy": None,
-                  "net_income": None, "net_income_yoy": None, "quarters": [],
-                  "logo_urls": _logo_candidates(pc["domain"])}
-            _stamp_tier_meta(pe)
-            glob.append(pe)
-
     try:
         korea = update_domestic_financials()
     except Exception:  # noqa: BLE001
         korea = {"status": "데이터 없음"}
-    extra = {}
-    if gtiers is not None:
-        extra = {"tier_defs": gtiers.tier_defs_payload(),
-                 "tier_note": gtiers.TIER_NOTE,
-                 "news_brand_tiers": dict(gtiers.NEWS_BRAND_TIERS),
-                 "trend_quarters": COMP_TREND_QUARTERS}
+    extra = {"trend_quarters": COMP_TREND_QUARTERS}
     if not any_ok:
         return dict({"status": "error", "reason": "SEC 분기 데이터를 받지 못했습니다",
                      "global": glob, "korea": korea, "usd_krw_rate": usd_krw}, **extra)
@@ -2042,10 +2001,8 @@ FETCHERS = {
 }
 if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
     FETCHERS["icis_forecast"] = compute_icis_forecast
-if update_europe_flow is not None:  # 순수 추가: 유럽 흔름 수집기
-    FETCHERS["europe_flow"] = update_europe_flow
-if update_us_market is not None:  # 순수 추가: 미국 가계·교여 지표
-    FETCHERS["us_market"] = update_us_market
+if update_us_ppi is not None:  # 미국 매트리스 제조업 PPI(BLS)
+    FETCHERS["us_ppi"] = update_us_ppi
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
     FETCHERS["sr_forecast"] = compute_sr_forecast
 if compute_oil_forecast is not None:  # 순수 추가: 국제유가 예측도 업데이트에 덧붙임
@@ -2064,7 +2021,7 @@ FETCH_GROUPS = [
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
-    ["europe_flow", "us_market"],                    # SEC XBRL + Eurostat + BLS + UN Comtrade
+    ["us_ppi"],                                      # api.bls.gov
     ["icis_forecast"],                               # 네트워크 없음(고정 데이터)
 ]
 # 수집기별 캐시 유효시간(초). 이 시간 안에 성공한 결과가 있으면 재수집을 건너뛴다.
@@ -2077,8 +2034,7 @@ CACHE_TTL = {
     # 일별 데이터 — 당일(24시간)
     "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_prices": 24 * 3600,
     "competitors": 24 * 3600,
-    "europe_flow": 24 * 3600,
-    "us_market": 24 * 3600,
+    "us_ppi": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
     "koima_index": 24 * 3600, "schedule_reliability": 24 * 3600,
     "sr_forecast": 24 * 3600, "oil_forecast": 24 * 3600, "icis_forecast": 24 * 3600,

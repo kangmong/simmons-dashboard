@@ -617,11 +617,8 @@ function applyCompetitorsUpdate(data) {
   if (!cp) return;
   _competitorsAt = (data && data.updated_at) || null;  // 순수 추가: 수집 시각 표시용
   _competitors = cp.global ? cp : null;
-  // 순수 추가: 유럽 흔름(TPX 세그먼트 + 이할리아 지수) — 별도 섬션을 그대로 읽는다.
-  const ef = data && data.sections && data.sections.europe_flow;
-  _europe = (ef && ef.status !== 'error') ? ef : null;
-  const um = data && data.sections && data.sections.us_market;
-  _usMarket = um || null;
+  // 미국 매트리스 제조업 PPI — 별도 섹션(us_ppi)을 그대로 읽는다.
+  _usPpi = (data && data.sections && data.sections.us_ppi) || null;
   if (cp.status === 'error') console.warn('[update] competitors error:', cp.reason);
   renderCompetitor();
 }
@@ -657,23 +654,6 @@ function compMetricRow(label, usd, yoy, rate) {
   </div>`;
 }
 
-/** 순수 추가: 카드 하단 메타 — 티어 배지 / 대표 브랜드 / 본사 소재지.
-    티어 정보가 없는 payload(구버전)에서는 아무것도 그리지 않는다. */
-function gtCardMeta(c) {
-  const badges = (c.tiers || []).map((k) => '<span class="gt-badge gt-badge--' + escapeHtml(k) + '">'
-    + escapeHtml(gtName(k)) + '</span>').join('');
-  const brands = (c.brands || []).length
-    ? '<div class="gco-meta__row"><span class="gco-meta__k">대표 브랜드</span><span class="gco-meta__v">'
-      + escapeHtml((c.brands || []).join(', ')) + '</span></div>' : '';
-  const hq = c.hq
-    ? '<div class="gco-meta__row"><span class="gco-meta__k">본사</span><span class="gco-meta__v">'
-      + escapeHtml(c.hq) + (c.hq_note ? ' <span class="gco-meta__note">' + escapeHtml(c.hq_note) + '</span>' : '')
-      + '</span></div>' : '';
-  if (!badges && !brands && !hq) return '';
-  return '<div class="gco-meta">' + (badges ? '<div class="gco-meta__tiers">' + badges + '</div>' : '')
-    + brands + hq + '</div>';
-}
-
 /** 국외 회사 카드 (로고 + 회사명/티커 + 분기 + 매출/순이익 USD·KRW + YoY) */
 function compGlobalCard(c, i, rate) {
   const color = COMP_COLORS[i % COMP_COLORS.length];
@@ -701,7 +681,6 @@ function compGlobalCard(c, i, rate) {
       </div>
     </div>
     <div class="gco-body">${body}</div>
-    ${gtCardMeta(c)}
   </div>`;
 }
 
@@ -805,132 +784,42 @@ function compKoreaCard(c, i) {
   </div>`;
 }
 
-/** 경쟁사 분석 전체 렌더 (국외 + 국내) */
-/* ── 국외(Global) · 해외 침대시장 분석 ─────────────────────────────────────
-   나라당 차트 하나, 그 안에 두 선(가격지수 + 수입단가). 연도별 2020=100 지수.
+/* ── 국외(Global) · 미국 매트리스 제조업 PPI ───────────────────────────────
+   차트 하나, 선 하나. BLS PCU337910337910 의 월별 지수를 연평균으로 집계한다.
 
-   ★ 가격지수와 수입단가는 공개 통계상 가격대별로 나뉘지 않는다. 그래서 티어
-     버튼은 HS 코드를 전환한다 — 소재 기준이지 가격대 기준이 아니고, 그 사실은
-     본문이 아니라 필터 옆 ⓘ 툴팁에만 둔다.
-   ★ 가격지수는 티어와 무관하게 고정 표시된다. */
-let _europe = null;         // sections.europe_flow
-let _usMarket = null;       // sections.us_market (BLS PPI + UN Comtrade)
-let _gtCharts = {};         // 차트별 툴팁 데이터·기하
-let _usTier = 'all';        // 미국 HS 필터
-let _itTier = 'all';        // 이탈리아 HS 필터
+   ★ 단일 지표다. '하이엔드/프리미엄' 같은 가격대 구분을 만들지 않는다 —
+     이 시리즈는 미국에서 만드는 전 매트리스를 하나로 평균한 값이고, BLS 는
+     NAICS 337910 아래에 가격대별 하위 시리즈를 발표하지 않는다.
+     (예전 화면의 티어 버튼은 HS 코드 = '소재' 구분이었고 가격대가 아니었다.
+      근거 없는 구분이라 걷어냈다.)
+   ★ 원지수를 그대로 그린다 — 기준월을 다시 잡지 않는다. 그래야 축 라벨과
+     설명표의 '기준 시점(1983년 6월 = 100)'이 어긋나지 않는다.
+   ★ 설명표의 숫자·추세 문구는 us_ppi.py 가 실데이터에서 계산해 payload.table
+     로 보낸다. 프런트는 그 목록을 그대로 그린다 — 여기서 숫자를 만들지 않는다. */
+let _usPpi = null;          // sections.us_ppi
+let _gtCharts = {};         // 차트 툴팁 데이터·기하 (gtState/gtShowTip 공용)
 
-const G_BASE_YEAR = 2020;   // 지수 기준연도
-const G_TIER_HS = { all: ['940421', '940429'], high: ['940421'], premium: ['940429'] };
-const G_TIER_TIP = '티어 버튼은 HS 코드(소재)를 전환합니다 — 하이엔드 940421(폼·라텍스), '
-  + '프리미엄 940429(스프링 등). 소재 기준이지 가격대 기준이 아닙니다. '
-  + '가격지수는 티어와 무관하게 고정됩니다.';
-const G_TIER_EXTRA = {
-  // ★ 화면 본문을 늘리지 않고 근거만 남긴다. 2022년 미국 수량은 Comtrade 가
-  //   추정치로만 제공해(isQtyEstimated=true) 단가를 계산하지 않았다 — 선이 끊긴다.
-  us: ' 미국 2022년은 수입 수량이 실보고되지 않아(추정치만 제공) 단가를 비웠습니다.',
-  it: '',
-};
-const G_COL_PRICE = 'var(--accent)';
-const G_COL_UNIT = 'var(--blue)';
+const G_COL_PPI = 'var(--accent)';
 
-/** 티어 정의(payload). 없으면 null */
-function gtDefs() {
-  const d = _competitors && _competitors.tier_defs;
-  return (Array.isArray(d) && d.length) ? d : null;
-}
-
-/** 티어 key → 표시 이름 */
-function gtName(key) {
-  const hit = (gtDefs() || []).filter((t) => t.key === key)[0];
-  return hit ? hit.name : key;
-}
-
-/** Y축 단위 라벨 — 두 차트가 같은 위치·스타일 */
+/** Y축 단위 라벨 */
 function gtYUnit(txt) {
   return '<div class="gt-yunit">' + escapeHtml(txt) + '</div>';
 }
 
-/** 티어(HS) 필터 + ⓘ */
-function gtTierBar(country, cur) {
-  const keys = [['all', '전체']].concat((gtDefs() || []).map((t) => [t.key, t.name]));
-  const tip = escapeHtml(G_TIER_TIP + (G_TIER_EXTRA[country] || ''));
-  return '<div class="gt-bar" role="group" aria-label="HS 코드 필터">'
-    + keys.map((k) => '<button type="button" class="gt-chip'
-      + (cur === k[0] ? ' is-on' : '') + '" data-g-tier="' + escapeHtml(country + '|' + k[0])
-      + '">' + escapeHtml(k[1]) + '</button>').join('')
-    + '<span class="gt-info" tabindex="0" role="note" aria-label="' + tip + '" title="' + tip
-    + '">ⓘ<span class="gt-info__bub">' + tip + '</span></span>'
-    + '</div>';
-}
-
-/** 월별 [{month,...}] → 연도별 평균/합계. pick(row) 이 값을 돌려준다. */
-function gAvgByYear(rows, pick) {
-  const acc = {};
-  (rows || []).forEach((r) => {
-    const v = pick(r);
-    if (v == null) return;
-    const y = Number(String(r.month).slice(0, 4));
-    if (!acc[y]) acc[y] = { s: 0, n: 0 };
-    acc[y].s += v; acc[y].n += 1;
-  });
-  const out = {};
-  Object.keys(acc).forEach((y) => { out[y] = acc[y].s / acc[y].n; });
-  return out;
-}
-
-/** 월별 금액·중량 → 연도별 단가(연 합계 금액 ÷ 연 합계 중량) */
-function gUnitByYear(rows, codes, valKey, wgtKey) {
-  const acc = {};
-  (rows || []).forEach((r) => {
-    const y = Number(String(r.month).slice(0, 4));
-    let v = 0, w = 0;
-    codes.forEach((c) => {
-      const vv = (r[valKey] || {})[c], ww = (r[wgtKey] || {})[c];
-      if (vv && ww) { v += vv; w += ww; }
-    });
-    if (!v || !w) return;
-    if (!acc[y]) acc[y] = { v: 0, w: 0 };
-    acc[y].v += v; acc[y].w += w;
-  });
-  const out = {};
-  Object.keys(acc).forEach((y) => { out[y] = acc[y].v / acc[y].w; });
-  return out;
-}
-
-/** 연도별 지수 차트 — 미국·이탈리아가 완전히 같은 축·색·폰트·툴팁을 쓴다.
-    sers: [{name, color, dash, byYear:{year:value}, fmtRaw:(v)=>html}] */
-function gYearChart(key, sers) {
-  const live = sers.filter((s) => Object.keys(s.byYear).length);
-  if (!live.length) return null;
-  let ys = [];
-  live.forEach((s) => Object.keys(s.byYear).forEach((y) => {
-    const n = Number(y);
-    if (n >= G_BASE_YEAR && ys.indexOf(n) < 0) ys.push(n);
-  }));
-  ys.sort((a, b) => a - b);
-  if (ys.length < 2) return null;
-  // 기준연도: 2020 이 있으면 2020, 없으면 모든 계열이 값을 가진 가장 이른 해
-  let base = (live.every((s) => s.byYear[G_BASE_YEAR] != null)) ? G_BASE_YEAR : null;
-  if (base == null) {
-    for (let i = 0; i < ys.length; i += 1) {
-      if (live.every((s) => s.byYear[ys[i]] != null)) { base = ys[i]; break; }
-    }
-  }
-  live.forEach((s) => {
-    const b = (base != null && s.byYear[base] != null) ? s.byYear[base]
-      : s.byYear[ys.filter((y) => s.byYear[y] != null)[0]];
-    s.vals = ys.map((y) => (s.byYear[y] == null || !b ? null : (s.byYear[y] / b) * 100));
-  });
-  const flat = [];
-  live.forEach((s) => s.vals.forEach((v) => { if (v != null) flat.push(v); }));
-  if (flat.length < 2) return null;
-  let lo = Math.min.apply(null, flat), hi = Math.max.apply(null, flat);
+/** 연도별 원지수 선그래프(단일 계열).
+    years: [{year, value, months, complete}] — us_ppi.py 의 연평균 그대로.
+    마지막 해가 부분 연도면 그 구간만 점선으로 이어 '아직 안 끝난 해'임을 보인다. */
+function gPpiChart(key, years, unitLabel) {
+  const pts = (years || []).filter((y) => y && y.value != null);
+  if (pts.length < 2) return null;
+  const vals = pts.map((p) => p.value);
+  let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
   if (lo === hi) { lo -= 1; hi += 1; }
   const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
 
   const padL = 42, padR = 10;
   const plotW = VIZ_W - padL - padR, plotH = VIZ_H - VIZ_PAD_T - VIZ_PAD_B;
-  const X = (i) => padL + (ys.length === 1 ? plotW / 2 : (i / (ys.length - 1)) * plotW);
+  const X = (i) => padL + (i / (pts.length - 1)) * plotW;
   const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
 
   let grid = '';
@@ -941,214 +830,88 @@ function gYearChart(key, sers) {
       + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
       + VIZ_FS_AXIS + '" fill="var(--muted)">' + Math.round(v) + '</text>';
   }
-  if (lo < 100 && hi > 100) {
-    grid += '<line x1="' + padL + '" y1="' + Y(100).toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
-      + Y(100).toFixed(1) + '" stroke="var(--slate)" stroke-width="1" stroke-dasharray="3 3"/>';
-  }
   let xlab = '';
-  ys.forEach((y, i) => {
+  pts.forEach((p, i) => {
     xlab += '<text x="' + X(i).toFixed(1) + '" y="' + (VIZ_H - 8) + '" text-anchor="middle" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + y + '</text>';
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + p.year + '</text>';
+  });
+  // 완전한 해까지는 실선, 부분 연도로 넘어가는 마지막 구간만 점선
+  const solid = [], dash = [];
+  pts.forEach((p, i) => {
+    const xy = X(i).toFixed(1) + ' ' + Y(p.value).toFixed(1);
+    if (p.complete === false && i > 0) {
+      if (!dash.length) dash.push('M' + X(i - 1).toFixed(1) + ' ' + Y(pts[i - 1].value).toFixed(1));
+      dash.push('L' + xy);
+    } else {
+      solid.push((solid.length ? 'L' : 'M') + xy);
+    }
   });
   let lines = '';
-  live.forEach((s) => {
-    const seg = [];
-    s.vals.forEach((v, i) => {
-      if (v != null) seg.push((seg.length ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1));
-    });
-    if (seg.length) {
-      lines += '<path d="' + seg.join(' ') + '" fill="none" stroke="' + s.color
-        + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"'
-        + (s.dash ? ' stroke-dasharray="5 3"' : '') + '/>';
-    }
-  });
+  if (solid.length > 1) {
+    lines += '<path d="' + solid.join(' ') + '" fill="none" stroke="' + G_COL_PPI
+      + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  }
+  if (dash.length > 1) {
+    lines += '<path d="' + dash.join(' ') + '" fill="none" stroke="' + G_COL_PPI
+      + '" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3"/>';
+  }
   _gtCharts[key] = {
-    tip: ys.map((y, i) => ({
-      q: String(y) + '년',
-      rows: live.map((s) => {
-        const v = s.vals[i];
-        if (v == null) return null;
-        return { name: s.name, color: s.color, seg: !!s.dash, y: Y(v),
-          val: Math.round(v) + ' <span class="gt-tip__abs">' + s.fmtRaw(s.byYear[y]) + '</span>' };
-      }),
+    tip: pts.map((p) => ({
+      q: p.year + '년 ' + (p.complete === false ? p.months + '개월 평균' : '연평균'),
+      rows: [{ name: 'PPI (원지수)', color: G_COL_PPI, seg: p.complete === false,
+        y: Y(p.value), val: p.value.toFixed(1) }],
     })),
-    geom: { padL: padL, plotW: plotW, n: ys.length },
+    geom: { padL: padL, plotW: plotW, n: pts.length },
   };
-  let hov = '<g class="gt-hov" aria-hidden="true">'
-    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>';
-  live.forEach((s, si) => {
-    hov += '<circle class="gt-adot" data-si="' + si + '" r="3.5" cx="-99" cy="-99"'
-      + ' fill="var(--card)" stroke="' + s.color + '" stroke-width="2"/>';
-  });
-  hov += '</g>';
-  return {
-    base: base, years: ys, live: live,
-    html: '<div class="gt-chartwrap" data-gt-chart="' + escapeHtml(key) + '">'
-      + gtYUnit('지수 (' + (base == null ? '첫 해' : base) + '=100)')
-      + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
-      + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 지수 추이">'
-      + grid + lines + xlab + hov + '</svg>'
-      + '<div class="gt-tip" hidden></div>'
-      + '</div>'
-      + '<div class="gt-legend">'
-      + live.map((s) => '<span class="gt-lg' + (s.dash ? ' gt-lg--seg' : '') + '">'
-        + '<i style="background:' + s.color + '"></i>' + escapeHtml(s.name) + '</span>').join('')
-      + '</div>',
-  };
+  const hov = '<g class="gt-hov" aria-hidden="true">'
+    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>'
+    + '<circle class="gt-adot" data-si="0" r="3.5" cx="-99" cy="-99" fill="var(--card)" stroke="'
+    + G_COL_PPI + '" stroke-width="2"/></g>';
+  const partial = pts.filter((p) => p.complete === false).length > 0;
+  return '<div class="gt-chartwrap" data-gt-chart="' + escapeHtml(key) + '">'
+    + gtYUnit(unitLabel || '지수')
+    + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
+    + '" preserveAspectRatio="xMidYMid meet" role="img"'
+    + ' aria-label="미국 매트리스 제조업 PPI 연평균 추이">'
+    + grid + lines + xlab + hov + '</svg>'
+    + '<div class="gt-tip" hidden></div></div>'
+    + '<div class="gt-legend"><span class="gt-lg"><i style="background:' + G_COL_PPI
+    + '"></i>매트리스 제조업 PPI (연평균)</span>'
+    + (partial ? '<span class="gt-lg gt-lg--seg"><i></i>진행 중인 해(부분 연도)</span>' : '')
+    + '</div>';
 }
 
-/** 요약 3개 — 최신 연도의 두 지수와 그 격차 */
-function gSummary(c) {
-  if (!c) return '';
-  const cell = (nm, v) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(nm)
+/** 요약 3칸 — 최신 월값 / 올해 평균 / 첫 해 대비 변화. 전부 payload 값에서 만든다. */
+function gPpiSummary(u) {
+  const ys = u.years || [], last = u.latest;
+  if (!ys.length || !last) return '';
+  const cell = (k, v) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
     + '</span><span class="gs-v">' + v + '</span></div>';
-  // 계열마다 값이 있는 마지막 해를 쓴다(가격지수와 단가의 최신 연도가 다를 수 있다)
-  const last = (s2) => {
-    for (let i = c.years.length - 1; i >= 0; i -= 1) {
-      if (s2.vals[i] != null) return { year: c.years[i], v: s2.vals[i] };
-    }
-    return null;
-  };
-  const a = last(c.live[0]), b = c.live[1] ? last(c.live[1]) : null;
-  const nm = (s2) => s2.name.split(' (')[0];
-  let out = a ? cell(a.year + ' ' + nm(c.live[0]), Math.round(a.v))
-    : cell(nm(c.live[0]), '—');
-  if (c.live[1]) {
-    out += b ? cell(b.year + ' ' + nm(c.live[1]), Math.round(b.v)) : cell(nm(c.live[1]), '—');
-    // 같은 해가 있을 때만 격차를 낸다(다른 해를 비교하면 의미가 없다)
-    let gi = -1;
-    for (let i = c.years.length - 1; i >= 0; i -= 1) {
-      if (c.live[0].vals[i] != null && c.live[1].vals[i] != null) { gi = i; break; }
-    }
-    // 격차는 지수 포인트다 — % 로 표기하지 않는다
-    const gp = (gi < 0) ? null : Math.round(c.live[1].vals[gi] - c.live[0].vals[gi]);
-    out += cell(gi >= 0 ? (c.years[gi] + ' 단가−지수 격차') : '단가−지수 격차',
-      gp == null ? '—' : ('<span class="gs-gap' + (gp < 0 ? ' gs-gap--neg' : '') + '">'
-        + (gp > 0 ? '+' : '') + gp + 'p</span>'));
+  const cur = ys[ys.length - 1], first = ys[0];
+  let out = cell('최근 값 (' + last.month + ')', last.value.toFixed(1));
+  out += cell(cur.year + '년 평균' + (cur.complete ? '' : ' (' + cur.months + '개월)'),
+    cur.value.toFixed(1));
+  if (first.value) {
+    const chg = ((last.value - first.value) / first.value) * 100;
+    out += cell(first.year + '년 대비',
+      '<span class="gs-gap' + (chg < 0 ? ' gs-gap--neg' : '') + '">'
+      + (chg > 0 ? '+' : '') + chg.toFixed(1) + '%</span>');
   }
   return '<div class="gs">' + out + '</div>';
 }
 
-/** USD/kg 원래 값(+ 원화 병기) */
-function gKgRaw(v) {
-  if (v == null) return '';
-  const r = krwRate('USD');
-  let k = (r != null) ? fmtKrwAxis(v * r) : null;
-  if (k && !/원$/.test(k)) k += ' 원';            // 조·억·만 단위에만 '원'을 붙인다
-  return '$' + v.toFixed(2) + '/kg' + (k ? ' ≈ ' + escapeHtml(k) : '');
-}
-
-/** USD/개 원래 값(+ 원화 변기) — 미국은 수량이 '개' 단위로 보고된다 */
-function gItemRaw(v) {
-  if (v == null) return '';
-  const r = krwRate('USD');
-  let k = (r != null) ? fmtKrwAxis(v * r) : null;
-  if (k && !/원$/.test(k)) k += ' 원';
-  return '$' + v.toFixed(0) + '/개' + (k ? ' ≈ ' + escapeHtml(k) : '');
-}
-
-/* ── 지표 설명표 (접기/펼치기) ────────────────────────────────────────────
-   ★ 기존 '원료 용어 설명' 표와 같은 마크업(.icis-terms / .icis-termtable)을 쓴다.
-   ★ 기본은 접힌 상태다 — 항상 펼쳐두면 화면이 무거워진다.
-   ★ 티어 버튼을 눌러 다시 그려도 펼친 상태가 유지되도록 _gExpl 에 기억한다. */
-const _gExpl = { us: false, it: false };
-
-// 나라별로 다른 것만 모아 둔다(가격지수 출처가 다르다).
-const G_EXPL = {
-  us: {
-    priceWhat: '2020년 출고가를 100으로 봤을 때의 현재 수준. 120이면 20% 올랐다는 뜻',
-    gapWhat: '두 지수의 차이. 국내 출고가는 오르는데 수입 원가는 내려 격차가 벌어진 정도',
-    priceSrc: 'BLS 생산자물가지수(PPI)',
-    priceDesc: '미국 매트리스 제조사 출고가격 추이',
-    unitDesc: '수입금액 ÷ 수입수량(개)으로 계산한 단가 추이',
-    onlyPrice: '국내 제조 원가·마진 상승, 수입은 저가화',
-  },
-  it: {
-    priceWhat: '2020년 가구 가격을 100으로 봤을 때의 현재 수준. 120이면 20% 올랐다는 뜻',
-    gapWhat: '두 지수의 차이. 현지 가구 가격은 오르는데 수입 원가는 내려 격차가 벌어진 정도',
-    priceSrc: 'Eurostat 소비자물가지수(HICP · CP05111)',
-    priceDesc: '이탈리아 가정용 가구 가격 추이 (매트리스 전용 지수는 없음)',
-    unitDesc: '수입금액 ÷ 수입중량(kg)으로 계산한 단가 추이',
-    onlyPrice: '현지 가구 가격 상승, 수입은 저가화',
-  },
-};
-
-/** gSummary 와 같은 방식으로 '화면에 실제로 뜬' 요약 항목 라벨을 뽑는다.
-    없는 항목은 설명하지 않기 위해 존재 여부까지 함께 돌려준다. */
-function gExplLabels(c) {
-  const last = (s2) => {
-    for (let i = c.years.length - 1; i >= 0; i -= 1) {
-      if (s2.vals[i] != null) return c.years[i];
-    }
-    return null;
-  };
-  const nm = (s2) => s2.name.split(' (')[0];
-  const py = last(c.live[0]);
-  const out = { price: (py != null ? py + ' ' : '') + nm(c.live[0]), unit: null, gap: null };
-  if (c.live[1]) {
-    const uy = last(c.live[1]);
-    out.unit = (uy != null ? uy + ' ' : '') + nm(c.live[1]);
-    let gi = -1;
-    for (let i = c.years.length - 1; i >= 0; i -= 1) {
-      if (c.live[0].vals[i] != null && c.live[1].vals[i] != null) { gi = i; break; }
-    }
-    out.gap = (gi >= 0 ? c.years[gi] + ' ' : '') + '단가−지수 격차';
-  }
-  return out;
-}
-
-/** 차트 아래 '지표 설명' — country: 'us' | 'it', c: gYearChart 결과 */
-function gExplain(country, c) {
-  const g = G_EXPL[country];
-  if (!g || !c) return '';
-  const L = gExplLabels(c);
-  const hasUnit = !!c.live[1];
-  const tbl = (title, head, rows) => '<div class="icis-terms">'
-    + '<h3 class="subhead">' + escapeHtml(title) + '</h3>'
-    + '<div class="icis-term-wrap"><table class="icis-termtable"><thead><tr>'
-    + head.map((h) => '<th>' + escapeHtml(h) + '</th>').join('')
-    + '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
-  const tr = (cells) => '<tr>' + cells.map((x) => '<td>' + x + '</td>').join('') + '</tr>';
-  const dot = (color) => '<span class="icis-dot" style="background:' + color + '"></span>';
-
-  // 표 1 — 상단 탭. 하이엔드가 프리미엄보다 상위 등급이다(순서 고정).
-  const t1 = tbl('상단 탭 (제품 구분)', ['탭', '무엇을 고르는 것인가'],
-    tr(['전체', '매트리스 수입 전체 (HS 940421 + 940429)'])
-    + tr(['하이엔드', '폼·라텍스 매트리스 (HS 940421) — 상대적 고가 소재'])
-    + tr(['프리미엄', '스프링 등 기타 매트리스 (HS 940429)']))
-    + '<div class="gx-note">가격대가 아니라 소재(HS 코드) 기준 구분입니다.'
-    + ' 공개 통계에는 가격대별 분류가 없습니다.</div>';
-
-  // 표 2 — 상단 숫자. 화면에 뜬 항목만 넣는다.
-  let r2 = tr([escapeHtml(L.price), escapeHtml(g.priceWhat)]);
-  if (hasUnit) {
-    r2 += tr([escapeHtml(L.unit),
-      '2020년 수입단가를 100으로 봤을 때의 현재 수준. 73이면 27% 내렸다는 뜻']);
-    r2 += tr([escapeHtml(L.gap), escapeHtml(g.gapWhat)]);
-  }
-  const t2 = tbl('상단 숫자', ['항목', '뜻'], r2);
-
-  // 표 3 — 두 선. 색은 차트와 같은 CSS 변수를 쓴다.
-  let r3 = tr([dot(G_COL_PRICE) + '빨간 실선', '가격지수',
-    escapeHtml(g.priceSrc) + '<br>' + escapeHtml(g.priceDesc)]);
-  if (hasUnit) {
-    r3 += tr([dot(G_COL_UNIT) + '파란 점선', '수입단가',
-      'UN Comtrade 무역통계<br>' + escapeHtml(g.unitDesc)]);
-  }
-  const t3 = tbl('그래프의 두 선', ['선', '이름', '출처와 의미'], r3);
-
-  // 표 4 — 읽는 법. 한 줄씩만.
-  const t4 = tbl('이 그래프로 알 수 있는 것', ['그래프 모양', '해석'],
-    tr(['두 선이 함께 상승', '시장 전반의 가격 상승'])
-    + tr(['가격지수만 상승', escapeHtml(g.onlyPrice)])
-    + tr(['수입단가만 상승', '고가 제품 수입 증가'])
-    + tr(['두 선이 함께 하락', '시장 가격 하락 압력']));
-
-  return '<details class="gx"' + (_gExpl[country] ? ' open' : '') + '>'
-    + '<summary class="gx__sum" data-g-expl="' + country + '">지표 설명</summary>'
-    + '<div class="gx__body">' + t1 + t2 + t3 + t4
-    + '<div class="gx-limit">시장 규모가 아니라 가격 흐름을 보는 지표입니다.'
-    + ' 가격대별 시장 규모는 공개 통계에 존재하지 않습니다.</div></div></details>';
+/** 지표 설명표 — us_ppi.py 가 만든 payload.table({k,v}) 을 그대로 그린다.
+    ★ 여기서 값을 계산하거나 문구를 덧붙이지 않는다. 표 내용을 고칠 일이 생기면
+      us_ppi.py 한 곳만 고친다(새 데이터가 들어오면 자동으로 최신화된다). */
+function gPpiTable(u) {
+  const rows = (u && u.table) || [];
+  if (!rows.length) return '';
+  return '<div class="icis-terms"><h3 class="subhead">지표 설명</h3>'
+    + '<div class="icis-term-wrap"><table class="icis-termtable">'
+    + '<thead><tr><th>항목</th><th>설명</th></tr></thead><tbody>'
+    + rows.map((r) => '<tr><td>' + escapeHtml(r.k) + '</td><td>'
+      + escapeHtml(r.v) + '</td></tr>').join('')
+    + '</tbody></table></div></div>';
 }
 
 /** 수집 시각 여러 개 중 가장 최근 날짜(YYYY-MM-DD). 하나도 없으면 null. */
@@ -1163,70 +926,33 @@ function gSrcDate() {
   return best;
 }
 
-/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다.
-    ★ 문구는 실제 수집 코드에서 확인한 소스다(범례 라벨 추정이 아니다).
-      미국 가격지수는 BLS PCU337910337910 = 매트리스 제조업(NAICS 337910)이고
-      '가구 부문'이 아니다. 가구 부문인 것은 이탈리아 HICP CP05111 쪽이다. */
+/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다. */
 function gSrcFoot(text, date) {
   return '<div class="sm-foot">' + escapeHtml(text)
     + (date ? ' · 최종 업데이트: ' + escapeHtml(date) : '') + '</div>';
 }
 
-/** 1. 미국 — BLS PPI + UN Comtrade 수입단가(개당) */
-function gUsBlock() {
-  const u = _usMarket, ppi = u && u.ppi;
-  const sers = [];
-  if (ppi && ppi.status === 'ok') {
-    sers.push({ name: '가격지수 (BLS PPI)', color: G_COL_PRICE,
-      byYear: gAvgByYear(ppi.series.mattress.points, (r) => r.value),
-      fmtRaw: (v) => (v == null ? '' : '원지수 ' + v.toFixed(1)) });
+/** 미국 매트리스 제조업 PPI 블록 — 차트 + 요약 + 설명표. */
+function gUsPpiBlock() {
+  const u = _usPpi;
+  if (!u || u.status !== 'ok' || !(u.years || []).length) {
+    return emptyState((u && u.reason) || '업데이트 버튼을 누르면 표시됩니다');
   }
-  const tr = u && u.trade;
-  if (tr && tr.status === 'ok' && (tr.months || []).length) {
-    sers.push({ name: '수입단가 (개당)', color: G_COL_UNIT, dash: true,
-      byYear: gUnitByYear(tr.months, G_TIER_HS[_usTier] || G_TIER_HS.all, 'imp', 'impq'),
-      fmtRaw: gItemRaw });
+  const chart = gPpiChart('gusppi', u.years, u.unit);
+  if (!chart) return emptyState('연도가 2개 미만이라 추이를 그릴 수 없습니다');
+  // 부분 연도·잠정치는 '숨기지 않고 밝힌다' — 나중에 값이 바뀔 수 있는 구간이다.
+  let caveat = '';
+  if (u.partial_year) {
+    caveat += ' ' + u.partial_year.year + '년은 아직 '
+      + u.partial_year.months + '개월치라 부분 연도 평균이며 점선으로 표시했습니다.';
   }
-  const c = sers.length ? gYearChart('gus', sers) : null;
-  if (!c) {
-    return gtTierBar('us', _usTier)
-      + emptyState((ppi && ppi.reason) || '업데이트 버튼을 누르면 표시됩니다');
+  if (u.prelim_months) {
+    caveat += ' 최근 ' + u.prelim_months + '개월은 BLS 잠정치로, 공표 후 4개월까지 개정될 수 있습니다.';
   }
-  return gtTierBar('us', _usTier) + gSummary(c) + c.html
-    + '<div class="g-note">매트리스 출고가격(BLS)과 개당 수입단가(UN Comtrade) 추이입니다. 단가가 오르면 고가 제품 비중 증가를 시사합니다.</div>'
-    + gSrcFoot('출처: 가격지수 — 미국 노동통계국(BLS) 생산자물가지수(PPI), 매트리스 제조업'
-      + '(NAICS 337910 · PCU337910337910) | 수입단가 — UN Comtrade, 미국 매트리스 수입 통계'
-      + ' HS 940421·940429 (개당 단가)', gSrcDate(tr && tr.updatedAt))
-    + gExplain('us', c);
-}
-
-/** 2. 이탈리아 — Eurostat HICP + UN Comtrade 수입단가 */
-function gItBlock() {
-  const ef = _europe || {};
-  const h = ef.italy_hicp, t = ef.italy_trade;
-  const sers = [];
-  if (h && h.status === 'ok' && (h.years || []).length) {
-    const by = {};
-    h.years.forEach((y) => { by[y.year] = y.value; });
-    sers.push({ name: '가격지수 (HICP 가구)', color: G_COL_PRICE, byYear: by,
-      fmtRaw: (v) => (v == null ? '' : '원지수 ' + v.toFixed(1)) });
-  }
-  if (t && t.status === 'ok' && (t.months || []).length) {
-    sers.push({ name: '수입단가 (UN Comtrade)', color: G_COL_UNIT, dash: true,
-      byYear: gUnitByYear(t.months, G_TIER_HS[_itTier] || G_TIER_HS.all, 'imp', 'impw'),
-      fmtRaw: gKgRaw });
-  }
-  const c = sers.length ? gYearChart('git', sers) : null;
-  if (!c) {
-    return gtTierBar('it', _itTier)
-      + emptyState((h && h.reason) || (t && t.reason) || '업데이트 버튼을 누르면 표시됩니다');
-  }
-  return gtTierBar('it', _itTier) + gSummary(c) + c.html
-    + '<div class="g-note">매트리스 전용 가격지수가 없어 가정용 가구 지수를 씁니다. kg 단가는 절대 수준보다 방향을 보십시오.</div>'
-    + gSrcFoot('출처: 가격지수 — 유럽연합 통계청(Eurostat) 조화소비자물가지수(HICP), 가구 부문'
-      + '(COICOP CP05111 Household furniture) | 수입단가 — UN Comtrade, 이탈리아 매트리스'
-      + ' 수입 통계 HS 940421·940429 (kg당 단가)', gSrcDate(h && h.updatedAt, t && t.updatedAt))
-    + gExplain('it', c);
+  return gPpiSummary(u) + chart
+    + '<div class="g-note">' + escapeHtml(u.note || '') + escapeHtml(caveat) + '</div>'
+    + gSrcFoot('출처: ' + (u.source || ''), gSrcDate(u.updatedAt))
+    + gPpiTable(u);
 }
 
 /* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (public/data/simmons-market.json) ══
@@ -1426,13 +1152,13 @@ function smKoreaHtml() {
     + '</div></div>';
 }
 
-/** 국외 섹션 — 나라별 블록 둘. 그 외에는 아무것도 만들지 않는다. */
+/** 국외 섹션 — 미국 매트리스 제조업 PPI 블록 하나. 그 외에는 만들지 않는다.
+    payload 에 us_ppi 섹션이 없으면(구버전 dashboard.json) null 을 돌려
+    호출부가 기존 SEC 분기 실적 카드를 그대로 쓰게 한다. */
 function gtGlobalHtml() {
-  if (!gtDefs()) return null;
-  return '<div class="gc-block"><div class="gc-h">1. 미국 침대시장 흐름</div>'
-    + gUsBlock() + '</div>'
-    + '<div class="gc-block"><div class="gc-h">2. 이탈리아 침대시장 흐름</div>'
-    + gItBlock() + '</div>';
+  if (!_usPpi) return null;
+  return '<div class="gc-block"><div class="gc-h">미국 매트리스 제조업 PPI</div>'
+    + gUsPpiBlock() + '</div>';
 }
 
 /* ── 원화 병기 공용 헬퍼 (순수 추가) ─────────────────────────────────────
@@ -1564,27 +1290,11 @@ function gtShowTip(wrap, i) {
   tip.style.transform = (pct > 72) ? 'translateX(-100%)' : (pct < 28 ? 'none' : 'translateX(-50%)');
 }
 
-/** 티어 필터·추이 토글 + 차트 툴팁(위임 1회 등록) */
+/** 차트 툴팁 배선(위임 1회 등록). 티어 필터가 없어져 클릭 핸들러는 두지 않는다. */
 function wireGtControls() {
   const el = document.getElementById('compRoot');
   if (!el || el.dataset.gtWired === '1') return;
   el.dataset.gtWired = '1';
-  el.addEventListener('click', (ev) => {
-    // '지표 설명' 펼침 상태를 기억한다 — 티어 버튼으로 다시 그려도 유지되게.
-    // (열고 닫는 동작 자체는 <details> 기본 동작에 맡기고 상태만 기록한다)
-    const sm = ev.target.closest && ev.target.closest('[data-g-expl]');
-    if (sm) {
-      const ck = sm.getAttribute('data-g-expl');
-      const dt = sm.closest('details');
-      _gExpl[ck] = !(dt && dt.open);   // 이 클릭으로 바뀔 값
-      return;
-    }
-    const tb = ev.target.closest && ev.target.closest('[data-g-tier]');
-    if (!tb) return;
-    const p2 = String(tb.getAttribute('data-g-tier')).split('|');
-    if (p2[0] === 'us') _usTier = p2[1]; else _itTier = p2[1];
-    renderCompetitor();
-  });
 
   // hover(데스크톱) + pointerdown(모바일 탭) 모두 같은 경로로 처리한다.
   const move = (ev) => {
@@ -1604,6 +1314,7 @@ function wireGtControls() {
   });
 }
 
+/** 경쟁사 분석 전체 렌더 (국내 + 국외) */
 function renderCompetitor() {
   const el = document.getElementById('compRoot');
   if (!el) return;
@@ -1643,8 +1354,8 @@ function renderCompetitor() {
     </div>
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
-      <div class="comp-group__sub">${gTier ? '해외 침대시장 분석' : '분기별 실적'}
-        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '목표: 미국, 이탈리아 침대시장의 하이엔드·프리미엄 구간별 가격지수·수입단가 추이 비교 분석' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
+      <div class="comp-group__sub">${gTier ? '미국 매트리스 가격 동향' : '분기별 실적'}
+        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · BLS 월별 데이터 자동 수집' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;
@@ -4061,6 +3772,7 @@ const SECTION_LABELS = {
   oil_prices: '국제유가', domestic: '국내 브랜드', global_brands: '국외 브랜드',
   competitors: '경쟁사 실적', fx: '환율', icis_forecast: '주원료 예측',
   sr_forecast: '정시성 예측', oil_forecast: '유가 예측', koima_index: 'KOIMA 월간지수',
+  us_ppi: '미국 매트리스 PPI',
 };
 
 /** [업데이트] 버튼: /api/update 호출 → 마지막 업데이트 시각 + 원자재 섹션 갱신 */
