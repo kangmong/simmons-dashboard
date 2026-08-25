@@ -2119,6 +2119,26 @@ function opSummaryRows(q, win) {
 
 function opNum(v) { return (v == null) ? '-' : Number(v).toFixed(2); }
 
+/** 배럴당 USD → 원화 보조 표기. 환율이 없으면 null(→ 달러만 보인다).
+    ★ 톤당 원료가와 자릿수가 달라 fmtKrwShort 를 쓰지 않는다.
+      1만 원 이상은 '14.7만'(만 단위 소수 1자리), 그 미만은 '9,853'(원 단위 전체).
+    ★ 환율·기준일은 이미 있는 krwRate/krwAsOf 를 그대로 쓴다(usd_krw 섹션 = ECB 기반
+      Frankfurter, 키 불필요·매일 자동 수집). 여기서 새로 수집하지 않는다. */
+function opKrw(usd) {
+  const rate = krwRate('USD');
+  if (rate == null || usd == null || !isFinite(Number(usd))) return null;
+  const w = Number(usd) * rate, sign = w < 0 ? '-' : '', a = Math.abs(w);
+  return (a >= 1e4) ? (sign + (a / 1e4).toFixed(1) + '만 원')
+    : (sign + Math.round(a).toLocaleString('ko-KR') + '원');
+}
+
+/** 표 셀 안쪽 — 달러 값 아래 작은 글씨로 원화. 환율이 없으면 달러만 남는다. */
+function opCell(v) {
+  const k = opKrw(v);
+  return '<span class="op-usd">' + opNum(v) + '</span>'
+    + (k ? '<span class="op-krw">≈ ' + escapeHtml(k) + '</span>' : '');
+}
+
 /** 기준선택 · 기간(연-월-일) · 제품 · [조회] */
 function opControlsHtml() {
   const f = _opForm;
@@ -2177,7 +2197,7 @@ function opTableHtml(q, win) {
       const v = r[s.key], e = ext[s.key];
       let cls = '';
       if (v != null && e && e.lo !== e.hi) cls = (v === e.lo) ? ' oc-min' : (v === e.hi ? ' oc-max' : '');
-      return '<td class="oc-num' + cls + '">' + opNum(v) + '</td>';
+      return '<td class="oc-num' + cls + '">' + opCell(v) + '</td>';
     }).join('') + '</tr>').join('');
   const sums = opSummaryRows(q, win).map((s) => '<tr class="oc-sum oc-sum--' + s.kind + '">'
     + '<td class="oc-td-p">' + escapeHtml(s.label) + '</td>'
@@ -2185,7 +2205,12 @@ function opTableHtml(q, win) {
       const v = s.vals[x.key];
       const sign = (s.kind === 'delta' && v != null && v > 0) ? '+' : '';
       const cls = (s.kind !== 'delta' || v == null) ? '' : (v > 0 ? ' oc-up' : (v < 0 ? ' oc-down' : ''));
-      return '<td class="oc-num' + cls + '">' + (v == null ? '-' : sign + opNum(v)) + '</td>';
+      if (v == null) return '<td class="oc-num' + cls + '">-</td>';
+      // ★ 원화도 달러와 같은 sign 을 쓴다 — 평균 행에 '+' 가 붙지 않게.
+      const kw = opKrw(v);
+      return '<td class="oc-num' + cls + '"><span class="op-usd">' + sign + opNum(v) + '</span>'
+        + (kw ? '<span class="op-krw">≈ ' + sign + escapeHtml(kw) + '</span>' : '')
+        + '</td>';
     }).join('') + '</tr>').join('');
   return '<div class="oc-tablewrap"><table class="oc-table">'
     + '<thead>' + head + '</thead><tbody>' + body + sums + '</tbody></table></div>';
@@ -2268,7 +2293,7 @@ function buildProductChart(rows, onSeries, term) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>${vizKrwTick(padL - 6, y, val, krwRate('USD'))}`;
   }).join('');
   const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
@@ -2320,7 +2345,8 @@ function wireProductChart() {
       const v = s.values[i];
       if (v == null) return;
       dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
-      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${escapeHtml(s.label)}</span><span class="viz-tt-val">$${v.toFixed(2)}</span></div>`;
+      const kw = opKrw(v);
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${escapeHtml(s.label)}</span><span class="viz-tt-val">$${v.toFixed(2)}${kw ? ` <span class="op-krw op-krw--tt">≈ ${escapeHtml(kw)}</span>` : ''}</span></div>`;
     });
     if (!rows) { clear(); return; }
     dots.innerHTML = dh;
@@ -2373,7 +2399,9 @@ function renderOilProductHtml() {
     body = tools + result;
   }
   const note = (_opData.note ? '<div class="g-note">' + escapeHtml(_opData.note) + '</div>' : '');
-  return `<div class="viz-root viz-figure oilp-figure">${head}${controls}${body}${note}${cap}</div>`;
+  // 적용 환율·기준일 — 이미 있는 krwNote()(usd_krw 섹션 기반)를 그대로 쓴다
+  const fxnote = _opQuery ? krwNote('USD') : '';
+  return `<div class="viz-root viz-figure oilp-figure">${head}${controls}${body}${fxnote}${note}${cap}</div>`;
 }
 
 /** 제품 카드 조회 조건 배선 — 원유 카드와 같은 동작, 선택자만 다르다 */
