@@ -1555,7 +1555,6 @@ let _srChart = null;
 
 let _icisForecast = null; // 순수 추가: 다음 달 주원료 예측(백엔드 계산). null이면 예측 섹션 숨김
 let _srForecast = null;   // 순수 추가: 다음 달 해상 정시성 예측(백엔드 계산). null이면 섹션 숨김
-let _oilForecast = null;  // 순수 추가: 다음 달 국제유가 예측(백엔드 계산). null이면 섹션 숨김
 
 /** 응답의 usd_krw + 해상 정시성 + 국제유가 저장 + 원자재 섹션을 "업데이트됨" 상태로 전환 */
 function applyMaterialUpdate(data) {
@@ -1592,8 +1591,6 @@ function applyMaterialUpdate(data) {
   _icisForecast = (fc && fc.status === 'ok') ? fc : null;
   const srf = data && data.sections && data.sections.sr_forecast;
   _srForecast = (srf && srf.status === 'ok') ? srf : null;  // 순수 추가: 정시성 예측
-  const oilf = data && data.sections && data.sections.oil_forecast;
-  _oilForecast = (oilf && oilf.status === 'ok') ? oilf : null;  // 순수 추가: 유가 예측
   renderMaterial();
 }
 
@@ -1948,7 +1945,7 @@ function wireCrudeControls(root) {
 
    ★ 원유 카드의 함수를 재사용하지 않고 op* 로 따로 뒀다. oc* 는 _ocData/_ocQuery
      전역을 직접 읽어서, 공통화하려면 원유 카드를 고쳐야 한다. 두 카드가 서로를
-     깨뜨리지 않게 이 저장소의 관례대로 '중복을 허용'한다(oil_forecast.py 와 같은 판단).
+     깨뜨리지 않게 이 저장소의 관례대로 '중복을 허용'한다.
      화면 스타일(.oc-*)은 그대로 함께 쓴다 — 모양은 같아야 하므로.
    ★ 제품은 기간을 '일' 단위까지 고른다(기준이 일일 때 연-월-일 드롭다운 세 쌍).
    ★ 요약행 계산 규칙은 원유에서 PETRONET 값과 대조해 확정한 것과 같다. */
@@ -3009,109 +3006,9 @@ function renderOilPricesHtml() {
     body = tools + result;
   }
   const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
-  const extras = renderOilForecastHtml();
-  return `<div class="viz-root viz-figure oil-figure">${head}${controls}${body}${note}${cap}${extras}</div>`;
+  return `<div class="viz-root viz-figure oil-figure">${head}${controls}${body}${note}${cap}</div>`;
 }
 
-/** 순수 추가(유가 예측 전용): 환율 카드(_fx)의 최신 USD 기준환율 + 기준일 참조.
- *  - 환율을 새로 수집하지 않고 이미 받아둔 fx 데이터만 읽는다.
- *  - 데이터가 없거나 값이 이상하면 null → 호출부에서 원화 환산을 생략(USD만 표시).
- *  ★ 스폰지 카드(_matUsdKrw/fmtKrwShort)와 표기 패턴은 같지만 공통화하지 않고 별도 작성. */
-function oilFxLatest() {
-  try {
-    const fx = _fx;
-    if (!fx || !Array.isArray(fx.rows) || !fx.rows.length) return null;
-    const row = fx.rows.find((r) => r && r.cur === 'USD');
-    const rate = row ? Number(row.now) : NaN;
-    if (!isFinite(rate) || rate <= 0) return null;
-    // 기준일: series.USD의 마지막 유효값에 대응하는 날짜(없으면 날짜 없이 환율만 표기)
-    let date = null;
-    const s = fx.series;
-    if (s && Array.isArray(s.dates) && Array.isArray(s.USD)) {
-      for (let i = s.USD.length - 1; i >= 0; i--) {
-        if (s.USD[i] != null) { date = s.dates[i] || null; break; }
-      }
-    }
-    return { rate, date };
-  } catch (e) {  // 어떤 이유로든 환율 참조 실패 시 카드가 깨지지 않게 환산만 생략
-    console.warn('[oil-fc] 환율 참조 실패 → 원화 환산 생략:', e);
-    return null;
-  }
-}
-
-/** 순수 추가(유가 예측 전용): 배럴당 USD → 원화 표기.
- *  ★ 톤당 원료가(213만 원/톤)와 자릿수가 달라 fmtKrwShort를 쓰지 않는다.
- *    1만 원 이상은 "15.0만"(만 단위 소수 1자리), 그 미만은 "9,853"(원 단위 전체).
- *  bare=true면 단위('원')를 붙이지 않는다(신뢰구간의 앞쪽 값처럼 이어 쓸 때). */
-function oilKrwPerBbl(usd, rate, bare) {
-  if (usd == null || !isFinite(Number(usd)) || rate == null || !isFinite(rate)) return null;
-  const w = Number(usd) * rate;
-  const sign = w < 0 ? '-' : '', a = Math.abs(w);
-  if (a >= 1e4) return `${sign}${(a / 1e4).toFixed(1)}만${bare ? '' : ' 원'}`;
-  return `${sign}${Math.round(a).toLocaleString('ko-KR')}${bare ? '' : '원'}`;
-}
-
-/** 순수 추가: 출처 아래 '다음 달 전망'(국제유가). 예측 없으면 '' 반환(섹션 숨김).
- *  숫자는 백엔드 계산(_oilForecast), 문장(comment/summary/spread/caution)만 AI.
- *  원화 병기는 표시 계층 전용 — 예측 계산은 USD 그대로, 그릴 때만 환율을 곱한다. */
-function renderOilForecastHtml() {
-  const fc = _oilForecast;
-  if (!fc || !Array.isArray(fc.products) || !fc.products.some((p) => p && p.status === 'ok')) return '';
-  const rcls = (r) => (r === '상방' ? 'up' : (r === '하방' ? 'down' : 'flat'));
-  const num = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const fx = oilFxLatest();                 // null이면 아래 모든 원화 병기가 자동 생략된다
-  const rate = fx ? fx.rate : null;
-  const krw = (usd, bare) => (rate == null ? null : oilKrwPerBbl(usd, rate, bare));
-  const chk = [];                           // 콘솔 검증용(표시값 ↔ 실제 계산값)
-  const cards = fc.products.map((p) => {
-    const color = p.color || 'var(--slate)';
-    const head = `<div class="oilfc__head"><span class="icis-dot" style="background:${color}"></span><b>${escapeHtml(p.label || p.code)}</b>`;
-    if (p.status !== 'ok') {
-      return `<div class="oilfc__card">${head}</div><div class="oilfc__na">데이터 부족</div>
-        <div class="oilfc__reason">${escapeHtml(p.reason || '')}</div></div>`;
-    }
-    const d = p.delta, dp = p.delta_pct;
-    const dcls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
-    const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '–');
-    // 원화 병기(환율 없으면 전부 빈 문자열 → USD만 표시)
-    const vKrw = krw(p.predict);
-    const vKrwHtml = vKrw ? ` <span class="oilfc__krw">≈ ${escapeHtml(vKrw)}/배럴</span>` : '';
-    const ciLo = krw(p.ci_low, true), ciHi = krw(p.ci_high);
-    const ciKrwHtml = (ciLo && ciHi) ? ` <span class="oilfc__krw">(${escapeHtml(ciLo)} ~ ${escapeHtml(ciHi)})</span>` : '';
-    const dKrw = krw(Math.abs(d));
-    const dKrwHtml = dKrw ? ` <span class="oilfc__krw">≈ ${escapeHtml(dKrw)}</span>` : '';
-    if (rate != null) chk.push({ 유종: p.label || p.code, USD: p.predict, 표시: vKrw, 실제원: Math.round(p.predict * rate) });
-    return `<div class="oilfc__card">
-      ${head}<span class="oilfc__risk ${rcls(p.risk)}">${escapeHtml(p.risk)}</span></div>
-      <div class="oilfc__val">${num(p.predict)} <span class="oilfc__unit">USD/배럴</span>${vKrwHtml}</div>
-      <div class="oilfc__delta ${dcls}">${arrow} ${num(Math.abs(d))} (${Math.abs(dp).toFixed(1)}%)${dKrwHtml} <span class="oilfc__prev">${escapeHtml(p.prev_month || '')} 실측 ${num(p.prev)} 대비</span></div>
-      <div class="oilfc__ci">신뢰구간 ${num(p.ci_low)} ~ ${num(p.ci_high)}${ciKrwHtml}</div>
-      ${p.comment ? `<div class="oilfc__cmt">${escapeHtml(p.comment)}</div>` : ''}
-    </div>`;
-  }).join('');
-  const gen = fc.generated_at ? `<span class="oilfc__gen">예측 생성 ${escapeHtml(fc.generated_at)}</span>` : '';
-  const sub = fc.last_data_month ? `<div class="oilfc__sub">최신 데이터 ${escapeHtml(fc.last_data_month)} 기준${fc.months_ahead != null ? ' · ' + fc.months_ahead + '개월 후 추정' : ''}</div>` : '';
-  const summary = fc.summary ? `<div class="oilfc__summary">${escapeHtml(fc.summary)}</div>` : '';
-  const spread = fc.spread ? `<div class="oilfc__line"><b>제품 간 가격차</b> ${escapeHtml(fc.spread)}</div>` : '';
-  const caution = fc.caution ? `<div class="oilfc__caution">⚠ ${escapeHtml(fc.caution)}</div>` : '';
-  // 적용 환율 명시(환율 없으면 줄 자체를 생략) + 콘솔 검증 출력
-  let fxnote = '';
-  if (rate != null) {
-    const dt = fx.date ? ` (${escapeHtml(fx.date)} 기준)` : '';
-    fxnote = `<div class="oilfc__fxnote">적용 환율: 1 USD = ${Math.round(rate).toLocaleString('ko-KR')}원${dt}</div>`;
-    console.log(`[oil-fc] 원화 환산 검증 · 적용 환율 1 USD = ${rate}원${fx.date ? ` (${fx.date} 기준)` : ''}`);
-    if (console.table) console.table(chk); else console.log(chk);
-  } else {
-    console.log('[oil-fc] 환율 데이터 없음 → 원화 환산 생략, USD만 표시');
-  }
-  return `<div class="oilfc">
-    <h3 class="subhead oilfc__title">석유제품 다음 달 전망 <span class="oilfc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
-    ${sub}
-    <div class="oilfc__grid">${cards}</div>
-    ${summary}${spread}${caution}${fxnote}
-    <div class="oilfc__disc">통계적 추세 기반 참고용 추정치입니다. 국제유가는 OPEC 정책, 지정학적 분쟁, 수요 충격 등 예측 불가한 요인에 크게 좌우되며, 과거 데이터만으로는 급변 구간을 예측할 수 없습니다.</div>
-  </div>`;
-}
 
 /** 선택한 유종만 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음).
     ★ 계열을 인자로 받는다 — 전역 상태를 읽지 않으므로 어느 기준(년·월·주·일)이든 그대로 쓴다. */
@@ -4559,7 +4456,6 @@ function resetDashboard() {
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
   _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _oilChart = null; // 국제유가(원유) 비우기
   _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opChart = null; // 국제유가(제품) 비우기
-  _oilForecast = null; // 순수 추가: 유가 예측 초기화(섹션 숨김)
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
@@ -4633,7 +4529,7 @@ const SECTION_LABELS = {
   simmons_news: '시몬스 소식', usd_krw: '환율(USD)', schedule_reliability: '해상 정시성',
   oil_crude: '국제유가(원유)', oil_product: '국제유가(제품)', domestic: '국내 브랜드', global_brands: '국외 브랜드',
   competitors: '경쟁사 실적', fx: '환율', icis_forecast: '주원료 예측',
-  sr_forecast: '정시성 예측', oil_forecast: '유가 예측', koima_index: 'KOIMA 월간지수',
+  sr_forecast: '정시성 예측', koima_index: 'KOIMA 월간지수',
   us_ppi: '미국 매트리스 PPI',
 };
 

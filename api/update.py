@@ -56,10 +56,6 @@ try:
     from sr_forecast import compute_sr_forecast
 except Exception:  # noqa: BLE001
     compute_sr_forecast = None
-try:
-    from oil_forecast import compute_oil_forecast
-except Exception:  # noqa: BLE001
-    compute_oil_forecast = None
 try:  # 순수 추가: KOIMA 월간 부문별 지수
     from koima_index import update_koima_index
 except Exception:  # noqa: BLE001
@@ -1909,8 +1905,6 @@ if update_us_ppi is not None:  # 미국 매트리스 제조업 PPI(BLS)
     FETCHERS["us_ppi"] = update_us_ppi
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
     FETCHERS["sr_forecast"] = compute_sr_forecast
-if compute_oil_forecast is not None:  # 순수 추가: 국제유가 예측도 업데이트에 덧붙임
-    FETCHERS["oil_forecast"] = compute_oil_forecast
 if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 업데이트에 덧붙임
     FETCHERS["koima_index"] = update_koima_index
 
@@ -1921,7 +1915,7 @@ if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 �
 FETCH_GROUPS = [
     ["simmons_news", "domestic", "global_brands"],   # news.google.com
     ["schedule_reliability", "sr_forecast"],         # sea-intelligence.com
-    ["oil_crude", "oil_product", "oil_forecast"],    # petronet.co.kr (같은 서버 → 순차)
+    ["oil_crude", "oil_product"],                    # petronet.co.kr (같은 서버 → 순차)
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
@@ -1941,7 +1935,7 @@ CACHE_TTL = {
     "us_ppi": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
     "koima_index": 24 * 3600, "schedule_reliability": 24 * 3600,
-    "sr_forecast": 24 * 3600, "oil_forecast": 24 * 3600, "icis_forecast": 24 * 3600,
+    "sr_forecast": 24 * 3600, "icis_forecast": 24 * 3600,
 }
 _UPDATE_CACHE = "update-cache.json"
 

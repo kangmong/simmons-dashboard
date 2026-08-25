@@ -189,7 +189,7 @@ PETRONET 은 브라우저에서 직접 부를 수 없다(CORS). 그래서 기준
 `oil_crude` 는 `FETCHERS` 에 등록되어 있어 `.github/workflows/collect.yml` 이
 매일 새벽(UTC 20:00 = KST 05:00) 받아 `public/data/dashboard.json` 에 커밋한다.
 화~토 새 값이 올라오면 다음 실행에서 표와 그래프에 자동 반영된다.
-`oil_forecast` 와 같은 그룹에 두어 petronet.co.kr 요청이 동시에 나가지 않는다.
+`oil_product` 와 같은 그룹에 두어 petronet.co.kr 요청이 동시에 나가지 않는다.
 
 수동 확인:
 
@@ -247,7 +247,7 @@ python oil_crude.py          # 4개 기준을 모두 받아 행 수·요약행�
 ### 자동 갱신
 
 `oil_product` 를 `FETCHERS` 에 등록 → `collect.yml` 이 매일 새벽 받아 커밋한다.
-`oil_crude` · `oil_forecast` 와 같은 그룹에 두어 petronet.co.kr 요청이 순차로 나간다.
+`oil_crude` 와 같은 그룹에 두어 petronet.co.kr 요청이 순차로 나간다.
 
 ```bash
 python oil_product.py        # 4개 기준을 모두 받아 행 수·요약행을 출력
@@ -391,5 +391,5 @@ node scripts/check-news-alert.js --dry-run
 
 ★ `.github/workflows/collect.yml` 에는 `ANTHROPIC_API_KEY` 참조가 남아 있는데
   **이건 실적 알림과 무관하다.** 예측 카드의 해설 문장(`icis_forecast.py` /
-  `oil_forecast.py` / `sr_forecast.py`)이 쓰는 것이고, 키가 없으면 통계 예측값만
+  `sr_forecast.py`)이 쓰는 것이고, 키가 없으면 통계 예측값만
   표시하는 폴백으로 동작한다. 그래서 지우지 않았다.
