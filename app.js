@@ -935,9 +935,36 @@ function gSrcDate() {
   return best;
 }
 
-/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다. */
-function gSrcFoot(text, date) {
-  return '<div class="sm-foot">' + escapeHtml(text)
+/** 각주 문구 안의 특정 토막(시리즈 코드·품목 코드 등)만 원본 페이지 링크로 바꾼다.
+    links: [{text, url}] — payload 가 준다. 어느 지표든 이 모양만 실어 보내면 된다.
+    ★ 문자열을 순차 치환하지 않는다. 앞서 넣은 <a href="…PCU337910337910…"> 안의
+      코드가 다음 치환에 다시 걸리는 사고를 구조적으로 막기 위해, 원문을 앞에서부터
+      한 번만 훑으며 토막을 만나면 링크로, 아니면 한 글자씩 escape 해 쌓는다.
+    ★ 정규식을 쓰지 않으므로 코드에 어떤 문자가 들어와도 이스케이프 사고가 없다. */
+function gLinkify(text, links) {
+  const src = String(text == null ? '' : text);
+  const ls = (links || []).filter((l) => l && l.text && safeUrl(l.url))
+    .slice().sort((a, b) => b.text.length - a.text.length);   // 긴 토막을 먼저 맞춘다
+  if (!ls.length) return escapeHtml(src);
+  let out = '', i = 0;
+  while (i < src.length) {
+    const hit = ls.filter((l) => src.startsWith(l.text, i))[0];
+    if (hit) {
+      out += '<a class="src-link" href="' + escapeHtml(safeUrl(hit.url))
+        + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(hit.text) + '</a>';
+      i += hit.text.length;
+    } else {
+      out += escapeHtml(src.charAt(i));
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다.
+    links 를 주면 문구 중 그 토막만 원본 링크가 된다(문구 자체는 그대로). */
+function gSrcFoot(text, date, links) {
+  return '<div class="sm-foot">' + gLinkify(text, links)
     + (date ? ' · 최종 업데이트: ' + escapeHtml(date) : '') + '</div>';
 }
 
@@ -960,7 +987,7 @@ function gUsPpiBlock() {
   }
   return gPpiSummary(u) + chart
     + '<div class="g-note">' + escapeHtml(u.note || '') + escapeHtml(caveat) + '</div>'
-    + gSrcFoot('출처: ' + (u.source || ''), gSrcDate(u.updatedAt))
+    + gSrcFoot('출처: ' + (u.source || ''), gSrcDate(u.updatedAt), u.source_links)
     + gPpiTable(u);
 }
 

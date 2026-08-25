@@ -48,6 +48,12 @@ TIER_ANSWER = ("❌ 불가능 — 애초에 전체를 뭉뚱그려 평균 낸 �
                '"프리미엄만" 분리해서 볼 방법이 데이터 구조상 없음')
 TIER_QUESTION = "프리미엄/하이엔드만 따로 볼 수 있나"
 
+# 원본 데이터 페이지 — 각주의 시리즈 코드를 여기로 건다.
+# ★ 새 지표를 붙일 때도 같은 방식이다: payload 의 source_links 에
+#   {"text": 각주에 실제로 들어 있는 토막, "url": 원본 주소} 를 담으면
+#   프런트(gSrcFoot)가 그 토막만 링크로 바꾼다. 프런트는 고칠 것이 없다.
+SERIES_URL = "https://data.bls.gov/timeseries/%s" % SERIES_ID
+
 LABEL = "미국 매트리스 제조업 PPI"
 UNIT = "지수 (%s)" % BASE_PERIOD
 SOURCE = ("미국 노동통계국(BLS) 생산자물가지수(PPI) · 매트리스 제조업"
@@ -312,6 +318,7 @@ def update_us_ppi():
         "table": _table(SERIES_ID, years, months, bands),
         "note": NOTE,
         "source": SOURCE,
+        "source_links": [{"text": SERIES_ID, "url": SERIES_URL}],
         "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 

@@ -1317,6 +1317,15 @@ body {
 .sm-delta.down { color: var(--accent); }
 .sm-delta.flat { color: var(--slate); }
 .sm-foot { margin-top: 12px; font-size: 11px; color: var(--slate); line-height: 1.55; }
+/* 각주 안의 원본 데이터 링크 — 각주 글자 크기는 그대로 두고 색·밑줄로만 구분한다.
+   hover 하면 밑줄이 진해지고 색이 어두워져 '눌린다'는 것이 드러난다. */
+.src-link {
+  color: var(--blue); text-decoration: underline; text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--blue) 45%, transparent);
+}
+.src-link:hover { color: color-mix(in srgb, var(--blue) 78%, var(--ink)); text-decoration-color: currentColor; }
+.src-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 2px; }
 
 /* 차트 C */
 .sm-donutwrap { display: flex; flex-direction: column; align-items: center; }
