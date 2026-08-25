@@ -451,6 +451,10 @@ body {
 .sr-fc__disc { margin-top: 10px; padding: 9px 12px; font-size: 11.5px; line-height: 1.5; color: var(--accent);
   background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); border-radius: var(--radius-sm); }
 .oil-figure { margin-top: 16px; }
+.oilp-figure { margin-top: 22px; }
+/* 제품이 9개라 체크박스가 여러 줄이 된다 — 라벨 열에 맞춰 가지런히 흐르게 */
+.oc-ctl--wrap { max-width: 100%; row-gap: 6px; }
+.oc-ctl--wrap .oc-check { flex: 0 0 auto; }
 
 /* ── 국제유가(원유) 조회 조건 — PETRONET '일일국제원유가격'과 같은 순서 ── */
 .oc-formwrap { margin: 10px 0 14px; padding: 12px 14px; border: 1px solid var(--line);

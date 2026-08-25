@@ -42,6 +42,11 @@ try:  # 국제유가(원유) — PETRONET 일일국제원유가격. 키 불필�
 except Exception:  # noqa: BLE001
     update_oil_crude = None
 
+try:  # 국제유가(석유제품) — PETRONET 일일국제제품가격. 키 불필요.
+    from oil_product import update_oil_product
+except Exception:  # noqa: BLE001
+    update_oil_product = None
+
 try:  # 미국 매트리스 제조업 PPI — BLS 공개 API(키 불필요).
     from us_ppi import update_us_ppi
 except Exception:  # noqa: BLE001
@@ -1898,6 +1903,8 @@ if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업�
     FETCHERS["icis_forecast"] = compute_icis_forecast
 if update_oil_crude is not None:  # 국제유가(원유) — PETRONET
     FETCHERS["oil_crude"] = update_oil_crude
+if update_oil_product is not None:  # 국제유가(석유제품) — PETRONET
+    FETCHERS["oil_product"] = update_oil_product
 if update_us_ppi is not None:  # 미국 매트리스 제조업 PPI(BLS)
     FETCHERS["us_ppi"] = update_us_ppi
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
@@ -1914,7 +1921,7 @@ if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 �
 FETCH_GROUPS = [
     ["simmons_news", "domestic", "global_brands"],   # news.google.com
     ["schedule_reliability", "sr_forecast"],         # sea-intelligence.com
-    ["oil_crude", "oil_forecast"],                   # petronet.co.kr (같은 서버 → 순차)
+    ["oil_crude", "oil_product", "oil_forecast"],    # petronet.co.kr (같은 서버 → 순차)
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
@@ -1929,7 +1936,7 @@ CACHE_TTL = {
     # 뉴스 — 6시간
     "simmons_news": 6 * 3600, "domestic": 6 * 3600, "global_brands": 6 * 3600,
     # 일별 데이터 — 당일(24시간)
-    "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_crude": 24 * 3600,
+    "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_crude": 24 * 3600, "oil_product": 24 * 3600,
     "competitors": 24 * 3600,
     "us_ppi": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
