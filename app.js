@@ -1553,20 +1553,6 @@ let _srData = null;   // {months, years:{...}} | {error:'reason'} | null
 let _srYear = null;   // '2021'~'2026' | 'all'
 let _srChart = null;
 
-// 국제유가(PETRONET 월별 제품가) — 9개 유종 색상 + 상태
-const OIL_COLORS = {
-  gasoline95: '#C8102E', diesel005: '#12B981', naphtha: '#3B82F6',
-};
-const OIL_DEFAULT_ON = ['gasoline95', 'diesel005', 'naphtha']; // 남긴 3개 모두 기본 표시
-const OIL_RANGES = [
-  { key: '1y', label: '1년', months: 12 }, { key: '3y', label: '3년', months: 36 },
-  { key: '5y', label: '5년', months: 60 }, { key: '10y', label: '10년', months: 120 },
-  { key: 'all', label: '전체', months: null },
-];
-let _oilData = null;   // {rows:[{period,...}], series:[{key,label}], source, unit} | {error} | null
-let _oilRange = null;  // 선택된 기간(null=미선택 → "기간을 선택하세요")
-let _oilOn = null;     // Set(켜진 유종 key) — 최초 로드 시 OIL_DEFAULT_ON
-let _oilChart = null;
 let _icisForecast = null; // 순수 추가: 다음 달 주원료 예측(백엔드 계산). null이면 예측 섹션 숨김
 let _srForecast = null;   // 순수 추가: 다음 달 해상 정시성 예측(백엔드 계산). null이면 섹션 숨김
 let _oilForecast = null;  // 순수 추가: 다음 달 국제유가 예측(백엔드 계산). null이면 섹션 숨김
@@ -1585,12 +1571,13 @@ function applyMaterialUpdate(data) {
     _srData = { error: (sr && sr.reason) || '데이터 없음' };
   }
 
-  const oil = data && data.sections && data.sections.oil_prices;
-  if (oil && oil.status === 'ok' && Array.isArray(oil.rows) && oil.rows.length) {
-    _oilData = { rows: oil.rows, series: oil.series || [], source: oil.source, unit: oil.unit };
-    if (!_oilOn) _oilOn = new Set(OIL_DEFAULT_ON);  // 기본 3개만 켜기(최초 1회)
+  // 국제유가(원유) — 기준 4개(년·월·주·일)를 한 번에 받아 두고 화면에서 자른다
+  const oc = data && data.sections && data.sections.oil_crude;
+  if (oc && oc.status === 'ok' && oc.terms && Object.keys(oc.terms).length) {
+    _ocData = oc;
+    if (!_ocForm) _ocForm = ocFormFor(ocTerm('m') ? 'm' : Object.keys(oc.terms)[0]);
   } else {
-    _oilData = { error: (oil && oil.reason) || '데이터 없음' };
+    _ocData = { error: (oc && oc.reason) || '데이터 없음' };
   }
   // 순수 추가: 다음 달 예측 저장(있을 때만; 없으면 예측 섹션 숨김)
   const fc = data && data.sections && data.sections.icis_forecast;
@@ -1677,26 +1664,7 @@ function renderMaterial() {
   });
   if (_srData && !_srData.error) wireSrChart();
 
-  // 국제유가: 기간 칩 + 범례 토글
-  const oilFig = root.querySelector('.oil-figure');
-  if (oilFig) {
-    const chipsEl = oilFig.querySelector('.oil-ranges');
-    if (chipsEl) chipsEl.addEventListener('click', (e) => {
-      const b = e.target.closest('.oil-range');
-      if (!b || b.disabled) return;  // 데이터 없으면 칩 비활성
-      _oilRange = b.dataset.range;
-      renderMaterial();
-    });
-    const legEl = oilFig.querySelector('.oil-legend');
-    if (legEl) legEl.addEventListener('click', (e) => {
-      const b = e.target.closest('.oil-leg');
-      if (!b || !_oilOn) return;
-      const k = b.dataset.key;
-      if (_oilOn.has(k)) _oilOn.delete(k); else _oilOn.add(k);
-      renderMaterial();
-    });
-    if (_oilData && !_oilData.error) wireOilChart();
-  }
+  wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
 
   wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
   wireKpControls(root);     // 순수 추가: KOIMA 일일 국제원자재가격 카드
@@ -1916,6 +1884,53 @@ function wireIcisChart() {
     tip.classList.add('is-visible');
   });
   overlay.addEventListener('mouseleave', clear);
+}
+
+/** 조회 조건 조작 + [조회] + 표/차트 전환 + 내보내기 배선.
+    ★ 조건을 만져도 결과는 그대로다 — [조회]를 눌러야 _ocQuery 가 바뀐다(실제 사이트와 동일).
+    ★ 기준(term)을 바꾸면 고를 수 있는 연도와 기본 기간이 달라지므로 '조건 영역만'
+      다시 그린다. 결과 영역은 건드리지 않는다(아직 조회한 것이 아니므로). */
+function wireCrudeControls(root) {
+  const fig = root.querySelector('.oil-figure');
+  if (!fig || !_ocData || _ocData.error) return;
+  const form = fig.querySelector('.oc-formwrap');
+
+  if (form) {
+    form.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t || !_ocForm) return;
+      if (t.name === 'ocTerm') {
+        _ocForm = ocFormFor(t.value, new Set(_ocForm.on));
+        form.innerHTML = ocControlsHtml();
+        return;
+      }
+      const k = t.getAttribute && t.getAttribute('data-oc');
+      if (k) { _ocForm[k] = t.value; return; }
+      const p = t.getAttribute && t.getAttribute('data-oc-prod');
+      if (p) { if (t.checked) _ocForm.on.add(p); else _ocForm.on.delete(p); }
+    });
+    form.addEventListener('click', (e) => {
+      const go = e.target.closest && e.target.closest('.oc-go');
+      if (!go || !_ocForm) return;
+      _ocQuery = { term: _ocForm.term, y0: _ocForm.y0, m0: _ocForm.m0,
+        y1: _ocForm.y1, m1: _ocForm.m1, on: new Set(_ocForm.on) };
+      renderMaterial();
+    });
+  }
+
+  fig.addEventListener('click', (e) => {
+    const v = e.target.closest && e.target.closest('[data-oc-view]');
+    if (v) { _ocView = v.getAttribute('data-oc-view'); renderMaterial(); return; }
+    const x = e.target.closest && e.target.closest('[data-oc-exp]');
+    if (!x || !_ocQuery) return;
+    const win = ocWindow(_ocQuery);
+    const kind = x.getAttribute('data-oc-exp');
+    if (kind === 'csv') ocExportCsv(_ocQuery, win);
+    else if (kind === 'xls') ocExportXls(_ocQuery, win);
+    else ocPrint(_ocQuery, win);
+  });
+
+  if (_ocQuery && _ocView === 'chart') wireOilChart();
 }
 
 /* ── 해상 정시성 (Sea-Intelligence Global Schedule Reliability) ── */
@@ -2155,51 +2170,379 @@ function wireSrChart() {
   overlay.addEventListener('mouseleave', clear);
 }
 
-/* ── 국제유가 (PETRONET 일일국제제품가격, 월별) ── */
+/* ── 국제유가 (PETRONET 일일국제원유가격) ─────────────────────────────────
+   실제 조회 페이지와 같은 순서로 조작한다: 기준선택 → 기간 → 제품 → [조회].
 
-/** 선택 기간(_oilRange)에 맞춰 rows 슬라이스(뒤에서 N개월) */
-function oilSliceRows() {
-  const rows = _oilData.rows;
-  const r = OIL_RANGES.find((x) => x.key === _oilRange) || OIL_RANGES[OIL_RANGES.length - 1];
-  if (!r.months || rows.length <= r.months) return rows;
-  return rows.slice(rows.length - r.months);
+   ★ [조회]를 누르기 전에는 결과가 바뀌지 않는다. 조건은 _ocForm 에 쌓이고,
+     [조회]가 그것을 _ocQuery 로 확정할 때만 표·그래프를 다시 그린다(실제 사이트와 동일).
+   ★ 서버를 다시 부르지 않는다. 기준별 전 구간을 미리 받아 두고(oil_crude.py)
+     여기서 자른다 — PETRONET 은 브라우저에서 직접 부를 수 없다(CORS).
+   ★ 요약행(전일비·전주비·전월동일비·전년동일비)은 '보이는 구간'이 아니라
+     '받아둔 전 구간'에서 찾아 계산한다. 전년동일비는 1년 전 값을 봐야 해서다.
+     계산 규칙은 PETRONET 이 스스로 계산해 준 값과 대조해 확정했다(oil_crude.py 주석). */
+const OC_COLORS = { dubai: '#C8102E', brent: '#3B82F6', wti: '#F59E0B', oman: '#12B981' };
+const OC_TERMS = [['y', '년'], ['m', '월'], ['w', '주'], ['d', '일']];
+// 기준별 기본 조회 폭(개월). 표가 한눈에 들어오는 크기로 연다.
+const OC_DEFAULT_SPAN = { y: null, m: 12, w: 3, d: 1 };
+
+let _ocData = null;     // sections.oil_crude — {series, terms:{y,m,w,d}, unit, ...}
+let _ocForm = null;     // 사용자가 만지는 중인 조건 {term, y0,m0,y1,m1, on:Set}
+let _ocQuery = null;    // [조회]로 확정된 조건 — 결과는 이것만 본다
+let _ocView = 'table';  // 'table' | 'chart'
+let _oilChart = null;   // 차트 크로스헤어·툴팁 상태
+
+/** 기준(term) 블록. 없으면 null */
+function ocTerm(t) {
+  const d = _ocData;
+  return (d && !d.error && d.terms && d.terms[t]) || null;
 }
 
-/** 국제유가 블록 HTML (스폰지·해상정시성 카드와 동일 구조/클래스).
- *  다른 카드와 동일하게 업데이트 전에는 차트를 그리지 않고 빈 상태 문구 + 비활성 칩만 표시. */
+/** period → 'YYYY'(년) 또는 'YYYY-MM'(그 외). 기간 필터의 비교 키다. */
+function ocYm(period, term) {
+  return term === 'y' ? String(period).slice(0, 4) : String(period).slice(0, 7);
+}
+
+/** period → 표에 찍을 라벨 */
+function ocLabel(period, term) {
+  const p = String(period);
+  if (term === 'y') return p + '년';
+  if (term === 'm') return p.slice(0, 4) + '년 ' + p.slice(5, 7) + '월';
+  if (term === 'w') return p.slice(0, 4) + '년 ' + p.slice(5, 7) + '월 ' + p.split('W')[1] + '주';
+  return p.slice(0, 4) + '년 ' + p.slice(5, 7) + '월 ' + p.slice(8, 10) + '일';
+}
+
+/** 기준의 rows 에 등장하는 연도 목록(오름차순) */
+function ocYears(term) {
+  const t = ocTerm(term);
+  if (!t) return [];
+  const s = new Set(t.rows.map((r) => String(r.period).slice(0, 4)));
+  return Array.from(s).sort();
+}
+
+/** 그 기준의 기본 기간 — 마지막 데이터에서 OC_DEFAULT_SPAN 만큼 거슬러 연다. */
+function ocDefaultSpan(term) {
+  const t = ocTerm(term);
+  if (!t || !t.rows.length) return null;
+  const last = t.rows[t.rows.length - 1].period, first = t.rows[0].period;
+  if (term === 'y') return { y0: first.slice(0, 4), m0: '01', y1: last.slice(0, 4), m1: '12' };
+  const y1 = Number(last.slice(0, 4)), m1 = Number(last.slice(5, 7));
+  const span = OC_DEFAULT_SPAN[term] || 12;
+  let y0 = y1, m0 = m1 - span + 1;
+  while (m0 <= 0) { y0 -= 1; m0 += 12; }
+  const fy = Number(first.slice(0, 4)), fm = Number(first.slice(5, 7));
+  if (y0 < fy || (y0 === fy && m0 < fm)) { y0 = fy; m0 = fm; }
+  const p2 = (n) => String(n).padStart(2, '0');
+  return { y0: String(y0), m0: p2(m0), y1: String(y1), m1: p2(m1) };
+}
+
+/** 최초/기준변경 시의 조회 조건 */
+function ocFormFor(term, keepOn) {
+  const sp = ocDefaultSpan(term) || { y0: '', m0: '01', y1: '', m1: '12' };
+  const on = keepOn || new Set((_ocData && _ocData.default_on) || []);
+  return { term: term, y0: sp.y0, m0: sp.m0, y1: sp.y1, m1: sp.m1, on: on };
+}
+
+/** 조건에 맞는 행만 자른다(기간). 유종은 표·차트에서 고른다. */
+function ocWindow(q) {
+  const t = ocTerm(q.term);
+  if (!t) return [];
+  const a = q.term === 'y' ? q.y0 : q.y0 + '-' + q.m0;
+  const b = q.term === 'y' ? q.y1 : q.y1 + '-' + q.m1;
+  const lo = a <= b ? a : b, hi = a <= b ? b : a;   // 거꾸로 골라도 동작하게
+  return t.rows.filter((r) => {
+    const k = ocYm(r.period, q.term);
+    return k >= lo && k <= hi;
+  });
+}
+
+/** 켜진 유종 목록 [{key,label,color}] (payload 순서 유지) */
+function ocOnSeries(q) {
+  const d = _ocData;
+  if (!d || d.error) return [];
+  return (d.series || []).filter((s) => q.on.has(s.key))
+    .map((s) => ({ key: s.key, label: s.label, color: OC_COLORS[s.key] || 'var(--slate)' }));
+}
+
+/* ── 요약행 계산 ───────────────────────────────────────────────────────────
+   ★ 비교 대상은 '받아둔 전 구간(all)'에서 찾는다 — 조회 창 밖의 과거를 봐야 한다.
+   ★ 규칙은 PETRONET 이 계산해 준 값과 대조해 확정했다(14개 중 13개 정확히 일치.
+     남은 1개는 일별 초장기 구간의 '평균'인데, 월별 표로 교차검증한 결과
+     PETRONET 쪽이 틀렸다 — oil_crude.py 주석 참고).
+       일 : 전일비=직전 행 · 전주비=7일 전 · 전월동일비=1개월 전 · 전년동일비=1년 전
+            (휴장일이면 그 이전 영업일로 내려 잡는다)
+       월 : 전월비=직전 행 · 전년동월비=1년 전 같은 달
+       주 : 전주비=직전 행 · 전월동주비=4주 전 · 전년동주비=1년 전 같은 월·같은 주차
+       년 : 전년비=직전 행
+       평균: 조회 구간 전체 평균 */
+
+/** 'YYYY-MM-DD' 를 y년 m개월 d일 만큼 옮긴다(월말 보정 포함) */
+function ocShift(iso, dy, dm, dd) {
+  const Y = Number(iso.slice(0, 4)), M = Number(iso.slice(5, 7)), D = Number(iso.slice(8, 10));
+  let yy = Y + (dy || 0), mm = M + (dm || 0);
+  yy += Math.floor((mm - 1) / 12);
+  mm = ((mm - 1) % 12 + 12) % 12 + 1;
+  const dim = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+  const t = new Date(Date.UTC(yy, mm - 1, Math.min(D, dim)));
+  t.setUTCDate(t.getUTCDate() + (dd || 0));
+  return t.toISOString().slice(0, 10);
+}
+
+/** period <= target 인 마지막 행(휴장일이면 그 이전 영업일). 없으면 null */
+function ocAtOrBefore(rows, target) {
+  let hit = null;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rows[i].period <= target) hit = rows[i]; else break;
+  }
+  return hit;
+}
+
+/** 표 아래에 붙일 요약행 [{label, vals:{key:값}, kind}] */
+function ocSummaryRows(q, win) {
+  const t = ocTerm(q.term);
+  if (!t || !win.length) return [];
+  const all = t.rows, last = win[win.length - 1];
+  const i = all.indexOf(last);
+  const keys = ocOnSeries(q).map((s) => s.key);
+  const back = (n) => ((i - n >= 0) ? all[i - n] : null);
+  const find = (p) => all.filter((r) => r.period === p)[0] || null;
+  const out = [];
+  const push = (label, prev) => {
+    const vals = {};
+    keys.forEach((k) => {
+      vals[k] = (!prev || last[k] == null || prev[k] == null)
+        ? null : Math.round((last[k] - prev[k]) * 100) / 100;
+    });
+    out.push({ label: label, vals: vals, kind: 'delta' });
+  };
+  const p = String(last.period);
+  if (q.term === 'd') {
+    push('전일비', back(1));
+    push('전주비', ocAtOrBefore(all, ocShift(p, 0, 0, -7)));
+    push('전월동일비', ocAtOrBefore(all, ocShift(p, 0, -1, 0)));
+    push('전년동일비', ocAtOrBefore(all, ocShift(p, -1, 0, 0)));
+  } else if (q.term === 'm') {
+    push('전월비', back(1));
+    push('전년동월비', find((Number(p.slice(0, 4)) - 1) + '-' + p.slice(5, 7)));
+  } else if (q.term === 'w') {
+    push('전주비', back(1));
+    push('전월동주비', back(4));
+    push('전년동주비', find((Number(p.slice(0, 4)) - 1) + '-' + p.slice(5, 7) + '-W' + p.split('W')[1]));
+  } else {
+    push('전년비', back(1));
+  }
+  const avg = {};
+  keys.forEach((k) => {
+    const v = win.map((r) => r[k]).filter((x) => x != null);
+    avg[k] = v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 100) / 100 : null;
+  });
+  out.push({ label: '평균', vals: avg, kind: 'avg' });
+  return out;
+}
+
+/* ── 조회 조건 UI ─────────────────────────────────────────────────────── */
+
+function ocNum(v) {
+  return (v == null) ? '-' : Number(v).toFixed(2);
+}
+
+/** 기준선택 · 기간 · 제품 · [조회] */
+function ocControlsHtml() {
+  const f = _ocForm;
+  if (!f) return '';
+  const years = ocYears(f.term);
+  const sel = (name, val, opts) => '<select class="oc-sel" data-oc="' + name + '">'
+    + opts.map((o) => '<option value="' + escapeHtml(o[0]) + '"'
+      + (String(o[0]) === String(val) ? ' selected' : '') + '>' + escapeHtml(o[1]) + '</option>').join('')
+    + '</select>';
+  const yOpts = years.map((y) => [y, y + '년']);
+  const mOpts = Array.from({ length: 12 }, (_, i) => {
+    const v = String(i + 1).padStart(2, '0');
+    return [v, v + '월'];
+  });
+  const showM = f.term !== 'y';   // 년 기준은 월을 고르지 않는다
+
+  const terms = OC_TERMS.map((t) => '<label class="oc-radio">'
+    + '<input type="radio" name="ocTerm" value="' + t[0] + '"'
+    + (f.term === t[0] ? ' checked' : '') + '>' + escapeHtml(t[1]) + '</label>').join('');
+
+  const prods = ((_ocData && _ocData.series) || []).map((s) => '<label class="oc-check">'
+    + '<input type="checkbox" data-oc-prod="' + escapeHtml(s.key) + '"'
+    + (f.on.has(s.key) ? ' checked' : '') + '>'
+    + '<span class="oc-swatch" style="background:' + (OC_COLORS[s.key] || 'var(--slate)') + '"></span>'
+    + escapeHtml(s.label) + '</label>').join('');
+
+  return '<div class="oc-form">'
+    + '<div class="oc-row"><span class="oc-lab">기준선택</span>'
+    + '<div class="oc-ctl">' + terms + '</div></div>'
+    + '<div class="oc-row"><span class="oc-lab">기간</span><div class="oc-ctl">'
+    + sel('y0', f.y0, yOpts) + (showM ? sel('m0', f.m0, mOpts) : '')
+    + '<span class="oc-tilde">~</span>'
+    + sel('y1', f.y1, yOpts) + (showM ? sel('m1', f.m1, mOpts) : '')
+    + '</div></div>'
+    + '<div class="oc-row"><span class="oc-lab">제품</span>'
+    + '<div class="oc-ctl">' + prods + '</div></div>'
+    + '<div class="oc-row oc-row--go"><span class="oc-lab"></span>'
+    + '<div class="oc-ctl"><button type="button" class="oc-go">조회</button></div></div>'
+    + '</div>';
+}
+
+/* ── 결과: 표 ─────────────────────────────────────────────────────────── */
+
+/** 조회 구간 표시 — '2026년 08월 17일 ~ 2026년 08월 24일' */
+function ocSpanText(q, win) {
+  if (!win.length) return '';
+  return ocLabel(win[0].period, q.term) + ' ~ ' + ocLabel(win[win.length - 1].period, q.term);
+}
+
+function ocTableHtml(q, win) {
+  const ser = ocOnSeries(q);
+  if (!ser.length) return '<div class="chart-empty">제품을 하나 이상 선택하고 [조회]를 누르세요.</div>';
+  if (!win.length) return '<div class="chart-empty">선택한 기간에 데이터가 없습니다.</div>';
+  // 열별 최소·최대(데이터 행만) — 요약행은 하이라이트 대상이 아니다
+  const ext = {};
+  ser.forEach((s) => {
+    const v = win.map((r) => r[s.key]).filter((x) => x != null);
+    ext[s.key] = v.length ? { lo: Math.min.apply(null, v), hi: Math.max.apply(null, v) } : null;
+  });
+  const head = '<tr><th class="oc-th-p">' + escapeHtml(ocTerm(q.term).label) + '</th>'
+    + ser.map((s) => '<th><span class="oc-swatch" style="background:' + s.color + '"></span>'
+      + escapeHtml(s.label) + '</th>').join('') + '</tr>';
+  const body = win.map((r) => '<tr><td class="oc-td-p">' + escapeHtml(ocLabel(r.period, q.term)) + '</td>'
+    + ser.map((s) => {
+      const v = r[s.key], e = ext[s.key];
+      let cls = '';
+      if (v != null && e) {
+        if (v === e.lo && e.lo !== e.hi) cls = ' oc-min';
+        else if (v === e.hi && e.lo !== e.hi) cls = ' oc-max';
+      }
+      return '<td class="oc-num' + cls + '">' + ocNum(v) + '</td>';
+    }).join('') + '</tr>').join('');
+  const sums = ocSummaryRows(q, win).map((s) => '<tr class="oc-sum oc-sum--' + s.kind + '">'
+    + '<td class="oc-td-p">' + escapeHtml(s.label) + '</td>'
+    + ser.map((x) => {
+      const v = s.vals[x.key];
+      const sign = (s.kind === 'delta' && v != null && v > 0) ? '+' : '';
+      const cls = (s.kind !== 'delta' || v == null) ? '' : (v > 0 ? ' oc-up' : (v < 0 ? ' oc-down' : ''));
+      return '<td class="oc-num' + cls + '">' + (v == null ? '-' : sign + ocNum(v)) + '</td>';
+    }).join('') + '</tr>').join('');
+  return '<div class="oc-tablewrap"><table class="oc-table">'
+    + '<thead>' + head + '</thead><tbody>' + body + sums + '</tbody></table></div>';
+}
+
+/* ── 결과: 내보내기 ───────────────────────────────────────────────────── */
+
+/** 표를 [[셀,...],...] 로 — csv·엑셀·인쇄가 같은 원본을 쓴다 */
+function ocMatrix(q, win) {
+  const ser = ocOnSeries(q);
+  const rows = [[ocTerm(q.term).label].concat(ser.map((s) => s.label))];
+  win.forEach((r) => rows.push([ocLabel(r.period, q.term)].concat(ser.map((s) => ocNum(r[s.key])))));
+  ocSummaryRows(q, win).forEach((s) => rows.push([s.label].concat(ser.map((x) => {
+    const v = s.vals[x.key];
+    return v == null ? '-' : ((s.kind === 'delta' && v > 0 ? '+' : '') + ocNum(v));
+  }))));
+  return rows;
+}
+
+/** Blob 을 파일로 내려받기 */
+function ocSave(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function ocFileName(q, ext) {
+  return '국제유가_' + ocTerm(q.term).label + '_' + String(q.y0) + (q.term === 'y' ? '' : q.m0)
+    + '-' + String(q.y1) + (q.term === 'y' ? '' : q.m1) + '.' + ext;
+}
+
+function ocExportCsv(q, win) {
+  const csv = ocMatrix(q, win)
+    .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  // BOM 을 붙여야 엑셀에서 한글이 깨지지 않는다
+  ocSave(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }), ocFileName(q, 'csv'));
+}
+
+function ocExportXls(q, win) {
+  const rows = ocMatrix(q, win);
+  const tbl = '<table border="1">' + rows.map((r, i) => '<tr>'
+    + r.map((c) => (i ? '<td>' : '<th>') + escapeHtml(c) + (i ? '</td>' : '</th>')).join('')
+    + '</tr>').join('') + '</table>';
+  const html = '<html><head><meta charset="utf-8"></head><body>'
+    + '<h3>국제유가 (PETRONET 일일국제원유가격) · ' + escapeHtml(ocSpanText(q, win))
+    + ' · 단위 ' + escapeHtml((_ocData && _ocData.unit) || '$/배럴') + '</h3>'
+    + tbl + '</body></html>';
+  ocSave(new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' }),
+    ocFileName(q, 'xls'));
+}
+
+function ocPrint(q, win) {
+  const rows = ocMatrix(q, win);
+  const tbl = '<table>' + rows.map((r, i) => '<tr>'
+    + r.map((c) => (i ? '<td>' : '<th>') + escapeHtml(c) + (i ? '</td>' : '</th>')).join('')
+    + '</tr>').join('') + '</table>';
+  const w = window.open('', '_blank');
+  if (!w) { window.alert('팝업이 차단되어 인쇄 창을 열지 못했습니다.'); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>국제유가 (PETRONET)</title>'
+    + '<style>body{font-family:sans-serif;padding:20px}h3{margin:0 0 4px}'
+    + 'p{margin:0 0 12px;color:#555;font-size:12px}'
+    + 'table{border-collapse:collapse;font-size:12px}'
+    + 'th,td{border:1px solid #999;padding:4px 8px;text-align:right}'
+    + 'th:first-child,td:first-child{text-align:left}</style></head><body>'
+    + '<h3>국제유가 (PETRONET 일일국제원유가격)</h3>'
+    + '<p>' + escapeHtml(ocSpanText(q, win)) + ' · 단위 '
+    + escapeHtml((_ocData && _ocData.unit) || '$/배럴') + ' · 출처 한국석유공사 PETRONET</p>'
+    + tbl + '</body></html>');
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+/* ── 카드 전체 ───────────────────────────────────────────────────────── */
+
 function renderOilPricesHtml() {
+  const unit = (_ocData && !_ocData.error && _ocData.unit) || '$/배럴';
   const head = `<div class="viz-head"><div>
       <div class="viz-title">국제유가 (PETRONET)</div>
-      <div class="viz-sub">일일국제제품가격 · 월별 (USD/배럴)</div>
+      <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
     </div></div>`;
-  const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET</div>';
-  const ok = _oilData && !_oilData.error && Array.isArray(_oilData.rows) && _oilData.rows.length;
+  const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET · 일일국제원유가격</div>';
 
-  // 기간 칩 — 데이터 없으면 비활성(disabled)
-  const chips = `<div class="icis-years oil-ranges">${OIL_RANGES.map((r) =>
-    `<button class="icis-year oil-range${r.key === _oilRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${ok ? '' : ' disabled'}>${r.label}</button>`).join('')}</div>`;
-
-  // 스폰지 카드(renderMaterial의 _matYear 분기)와 동일 조건: 기간을 고르기 전에는
-  // 차트와 함께 예측 섹션(적용 환율·면책 문구 포함)도 내보내지 않는다.
-  let body, extras = '';
-  if (!_oilData) {                                   // 1) 데이터 없음
-    body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
-  } else if (_oilData.error) {
-    body = '<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>';
-  } else if (!_oilRange) {                            // 2) 데이터 있음 · 기간 미선택
-    body = '<div class="icis-prompt">기간을 선택하세요</div>';
-  } else {                                            // 3) 기간 선택됨 → 차트 + 예측
-    // 범례(3개) — 클릭 토글, 꺼진 항목은 흐리게
-    const legend = `<div class="viz-legend oil-legend">${_oilData.series.map((s) => {
-      const on = _oilOn && _oilOn.has(s.key);
-      const color = OIL_COLORS[s.key] || 'var(--slate)';
-      return `<button class="viz-legend__item oil-leg${on ? '' : ' is-off'}" data-key="${s.key}" type="button" aria-pressed="${on}">
-        <span class="viz-legend__swatch" style="background:${on ? color : 'var(--muted)'}"></span>${escapeHtml(s.label)}</button>`;
-    }).join('')}</div>`;
-    body = `${legend}${buildOilChart(oilSliceRows())}<div class="viz-tooltip" id="oilTooltip"></div>`;
-    extras = renderOilForecastHtml();
+  if (!_ocData) {
+    return `<div class="viz-root viz-figure oil-figure">${head}`
+      + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>' + `${cap}</div>`;
   }
-  return `<div class="viz-root viz-figure oil-figure">${head}${chips}${body}${cap}${extras}</div>`;
+  if (_ocData.error) {
+    return `<div class="viz-root viz-figure oil-figure">${head}`
+      + '<div class="chart-empty">데이터를 불러오지 못했습니다 (PETRONET 접근 차단 가능)</div>'
+      + `${cap}</div>`;
+  }
+
+  const controls = '<div class="oc-formwrap">' + ocControlsHtml() + '</div>';
+  let body;
+  if (!_ocQuery) {
+    body = '<div class="icis-prompt">기준·기간·제품을 고르고 [조회]를 누르세요</div>';
+  } else {
+    const q = _ocQuery, win = ocWindow(q);
+    const tools = '<div class="oc-result__head">'
+      + '<div class="oc-span">' + escapeHtml(ocSpanText(q, win))
+      + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span></div>'
+      + '<div class="oc-tools">'
+      + '<button type="button" class="oc-tool' + (_ocView === 'table' ? ' is-on' : '') + '" data-oc-view="table">표보기</button>'
+      + '<button type="button" class="oc-tool' + (_ocView === 'chart' ? ' is-on' : '') + '" data-oc-view="chart">차트보기</button>'
+      + '<button type="button" class="oc-tool" data-oc-exp="csv">csv 저장</button>'
+      + '<button type="button" class="oc-tool" data-oc-exp="xls">엑셀저장</button>'
+      + '<button type="button" class="oc-tool" data-oc-exp="print">인쇄하기</button>'
+      + '</div></div>';
+    const result = (_ocView === 'chart')
+      ? buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
+      : ocTableHtml(q, win);
+    body = tools + result;
+  }
+  const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
+  const extras = renderOilForecastHtml();
+  return `<div class="viz-root viz-figure oil-figure">${head}${controls}${body}${note}${cap}${extras}</div>`;
 }
 
 /** 순수 추가(유가 예측 전용): 환율 카드(_fx)의 최신 USD 기준환율 + 기준일 참조.
@@ -2294,7 +2637,7 @@ function renderOilForecastHtml() {
     console.log('[oil-fc] 환율 데이터 없음 → 원화 환산 생략, USD만 표시');
   }
   return `<div class="oilfc">
-    <h3 class="subhead oilfc__title">다음 달 전망 <span class="oilfc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
+    <h3 class="subhead oilfc__title">석유제품 다음 달 전망 <span class="oilfc__month">(${escapeHtml(fc.target_month || '')} 예측)</span>${gen}</h3>
     ${sub}
     <div class="oilfc__grid">${cards}</div>
     ${summary}${spread}${caution}${fxnote}
@@ -2302,17 +2645,17 @@ function renderOilForecastHtml() {
   </div>`;
 }
 
-/** 9개 유종 중 켜진 것만 월별 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음) */
-function buildOilChart(rows) {
+/** 선택한 유종만 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음).
+    ★ 계열을 인자로 받는다 — 전역 상태를 읽지 않으므로 어느 기준(년·월·주·일)이든 그대로 쓴다. */
+function buildOilChart(rows, onSeries, term) {
   const n = rows.length;
   if (!n) { _oilChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
-  const on = (_oilData.series || []).filter((s) => _oilOn && _oilOn.has(s.key));
-  const series = on.map((s) => ({
-    key: s.key, label: s.label, color: OIL_COLORS[s.key] || 'var(--slate)',
+  const series = (onSeries || []).map((s) => ({
+    key: s.key, label: s.label, color: s.color || 'var(--slate)',
     values: rows.map((r) => (r[s.key] == null ? null : r[s.key])),
   }));
-  const periods = rows.map((r) => r.period);
-  if (!series.length) { _oilChart = null; return '<div class="chart-empty">범례에서 유종을 선택하세요.</div>'; }
+  const periods = rows.map((r) => ocLabel(r.period, term));
+  if (!series.length) { _oilChart = null; return '<div class="chart-empty">제품을 하나 이상 선택하세요.</div>'; }
 
   const all = series.flatMap((s) => s.values).filter((v) => v != null);
   if (!all.length) { _oilChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
@@ -3746,7 +4089,7 @@ function resetDashboard() {
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
-  _oilData = null; _oilRange = null; _oilOn = null; _oilChart = null; // 국제유가 비우기
+  _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _oilChart = null; // 국제유가 비우기
   _oilForecast = null; // 순수 추가: 유가 예측 초기화(섹션 숨김)
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
@@ -3819,7 +4162,7 @@ function updateStatusNote(data) {
 /** 섹션 키 → 사람이 읽는 이름(위 문구 전용) */
 const SECTION_LABELS = {
   simmons_news: '시몬스 소식', usd_krw: '환율(USD)', schedule_reliability: '해상 정시성',
-  oil_prices: '국제유가', domestic: '국내 브랜드', global_brands: '국외 브랜드',
+  oil_crude: '국제유가(원유)', domestic: '국내 브랜드', global_brands: '국외 브랜드',
   competitors: '경쟁사 실적', fx: '환율', icis_forecast: '주원료 예측',
   sr_forecast: '정시성 예측', oil_forecast: '유가 예측', koima_index: 'KOIMA 월간지수',
   us_ppi: '미국 매트리스 PPI',

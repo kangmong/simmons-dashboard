@@ -30,6 +30,11 @@ try:  # 순수 추가: 다음 달 주원료 예측(기존 코드 미변경). 로
 except Exception:  # noqa: BLE001
     compute_icis_forecast = None
 
+try:  # 국제유가(원유) — PETRONET 일일국제원유가격. 키 불필요.
+    from oil_crude import update_oil_crude
+except Exception:  # noqa: BLE001
+    update_oil_crude = None
+
 try:  # 미국 매트리스 제조업 PPI — BLS 공개 API(키 불필요).
     from us_ppi import update_us_ppi
 except Exception:  # noqa: BLE001
@@ -1884,120 +1889,10 @@ def update_schedule_reliability():
         return {"status": "error", "reason": "파싱 실패: %s" % e}
 
 
-# ── 국제유가 — 한국석유공사 PETRONET 일일국제제품가격(월별, 3개 유종) ──────────
-OIL_GET_URL = "https://www.petronet.co.kr/v4/excel/KDFQ0200_x2.jsp"
-OIL_POST_URL = "https://www.petronet.co.kr/v4/sub.jsp"
-# (제품코드, 응답키, 표시라벨) — 요청 ProdCDList 순서 = 응답 표의 열 순서
-OIL_PRODS = [
-    ("B001", "gasoline95", "휘발유(95RON)"),
-    ("D008", "diesel005", "경유(0.05%)"),
-    ("F001", "naphtha", "나프타"),
-]
-
-
-def _oil_num(cell):
-    v = re.sub(r"<[^>]+>", "", cell).replace("&nbsp;", " ").strip()
-    try:
-        return round(float(v), 2)
-    except ValueError:
-        return None  # '-' 등 결측 → None
-
-
-def _oil_parse(text):
-    """월별 제품가 HTML 표 → rows[{period:'YYYY-MM', <9키>}].
-       - 날짜 셀에 연도 없음. 다만 1월 행은 'YY년 01월'로 연도 표기 → 연도 확정.
-         그 외 'MM월' 행은 직전 연도 유지(월 감소 시 +1 롤오버 안전장치).
-       - 첫 셀이 월 형태가 아닌 행(헤더/전월비/전년동월비/평균)은 제외."""
-    n_prod = len(OIL_PRODS)
-    rows = []
-    year, prev_m = None, None
-    for tr in re.findall(r"<tr.*?>(.*?)</tr>", text, re.S | re.I):
-        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)
-        if len(cells) < 1 + n_prod:
-            continue
-        first = re.sub(r"<[^>]+>", "", cells[0]).replace("&nbsp;", " ").strip()
-        mfull = re.match(r"^\s*(\d{2})\s*년\s*(\d{1,2})\s*월", first)  # 'YY년 MM월'
-        mmon = re.match(r"^\s*(\d{1,2})\s*월\s*$", first)             # 'MM월'
-        if mfull:
-            year = 2000 + int(mfull.group(1))
-            mo = int(mfull.group(2))
-        elif mmon:
-            mo = int(mmon.group(1))
-            if year is None:
-                year = 2011  # FromDate 시작연도
-            elif prev_m is not None and mo < prev_m:
-                year += 1
-        else:
-            continue  # 헤더·요약행 제외
-        prev_m = mo
-        vals = [_oil_num(c) for c in cells[1:1 + n_prod]]
-        row = {"period": "%04d-%02d" % (year, mo)}
-        for (_, key, _), v in zip(OIL_PRODS, vals):
-            row[key] = v
-        rows.append(row)
-    return rows
-
-
-def update_oil_prices():
-    """PETRONET 일일국제제품가격(월별, USD/배럴, 3개 유종, 2011.07~현재).
-       GET(excel jsp) 먼저 시도 → 리다이렉트/빈 응답이면 POST(sub.jsp)로 폴백.
-       실패 시 status=error, 서버는 죽지 않음."""
-    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
-    ref = "https://www.petronet.co.kr/v4/sub.jsp"
-    prods = [p[0] for p in OIL_PRODS]
-    try:
-        today = datetime.date.today()
-        todate = "%04d%02d" % (today.year, today.month)
-        rows = []
-        # 1순위 GET
-        try:
-            qs = {"term": "m", "by": "2011", "bq": "3", "bm": "07", "bw": "1", "bd": "16",
-                  "ay": str(today.year), "aq": str((today.month - 1) // 3 + 1),
-                  "am": "%02d" % today.month, "aw": "1", "ad": "%02d" % today.day,
-                  "ProdCDList": ",".join(prods)}
-            g = requests.get(OIL_GET_URL, params=qs,
-                             headers={"User-Agent": ua, "Referer": ref}, timeout=30)
-            gt = g.content.decode("utf-8", "replace")
-            if g.status_code == 200 and "<tr" in gt.lower():
-                rows = _oil_parse(gt)
-        except requests.exceptions.RequestException:
-            rows = []
-        # 2순위 POST 폴백
-        if not rows:
-            inner = "\\,".join("\\'%s\\'" % c for c in prods)  # \'B001\'\,\'D008\'\,\'F001\'
-            param = ":T='M',:FromDate='201107',:ToDate='%s',:ProdCD='%s '" % (todate, inner)
-            data = [("fmuId", "KDFQSTAT"), ("smuId", "KDFQ01"), ("tmuId", "KDFQ0200"),
-                    ("fmuOrd", "03"), ("smuOrd", "03_01"), ("tmuOrd", "03_01_02"),
-                    ("Parameter", param), ("ProdCDList", ",".join(prods)),
-                    ("firstFlag", "T"), ("term", "m"),
-                    ("by", "2011"), ("bq", "3"), ("bm", "07"), ("bw", "1"), ("bd", "16"),
-                    ("ay", str(today.year)), ("aq", str((today.month - 1) // 3 + 1)),
-                    ("am", "%02d" % today.month), ("aw", "1"), ("ad", "%02d" % today.day)]
-            data += [("ProdCd", p) for p in prods]  # ProdCd 반복
-            pr = requests.post(OIL_POST_URL, data=data, timeout=40,
-                               headers={"User-Agent": ua, "Referer": ref,
-                                        "Content-Type": "application/x-www-form-urlencoded"})
-            pr.raise_for_status()
-            txt = pr.content.decode("utf-8", "replace")
-            if txt.count("�") > 10:  # utf-8 깨지면 euc-kr 폴백
-                txt = pr.content.decode("euc-kr", "replace")
-            rows = _oil_parse(txt)
-        if not rows:
-            return {"status": "error", "reason": "유가 데이터 행 없음(형식 변경/차단 가능)"}
-        return {"status": "ok", "source": "PETRONET 일일국제제품가격", "unit": "USD/배럴",
-                "series": [{"key": k, "label": lbl} for _, k, lbl in OIL_PRODS], "rows": rows}
-    except requests.exceptions.RequestException as e:  # noqa: BLE001
-        return {"status": "error", "reason": "PETRONET 조회 실패: %s" % e}
-    except Exception as e:  # noqa: BLE001
-        return {"status": "error", "reason": "유가 파싱 실패: %s" % e}
-
-
 FETCHERS = {
     "simmons_news": update_simmons_news,
     "usd_krw": update_usd_krw,
     "schedule_reliability": update_schedule_reliability,
-    "oil_prices": update_oil_prices,
     "domestic": update_domestic,
     "global_brands": update_global_brands,
     "competitors": update_competitors,
@@ -2005,6 +1900,8 @@ FETCHERS = {
 }
 if compute_icis_forecast is not None:  # 순수 추가: 예측 재계산을 업데이트 버튼에 덧붙임
     FETCHERS["icis_forecast"] = compute_icis_forecast
+if update_oil_crude is not None:  # 국제유가(원유) — PETRONET
+    FETCHERS["oil_crude"] = update_oil_crude
 if update_us_ppi is not None:  # 미국 매트리스 제조업 PPI(BLS)
     FETCHERS["us_ppi"] = update_us_ppi
 if compute_sr_forecast is not None:  # 순수 추가: 해상 정시성 예측도 업데이트에 덧붙임
@@ -2021,7 +1918,7 @@ if update_koima_index is not None:  # 순수 추가: KOIMA 부문별 지수도 �
 FETCH_GROUPS = [
     ["simmons_news", "domestic", "global_brands"],   # news.google.com
     ["schedule_reliability", "sr_forecast"],         # sea-intelligence.com
-    ["oil_prices", "oil_forecast"],                  # petronet.co.kr
+    ["oil_crude", "oil_forecast"],                   # petronet.co.kr (같은 서버 → 순차)
     ["usd_krw", "fx"],                               # frankfurter.app
     ["koima_index"],                                 # koimaindex.com
     ["competitors"],                                 # SEC EDGAR
@@ -2036,7 +1933,7 @@ CACHE_TTL = {
     # 뉴스 — 6시간
     "simmons_news": 6 * 3600, "domestic": 6 * 3600, "global_brands": 6 * 3600,
     # 일별 데이터 — 당일(24시간)
-    "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_prices": 24 * 3600,
+    "fx": 24 * 3600, "usd_krw": 24 * 3600, "oil_crude": 24 * 3600,
     "competitors": 24 * 3600,
     "us_ppi": 24 * 3600,
     # 월별 데이터 — 당일(24시간)
