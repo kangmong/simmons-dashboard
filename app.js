@@ -2694,6 +2694,15 @@ function wireSrChart() {
      계산 규칙은 PETRONET 이 스스로 계산해 준 값과 대조해 확정했다(oil_crude.py 주석). */
 const OC_COLORS = { dubai: '#C8102E', brent: '#3B82F6', wti: '#F59E0B', oman: '#12B981' };
 const OC_TERMS = [['y', '년'], ['m', '월'], ['w', '주'], ['d', '일']];
+// 체크박스 라벨 옆에 붙일 짧은 설명 — 어느 지역 기준 유종인지 그 자리에서 읽히게.
+// ★ 조회 조건의 체크박스에만 쓴다. 표 머리·범례·CSV 는 payload 의 series.label
+//   (Dubai / Brent(ICE) …)을 그대로 써야 하므로 그쪽은 건드리지 않는다.
+const OC_ORIGIN = {
+  dubai: '두바이유 · 중동 기준',
+  brent: '브렌트유 · 유럽/국제유가 기준',
+  wti: '서부텍사스유 · 미국 기준',
+  oman: '오만유 · 중동 기준',
+};
 // 기준별 기본 조회 폭(개월). 표가 한눈에 들어오는 크기로 연다.
 const OC_DEFAULT_SPAN = { y: null, m: 12, w: 3, d: 1 };
 
@@ -2877,11 +2886,13 @@ function ocControlsHtml() {
     + '<input type="radio" name="ocTerm" value="' + t[0] + '"'
     + (f.term === t[0] ? ' checked' : '') + '>' + escapeHtml(t[1]) + '</label>').join('');
 
-  const prods = ((_ocData && _ocData.series) || []).map((s) => '<label class="oc-check">'
+  const prods = ((_ocData && _ocData.series) || []).map((s) => '<label class="oc-check oc-check--origin">'
     + '<input type="checkbox" data-oc-prod="' + escapeHtml(s.key) + '"'
     + (f.on.has(s.key) ? ' checked' : '') + '>'
     + '<span class="oc-swatch" style="background:' + (OC_COLORS[s.key] || 'var(--slate)') + '"></span>'
-    + escapeHtml(s.label) + '</label>').join('');
+    + '<span class="oc-name">' + escapeHtml(s.label) + '</span>'
+    + (OC_ORIGIN[s.key] ? '<span class="oc-note">(' + escapeHtml(OC_ORIGIN[s.key]) + ')</span>' : '')
+    + '</label>').join('');
 
   return '<div class="oc-form">'
     + '<div class="oc-row"><span class="oc-lab">기준선택</span>'
