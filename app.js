@@ -935,6 +935,25 @@ function gSrcDate() {
   return best;
 }
 
+/* 카드별 원본 페이지 — 각주의 기관·페이지 이름을 이 주소로 건다.
+   ★ 미국 PPI 각주가 쓰는 gLinkify(text, links) 와 같은 형식이라 함수를 재사용한다.
+     새 카드에 링크를 붙일 때도 여기 한 줄만 추가하면 된다. */
+const SRC_LINKS = {
+  sea: [{ text: 'Sea-Intelligence',
+    url: 'https://www.sea-intelligence.com/press-room/400-global-schedule-reliability-drops-to-62-6-in-june-2026' }],
+  oilCrude: [{ text: '일일국제원유가격', url: 'https://www.petronet.co.kr/v4/sub.jsp' }],
+  oilProduct: [{ text: '일일국제제품가격', url: 'https://www.petronet.co.kr/v4/sub.jsp' }],
+  koimaIndex: [{ text: '한국수입협회 국제원자재가격정보',
+    url: 'https://www.koimaindex.com/koimaindex/koima/item/index/retrieveList.do' }],
+  koimaPrice: [{ text: '한국수입협회 국제원자재가격정보',
+    url: 'https://www.koimaindex.com/koimaindex/koima/price/detailView.do' }],
+};
+
+/** 카드 하단 출처 각주(.comp-caption) — 문구는 그대로 두고 이름만 링크로 만든다. */
+function capSrc(text, links) {
+  return '<div class="comp-caption">' + gLinkify(text, links) + '</div>';
+}
+
 /** 각주 문구 안의 특정 토막(시리즈 코드·품목 코드 등)만 원본 페이지 링크로 바꾼다.
     links: [{text, url}] — payload 가 준다. 어느 지표든 이 모양만 실어 보내면 된다.
     ★ 문자열을 순차 치환하지 않는다. 앞서 넣은 <a href="…PCU337910337910…"> 안의
@@ -2322,7 +2341,7 @@ function renderOilProductHtml() {
       <div class="viz-title">국제유가 · 석유제품 (PETRONET)</div>
       <div class="viz-sub">일일국제제품가격 · 휘발유·등유·경유·중유·나프타 (${escapeHtml(unit)})</div>
     </div></div>`;
-  const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET · 일일국제제품가격</div>';
+  const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제제품가격', SRC_LINKS.oilProduct);
   if (!_opData) {
     return `<div class="viz-root viz-figure oilp-figure">${head}`
       + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>' + `${cap}</div>`;
@@ -2423,7 +2442,7 @@ function renderScheduleReliabilityHtml() {
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
-      <div class="comp-caption">출처: Sea-Intelligence</div>
+      ${capSrc('출처: Sea-Intelligence', SRC_LINKS.sea)}
     </div>`;
   }
   const years = Object.keys(_srData.years).sort().concat(['all']);
@@ -2444,7 +2463,7 @@ function renderScheduleReliabilityHtml() {
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="srTooltip"></div>
-    <div class="comp-caption">출처: Sea-Intelligence</div>
+    ${capSrc('출처: Sea-Intelligence', SRC_LINKS.sea)}
     ${extras}
   </div>`;
 }
@@ -2972,7 +2991,7 @@ function renderOilPricesHtml() {
       <div class="viz-title">국제유가 (PETRONET)</div>
       <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
     </div></div>`;
-  const cap = '<div class="comp-caption">출처: 한국석유공사 PETRONET · 일일국제원유가격</div>';
+  const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
 
   if (!_ocData) {
     return `<div class="viz-root viz-figure oil-figure">${head}`
@@ -3245,7 +3264,7 @@ function renderKoimaHtml() {
       <div class="viz-title">원자재 월간 부문별 지수 (KOIMA)</div>
       <div class="viz-sub">8개 부문 월별 지수 · 2010.12 = 100 기준</div>
     </div></div>`;
-  const cap = '<div class="comp-caption">출처: 한국수입협회 국제원자재가격정보</div>';
+  const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaIndex);
   const ok = _koimaData && !_koimaData.error && _koimaData.categories.length;
   const cat = ok ? koimaCatOf(_koimaCat) : null;
   const dis = ok ? '' : ' disabled';
@@ -3614,7 +3633,7 @@ function renderKoimaPriceHtml() {
       <div class="viz-title">일일 국제원자재가격 (KOIMA)</div>
       <div class="viz-sub">부문별 주요 품목 일별 가격</div>
     </div></div>`;
-  const cap = '<div class="comp-caption">출처: 한국수입협회 국제원자재가격정보</div>';
+  const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaPrice);
   const ok = _kpData && !_kpData.error && _kpData.categories.length;
   const cat = ok ? kpCatOf(_kpCat) : null;
   const item = ok ? kpItemOf(cat, _kpItem) : null;
