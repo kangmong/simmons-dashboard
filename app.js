@@ -1974,6 +1974,22 @@ const OP_COLORS = {
   hsfo180: '#3B82F6', hsfo380: '#8B5CF6', naphtha: '#64748B',
 };
 const OP_DEFAULT_SPAN = { y: null, m: 12, w: 3, d: 1 };   // 기본 조회 폭(개월)
+// 체크박스 라벨 옆 짧은 설명 — 라벨의 숫자가 '무슨 뜻인지'를 적는다(숫자를 되풀이하지 않는다).
+// ★ 뜻풀이 근거는 PETRONET 조회 페이지 각주다: RON=옥탄가 · cst=동점도(센티스톡) 단위 ·
+//   경유 0.5% 는 2012년 12월 1일 게시 중단(그 자리를 경유 0.001%(10ppm)이 대신한다).
+// ★ 원유 카드와 같이, 조회 조건의 체크박스에만 쓴다. 표 머리·범례·CSV 는
+//   payload 의 series.label 을 그대로 써야 하므로 건드리지 않는다.
+const OP_ORIGIN = {
+  gasoline95: '옥탄가(RON) 95 · 고옥탄 등급',
+  gasoline92: '옥탄가(RON) 92 · 표준 등급',
+  kerosene: '난방유 · 항공유 계열',
+  diesel05: '황 함량 5,000ppm · 2012년 게시 중단',
+  diesel005: '황 함량 500ppm',
+  diesel0001: '황 함량 10ppm · 초저황',
+  hsfo180: '선박 연료유 · cst는 점도 단위',
+  hsfo380: '선박 연료유 · 180cst보다 점도 높음',
+  naphtha: '석유화학 기초원료',
+};
 
 let _opData = null;     // sections.oil_product
 let _opForm = null;     // 사용자가 만지는 중인 조건
@@ -2156,11 +2172,13 @@ function opControlsHtml() {
   const terms = OC_TERMS.map((t) => '<label class="oc-radio">'
     + '<input type="radio" name="opTerm" value="' + t[0] + '"'
     + (f.term === t[0] ? ' checked' : '') + '>' + escapeHtml(t[1]) + '</label>').join('');
-  const prods = ((_opData && _opData.series) || []).map((s) => '<label class="oc-check">'
+  const prods = ((_opData && _opData.series) || []).map((s) => '<label class="oc-check oc-check--origin">'
     + '<input type="checkbox" data-op-prod="' + escapeHtml(s.key) + '"'
     + (f.on.has(s.key) ? ' checked' : '') + '>'
     + '<span class="oc-swatch" style="background:' + (OP_COLORS[s.key] || 'var(--slate)') + '"></span>'
-    + escapeHtml(s.label) + '</label>').join('');
+    + '<span class="oc-name">' + escapeHtml(s.label) + '</span>'
+    + (OP_ORIGIN[s.key] ? '<span class="oc-note">(' + escapeHtml(OP_ORIGIN[s.key]) + ')</span>' : '')
+    + '</label>').join('');
 
   return '<div class="oc-form">'
     + '<div class="oc-row"><span class="oc-lab">기준선택</span><div class="oc-ctl">' + terms + '</div></div>'

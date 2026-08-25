@@ -458,7 +458,8 @@ body {
 .op-krw--tt { display: inline; margin-top: 0; font-size: 10.5px; opacity: .85; }
 /* 제품이 9개라 체크박스가 여러 줄이 된다 — 라벨 열에 맞춰 가지런히 흐르게 */
 .oc-ctl--wrap { max-width: 100%; row-gap: 6px; }
-.oc-ctl--wrap .oc-check { flex: 0 0 auto; }
+/* 라벨이 길어졌으므로 좁은 화면에서 줄어들 수 있게 둔다(넘침 방지) */
+.oc-ctl--wrap .oc-check { flex: 0 1 auto; max-width: 100%; }
 
 /* ── 국제유가(원유) 조회 조건 — PETRONET '일일국제원유가격'과 같은 순서 ── */
 .oc-formwrap { margin: 10px 0 14px; padding: 12px 14px; border: 1px solid var(--line);
