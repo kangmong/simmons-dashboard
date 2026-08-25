@@ -1424,7 +1424,7 @@ function renderCompetitor() {
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
       <div class="comp-group__sub">${gTier ? '미국 매트리스 가격 동향' : '분기별 실적'}
-        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · BLS 월별 데이터 자동 수집' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
+        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · BLS(Bureau of Labor Statistics, 미국 노동통계국) 월별 데이터 자동 수집' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;
