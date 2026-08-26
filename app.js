@@ -5803,8 +5803,13 @@ function renderFx() {
     return `<button class="icis-year fx-cur${cur === _fxCur ? ' is-active' : ''}" data-cur="${cur}">${escapeHtml(label)}</button>`;
   }).join('')}</div>`;
   const months = [3, 6, 9, 12];
+  // 리포트 버튼 — 통화·기간이 모두 골라졌을 때만 낸다(원유·제품·KOIMA 카드와 같은 자리·클래스)
+  const rptBtn = (_fxCur && _fxMonths)
+    ? `<button type="button" class="oc-tool or-btn fx-report${_fxReport ? ' is-on' : ''}"
+        data-fx-report="1" aria-expanded="${_fxReport ? 'true' : 'false'}">📊 리포트 분석</button>`
+    : '';
   const monChips = `<div class="icis-years fx-months">${months.map((mm) =>
-    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}</div>`;
+    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}${rptBtn}</div>`;
 
   let chartBody, sub;
   if (!_fxCur || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
@@ -5832,7 +5837,7 @@ function renderFx() {
       </div></div>
       ${curChips}
       ${monChips}
-      ${chartBody}
+      ${chartBody}${_fxReport ? fxrReportHtml() : ''}
       <div class="viz-tooltip" id="fxTooltip"></div>
       <div class="comp-caption">${fxAsOfDate() ? `기준일 ${escapeHtml(fxAsOfDate())} · ` : ''}출처: Frankfurter (ECB 기반)</div>
     </div>`;
@@ -5851,7 +5856,319 @@ function renderFx() {
     _fxMonths = parseInt(b.dataset.months, 10);  // 통화는 유지
     renderFx();
   });
+  const rEl = el.querySelector('.fx-report');
+  if (rEl) rEl.addEventListener('click', () => { _fxReport = !_fxReport; renderFx(); });
   if (_fxCur && _fxMonths) wireFxInteraction();
+}
+
+/* ── 환율 · 리포트 분석 ───────────────────────────────────────────────────
+   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿이고 숫자는 전부 받아둔 시세에서 계산한다.
+     외부 호출이 없으므로 비용도 없다.
+   ★★ 원인은 지어내지 않는다. '연준 금리', '무역수지' 같은 해설은 이 데이터에
+     없다. 서술하는 것은 오직 숫자 자체의 변화뿐이다 — 전일 대비 · 기간 등락 ·
+     최고/최저 · 평균 · 통화 간 변동폭 비교.
+   ★ 고정값이 없다. 지금 고른 통화(_fxCur)와 기간(_fxMonths)에서 매번 계산한다. */
+let _fxReport = false;      // 리포트 펼침 상태
+
+const FXR_DEF = '환율이란 자국 통화와 외국 통화 간의 교환 비율을 뜻하며, '
+  + '원/달러 환율이 오르면 원화 가치가 하락(달러 대비 원화 약세)했다는 의미입니다.';
+
+/* |변동률|을 말로 옮기는 유일한 근거표. 사람 감각으로 '소폭'을 쓰지 않는다.
+   경계값을 코드에 적어 두어 나중에 왜 그렇게 썼는지 확인할 수 있게 한다. */
+const FXR_BANDS = [
+  { lim: 0.3, word: '소폭 ' },
+  { lim: 1.0, word: '' },
+  { lim: Infinity, word: '큰 폭으로 ' },
+];
+function fxrMag(pct) {
+  const a = Math.abs(pct == null ? 0 : pct);
+  return FXR_BANDS.filter((b) => a < b.lim)[0].word;
+}
+
+function fxrWon(v) { return (v == null) ? '—' : fxNum(v) + '원'; }
+function fxrSigned(v) {
+  if (v == null) return '—';
+  return (v > 0 ? '+' : v < 0 ? '-' : '') + fxNum(Math.abs(v)) + '원';
+}
+function fxrPct(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function fxrDay(cur) {
+  return ((_fx && _fx.rows) || []).filter((x) => x.cur === cur)[0] || null;
+}
+/** 전일 대비 변동률(%) — prev 가 없으면 null */
+function fxrDayPct(r) {
+  if (!r || r.change == null || !r.prev) return null;
+  return Math.round((r.change / r.prev) * 10000) / 100;
+}
+
+/** 조회 창 안의 통화별 지표. 값이 하나도 없으면 n=0 으로 남긴다. */
+function fxrStats(cur, sl) {
+  const m = FX_META[cur];
+  const pts = [];
+  (sl.dates || []).forEach((d, i) => {
+    const v = sl[cur] ? sl[cur][i] : null;
+    if (v != null) pts.push({ d: d, v: v });
+  });
+  const base = { cur: cur, label: m.label, name: m.name, color: m.color, n: pts.length };
+  if (!pts.length) return base;
+  const vals = pts.map((x) => x.v);
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  const first = pts[0], last = pts[pts.length - 1];
+  return Object.assign(base, {
+    pts: pts, first: first, last: last,
+    hi: pts.filter((x) => x.v === mx)[0],
+    lo: pts.filter((x) => x.v === mn)[0],
+    avg: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+    chg: Math.round((last.v - first.v) * 100) / 100,
+    pct: first.v ? Math.round(((last.v - first.v) / first.v) * 10000) / 100 : null,
+  });
+}
+
+/** 리포트가 쓸 값 묶음. 통화·기간이 안 골라졌거나 값이 없으면 null */
+function fxrCtx() {
+  if (!_fx || !_fxCur || !_fxMonths) return null;
+  const sl = fxSlice(_fxMonths);
+  if (!sl.dates || !sl.dates.length) return null;
+  // 표·순위는 항상 3통화를 함께 본다(요청: 3개 통화 동시 비교).
+  const st = FX_CURS.map((c) => fxrStats(c, sl));
+  const live = st.filter((x) => x.n);
+  if (!live.length) return null;
+  // '전체'를 골랐으면 헤드라인 기준은 원/달러로 둔다(가장 널리 쓰는 기준).
+  const headCur = (_fxCur === 'all') ? 'USD' : _fxCur;
+  const drawCurs = (_fxCur === 'all') ? FX_CURS.slice() : [_fxCur];
+  return {
+    sl: sl, st: st, live: live, headCur: headCur, drawCurs: drawCurs,
+    months: _fxMonths, isAll: _fxCur === 'all',
+    span: sl.dates[0] + ' ~ ' + sl.dates[sl.dates.length - 1],
+    days: sl.dates.length,
+    head: st.filter((x) => x.cur === headCur)[0],
+  };
+}
+
+/** 통화별 지표 표 — 3통화를 한 표에서 견준다. 고른 통화는 굵게. */
+function fxrTable(c) {
+  const row = (x) => {
+    const on = c.drawCurs.indexOf(x.cur) >= 0;
+    const nameCell = '<td class="oc-td-p"><span class="oc-swatch" style="background:'
+      + x.color + '"></span>' + (on ? '<b>' : '') + escapeHtml(x.label) + ' '
+      + escapeHtml(x.name) + (on ? '</b>' : '') + '</td>';
+    if (!x.n) return '<tr>' + nameCell + '<td class="oc-num" colspan="6">이 기간 값 없음</td></tr>';
+    const d = fxrDay(x.cur), dp = fxrDayPct(d);
+    const dCls = (d && d.change != null) ? (d.change > 0 ? ' oc-up' : (d.change < 0 ? ' oc-down' : '')) : '';
+    const pCls = x.pct == null ? '' : (x.pct > 0 ? ' oc-up' : (x.pct < 0 ? ' oc-down' : ''));
+    return '<tr>' + nameCell
+      + '<td class="oc-num">' + fxrWon(x.last.v) + '</td>'
+      + '<td class="oc-num' + dCls + '">' + (d ? fxrSigned(d.change) : '—')
+      + '<span class="or-when">' + escapeHtml(fxrPct(dp)) + '</span></td>'
+      + '<td class="oc-num' + pCls + '">' + fxrSigned(x.chg)
+      + '<span class="or-when">' + escapeHtml(fxrPct(x.pct)) + '</span></td>'
+      + '<td class="oc-num"><span class="or-hi">' + fxrWon(x.hi.v) + '</span>'
+      + '<span class="or-when">' + escapeHtml(x.hi.d) + '</span></td>'
+      + '<td class="oc-num"><span class="or-lo">' + fxrWon(x.lo.v) + '</span>'
+      + '<span class="or-when">' + escapeHtml(x.lo.d) + '</span></td>'
+      + '<td class="oc-num">' + fxrWon(x.avg) + '</td></tr>';
+  };
+  return '<div class="oc-tablewrap"><table class="oc-table or-tbl"><thead><tr>'
+    + '<th class="oc-th-p">통화</th><th>최근값</th><th>전일 대비</th><th>기간 등락</th>'
+    + '<th>최고</th><th>최저</th><th>평균</th>'
+    + '</tr></thead><tbody>' + c.st.map(row).join('') + '</tbody></table></div>';
+}
+
+/** 변동폭 순위 — 기간 등락률 절댓값 기준. 값 없는 통화는 순위에서 뺀다. */
+function fxrRankHtml(c) {
+  const rank = c.live.filter((x) => x.pct != null)
+    .slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  if (!rank.length) return '';
+  return '<div class="srr-stats">' + rank.map((x, i) => {
+    const cls = x.pct > 0 ? ' srr-up' : (x.pct < 0 ? ' srr-down' : ' srr-flat');
+    return '<div class="srr-stat"><span class="gs-k">' + (i + 1) + '위 '
+      + escapeHtml(x.label) + '</span>'
+      + '<span class="gs-v' + cls + '">' + escapeHtml(fxrPct(x.pct)) + '</span>'
+      + '<span class="srr-sub">' + escapeHtml(fxrSigned(x.chg)) + '</span></div>';
+  }).join('') + '</div>';
+}
+
+/** 보조 설명 문장. 근거 없는 문장은 아예 넣지 않는다. */
+function fxrSubs(c) {
+  const h = c.head, out = [];
+  const unit = (h.cur === 'JPY') ? ' (100엔 기준)' : '';
+  if (h.n) {
+    out.push('조회 기간(' + c.months + '개월 · ' + c.span + ') 안에서 '
+      + h.label + unit + '는 최고 ' + fxrWon(h.hi.v) + '(' + h.hi.d + '), '
+      + '최저 ' + fxrWon(h.lo.v) + '(' + h.lo.d + ')입니다.');
+    out.push('같은 기간 평균은 ' + fxrWon(h.avg) + '이고, 값이 있는 날은 '
+      + h.n + '일입니다.');
+    if (h.pct != null) {
+      const w = h.chg > 0 ? '상승' : (h.chg < 0 ? '하락' : '보합');
+      out.push('기간 첫날(' + h.first.d + ' ' + fxrWon(h.first.v) + ') 대비로는 '
+        + fxrSigned(h.chg) + '(' + fxrPct(h.pct) + ') ' + fxrMag(h.pct) + w + '했습니다.');
+    }
+    const diff = Math.round((h.last.v - h.avg) * 100) / 100;
+    out.push('최근값은 기간 평균보다 ' + fxrSigned(diff) + ' '
+      + (diff > 0 ? '높은' : (diff < 0 ? '낮은' : '같은')) + ' 수준입니다.');
+  }
+  const rank = c.live.filter((x) => x.pct != null)
+    .slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  if (rank.length >= 2) {
+    const top = rank[0], bot = rank[rank.length - 1];
+    out.push('이번 기간 원화 대비 변동폭이 가장 큰 통화는 ' + top.label
+      + '(' + fxrPct(top.pct) + '), 가장 작은 통화는 ' + bot.label
+      + '(' + fxrPct(bot.pct) + ')입니다.');
+  }
+  return out;
+}
+
+/** 총 내용 정리 — 맨 앞이 한줄평이다. 모두 계산값으로만 만든다. */
+function fxrSummary(c) {
+  const out = [];
+  // ① 한줄평 — 전일 대비 방향 + 변동폭이 가장 큰 통화
+  const days = FX_CURS.map((x) => fxrDay(x)).filter((r) => r && r.change != null);
+  if (days.length) {
+    const up = days.filter((r) => r.change > 0).length;
+    const dn = days.filter((r) => r.change < 0).length;
+    const fl = days.length - up - dn;
+    const mv = days.slice().sort((a, b) =>
+      Math.abs(fxrDayPct(b) || 0) - Math.abs(fxrDayPct(a) || 0))[0];
+    const mag = fxrMag(fxrDayPct(mv));   // 가장 큰 변동폭의 등급
+    /* ★ '소폭'을 어디에 붙이느냐가 뜻을 바꾼다.
+       세 통화가 같은 방향이면 '가장 큰 변동폭이 소폭' = '모두 소폭' 이므로
+       방향 동사에 붙여도 참이다. 방향이 섞였을 때는 그렇게 말할 수 없으니
+       가장 많이 움직인 통화 쪽에만 붙인다. */
+    let dir, magOnMover = true;
+    if (dn === days.length) { dir = days.length + '개 통화 모두 전일 대비 ' + mag + '하락했으며'; magOnMover = false; }
+    else if (up === days.length) { dir = days.length + '개 통화 모두 전일 대비 ' + mag + '상승했으며'; magOnMover = false; }
+    else if (fl === days.length) { dir = days.length + '개 통화 모두 전일과 같은 수준이며'; magOnMover = false; }
+    else {
+      const parts = [];
+      if (up) parts.push(up + '개 통화가 상승');
+      if (dn) parts.push(dn + '개가 하락');
+      if (fl) parts.push(fl + '개가 보합');
+      dir = '전일 대비 ' + parts.join('하고 ') + '했으며';
+    }
+    const tail = '변동폭이 가장 큰 통화는 ' + FX_META[mv.cur].label
+      + '(' + fxrSigned(mv.change) + ', ' + fxrPct(fxrDayPct(mv)) + ')';
+    out.push('최근 환율은 ' + dir + ', ' + tail
+      + (magOnMover ? '로 ' + mag + '움직였습니다.' : '입니다.'));
+  }
+  // ② 기간 관점
+  const h = c.head;
+  if (h.n && h.pct != null) {
+    const w = h.chg > 0 ? '올랐고' : (h.chg < 0 ? '내렸고' : '보합이었고');
+    const lastWon = fxrWon(h.last.v);   // '…원' 은 받침이 있어 '으로'가 맞다
+    out.push(h.label + '는 조회한 ' + c.months + '개월 동안 '
+      + fxrWon(h.first.v) + '에서 ' + lastWon + gsJosa(lastWon, '으로', '로') + ' '
+      + fxrSigned(h.chg) + '(' + fxrPct(h.pct) + ') ' + w
+      + ' 최고 ' + fxrWon(h.hi.v) + '과 최저 ' + fxrWon(h.lo.v) + ' 사이에서 움직였습니다.');
+  }
+  // ③ 원인은 쓰지 않는다 — 이 데이터로 알 수 없다는 사실만 남긴다.
+  out.push('환율이 왜 그렇게 움직였는지는 이 시세 데이터만으로 알 수 없어 적지 않았습니다. '
+    + '위 문장의 모든 수치는 같은 원본 시세에서 계산한 값입니다.');
+  return out;
+}
+
+/** 추이 그래프 — 핵심 지점만 라벨. 단일 통화는 최고·최저·최근값,
+    '전체'는 선이 셋이라 각 통화의 최근값만 찍는다(최고·최저는 위 표에 있다). */
+function fxrChart(c) {
+  const dates = c.sl.dates, n = dates.length;
+  const draw = c.st.filter((x) => x.n && c.drawCurs.indexOf(x.cur) >= 0);
+  if (n < 2 || !draw.length) return '<div class="chart-empty">추이를 그릴 값이 부족합니다.</div>';
+  const all = [];
+  draw.forEach((x) => x.pts.forEach((p) => all.push(p.v)));
+  let ymin = Math.min.apply(null, all), ymax = Math.max.apply(null, all);
+  const pad = (ymax - ymin) * 0.22 || 5;
+  ymin -= pad; ymax += pad;
+
+  const W = VIZ_W, H = 200, padL = 58, padR = 30, padT = 26, padB = 32;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - ymin) / ((ymax - ymin) || 1)) * plotH;
+  const idxOf = {};
+  dates.forEach((d, i) => { idxOf[d] = i; });
+
+  const grid = vizYFractions().map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${fxNum(val)}</text>`;
+  }).join('');
+
+  const xlab = orTickIdx(n, 6).map((i) => {
+    const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 18).toFixed(1)}" text-anchor="${anchor}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(dates[i].slice(2).replace(/-/g, '.'))}</text>`;
+  }).join('');
+
+  const lines = draw.map((x) => {
+    const pts = x.pts.map((p) => X(idxOf[p.d]).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${x.color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  }).join('');
+
+  // 라벨 — 값 위/아래로 나눠 겹침을 피한다(최고는 위, 최저는 아래).
+  const mark = (p, color, txt, up) => {
+    const x = X(idxOf[p.d]), y = Y(p.v);
+    const anchor = x > padL + plotW - 60 ? 'end' : (x < padL + 60 ? 'start' : 'middle');
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.4" fill="${color}" stroke="var(--card)" stroke-width="1.6"/>`
+      + `<text x="${x.toFixed(1)}" y="${(y + (up ? -9 : 15)).toFixed(1)}" text-anchor="${anchor}" font-size="10" font-weight="800"`
+      + ` paint-order="stroke" stroke="var(--card)" stroke-width="3" fill="var(--ink)">${escapeHtml(txt)}</text>`;
+  };
+  let marks = '';
+  if (c.drawCurs.length === 1) {
+    const x = draw[0];
+    marks += mark(x.hi, x.color, '최고 ' + fxNum(x.hi.v), true);
+    marks += mark(x.lo, x.color, '최저 ' + fxNum(x.lo.v), false);
+    marks += mark(x.last, x.color, '최근 ' + fxNum(x.last.v), true);
+  } else {
+    draw.forEach((x) => { marks += mark(x.last, x.color, x.label + ' ' + fxNum(x.last.v), true); });
+  }
+
+  const legend = (c.drawCurs.length > 1)
+    ? '<div class="srr-legend">' + draw.map((x) => '<span class="srr-lg">'
+      + '<i style="background:' + x.color + '"></i>' + escapeHtml(x.label) + '</span>').join('')
+      + '</div>' : '';
+
+  return `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ' aria-label="환율 추이">' + grid + xlab + lines + marks
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`
+    + legend;
+}
+
+/** 리포트 본문. 버튼을 누르기 전에는 호출되지 않는다. */
+function fxrReportHtml() {
+  const c = fxrCtx();
+  if (!c) return '<div class="srr"><div class="chart-empty">리포트를 만들 시세가 없습니다.</div></div>';
+  const h = c.head;
+  const d = fxrDay(h.cur), dp = fxrDayPct(d);
+  const dir = (!d || d.change == null) ? 'flat' : (d.change > 0 ? 'up' : (d.change < 0 ? 'down' : 'flat'));
+  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
+  const curLabel = c.isAll ? '전체(USD·EUR·JPY)' : (h.name + '(' + h.label + ')');
+
+  const hero = '<div class="srr-hero">'
+    + '<div class="srr-hero__when">' + escapeHtml((d && d.cur ? FX_META[d.cur].name + '(' + d.cur + ')' : curLabel))
+    + (h.cur === 'JPY' ? ' · 100엔 기준' : '')
+    + (fxAsOfDate() ? ' · 기준일 ' + escapeHtml(fxAsOfDate()) : '') + '</div>'
+    + '<div class="srr-hero__row">'
+    + '<span class="srr-hero__v">' + escapeHtml(fxNum(d ? d.now : h.last.v)) + '</span>'
+    + '<span class="srr-hero__unit">원</span>'
+    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
+    + escapeHtml(d && d.change != null ? fxNum(Math.abs(d.change)) + '원' : '—')
+    + (dp != null ? ' (' + escapeHtml(fxrPct(dp)) + ')' : '')
+    + '<span class="srr-hero__vs">전일 대비</span></span>'
+    + '</div></div>';
+
+  const subs = fxrSubs(c).map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
+
+  return '<div class="srr">'
+    + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
+    + escapeHtml(curLabel + ' · ' + c.months + '개월 · ' + c.days + '일 관측') + '</span></div>'
+    + '<p class="srr-cond"><b>현재 조회 조건</b> · ' + escapeHtml(curLabel)
+    + ' · 최근 ' + c.months + '개월 · ' + escapeHtml(c.span) + '</p>'
+    + '<p class="srr-def">' + escapeHtml(FXR_DEF) + '</p>'
+    + hero + subs
+    + '<h4 class="srr-h">통화별 지표 (USD · EUR · JPY 동시 비교)</h4>'
+    + fxrTable(c)
+    + '<h4 class="srr-h">기간 변동폭 순위 (원화 대비)</h4>'
+    + fxrRankHtml(c)
+    + '<h4 class="srr-h">추이</h4><div class="srr-chart">' + fxrChart(c) + '</div>'
+    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
+    + fxrSummary(c).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
+    + '</div></div>';
 }
 
 /** series를 최근 N개월로 슬라이스 */
@@ -6280,6 +6597,7 @@ function resetDashboard() {
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   _fxCur = null;        // 선택 통화 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
+  _fxReport = false;    // 환율 리포트 접기
   // "마지막 업데이트" 텍스트 되돌리기
   const lbl = document.getElementById('lastUpdated');
   if (lbl) lbl.textContent = '아직 업데이트하지 않았습니다';
