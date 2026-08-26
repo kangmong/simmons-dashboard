@@ -142,10 +142,11 @@
       "url": "https://www.asleep.ai/company"
      }
     ],
-    "initial": "A",
     "color": "#3B82F6",
     "investEok": 180,
-    "investBasis": "누적 (시드 2.5억 + 시리즈A 17.5억 + 시리즈B 160억)"
+    "investBasis": "누적 (시드 2.5억 + 시리즈A 17.5억 + 시리즈B 160억)",
+    "logo": "public/logos/asleep.png",
+    "logoSource": "asleep.ai 공식 사이트 브랜드 마크(apple-touch-icon 256px)"
    },
    {
     "name": "코웨이 (비렉스 BEREX)",
@@ -164,10 +165,11 @@
       "url": "https://www.ftoday.co.kr/news/articleView.html?idxno=362610"
      }
     ],
-    "initial": "C",
     "color": "#12B981",
     "investEok": null,
-    "investExcluded": "상장사(사업부문)"
+    "investExcluded": "상장사(사업부문)",
+    "logo": "public/logos/coway.png",
+    "logoSource": "coway.com 공식 정적 호스트 브랜드 마크(apple-touch-icon 180px)"
    },
    {
     "name": "텐마인즈 (10minds)",
@@ -187,10 +189,11 @@
       "url": "https://www.venturesquare.net/1102251"
      }
     ],
-    "initial": "10",
     "color": "#8B5CF6",
     "investEok": null,
-    "investExcluded": "투자 유치 미확인"
+    "investExcluded": "투자 유치 미확인",
+    "logo": "public/logos/10minds.png",
+    "logoSource": "10minds.com 공식 사이트 로고(logo_10minds_160px.png)"
    },
    {
     "name": "삼분의일",
@@ -209,14 +212,12 @@
       "url": "https://www.hankyung.com/article/2021090948621"
      }
     ],
-    "initial": "⅓",
     "color": "#F59E0B",
     "investEok": 160,
     "investBasis": "누적 (2021년 시리즈A 120억 포함)"
    },
    {
     "name": "허니냅스 (HoneyNaps)",
-    "initial": "H",
     "color": "#EA580C",
     "founded": "2015년 7월",
     "desc": "수면다원검사(PSG) 판독을 AI 로 자동화한 의료AI 기업. 전문의가 3~4시간 걸리던 판독을 알고리즘이 대신한다.",
@@ -235,11 +236,12 @@
       "label": "전자신문 — 수면 AI 기업 허니냅스, 美 FDA 승인 획득 (2023-08-21)",
       "url": "https://www.etnews.com/20230821000272"
      }
-    ]
+    ],
+    "logo": "public/logos/honeynaps.png",
+    "logoSource": "honeynaps.com 공식 사이트 로고 시그니처"
    },
    {
     "name": "웰트 (Welt)",
-    "initial": "W",
     "color": "#0EA5E9",
     "founded": "미확인",
     "desc": "불면증 인지행동치료(CBT-I)를 앱으로 구현한 디지털 치료기기 기업. 대표는 강성지.",
@@ -258,9 +260,12 @@
       "label": "EBN — 한독·웰트 '불면증 디지털 치료기기 슬립큐' 상용 시장 확대",
       "url": "https://www.ebn.co.kr/news/articleView.html?idxno=1701983"
      }
-    ]
+    ],
+    "logo": "public/logos/welt-sleepq.svg",
+    "logoSource": "웰트 공식 제품 도메인 sleepq.ai 의 슬립큐 마크"
    }
   ],
-  "investNote": "대부분 비상장 스타트업이라 매출액 대신 공개된 누적 투자 유치액을 기준으로 비교합니다."
+  "investNote": "대부분 비상장 스타트업이라 매출액 대신 공개된 누적 투자 유치액을 기준으로 비교합니다.",
+  "logoNote": "로고는 각사 공식 사이트에서 받은 이미지입니다. 공식 로고 이미지를 찾지 못한 곳은 로고를 넣지 않았습니다(임의 아이콘으로 대체하지 않음)."
  }
 }

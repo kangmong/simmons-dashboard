@@ -1181,14 +1181,15 @@ function smShareDonut(d) {
 }
 
 
-/** 기업 아이콘 — 회사별 색 원에 이니셜.
-    ★ 각사 공식 로고를 외부에서 끌어오지 않았다. 로고 주소를 검증할 수 없어
-      깨진 이미지나 엉뚱한 회사 로고가 붙을 위험이 있어서다(지시받은 대비책 그대로).
-      색·이니셜은 데이터 파일에 있고, 없으면 이름 첫 글자로 대신한다. */
-function smStIcon(c) {
-    const ini = c.initial || String(c.name || '?').trim().charAt(0);
-    return '<span class="sm-st__ico" style="background:' + escapeHtml(c.color || 'var(--slate)')
-      + '" aria-hidden="true">' + escapeHtml(ini) + '</span>';
+/** 기업 로고 — 각사 공식 사이트에서 받은 이미지를 그대로 쓴다.
+    ★ 이미지를 왜곡하지 않는다: 높이만 고정하고 너비는 auto + object-fit:contain.
+    ★ 로고를 찾지 못한 회사는 아무것도 그리지 않는다(임의 아이콘으로 때우지 않는다).
+    ★ 파일이 없거나 깨지면 onerror 로 조용히 지운다 — 깨진 이미지 아이콘을 남기지 않게. */
+function smStLogo(c, cls) {
+  if (!c.logo) return '';
+  return '<img class="sm-st__logo' + (cls ? ' ' + cls : '') + '" src="' + escapeHtml(c.logo)
+    + '" alt="' + escapeHtml(c.name) + ' 로고" loading="lazy"'
+    + ' onerror="this.remove()">';
 }
 
 /** (3-b) 투자 유치액 막대그래프 — 매출이 아니라 '공개된 누적 투자액'으로 견준다.
@@ -1203,7 +1204,7 @@ function smStInvest(st) {
   const rows = bars.map((c) => {
     const w = Math.max(2, (c.investEok / max) * 100);
     return '<div class="sm-hrow">'
-      + '<div class="sm-hname" title="' + escapeHtml(c.name) + '">' + smStIcon(c)
+      + '<div class="sm-hname" title="' + escapeHtml(c.name) + '">' + smStLogo(c, 'sm-st__logo--bar')
       + escapeHtml(c.name) + '</div>'
       + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
       + '%;background:' + escapeHtml(c.color || 'var(--slate)') + ';opacity:1"></div></div>'
@@ -1235,7 +1236,7 @@ function smSleepTech(d) {
         : escapeHtml(x.label)) + '</li>';
     }).join('');
     return '<div class="sm-st">'
-      + '<div class="sm-st__hd">' + smStIcon(c)
+      + '<div class="sm-st__hd">' + smStLogo(c)
       + '<span class="sm-st__h">' + escapeHtml(c.name) + '</span></div>'
       + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
       + row('설립', c.founded) + row('주요 제품·서비스', c.products)
@@ -1248,6 +1249,7 @@ function smSleepTech(d) {
     + '<div class="sm-st-grid">' + cards + '</div>'
     + smStInvest(st)
     + (st.note ? '<div class="sm-foot">' + escapeHtml(st.note) + '</div>' : '')
+    + (st.logoNote ? '<div class="sm-foot">' + escapeHtml(st.logoNote) + '</div>' : '')
     + '</div>';
 }
 

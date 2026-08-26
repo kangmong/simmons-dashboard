@@ -42,6 +42,10 @@
     {
       "src": "public/data/simmons-market.json",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/logos/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
