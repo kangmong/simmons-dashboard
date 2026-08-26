@@ -5278,17 +5278,237 @@ function brandListItems(items, colors) {
   }).join('');
 }
 
-/** 한 소그룹(국내/국외) 렌더: 소제목 + 대표 상품 3개 + 기사 목록 */
-function brandGroupHtml(title, tag, items, featured, colors, emptyMsg) {
+/* ── 국내 신제품 카테고리 분류 (규칙 기반 · AI 미사용 · 무료) ──────────────
+   ★ 수집기(api/update.py)는 손대지 않는다. 이미 받아 둔 기사 제목·상품명에서
+     키워드를 찾아 화면에서 분류만 한다. 외부 호출이 없으므로 비용도 없다.
+   ★★ 억지로 끼워 맞추지 않는다. 어느 키워드에도 걸리지 않으면 '기타(미분류)'로
+     남긴다 — 매트리스 본품 기사는 프레임도 베딩도 아니므로 여기로 간다.
+     (하이엔드/프리미엄 때처럼 없는 분류를 지어내지 않는다) */
+
+// 대분류 → 소분류. 화면 버튼도 이 표에서 만들어진다(문구를 코드 여기저기 적지 않는다).
+const DOM_CATS = [
+  { key: 'mattress', label: '매트리스', subs: [
+    { key: 'frame', label: '프레임' },
+    { key: 'bedding', label: '베딩' },
+  ] },
+  { key: 'sleeptech', label: '슬립테크', subs: [
+    { key: 'wearable', label: '웨어러블' },
+    { key: 'scent', label: '향수' },
+    { key: 'drug', label: '약' },
+  ] },
+];
+const DOM_OTHER = { key: 'other', label: '기타', note: '(미분류)' };
+
+/* 소분류별 키워드. 제목·상품명에서 찾는다.
+   ★ 붙여쓰기/띄어쓰기를 모두 적어 둔다 — 기사 제목의 표기가 제각각이라
+     한쪽만 적으면 놓친다('베드프레임' vs '베드 프레임'). */
+const DOM_RULES = {
+  frame: ['프레임', '베드프레임', '베드 프레임', '헤드보드', '헤드 보드',
+    '침대틀', '침대 틀', '침대 프레임', '저상형', '평상형', '수납침대', '수납 침대',
+    '붙박이', '원목 침대', '슬랫', '모션베드', '모션 베드', '전동베드', '전동 베드'],
+  bedding: ['이불', '차렵', '침구', '베개', '베갯잇', '필로우', 'pillow', '경추베개',
+    '토퍼', '패드', '매트리스커버', '매트리스 커버', '침대커버', '침대 커버',
+    'duvet', '린넨', '리넨', '요·', '차렵이불'],
+  wearable: ['스마트링', '스마트 링', 'smart ring', '스마트워치', '스마트 워치',
+    '워치', 'watch', '밴드', 'band', '웨어러블', 'wearable', '수면추적', '수면 추적',
+    '트래커', 'tracker', '반지형'],
+  scent: ['향수', '디퓨저', '방향제', '아로마', '퍼퓸', 'perfume', '필로우미스트',
+    '필로우 미스트', '룸스프레이', '룸 스프레이', '인센스', '캔들', '에센셜오일',
+    '에센셜 오일', '라벤더', '숙면향'],
+  drug: ['수면유도제', '수면 유도제', '멜라토닌', 'melatonin', '수면제', '수면영양제',
+    '수면 영양제', '수면보조제', '수면 보조제', '테아닌', '가바', 'GABA',
+    '수면건강기능식품', '슬리핑 정', '수면 건강기능식품'],
+};
+
+/** 소분류 key → {대분류, 소분류} 라벨 (breadcrumb·콘솔용) */
+function domSubMeta(sub) {
+  for (let i = 0; i < DOM_CATS.length; i += 1) {
+    const hit = DOM_CATS[i].subs.filter((s) => s.key === sub)[0];
+    if (hit) return { cat: DOM_CATS[i], sub: hit };
+  }
+  return null;
+}
+
+/** 항목 하나를 분류한다. 걸린 키워드가 가장 많은 소분류를 고르고, 없으면 null.
+    ★ 어느 키워드에 걸렸는지도 함께 돌려준다 — 콘솔에서 판정 근거를 볼 수 있게. */
+function domClassifyItem(it) {
+  const text = [it.title, it.product_name].filter(Boolean).join(' ').toLowerCase();
+  if (!text) return { sub: null, hits: [] };
+  let best = null;
+  Object.keys(DOM_RULES).forEach((sub) => {
+    const hits = DOM_RULES[sub].filter((w) => text.indexOf(String(w).toLowerCase()) >= 0);
+    // 걸린 키워드가 더 많은 쪽이 이긴다. 같으면 먼저 정의된 소분류를 쓴다.
+    if (hits.length && (!best || hits.length > best.hits.length)) best = { sub: sub, hits: hits };
+  });
+  return best || { sub: null, hits: [] };
+}
+
+let _domClassSig = null;   // 같은 목록을 다시 분류했을 때 콘솔이 도배되지 않게
+
+/** 목록 전체를 소분류별로 나눈다. 결과는 콘솔에도 한 번 찍는다. */
+function domClassify(items) {
+  const list = items || [];
+  const bySub = { other: [] };
+  Object.keys(DOM_RULES).forEach((k) => { bySub[k] = []; });
+  const detail = [];
+  list.forEach((it) => {
+    const r = domClassifyItem(it);
+    bySub[r.sub || 'other'].push(it);
+    detail.push({ sub: r.sub, hits: r.hits, title: String(it.title || '') });
+  });
+
+  // 콘솔 출력 — 카테고리별 항목 수 + 미분류 수 + 미분류로 남은 제목
+  const sig = list.map((x) => x.link || x.title).join('|');
+  if (sig !== _domClassSig) {
+    _domClassSig = sig;
+    console.log('[국내 신제품 분류] 총 ' + list.length + '건 (규칙 기반 · AI 미사용)');
+    DOM_CATS.forEach((c) => {
+      const n = c.subs.reduce((a, s) => a + bySub[s.key].length, 0);
+      console.log('  ' + c.label + ' ' + n + '건 — '
+        + c.subs.map((s) => s.label + ' ' + bySub[s.key].length).join(' · '));
+    });
+    console.log('  ' + DOM_OTHER.label + DOM_OTHER.note + ' ' + bySub.other.length + '건');
+    if (bySub.other.length) {
+      console.log('  ↳ 미분류로 남긴 항목(억지로 끼워 맞추지 않음):');
+      bySub.other.forEach((it) => console.log('     · ' + String(it.title || '')));
+    }
+    detail.filter((d) => d.sub).forEach((d) => {
+      const m = domSubMeta(d.sub);
+      console.log('  ✔ [' + (m ? m.cat.label + ' > ' + m.sub.label : d.sub) + '] '
+        + d.title + '  ← 키워드: ' + d.hits.join(', '));
+    });
+  }
+  return bySub;
+}
+
+/* 선택 상태 — 국내 전용. 국외는 이 값을 보지 않는다. */
+let _domCat = null;   // 대분류 key ('mattress'|'sleeptech'|'other') · null=미선택
+let _domSub = null;   // 소분류 key · null=미선택
+let _domWired = false;
+
+/** 대분류/소분류 버튼 한 줄. 건수를 함께 보여 주고, 0건이면 누를 수 없게 한다. */
+function domBtns(opts) {
+  return '<div class="icis-years dom-cats">' + opts.map((o) => {
+    const off = o.count === 0;
+    return '<button type="button" class="icis-year dom-cat'
+      + (o.active ? ' is-active' : '') + (off ? ' is-disabled' : '') + '"'
+      + ' data-' + escapeHtml(o.kind) + '="' + escapeHtml(o.key) + '"' + (off ? ' disabled' : '')
+      + '>' + escapeHtml(o.label)
+      + (o.note ? '<span class="dom-cat__note">' + escapeHtml(o.note) + '</span>' : '')
+      + '<span class="dom-cat__n">' + o.count + '</span></button>';
+  }).join('') + '</div>';
+}
+
+/** breadcrumb + 뒤로 가기. 경로는 지금 선택 상태에서 그대로 만들어 낸다. */
+function domCrumb(rootLabel) {
+  const path = [rootLabel];
+  const cat = DOM_CATS.filter((c) => c.key === _domCat)[0];
+  if (cat) path.push(cat.label);
+  else if (_domCat === DOM_OTHER.key) path.push(DOM_OTHER.label);
+  const m = _domSub ? domSubMeta(_domSub) : null;
+  if (m) path.push(m.sub.label);
+  const crumbs = path.map((t, i) => (i === path.length - 1
+    ? '<b>' + escapeHtml(t) + '</b>' : escapeHtml(t))).join('<i class="dom-crumb__sep">›</i>');
+  const back = (_domCat || _domSub)
+    ? '<button type="button" class="dom-back">‹ 이전</button>' : '';
+  return '<div class="dom-nav"><div class="dom-crumb">' + crumbs + '</div>' + back + '</div>';
+}
+
+/** 국내 카테고리 선택 단계 HTML. 결과를 보여줄 차례면 null 을 돌려
+    호출부가 '기존 렌더'로 넘어가게 한다(기존 이미지+기사 코드는 그대로 쓴다). */
+function domCatStage(items, rootLabel) {
+  const bySub = domClassify(items);
+  const nOf = (c) => (c.key === DOM_OTHER.key
+    ? bySub.other.length : c.subs.reduce((a, s) => a + bySub[s.key].length, 0));
+  const tops = DOM_CATS.concat([Object.assign({ subs: [] }, DOM_OTHER)]);
+
+  // 1단계 — 대분류
+  if (!_domCat) {
+    return domCrumb(rootLabel)
+      + domBtns(tops.map((c) => ({
+        kind: 'cat', key: c.key, label: c.label, note: c.note, count: nOf(c), active: false,
+      })))
+      + '<div class="dom-hint">분류를 골라 주세요. 숫자는 지금 받아 둔 기사 건수입니다.</div>';
+  }
+
+  // '기타'는 소분류가 없다 — 바로 결과로 간다.
+  if (_domCat === DOM_OTHER.key) return null;
+
+  const cat = DOM_CATS.filter((c) => c.key === _domCat)[0];
+  if (!cat) { _domCat = null; return domCatStage(items, rootLabel); }
+
+  // 2단계 — 소분류
+  if (!_domSub) {
+    return domCrumb(rootLabel)
+      + domBtns(cat.subs.map((s) => ({
+        kind: 'sub', key: s.key, label: s.label, count: bySub[s.key].length, active: false,
+      })))
+      + '<div class="dom-hint">' + escapeHtml(cat.label) + ' 안에서 세부 분류를 골라 주세요.</div>';
+  }
+  return null;   // 3단계 — 결과는 기존 렌더가 그린다
+}
+
+/** 결과 단계에서 쓸 필터된 목록 */
+function domFiltered(items) {
+  const bySub = domClassify(items);
+  if (_domCat === DOM_OTHER.key) return bySub.other;
+  return bySub[_domSub] || [];
+}
+
+/** 버튼 클릭 — #domesticList 에 한 번만 붙인다(다시 그려도 중복되지 않게). */
+function wireBrandCats() {
+  if (_domWired) return;
+  const el = document.getElementById('domesticList');
+  if (!el) return;
+  _domWired = true;
+  el.addEventListener('click', (e) => {
+    const back = e.target.closest && e.target.closest('.dom-back');
+    if (back) {
+      if (_domSub) _domSub = null; else _domCat = null;   // 한 단계씩만 되돌린다
+      renderBrands();
+      return;
+    }
+    const b = e.target.closest && e.target.closest('.dom-cat');
+    if (!b || b.disabled) return;
+    if (b.dataset.cat) { _domCat = b.dataset.cat; _domSub = null; }
+    else if (b.dataset.sub) { _domSub = b.dataset.sub; }
+    renderBrands();
+  });
+}
+
+/** 한 소그룹(국내/국외) 렌더: 소제목 + 대표 상품 3개 + 기사 목록
+    ★ catUi=true 일 때만 앞에 카테고리 선택 단계가 붙는다(국내 전용).
+      국외는 이 인자를 넘기지 않으므로 예전 동작 그대로다.
+    ★ 이미지+기사를 그리는 부분(brandFeatureCards·brandListItems)은 손대지 않았다.
+      목록만 걸러서 같은 함수에 그대로 넘긴다. */
+function brandGroupHtml(title, tag, items, featured, colors, emptyMsg, catUi) {
   const head = `<div class="comp-group__head">${escapeHtml(title)}${tag ? ` <span class="comp-group__tag">${escapeHtml(tag)}</span>` : ''}</div>`;
   if (!items || !items.length) return `<div class="brand-group">${head}${emptyState(emptyMsg)}</div>`;
-  const featList = (featured && featured.length) ? featured : items.slice(0, 3);
+
+  let list = items, feat = featured, nav = '';
+  if (catUi) {
+    const stage = domCatStage(items, title);
+    // 아직 고르는 중이면 여기서 끝낸다(이미지·기사는 그리지 않는다).
+    if (stage !== null) return `<div class="brand-group">${head}${stage}</div>`;
+    nav = domCrumb(title);
+    list = domFiltered(items);
+    // 대표 상품도 같은 분류로 거른다 — 남는 게 없으면 아래에서 목록 앞 3건을 쓴다.
+    const keys = list.map((x) => x.link || x.title);
+    feat = (featured || []).filter((x) => keys.indexOf(x.link || x.title) >= 0);
+    if (!list.length) {
+      return `<div class="brand-group">${head}${nav}${emptyState('이 분류에 해당하는 기사가 아직 없습니다')}</div>`;
+    }
+  }
+
+  const featList = (feat && feat.length) ? feat : list.slice(0, 3);
+  // ★ ${nav} 를 head 에 바로 붙인다 — 국외는 nav 가 빈 문자열이라, 줄을 나누면
+  //   빈 줄이 하나 끼어 예전 출력과 달라진다(내용은 같아도 그대로 두지 않는다).
   return `<div class="brand-group">
-    ${head}
+    ${head}${nav}
     <div class="dom-feature"><div class="dom-feature__head">대표 출시 상품</div>
       <div class="dom-feature__grid">${brandFeatureCards(featList, colors)}</div></div>
     <div class="dom-divider"></div>
-    ${brandListItems(items, colors)}
+    ${brandListItems(list, colors)}
   </div>`;
 }
 
@@ -5299,11 +5519,13 @@ function renderBrands() {
   const hasKor = _domestic && _domestic.length;
   const hasGlo = _globalBrands && _globalBrands.length;
   if (!hasKor && !hasGlo) { el.innerHTML = emptyState('브랜드 신제품 데이터 준비중'); return; }
-  const kor = brandGroupHtml('국내', '', _domestic, _domesticFeatured, DOM_BRAND_COLORS, '국내 브랜드 신제품 준비중');
+  // 국내만 카테고리 선택 단계를 앞에 둔다(마지막 인자 true). 국외는 예전 그대로.
+  const kor = brandGroupHtml('국내', '', _domestic, _domesticFeatured, DOM_BRAND_COLORS, '국내 브랜드 신제품 준비중', true);
   const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
   el.innerHTML = kor + '<div class="brand-divider"></div>' + glo + foot;
+  wireBrandCats();
 }
 
 /* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */

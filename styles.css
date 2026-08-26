@@ -1025,6 +1025,30 @@ body {
 .dom-item__meta { margin-top: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dom-note { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 
+/* ── 국내 신제품 · 카테고리 선택(대분류 → 소분류 → 결과) ─────────────────
+   버튼은 대시보드 공용 알약 버튼(.icis-year)을 그대로 쓴다 — 부문 선택·기간
+   선택 버튼과 같은 모양이 되도록. 여기서는 건수 배지와 간격만 더한다. */
+.dom-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 2px 0 12px; }
+.dom-crumb { font-size: 12.5px; color: var(--muted); display: flex; align-items: center;
+  flex-wrap: wrap; gap: 2px; }
+.dom-crumb b { color: var(--ink); font-weight: 700; }
+.dom-crumb__sep { font-style: normal; margin: 0 5px; color: var(--line); }
+.dom-back { margin-left: auto; border: 1px solid var(--line); background: var(--card);
+  color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 12px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background .15s, color .15s; }
+.dom-back:hover { background: var(--field); color: var(--ink); }
+.dom-cats { margin: 0 0 10px; }
+/* 건수 배지 — 0건이면 어느 분류가 비어 있는지 눌러 보기 전에 알 수 있다 */
+.dom-cat { display: inline-flex; align-items: center; gap: 7px; }
+.dom-cat__note { font-size: 11px; font-weight: 500; opacity: .8; }
+.dom-cat__n { min-width: 18px; padding: 1px 6px; border-radius: 999px;
+  background: var(--field); color: var(--muted); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; }
+.dom-cat.is-active .dom-cat__n { background: rgba(255, 255, 255, .22); color: #fff; }
+.dom-hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
 #fxChart { margin-top: 14px; }
 #fxChart .viz-figure { position: relative; }
 .fx-svg { display: block; width: 100%; height: auto; }
