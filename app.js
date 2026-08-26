@@ -1192,23 +1192,35 @@ function smStLogo(c, cls) {
     + ' onerror="this.remove()">';
 }
 
+/** 막대에 쓸 투자액. 국내는 억원(investEok), 국외는 백만 달러(investVal)로 들어온다.
+    ★ 통화가 다른 값을 한 그래프에 섞지 않는다 — 섹션마다 st.investUnit 이 통화를 고정한다. */
+function stInvestVal(c) {
+  if (typeof c.investEok === 'number') return c.investEok;
+  if (typeof c.investVal === 'number') return c.investVal;
+  return null;
+}
+
 /** (3-b) 투자 유치액 막대그래프 — 매출이 아니라 '공개된 누적 투자액'으로 견준다.
-    ★ 금액이 확인되지 않은 회사는 막대를 만들지 않고 왜 빠졌는지만 적는다. */
+    ★ 금액이 확인되지 않은 회사는 막대를 만들지 않고 왜 빠졌는지만 적는다.
+    ★ 단위는 섹션이 정한다. st.investUnit 이 없으면 국내 기본값(억원)을 그대로 쓴다. */
 function smStInvest(st) {
   const all = st.companies || [];
-  const bars = all.filter((c) => typeof c.investEok === 'number' && c.investEok > 0)
-    .slice().sort((a, b) => b.investEok - a.investEok);
+  const has = (c) => { const v = stInvestVal(c); return typeof v === 'number' && v > 0; };
+  const bars = all.filter(has).slice().sort((a, b) => stInvestVal(b) - stInvestVal(a));
   if (!bars.length) return '';
-  const max = Math.max.apply(null, bars.map((c) => c.investEok)) || 1;
-  const out = all.filter((c) => !(typeof c.investEok === 'number' && c.investEok > 0));
+  const max = Math.max.apply(null, bars.map(stInvestVal)) || 1;
+  const out = all.filter((c) => !has(c));
+  const unitLabel = st.investUnit || '억원';          // 제목 옆 (단위: …)
+  const suffix = st.investUnit ? '' : '억';            // 값 뒤에 붙는 글자(국내: 180억)
   const rows = bars.map((c) => {
-    const w = Math.max(2, (c.investEok / max) * 100);
+    const v = stInvestVal(c);
+    const w = Math.max(2, (v / max) * 100);
     return '<div class="sm-hrow">'
       + '<div class="sm-hname" title="' + escapeHtml(c.name) + '">' + smStLogo(c, 'sm-st__logo--bar')
       + escapeHtml(c.name) + '</div>'
       + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
       + '%;background:' + escapeHtml(c.color || 'var(--slate)') + ';opacity:1"></div></div>'
-      + '<div class="sm-hval">' + c.investEok.toLocaleString('ko-KR') + '억</div>'
+      + '<div class="sm-hval">' + v.toLocaleString('ko-KR') + suffix + '</div>'
       + (c.investBasis ? '<div class="sm-hmemo">' + escapeHtml(c.investBasis) + '</div>' : '')
       + '</div>';
   }).join('');
@@ -1216,7 +1228,8 @@ function smStInvest(st) {
     ? '<div class="sm-foot">※ 그래프에서 제외: '
       + out.map((c) => escapeHtml(c.name) + '(' + escapeHtml(c.investExcluded || '금액 미확인') + ')').join(', ')
       + '</div>' : '';
-  return '<h3 class="subhead sm-st__ih">투자 유치액 비교 <span class="sm-h__u">(단위: 억원)</span></h3>'
+  return '<h3 class="subhead sm-st__ih">' + escapeHtml(st.investHeading || '투자 유치액 비교')
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(unitLabel) + ')</span></h3>'
     + (st.investNote ? '<div class="sm-othfoot">※ ' + escapeHtml(st.investNote) + '</div>' : '')
     + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>' + excl;
 }
@@ -1303,9 +1316,9 @@ function smSleepMarket(d) {
     + '</div>';
 }
 
-/** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'. */
-function smSleepTech(d) {
-  const st = d.sleepTech;
+/** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'.
+    ★ 국내·국외가 같은 함수를 쓴다. 넘기는 데이터 파일만 다르고 화면 구성은 똑같다. */
+function stCardsHtml(st) {
   if (!st || !Array.isArray(st.companies) || !st.companies.length) return '';
   const row = (k, v) => (v ? '<div class="sm-st__row"><span class="sm-st__k">'
     + escapeHtml(k) + '</span><span class="sm-st__v">' + escapeHtml(v) + '</span></div>' : '');
@@ -1334,6 +1347,9 @@ function smSleepTech(d) {
     + (st.logoNote ? '<div class="sm-foot">' + escapeHtml(st.logoNote) + '</div>' : '')
     + '</div>';
 }
+
+/** 국내 섹션에서 부르는 이름은 그대로 둔다(호출부 변경 없음). */
+function smSleepTech(d) { return stCardsHtml(d.sleepTech); }
 
 /** 국내 섹션 본문 — 차트 A 풀와이드 / 차트 B·C 2열 */
 function smKoreaHtml() {
@@ -1391,14 +1407,185 @@ const PPI_ABBR = 'PPI(생산자물가지수)';
 const PPI_ABBR_TIP = 'PPI = Producer Price Index, 생산자물가지수 — '
   + '공장이 도매로 파는 판매가격의 변화를 측정하는 지표';
 
+/* ══ 국외 섹션 — 해외 수면·슬립테크 시장 + 주요 기업 ═══════════════════════
+   (public/data/global-sleeptech.json · 국내 simmons-market.json 과 같은 방식)
+   ★ 값을 코드에 적지 않는다. JSON 한 곳만 고치면 문장·배수·그래프가 모두 따라온다.
+   ★★ 두 시장 시리즈를 한 선으로 잇지 않는다 — 조사기관도(GMI vs Graphical Research)
+     지역 범위도(글로벌 vs 북미) 다르다. 축만 함께 쓰고 선·색·문장은 시리즈마다 따로
+     만들며, 범례에 조사기관과 범위를 그대로 적는다.
+   ★★ 실측과 전망을 눈으로 가른다 — 실측은 꽉 찬 점, 전망은 속 빈 점, 그 사이는 점선.
+     점선은 '해마다 이렇게 지나간다'가 아니라 '조사기관이 낸 두 값을 이었다'는 뜻이다. */
+const GS_DATA_URL = 'public/data/global-sleeptech.json';
+let _gsData = null;      // {status:'ok'|'error', ...} — 로드 결과
+
+/** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다(국내 로더와 같은 모양). */
+async function fetchGlobalSleepTech() {
+  try {
+    const res = await fetch(GS_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + GS_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !d.sleepMarket || !d.sleepTech) throw new Error('형식이 올바르지 않습니다');
+    _gsData = Object.assign({ status: 'ok' }, d);
+  } catch (e) {
+    _gsData = { status: 'error', reason: (e && e.message) || String(e) };
+    console.warn('[global-sleeptech] 로드 실패:', e);
+  }
+  renderCompetitor();
+}
+
+/** 한글 음절의 받침 유무. 한글이 아니면 null(판단하지 않는다). */
+function gsJong(ch) {
+  const c = String(ch || '').charCodeAt(0);
+  if (!(c >= 0xAC00 && c <= 0xD7A3)) return null;
+  return ((c - 0xAC00) % 28) !== 0;
+}
+
+/** 받침에 맞는 조사를 고른다 — '시장은/952억 달러로'처럼 문장이 자연스럽게 붙도록.
+    ★ 조사를 하드코딩하지 않는 이유: JSON 의 이름·단위가 바뀌어도 문장이 깨지지 않게. */
+function gsJosa(word, withJong, without) {
+  const s = String(word == null ? '' : word);
+  return (s && gsJong(s.charAt(s.length - 1)) === true) ? withJong : without;
+}
+
+/** 해외 수면·슬립테크 시장 규모 추이 — 시리즈 여러 개를 한 축 위에 따로 그린다. */
+function gsSleepMarket(m) {
+  const series = (m.series || []).map((s) => Object.assign({}, s, {
+    pts: (s.points || []).slice().sort((a, b) => a.year - b.year),
+  })).filter((s) => s.pts.length >= 2);
+  if (!series.length) return '';
+
+  // 축 범위 — 두 시리즈를 함께 담기만 한다(값을 합치거나 섞어 계산하지 않는다).
+  const years = [], vals = [];
+  series.forEach((s) => s.pts.forEach((p) => { years.push(p.year); vals.push(p.usdEok); }));
+  const y0 = Math.min.apply(null, years), y1 = Math.max.apply(null, years);
+  const lo = 0, hi = Math.max.apply(null, vals) * 1.3;
+
+  const W = VIZ_W, H = 210, padL = 52, padR = 26, padT = 30, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
+  const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = lo + (hi - lo) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
+  }).join('');
+
+  // 값이 작은 쪽 시리즈는 라벨을 점 아래로 내린다 — 두 선의 라벨이 겹치지 않게.
+  const peak = (s) => Math.max.apply(null, s.pts.map((p) => p.usdEok));
+  const lowKey = series.slice().sort((a, b) => peak(a) - peak(b))[0].key;
+
+  const body = series.map((s) => {
+    const col = s.color || 'var(--accent)';
+    const below = series.length > 1 && s.key === lowKey;
+    let seg = '';
+    for (let i = 1; i < s.pts.length; i += 1) {
+      const a = s.pts[i - 1], b = s.pts[i];
+      seg += `<line x1="${X(a.year).toFixed(1)}" y1="${Y(a.usdEok).toFixed(1)}"`
+        + ` x2="${X(b.year).toFixed(1)}" y2="${Y(b.usdEok).toFixed(1)}"`
+        + ` stroke="${escapeHtml(col)}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" opacity=".8"/>`;
+    }
+    const dots = s.pts.map((p, i) => {
+      const x = X(p.year), y = Y(p.usdEok);
+      // 실측 = 꽉 찬 점 / 전망 = 속 빈 점. 눈으로 바로 갈리게 한다.
+      const dot = (p.kind === 'forecast')
+        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--card)" stroke="${escapeHtml(col)}" stroke-width="2.5"/>`
+        : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${escapeHtml(col)}" stroke="var(--card)" stroke-width="2"/>`;
+      const anchor = i === 0 ? 'start' : (i === s.pts.length - 1 ? 'end' : 'middle');
+      const ly = below ? y + 19 : y - 12;
+      return dot + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="11" font-weight="800"`
+        + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`;
+    }).join('');
+    return seg + dots;
+  }).join('');
+
+  // X축 — 발표된 연도만 찍는다(사이 연도는 값이 없으므로 눈금도 만들지 않는다).
+  const yrs = years.filter((v, i) => years.indexOf(v) === i).sort((a, b) => a - b);
+  const xlab = yrs.map((yr, i) => {
+    const anchor = i === 0 ? 'start' : (i === yrs.length - 1 ? 'end' : 'middle');
+    return `<text x="${X(yr).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${yr}년</text>`;
+  }).join('');
+
+  // 한줄 요약 — 시리즈마다 한 문장. 배수·기간 모두 계산값이고 하드코딩이 없다.
+  const heads = series.map((s) => {
+    const a = s.pts[0], b = s.pts[s.pts.length - 1];
+    const times = Math.round((b.usdEok / a.usdEok) * 10) / 10;
+    const span = b.year - a.year;
+    // 문장 주어는 범례 문구와 따로 둔다 — 범례는 '글로벌 (Global Market Insights)',
+    // 문장은 '글로벌 슬립테크 시장은…' 처럼 읽혀야 자연스럽다.
+    const subj = s.headSubject || s.scope || s.label;
+    // 끝점이 전망이면 '성장할 전망입니다', 실측이면 '성장했습니다'.
+    const verb = (b.kind === 'forecast') ? '성장할 전망입니다' : '성장했습니다';
+    return '<div class="sm-mkthead">'
+      + '<i class="gs-hdot" style="background:' + escapeHtml(s.color || 'var(--accent)') + '"></i>'
+      + escapeHtml(subj) + gsJosa(subj, '은', '는') + ' '
+      + escapeHtml(a.year + '년 ' + a.label) + '에서 '
+      + escapeHtml(b.year + '년 ' + b.label) + gsJosa(b.label, '으로', '로') + ' '
+      + escapeHtml(span + '년간') + ' <b>약 ' + times.toFixed(1) + '배</b> ' + verb + '.</div>';
+  }).join('');
+
+  const lg = series.map((s) => '<span class="gs-lg">'
+    + '<i class="gs-lg__i" style="background:' + escapeHtml(s.color || 'var(--accent)') + '"></i>'
+    + escapeHtml(s.label)
+    + (s.scope ? '<span class="gs-lg__s">' + escapeHtml(s.scope) + '</span>' : '')
+    + '</span>').join('');
+
+  return '<div class="sm-card sm-card--full"><div class="sm-h">' + escapeHtml(m.title)
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '억 달러') + ')</span></div>'
+    + heads
+    + (m.mixNote ? '<div class="gs-mixnote">※ ' + escapeHtml(m.mixNote) + '</div>' : '')
+    + `<svg class="sm-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ' aria-label="' + escapeHtml(m.title) + '">'
+    + grid + xlab + body
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`
+    + '<div class="gs-mktlg">' + lg + '</div>'
+    + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>실측(조사기관이 발표한 값)'
+    + '<span class="sm-mktlg__hollow"></span>전망(조사기관 예측)'
+    + '<span class="sm-mktlg__dash"></span>' + escapeHtml(m.gapNote || '') + '</div>'
+    + gSrcFoot(m.source, null, m.sourceLinks)
+    + (m.revisionNote
+      ? '<div class="sm-foot">※ ' + gLinkify(m.revisionNote, m.revisionLinks) + '</div>' : '')
+    + '</div>';
+}
+
+/** 국외 섹션에 덧붙는 두 블록(시장 규모 추이 + 주요 기업 카드).
+    ★ 로드 전이거나 실패했으면 빈 문자열을 돌려, 기존 PPI 카드만 그대로 나오게 한다. */
+function gsBlocksHtml() {
+  if (!_gsData || _gsData.status !== 'ok') return '';
+  return '<div class="sm-wrap gs-wrap">'
+    + gsSleepMarket(_gsData.sleepMarket || {})
+    + stCardsHtml(_gsData.sleepTech)
+    + '</div>';
+}
+
 /** 국외 섹션 — 미국 매트리스 제조업 PPI 블록 하나. 그 외에는 만들지 않는다.
     payload 에 us_ppi 섹션이 없으면(구버전 dashboard.json) null 을 돌려
     호출부가 기존 SEC 분기 실적 카드를 그대로 쓰게 한다. */
 function gtGlobalHtml() {
+  // PPI 가 없으면 예전처럼 null 을 돌려 SEC 분기 실적 카드로 되돌아간다(기존 동작 그대로).
   if (!_usPpi) return null;
   return '<div class="gc-block"><div class="gc-h">미국 매트리스 제조업'
     + gcAbbr(PPI_ABBR, PPI_ABBR_TIP) + '</div>'
-    + gUsPpiBlock() + '</div>';
+    + gUsPpiBlock() + '</div>'
+    + gsBlocksHtml();   // 순수 추가: 해외 슬립테크 시장 규모 + 주요 기업(없으면 빈 문자열)
+}
+
+/* 국외 섹션 소제목 — 블록이 늘어난 만큼만 문구를 늘린다.
+   ★ 해외 슬립테크 데이터가 없으면(로드 실패·구버전) 예전 문구를 그대로 돌려준다. */
+const GT_SUB_PPI = '미국 매트리스 가격 동향';
+const GT_DESC_PPI = '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · '
+  + 'BLS(Bureau of Labor Statistics, 미국 노동통계국) 월별 데이터 자동 수집';
+
+function gtSubTitle() {
+  return (_gsData && _gsData.status === 'ok')
+    ? GT_SUB_PPI + ' · 해외 슬립테크 시장' : GT_SUB_PPI;
+}
+
+function gtSubDesc() {
+  return (_gsData && _gsData.status === 'ok')
+    ? GT_DESC_PPI + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기)'
+    : GT_DESC_PPI;
 }
 
 /* ── 원화 병기 공용 헬퍼 (순수 추가) ─────────────────────────────────────
@@ -1594,8 +1781,8 @@ function renderCompetitor() {
     </div>
     <div class="comp-group">
       <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
-      <div class="comp-group__sub">${gTier ? '미국 매트리스 가격 동향' : '분기별 실적'}
-        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · BLS(Bureau of Labor Statistics, 미국 노동통계국) 월별 데이터 자동 수집' : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
+      <div class="comp-group__sub">${gTier ? gtSubTitle() : '분기별 실적'}
+        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
       </div>
       ${globalHtml}
     </div>`;
@@ -5745,6 +5932,8 @@ function initUpdate() {
     // 순수 추가: 국내 실적·점유율 정적 JSON. await 하지 않는다 —
     // 다른 카드가 이 로드를 기다리지 않게 하고, 끝나면 스스로 다시 그린다.
     fetchSimmonsMarket();
+    // 순수 추가: 국외 해외 슬립테크 시장·기업 정적 JSON (위와 같은 이유로 await 안 한다)
+    fetchGlobalSleepTech();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

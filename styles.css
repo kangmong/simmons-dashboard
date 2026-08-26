@@ -1496,6 +1496,25 @@ body {
   flex: 0 0 auto; }
 .sm-mktlg__dash { width: 16px; height: 0; border-top: 2px dashed var(--accent);
   opacity: .75; flex: 0 0 auto; margin-left: 6px; }
+/* 전망 점 범례 — 그래프의 '속 빈 점'과 같은 모양(테두리만) */
+.sm-mktlg__hollow { width: 9px; height: 9px; border-radius: 50%; background: var(--card);
+  border: 2px solid var(--accent); box-sizing: border-box; flex: 0 0 auto; margin-left: 6px; }
+
+/* ── 국외 · 해외 수면 시장 규모 추이 ───────────────────────────────────── */
+/* 한줄 요약 앞의 색 점 — 어느 선을 말하는 문장인지 색으로 바로 잇는다 */
+.gs-hdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 7px; vertical-align: 1px; flex: 0 0 auto; }
+/* 서로 다른 조사기관·범위라는 경고 — 그래프 바로 위에 둔다 */
+.gs-mixnote { margin: 2px 0 8px; padding: 6px 10px; border-radius: var(--radius-sm);
+  background: #FEF3C7; color: #92400E; font-size: 11.5px; line-height: 1.55;
+  word-break: keep-all; }
+/* 시리즈 범례 — 조사기관 이름과 조사 범위를 함께 적는다 */
+.gs-mktlg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+.gs-lg { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700;
+  color: var(--ink); word-break: keep-all; }
+.gs-lg__i { width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; flex: 0 0 auto; }
+.gs-lg__s { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--muted); }
+@media (max-width: 700px) { .gs-mktlg { gap: 4px 10px; } .gs-lg { font-size: 11px; } }
 
 .sm-st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .sm-st { border: 1px solid var(--line); border-radius: var(--radius-sm);
