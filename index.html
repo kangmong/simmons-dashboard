@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ★ 이 파일만은 캐시하지 않는다. app.js·styles.css 는 아래 ?v= 로 버전을
+       바꿔 새로 받게 하는데, 정작 이 파일이 캐시되면 옛 ?v= 를 계속 가리켜
+       고친 코드가 반영되지 않는다(실제로 그 일이 있었다). -->
+  <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260827c" />
+  <link rel="stylesheet" href="styles.css?v=20260827d" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -189,6 +193,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20260827c"></script>
+  <script src="app.js?v=20260827d"></script>
 </body>
 </html>

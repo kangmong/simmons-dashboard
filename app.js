@@ -5741,7 +5741,7 @@ function renderBrands() {
 
 /* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */
 let _fx = null;        // { rows:[{cur,now,change,prev}], series:{dates,USD,EUR,JPY}, source }
-let _fxCur = null;     // 선택 통화(USD|EUR|JPY). null=미선택
+let _fxCur = null;     // 선택 통화 배열(예 ['USD'] · ['USD','EUR']). null=미선택
 let _fxMonths = null;  // 추이 기간(3/6/9/12개월). null=미선택
 let _fxChart = null;   // 추이 차트 hover 캐시
 
@@ -5759,6 +5759,13 @@ function applyFxUpdate(data) {
   _fx = (fx.status === 'error') ? null : fx;
   if (fx.status === 'error') console.warn('[update] fx error:', fx.reason);
   renderFx();
+}
+
+/** 지금 고른 통화 배열(항상 FX_CURS 순서). 아무것도 안 골랐으면 []. */
+function fxSel() {
+  if (!_fxCur) return [];
+  const arr = Array.isArray(_fxCur) ? _fxCur : [_fxCur];   // 예전 문자열 값 방어
+  return FX_CURS.filter((c) => arr.indexOf(c) >= 0);
 }
 
 /** 원화 시세 포맷: 천단위 콤마 + 소수 2자리 */
@@ -5798,13 +5805,18 @@ function renderFx() {
   </table></div>`;
 
   // 2) 통화 칩(1줄) + 기간 칩(2줄) — 두 값을 조합해 단일 통화 추이를 그림
+  // 통화 칩 — 여러 개를 함께 고를 수 있다(누를 때마다 켜짐/꺼짐).
+  // '전체'는 셋을 한 번에 켜고, 이미 셋 다 켜져 있으면 모두 끈다.
+  const sel = fxSel();
   const curChips = `<div class="icis-years fx-curs">${[...FX_CURS, 'all'].map((cur) => {
     const label = (cur === 'all') ? '전체' : `${FX_META[cur].name}(${FX_META[cur].label})`;
-    return `<button class="icis-year fx-cur${cur === _fxCur ? ' is-active' : ''}" data-cur="${cur}">${escapeHtml(label)}</button>`;
-  }).join('')}</div>`;
+    const on = (cur === 'all') ? (sel.length === FX_CURS.length) : (sel.indexOf(cur) >= 0);
+    return `<button class="icis-year fx-cur${on ? ' is-active' : ''}" data-cur="${cur}"
+        aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  }).join('')}<span class="fx-curhint">여러 개를 함께 고를 수 있습니다</span></div>`;
   const months = [3, 6, 9, 12];
   // 리포트 버튼 — 통화·기간이 모두 골라졌을 때만 낸다(원유·제품·KOIMA 카드와 같은 자리·클래스)
-  const rptBtn = (_fxCur && _fxMonths)
+  const rptBtn = (sel.length && _fxMonths)
     ? `<button type="button" class="oc-tool or-btn fx-report${_fxReport ? ' is-on' : ''}"
         data-fx-report="1" aria-expanded="${_fxReport ? 'true' : 'false'}">📊 리포트 분석</button>`
     : '';
@@ -5812,19 +5824,16 @@ function renderFx() {
     `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}${rptBtn}</div>`;
 
   let chartBody, sub;
-  if (!_fxCur || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
+  if (!sel.length || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
     _fxChart = null;
     sub = '통화와 기간을 선택하세요';
     chartBody = '<div class="icis-prompt">통화와 기간을 선택하세요</div>';
-  } else if (_fxCur === 'all') { // 전체: 세 통화 동시 표시(범례 O)
-    sub = '원/달러 · 원/유로 · 원/엔 (100엔 기준)';
-    chartBody = buildFxChart(fxSlice(_fxMonths), 'all')
-      + '<div class="fx-jpy-note">* JPY는 100엔 단위</div>';
-  } else {                       // 단일 통화(범례 X)
-    const m = FX_META[_fxCur];
-    sub = `${m.name}(${m.label}) · 원${_fxCur === 'JPY' ? ' (100엔 기준)' : ''}`;
-    chartBody = buildFxChart(fxSlice(_fxMonths), _fxCur)
-      + (_fxCur === 'JPY' ? '<div class="fx-jpy-note">* JPY는 100엔 단위</div>' : '');
+  } else {
+    // 고른 통화만 그린다. 하나면 범례 없이, 둘 이상이면 범례를 붙인다.
+    sub = sel.map((c) => `${FX_META[c].name}(${FX_META[c].label})`).join(' · ')
+      + (sel.indexOf('JPY') >= 0 ? ' · 100엔 기준' : '');
+    chartBody = buildFxChart(fxSlice(_fxMonths), sel)
+      + (sel.indexOf('JPY') >= 0 ? '<div class="fx-jpy-note">* JPY는 100엔 단위</div>' : '');
   }
 
   el.innerHTML = `
@@ -5846,7 +5855,17 @@ function renderFx() {
   if (curEl) curEl.addEventListener('click', (e) => {
     const b = e.target.closest('.fx-cur');
     if (!b) return;
-    _fxCur = b.dataset.cur;      // 단일 선택(이전 선택 자동 해제), 기간은 유지
+    const cur = b.dataset.cur;   // 기간은 유지한 채 통화만 켜고 끈다
+    const now = fxSel();
+    if (cur === 'all') {
+      _fxCur = (now.length === FX_CURS.length) ? null : FX_CURS.slice();
+    } else {
+      const next = (now.indexOf(cur) >= 0) ? now.filter((x) => x !== cur) : now.concat([cur]);
+      // FX_CURS 순서를 유지한다(고른 차례와 무관하게 항상 USD·EUR·JPY 순)
+      _fxCur = FX_CURS.filter((x) => next.indexOf(x) >= 0);
+      if (!_fxCur.length) _fxCur = null;
+    }
+    _fxReport = _fxCur ? _fxReport : false;   // 통화를 다 끄면 리포트도 접는다
     renderFx();
   });
   const mEl = el.querySelector('.fx-months');
@@ -5858,7 +5877,7 @@ function renderFx() {
   });
   const rEl = el.querySelector('.fx-report');
   if (rEl) rEl.addEventListener('click', () => { _fxReport = !_fxReport; renderFx(); });
-  if (_fxCur && _fxMonths) wireFxInteraction();
+  if (sel.length && _fxMonths) wireFxInteraction();
 }
 
 /* ── 환율 · 리포트 분석 ───────────────────────────────────────────────────
@@ -5925,20 +5944,20 @@ function fxrStats(cur, sl) {
 
 /** 리포트가 쓸 값 묶음. 통화·기간이 안 골라졌거나 값이 없으면 null */
 function fxrCtx() {
-  if (!_fx || !_fxCur || !_fxMonths) return null;
+  if (!_fx || !fxSel().length || !_fxMonths) return null;
   const sl = fxSlice(_fxMonths);
   if (!sl.dates || !sl.dates.length) return null;
   /* ★★ 지금 화면에서 고른 통화만 다룬다.
      예전에는 FX_CURS(3통화)를 통째로 계산해, USD 하나만 골라도 리포트에
      EUR·JPY 비교가 섞여 나왔다. 고른 것과 읽는 것이 어긋나던 원인이다. */
-  const drawCurs = (_fxCur === 'all') ? FX_CURS.slice() : [_fxCur];
+  const drawCurs = fxSel();
   const st = drawCurs.map((c) => fxrStats(c, sl));
   const live = st.filter((x) => x.n);
   if (!live.length) return null;
   const headCur = drawCurs[0];          // 단일이면 그 통화, '전체'면 첫 번째(USD)
   return {
     sl: sl, st: st, live: live, headCur: headCur, drawCurs: drawCurs,
-    months: _fxMonths, isAll: _fxCur === 'all',
+    months: _fxMonths, isAll: drawCurs.length === FX_CURS.length,
     multi: drawCurs.length > 1,         // 통화가 둘 이상일 때만 '비교'를 말한다
     span: sl.dates[0] + ' ~ ' + sl.dates[sl.dates.length - 1],
     days: sl.dates.length,
@@ -6160,7 +6179,12 @@ function fxrReportHtml() {
      '참고'라고 못 박아 따로 뺀다. */
   const dir = (h.chg == null) ? 'flat' : (h.chg > 0 ? 'up' : (h.chg < 0 ? 'down' : 'flat'));
   const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-  const curLabel = c.isAll ? '전체(USD·EUR·JPY)' : (h.name + '(' + h.label + ')');
+  /* 조회 조건에 쓸 통화 이름 — 고른 것을 모두 적는다.
+     셋 다면 '전체', 하나면 이름까지, 둘이면 코드로 나열한다. */
+  const curLabel = c.isAll
+    ? '전체(' + c.drawCurs.join('·') + ')'
+    : (c.multi ? c.drawCurs.map((x) => FX_META[x].label).join(' · ')
+      : h.name + '(' + h.label + ')');
   const dDir = (!d || d.change == null) ? 'flat' : (d.change > 0 ? 'up' : (d.change < 0 ? 'down' : 'flat'));
   const dArrow = dDir === 'up' ? '▲' : (dDir === 'down' ? '▼' : '—');
 
@@ -6224,8 +6248,9 @@ function fxSlice(months) {
 function buildFxChart(slice, cur) {
   const dates = slice.dates, n = dates.length;
   if (!n) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
-  const isAll = cur === 'all';
-  const curList = isAll ? FX_CURS : [cur];
+  // cur 은 통화 배열(예 ['USD','EUR']). 'all'/단일 문자열도 그대로 받는다.
+  const curList = Array.isArray(cur) ? cur : (cur === 'all' ? FX_CURS : [cur]);
+  const isAll = curList.length > 1;      // 둘 이상이면 범례를 붙인다
   const series = curList.map((c) => ({ key: c, color: FX_META[c].color, values: slice[c] || [] }))
     .filter((sr) => sr.values.some((v) => v != null));
   if (!series.length) { _fxChart = null; return '<div class="chart-empty">추이 데이터가 없습니다.</div>'; }
@@ -7295,7 +7320,7 @@ function resetDashboard() {
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
-  _fxCur = null;        // 선택 통화 미선택으로 리셋
+  _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
   _fxReport = false;    // 환율 리포트 접기
   // "마지막 업데이트" 텍스트 되돌리기
