@@ -1448,6 +1448,18 @@ function gsJosa(word, withJong, without) {
   return (s && gsJong(s.charAt(s.length - 1)) === true) ? withJong : without;
 }
 
+/** 억 달러 → 조원 문구('약 29.2조원'). 환율이 없으면 null 을 돌려 달러만 남긴다.
+    ★ 계산: 억 달러 × 환율 ÷ 10,000 = 조원
+      (211억 달러 × 1,384원 ÷ 10,000 = 29.2조원)
+    ★ 환율은 국제유가 카드가 쓰는 공용 헬퍼(krwRate)에서 그대로 가져온다 —
+      매일 자동 갱신되는 무료 환율이고, 이 카드가 따로 받아 오지 않는다. */
+function gsKrwJo(usdEok, rate) {
+  if (rate == null || usdEok == null || !isFinite(usdEok)) return null;
+  const jo = (Number(usdEok) * rate) / 10000;
+  return '약 ' + (Math.round(jo * 10) / 10).toLocaleString('ko-KR',
+    { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '조원';
+}
+
 /** 해외 수면·슬립테크 시장 규모 추이 — 시리즈 여러 개를 한 축 위에 따로 그린다. */
 function gsSleepMarket(m) {
   const series = (m.series || []).map((s) => Object.assign({}, s, {
@@ -1466,10 +1478,17 @@ function gsSleepMarket(m) {
        놓이게 한다 — 값 라벨과 자리를 다투지 않는다.
      ★ 좌우 여백은 양 끝 라벨('65.79억 달러' / '952억 달러')이 카드 경계를
        넘지 않도록 잡은 값이다. */
-  const W = VIZ_W, H = 224, padL = 52, padR = 34, padT = 34, padB = 40;
+  /* 원화 병기 — 국제유가·제품가 카드에서 쓰던 공용 헬퍼를 그대로 쓴다.
+     ★ 저장값은 달러(억 달러)로 그대로 두고, 그릴 때만 환율을 곱한다.
+       환율을 못 읽으면 rate 가 null 이라 달러만 나온다(카드가 깨지지 않는다). */
+  const rate = krwRate('USD');
+  const W = VIZ_W, H = 234, padL = 52, padR = 34, padT = 44, padB = 40;
   const FS_VAL = 11.5;          // 값 라벨(작게 줄면 못 읽으므로 축 눈금보다 크게)
   const FS_AX = 9.5;            // 축 눈금·연도 라벨
-  const LAB_UP = 13;            // 점 위로 띄우는 거리
+  const FS_KRW = 9.5;           // 값 라벨 아래 원화 둘째 줄
+  // 원화 줄이 한 줄 더 들어가므로 달러 라벨을 그만큼 더 올린다(겹치지 않게).
+  const LAB_UP = rate != null ? 27 : 13;
+  const KRW_UP = 14;            // 점 위로 띄우는 거리(달러 라벨 바로 아래 자리)
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
   const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
@@ -1498,8 +1517,13 @@ function gsSleepMarket(m) {
       // ★ 값 라벨은 언제나 점 '위'에 둔다. 예전엔 값이 작은 시리즈만 점 아래로
       //   내렸는데, 그 자리가 X축 연도 라벨 자리와 겹쳐 '2021년'이 잘렸다.
       const anchor = i === 0 ? 'start' : (i === s.pts.length - 1 ? 'end' : 'middle');
+      const krw = gsKrwJo(p.usdEok, rate);   // 달러 라벨 아래 원화 둘째 줄
       return dot + `<text x="${x.toFixed(1)}" y="${(y - LAB_UP).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_VAL}" font-weight="800"`
-        + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`;
+        + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`
+        + (krw
+          ? `<text x="${x.toFixed(1)}" y="${(y - KRW_UP).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_KRW}" font-weight="600"`
+            + ` paint-order="stroke" stroke="var(--card)" stroke-width="3" fill="var(--muted)">${escapeHtml(krw)}</text>`
+          : '');
     }).join('');
     return seg + dots;
   }).join('');
@@ -1522,11 +1546,19 @@ function gsSleepMarket(m) {
     const subj = s.headSubject || s.scope || s.label;
     // 끝점이 전망이면 '성장할 전망입니다', 실측이면 '성장했습니다'.
     const verb = (b.kind === 'forecast') ? '성장할 전망입니다' : '성장했습니다';
+    // 금액 뒤에 원화를 괄호로 덧붙인다. 환율이 없으면 달러만 남는다.
+    const amt = (p) => {
+      const k = gsKrwJo(p.usdEok, rate);
+      return p.year + '년 ' + p.label + (k ? '(' + k + ')' : '');
+    };
+    const endTxt = amt(b);
     return '<div class="sm-mkthead">'
       + '<i class="gs-hdot" style="background:' + escapeHtml(s.color || 'var(--accent)') + '"></i>'
       + escapeHtml(subj) + gsJosa(subj, '은', '는') + ' '
-      + escapeHtml(a.year + '년 ' + a.label) + '에서 '
-      + escapeHtml(b.year + '년 ' + b.label) + gsJosa(b.label, '으로', '로') + ' '
+      + escapeHtml(amt(a)) + '에서 '
+      // 조사는 마지막 글자로 판정한다 — 원화가 붙으면 '…조원)'으로 끝나므로
+      // '달러로'가 아니라 '…)으로'가 맞다. 괄호를 뺀 실제 끝 글자로 본다.
+      + escapeHtml(endTxt) + gsJosa(endTxt.replace(/[)\s]+$/, ''), '으로', '로') + ' '
       + escapeHtml(span + '년간') + ' <b>약 ' + times.toFixed(1) + '배</b> ' + verb + '.</div>';
   }).join('');
 
@@ -1551,6 +1583,8 @@ function gsSleepMarket(m) {
     + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>실측(조사기관이 발표한 값)'
     + '<span class="sm-mktlg__hollow"></span>전망(조사기관 예측)'
     + '<span class="sm-mktlg__dash"></span>' + escapeHtml(m.gapNote || '') + '</div>'
+    // 적용 환율 — 국제유가·제품가 카드와 같은 공용 문구(.viz-fxnote)
+    + krwNote('USD')
     + gSrcFoot(m.source, null, m.sourceLinks)
     + (m.revisionNote
       ? '<div class="sm-foot">※ ' + gLinkify(m.revisionNote, m.revisionLinks) + '</div>' : '')
