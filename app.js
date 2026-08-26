@@ -5314,38 +5314,52 @@ const DOM_OTHER = { key: 'other', label: '기타', note: '(미분류)' };
      등록·플랫폼 공개'를 다룬다. 제품 종류 낱말이 없어 키워드로는 잡히지 않지만,
      슬립테크 기사인 것은 분명하다. 그래서 소분류가 애매하면 '슬립테크 > 기타'로
      받고, 대분류만은 놓치지 않는다.
-   ★ 코웨이 비렉스는 넣지 않는다 — 매트리스·안마의자 브랜드라 기사도 매트리스
-     쪽이다(요청 목록에도 빠져 있다). */
-const DOM_SLEEPTECH_BRANDS = ['에이슬립', '허니냅스', '웰트', '텐마인즈', '삼분의일'];
+   ★ 매트리스 브랜드는 넣지 않는다 — 코웨이 비렉스·Sleep Number 는 슬립테크
+     카드에도 실려 있지만 본업이 매트리스라 기사도 매트리스 쪽이다. */
+const DOM_SLEEPTECH_BRANDS = [
+  '에이슬립', '허니냅스', '웰트', '텐마인즈', '삼분의일',            // 국내
+  'Eight Sleep', 'Oura', 'ResMed', 'Whoop', 'Withings',            // 국외
+];
 
-/* 소분류별 키워드. 제목·상품명에서 찾는다.
+/* 소분류별 키워드. 제목·상품명에서 찾는다. 국내(한국어)·국외(영어) 공용이다.
    ★ 붙여쓰기/띄어쓰기를 모두 적어 둔다 — 기사 제목의 표기가 제각각이라
      한쪽만 적으면 놓친다('베드프레임' vs '베드 프레임').
+   ★★ 영문 키워드는 낱말 경계로 찾는다(domHasKw). 부분 일치로 두면
+     'ring' 이 'spring'·'during' 에, 'band' 가 'brand' 에 걸린다.
    ★★ 정의 순서가 곧 동점일 때의 우선순위다. body(매트리스 본체)를
-     맨 뒤에 둔 이유: '침대 프레임'·'침대 커버'처럼 body 키워드('침대')를 품은
-     말이 많아서, 같은 수로 걸리면 더 좁은 분류(프레임·베딩)가 이겨야 한다. */
+     맨 뒤에 둔 이유: '침대 프레임'·'mattress cover'처럼 body 키워드
+     ('침대'·'mattress')를 품은 말이 많아서, 같은 수로 걸리면 더 좁은
+     분류(프레임·베딩)가 이겨야 한다. */
 const DOM_RULES = {
   frame: ['프레임', '베드프레임', '베드 프레임', '헤드보드', '헤드 보드',
     '침대틀', '침대 틀', '침대 프레임', '저상형', '평상형',
     '수납침대', '수납 침대', '벙커침대', '벙커 침대', '철제침대', '철제 침대',
     '붙박이', '원목침대', '원목 침대', '슬랫',
     '모션베드', '모션 베드', '전동베드', '전동 베드',
-    '리클라이닝베드', '리클라이닝 베드', '리클라이너'],
+    '리클라이닝베드', '리클라이닝 베드', '리클라이너',
+    // 영문
+    'frame', 'frames', 'bed frame', 'bedframe', 'headboard', 'footboard',
+    'slats', 'platform bed', 'bunk bed', 'adjustable base', 'adjustable bases',
+    'adjustable bed', 'recliner', 'bed base'],
   bedding: ['이불', '차렵', '차렵이불', '누비이불', '패딩이불', '패딩 이불',
     '극세사이불', '극세사 이불', '구스이불', '구스 이불', '거위털', '구스다운',
-    '침구', '침구류', '베개', '베갯잇', '필로우', 'pillow', '경추베개', '경추 베개',
+    '침구', '침구류', '베개', '베갯잇', '필로우', '경추베개', '경추 베개',
     '라텍스베개', '라텍스 베개', '메모리폼베개', '메모리폼 베개',
     '토퍼', '패드', '매트리스커버', '매트리스 커버', '침대커버', '침대 커버',
-    '침대시트', '침대 시트', 'duvet', '린넨', '리넨',
+    '침대시트', '침대 시트', '린넨', '리넨',
     // ★ '마이크'(웨어러블)와 겹치는 '마이크로파이버'를 여기에도 둔다 —
     //   극세사 침구 기사가 웨어러블로 새지 않게 베딩 쪽 점수를 올려 준다.
-    '마이크로파이버', '마이크로화이버'],
+    '마이크로파이버', '마이크로화이버',
+    // 영문
+    'bedding', 'pillow', 'pillows', 'pillowcase', 'duvet', 'comforter',
+    'sheet', 'sheets', 'blanket', 'quilt', 'linen', 'linens',
+    'mattress cover', 'mattress protector', 'topper', 'mattress topper'],
   // 웨어러블 / 디지털 수면측정 — 착용형에 한정하지 않는다. 비접촉·앱·진단까지.
-  wearable: ['스마트링', '스마트 링', '슬립링', '슬립 링', 'smart ring',
-    '스마트워치', '스마트 워치', '워치', 'watch',
-    '스마트밴드', '스마트 밴드', '밴드', 'band', '웨어러블', 'wearable',
+  wearable: ['스마트링', '스마트 링', '슬립링', '슬립 링',
+    '스마트워치', '스마트 워치', '워치',
+    '스마트밴드', '스마트 밴드', '밴드', '웨어러블',
     '수면추적', '수면 추적', '수면추적기', '수면 추적기',
-    '수면모니터링', '수면 모니터링', '트래커', 'tracker', '반지형',
+    '수면모니터링', '수면 모니터링', '트래커', '반지형',
     '링 디바이스', '링디바이스',
     // 비접촉·소리 기반 측정(에이슬립 '숨소리만으로 수면 측정' 유형)
     '비접촉', '마이크', '호흡음', '호흡분석', '호흡 분석', '숨소리',
@@ -5353,29 +5367,49 @@ const DOM_RULES = {
     // AI·데이터·진단
     'ai 수면', '수면 ai', '수면단계', '수면 단계', '코골이',
     '수면무호흡', '수면 무호흡', '무호흡',
-    '수면데이터', '수면 데이터', '수면다원검사', 'psg',
+    '수면데이터', '수면 데이터', '수면다원검사',
     '수면진단', '수면 진단', '원격진단', '원격 진단',
     // 앱·디지털 기기(처방 앱 유형)
     '앱기반', '앱 기반', '처방앱', '처방 앱',
     '디지털치료기기', '디지털 치료기기', '디지털의료기기', '디지털 의료기기',
-    'dtx'],
+    // 영문
+    'wearable', 'wearables', 'smart ring', 'ring', 'rings',
+    'smartwatch', 'smart watch', 'watch', 'band', 'strap',
+    'tracker', 'trackers', 'tracking', 'sleep tracking', 'sleep score',
+    'sensor', 'sensors', 'contactless', 'snoring', 'apnea', 'sleep apnea',
+    'cpap', 'polysomnography', 'psg', 'sleep stage', 'sleep stages',
+    'sleep data', 'monitoring', 'diagnosis', 'digital therapeutic',
+    'digital therapeutics', 'dtx'],
   scent: ['향수', '디퓨저', '방향제', '아로마', '아로마오일', '아로마 오일',
-    '퍼퓸', 'perfume', '필로우미스트', '필로우 미스트',
+    '퍼퓸', '필로우미스트', '필로우 미스트',
     '수면스프레이', '수면 스프레이', '룸스프레이', '룸 스프레이',
     '인센스', '캔들', '에센셜오일', '에센셜 오일',
     '라벤더', '라벤더오일', '라벤더 오일',
-    '숙면향', '수면향', '수면 향', '향으로 수면'],
-  drug: ['수면유도제', '수면 유도제', '멜라토닌', 'melatonin', '수면제',
+    '숙면향', '수면향', '수면 향', '향으로 수면',
+    // 영문
+    'fragrance', 'aroma', 'aromatherapy', 'diffuser', 'perfume', 'scent',
+    'pillow mist', 'room spray', 'candle', 'candles',
+    'essential oil', 'essential oils', 'lavender'],
+  drug: ['수면유도제', '수면 유도제', '멜라토닌', '수면제',
     '수면보조제', '수면 보조제', '수면영양제', '수면 영양제',
-    '락티움', '테아닌', '가바', 'GABA', '진정제', '처방전',
+    '락티움', '테아닌', '가바', '진정제', '처방전',
     '수면건강기능식품', '수면 건강기능식품', '슬리핑 정',
     // 불면증 치료(약이 아닌 치료법까지 이 분류가 받는다)
-    '불면증치료', '불면증 치료', '인지행동치료', 'cbt-i', 'cbti',
-    '디지털치료제', '디지털 치료제'],
+    '불면증치료', '불면증 치료', '인지행동치료',
+    '디지털치료제', '디지털 치료제',
+    // 영문
+    'melatonin', 'sleep aid', 'sleep aids', 'sleeping pill', 'sleeping pills',
+    'sleep supplement', 'sleep supplements', 'supplement', 'sedative',
+    'cbt-i', 'cbti', 'insomnia treatment', 'insomnia', 'prescription',
+    'l-theanine', 'theanine', 'magnesium', 'gaba'],
   // ★ 맨 뒤 — 위 어느 분류에도 더 좁게 걸리지 않은 '매트리스 자체' 기사를 받는다.
   body: ['매트리스', '침대', '하이브리드', '스프링', '포켓스프링', '포켓 스프링',
     '본넬스프링', '본넬 스프링', '메모리폼', '라텍스', '폼매트리스', '폼 매트리스',
-    '미디엄하드', '미디엄 하드', '미디엄펌', '경도', '양면매트리스', '양면 매트리스'],
+    '미디엄하드', '미디엄 하드', '미디엄펌', '경도', '양면매트리스', '양면 매트리스',
+    // 영문
+    'mattress', 'mattresses', 'bed', 'beds', 'hybrid', 'innerspring',
+    'pocket spring', 'coil', 'coils', 'memory foam', 'foam', 'latex',
+    'firmness', 'medium-firm', 'smart bed', 'smart mattress'],
 };
 
 // 슬립테크 대분류 안에서만 고를 소분류(기타는 걸린 게 없을 때 받는 자리)
@@ -5384,7 +5418,9 @@ const DOM_ST_SUBS = ['wearable', 'scent', 'drug'];
 /* 제품이 아니라 행사·판촉을 다루는 기사인지 가늠하는 낱말(미분류 사유 설명용).
    ★ 이걸로 분류하지 않는다. 왜 안 걸렸는지 설명할 때만 쓴다. */
 const DOM_EVENT_WORDS = ['캠페인', '기념', '주년', '행사', '프로모션', '이벤트',
-  '특가', '할인', '세일', '팝업', '전시', '후원', '협약', '수상'];
+  '특가', '할인', '세일', '팝업', '전시', '후원', '협약', '수상',
+  'sale', 'campaign', 'anniversary', 'coupon', 'coupons', 'deal', 'deals',
+  'discount', 'partner', 'partnership', 'award', 'awards'];
 
 /** 소분류 key → {대분류, 소분류} 라벨 (breadcrumb·콘솔용) */
 function domSubMeta(sub) {
@@ -5395,17 +5431,37 @@ function domSubMeta(sub) {
   return null;
 }
 
+/** 키워드 한 개가 본문에 있는지.
+    ★★ 영문·숫자가 든 키워드는 낱말 경계로 본다 — 부분 일치로 두면
+      'ring' 이 'spring'·'during' 에, 'band' 가 'brand' 에, 'bed' 가
+      'bedding' 에 걸려 분류가 무너진다.
+    ★ 한글 키워드는 조사가 붙으므로 부분 일치로 둔다('침구를', '이불은'). */
+function domHasKw(text, w) {
+  const k = String(w).toLowerCase();
+  if (!k) return false;
+  if (/[a-z0-9]/.test(k)) {
+    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(^|[^a-z0-9])' + esc + '($|[^a-z0-9])').test(text);
+  }
+  return text.indexOf(k) >= 0;
+}
+
 /** 키워드를 찾을 본문. 브랜드명과 끝의 '- 언론사'는 빼고 본다.
     ★★ 브랜드명을 빼는 게 핵심이다. 국내 브랜드에 '씰리침대·에이스침대'처럼
-      '침대'가 박혀 있어, 그대로 두면 어떤 기사든 '침대'에 걸려 전부
-      매트리스 본체로 쓸려 간다(브랜드는 제품 종류를 알려 주지 않는다). */
+      '침대'가 박혀 있고, 국외에도 'Sleep Number'·'Eight Sleep' 처럼 'sleep',
+      'Serta Simmons Bedding' 처럼 'bedding' 이 박혀 있다. 그대로 두면
+      어떤 기사든 브랜드명 때문에 걸린다(브랜드는 제품 종류를 알려 주지 않는다). */
 function domSearchText(it) {
   let t = String(it.title || '');
   const src = String(it.source || '');
   if (src && t.endsWith(' - ' + src)) t = t.slice(0, -(src.length + 3));
   t = [t, it.product_name].filter(Boolean).join(' ');
   const brand = String(it.brand || '').trim();
-  if (brand) t = t.split(brand).join(' ');
+  if (brand) {
+    // 대소문자를 가리지 않고 지운다('EIGHT SLEEP'·'eight sleep' 표기 차이)
+    const esc = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp(esc, 'gi'), ' ');
+  }
   return t;
 }
 
@@ -5413,9 +5469,9 @@ function domSearchText(it) {
     (제휴 기사는 브랜드가 상대 회사로 잡히기도 한다 —
      "에이슬립·텐마인즈 협력…"의 브랜드 칸은 텐마인즈였다) */
 function domSleeptechBrand(it) {
-  const hay = String(it.brand || '') + ' ' + String(it.title || '')
-    + ' ' + String(it.product_name || '');
-  return DOM_SLEEPTECH_BRANDS.filter((b) => hay.indexOf(b) >= 0)[0] || null;
+  const hay = (String(it.brand || '') + ' ' + String(it.title || '')
+    + ' ' + String(it.product_name || '')).toLowerCase();
+  return DOM_SLEEPTECH_BRANDS.filter((b) => hay.indexOf(b.toLowerCase()) >= 0)[0] || null;
 }
 
 /** 주어진 소분류 후보들 중 걸린 키워드가 가장 많은 것. 없으면 null.
@@ -5423,7 +5479,7 @@ function domSleeptechBrand(it) {
 function domPickSub(text, subs) {
   let best = null;
   subs.forEach((sub) => {
-    const hits = (DOM_RULES[sub] || []).filter((w) => text.indexOf(String(w).toLowerCase()) >= 0);
+    const hits = (DOM_RULES[sub] || []).filter((w) => domHasKw(text, w));
     if (hits.length && (!best || hits.length > best.hits.length)) best = { sub: sub, hits: hits };
   });
   return best;
@@ -5458,15 +5514,21 @@ function domClassifyItem(it) {
   let why = '제품 종류를 가리키는 낱말이 없습니다(브랜드·언론사 이름 제외 후 검사)';
   const pn = String(it.product_name || '').trim();
   if (pn && raw.indexOf(pn) >= 0) why += ' — 제품 라인 이름(‘' + pn + '’)만 적혀 있습니다';
-  const ev = DOM_EVENT_WORDS.filter((w) => raw.indexOf(w) >= 0);
+  const ev = DOM_EVENT_WORDS.filter((w) => domHasKw(text, w));
   if (ev.length) why += ' · 함께 쓰인 낱말: ' + ev.join('·');
   return { sub: null, hits: [], text: raw, why: why };
 }
 
-let _domClassSig = null;   // 같은 목록을 다시 분류했을 때 콘솔이 도배되지 않게
+/* 선택 상태 — 국내·국외가 서로 독립이다(한쪽을 눌러도 다른 쪽은 그대로).
+   rk('region key') 는 'kor' | 'glo'. 버튼마다 data-rk 로 실어 보낸다. */
+const DOM_STATE = { kor: { cat: null, sub: null }, glo: { cat: null, sub: null } };
+let _domClassSig = {};   // 같은 목록을 다시 분류했을 때 콘솔이 도배되지 않게(구역별)
+let _domWired = false;
+
+function domSt(rk) { return DOM_STATE[rk] || DOM_STATE.kor; }
 
 /** 목록 전체를 소분류별로 나눈다. 결과는 콘솔에도 한 번 찍는다. */
-function domClassify(items) {
+function domClassify(items, rk, label) {
   const list = items || [];
   const bySub = { other: [] };
   // ★ DOM_RULES 가 아니라 DOM_CATS 기준으로 칸을 만든다 —
@@ -5477,14 +5539,15 @@ function domClassify(items) {
     const r = domClassifyItem(it);
     bySub[r.sub || 'other'].push(it);
     detail.push({ sub: r.sub, hits: r.hits, title: String(it.title || ''),
-      text: r.text, why: r.why });
+      text: r.text, why: r.why, note: r.note });
   });
 
-  // 콘솔 출력 — 카테고리별 항목 수 + 미분류 수 + 미분류로 남은 제목
+  // 콘솔 출력 — 카테고리별 항목 수 + 미분류 수 + 미분류로 남은 제목·사유
   const sig = list.map((x) => x.link || x.title).join('|');
-  if (sig !== _domClassSig) {
-    _domClassSig = sig;
-    console.log('[국내 신제품 분류] 총 ' + list.length + '건 (규칙 기반 · AI 미사용)');
+  if (_domClassSig[rk] !== sig) {
+    _domClassSig[rk] = sig;
+    console.log('[' + (label || rk) + ' 신제품 분류] 총 ' + list.length
+      + '건 (규칙 기반 · AI 미사용)');
     DOM_CATS.forEach((c) => {
       const n = c.subs.reduce((a, s) => a + bySub[s.key].length, 0);
       console.log('  ' + c.label + ' ' + n + '건 — '
@@ -5502,87 +5565,92 @@ function domClassify(items) {
     detail.filter((d) => d.sub).forEach((d) => {
       const m = domSubMeta(d.sub);
       console.log('  ✔ [' + (m ? m.cat.label + ' > ' + m.sub.label : d.sub) + '] '
-        + d.title + '  ← 키워드: ' + d.hits.join(', '));
+        + d.title + (d.hits && d.hits.length ? '  ← 키워드: ' + d.hits.join(', ')
+          : '  ← ' + (d.note || '')));
     });
   }
   return bySub;
 }
 
-/* 선택 상태 — 국내 전용. 국외는 이 값을 보지 않는다. */
-let _domCat = null;   // 대분류 key ('mattress'|'sleeptech'|'other') · null=미선택
-let _domSub = null;   // 소분류 key · null=미선택
-let _domWired = false;
-
-/** 대분류/소분류 버튼 한 줄. 건수를 함께 보여 주고, 0건이면 누를 수 없게 한다. */
-function domBtns(opts) {
+/** 대분류/소분류 버튼 한 줄. 건수를 함께 보여 주고, 0건이어도 눌러 볼 수 있다.
+    ★ 0건도 누를 수 있게 둔 이유: '없다'는 것도 확인하고 싶은 정보라서.
+      대신 숫자로 미리 알려 주고, 눌렀을 때 안내 문구를 보여 준다. */
+function domBtns(opts, rk) {
   return '<div class="icis-years dom-cats">' + opts.map((o) => {
-    const off = o.count === 0;
     return '<button type="button" class="icis-year dom-cat'
-      + (o.active ? ' is-active' : '') + (off ? ' is-disabled' : '') + '"'
-      + ' data-' + escapeHtml(o.kind) + '="' + escapeHtml(o.key) + '"' + (off ? ' disabled' : '')
-      + '>' + escapeHtml(o.label)
+      + (o.count === 0 ? ' is-empty' : '') + '"'
+      + ' data-rk="' + escapeHtml(rk) + '"'
+      + ' data-' + escapeHtml(o.kind) + '="' + escapeHtml(o.key) + '">'
+      + escapeHtml(o.label)
       + (o.note ? '<span class="dom-cat__note">' + escapeHtml(o.note) + '</span>' : '')
       + '<span class="dom-cat__n">' + o.count + '</span></button>';
   }).join('') + '</div>';
 }
 
-/** breadcrumb + 뒤로 가기. 경로는 지금 선택 상태에서 그대로 만들어 낸다. */
-function domCrumb(rootLabel) {
-  const path = [rootLabel];
-  const cat = DOM_CATS.filter((c) => c.key === _domCat)[0];
+/** breadcrumb + 뒤로 가기.
+    ★★ 구역 이름(국내/국외)은 넣지 않는다 — 바로 위 .comp-group__head 가
+      이미 '국내'/'국외'를 보여 주고 있어, 여기에 또 넣으면 같은 글자가
+      두 번 찍힌다(그 겹침이 이번에 고친 버그다).
+    ★ 아직 아무것도 고르지 않았으면 이 줄 자체를 만들지 않는다. */
+function domCrumb(rk) {
+  const st = domSt(rk);
+  if (!st.cat && !st.sub) return '';
+  const path = [];
+  const cat = DOM_CATS.filter((c) => c.key === st.cat)[0];
   if (cat) path.push(cat.label);
-  else if (_domCat === DOM_OTHER.key) path.push(DOM_OTHER.label);
-  const m = _domSub ? domSubMeta(_domSub) : null;
+  else if (st.cat === DOM_OTHER.key) path.push(DOM_OTHER.label + DOM_OTHER.note);
+  const m = st.sub ? domSubMeta(st.sub) : null;
   if (m) path.push(m.sub.label);
   const crumbs = path.map((t, i) => (i === path.length - 1
     ? '<b>' + escapeHtml(t) + '</b>' : escapeHtml(t))).join('<i class="dom-crumb__sep">›</i>');
-  const back = (_domCat || _domSub)
-    ? '<button type="button" class="dom-back">‹ 이전</button>' : '';
-  return '<div class="dom-nav"><div class="dom-crumb">' + crumbs + '</div>' + back + '</div>';
+  return '<div class="dom-nav"><div class="dom-crumb">' + crumbs + '</div>'
+    + '<button type="button" class="dom-back" data-rk="' + escapeHtml(rk) + '">‹ 이전</button></div>';
 }
 
-/** 국내 카테고리 선택 단계 HTML. 결과를 보여줄 차례면 null 을 돌려
+/** 카테고리 선택 단계 HTML. 결과를 보여줄 차례면 null 을 돌려
     호출부가 '기존 렌더'로 넘어가게 한다(기존 이미지+기사 코드는 그대로 쓴다). */
-function domCatStage(items, rootLabel) {
-  const bySub = domClassify(items);
+function domCatStage(items, rk, label) {
+  const st = domSt(rk);
+  const bySub = domClassify(items, rk, label);
   const nOf = (c) => (c.key === DOM_OTHER.key
     ? bySub.other.length : c.subs.reduce((a, s) => a + bySub[s.key].length, 0));
   const tops = DOM_CATS.concat([Object.assign({ subs: [] }, DOM_OTHER)]);
 
   // 1단계 — 대분류
-  if (!_domCat) {
-    return domCrumb(rootLabel)
-      + domBtns(tops.map((c) => ({
-        kind: 'cat', key: c.key, label: c.label, note: c.note, count: nOf(c), active: false,
-      })))
+  if (!st.cat) {
+    return domBtns(tops.map((c) => ({
+      kind: 'cat', key: c.key, label: c.label, note: c.note, count: nOf(c),
+    })), rk)
       + '<div class="dom-hint">분류를 골라 주세요. 숫자는 지금 받아 둔 기사 건수입니다.</div>';
   }
 
   // '기타'는 소분류가 없다 — 바로 결과로 간다.
-  if (_domCat === DOM_OTHER.key) return null;
+  if (st.cat === DOM_OTHER.key) return null;
 
-  const cat = DOM_CATS.filter((c) => c.key === _domCat)[0];
-  if (!cat) { _domCat = null; return domCatStage(items, rootLabel); }
+  const cat = DOM_CATS.filter((c) => c.key === st.cat)[0];
+  if (!cat) { st.cat = null; return domCatStage(items, rk, label); }
 
   // 2단계 — 소분류
-  if (!_domSub) {
-    return domCrumb(rootLabel)
+  if (!st.sub) {
+    return domCrumb(rk)
       + domBtns(cat.subs.map((s) => ({
-        kind: 'sub', key: s.key, label: s.label, count: bySub[s.key].length, active: false,
-      })))
+        kind: 'sub', key: s.key, label: s.label, count: bySub[s.key].length,
+      })), rk)
       + '<div class="dom-hint">' + escapeHtml(cat.label) + ' 안에서 세부 분류를 골라 주세요.</div>';
   }
   return null;   // 3단계 — 결과는 기존 렌더가 그린다
 }
 
 /** 결과 단계에서 쓸 필터된 목록 */
-function domFiltered(items) {
-  const bySub = domClassify(items);
-  if (_domCat === DOM_OTHER.key) return bySub.other;
-  return bySub[_domSub] || [];
+function domFiltered(items, rk, label) {
+  const st = domSt(rk);
+  const bySub = domClassify(items, rk, label);
+  if (st.cat === DOM_OTHER.key) return bySub.other;
+  return bySub[st.sub] || [];
 }
 
-/** 버튼 클릭 — #domesticList 에 한 번만 붙인다(다시 그려도 중복되지 않게). */
+/** 버튼 클릭 — #domesticList 에 한 번만 붙인다(다시 그려도 중복되지 않게).
+    국내·국외 버튼이 한 컨테이너에 함께 있으므로 data-rk 로 구역을 가른다. */
 function wireBrandCats() {
   if (_domWired) return;
   const el = document.getElementById('domesticList');
@@ -5591,14 +5659,16 @@ function wireBrandCats() {
   el.addEventListener('click', (e) => {
     const back = e.target.closest && e.target.closest('.dom-back');
     if (back) {
-      if (_domSub) _domSub = null; else _domCat = null;   // 한 단계씩만 되돌린다
+      const st = domSt(back.dataset.rk);
+      if (st.sub) st.sub = null; else st.cat = null;   // 한 단계씩만 되돌린다
       renderBrands();
       return;
     }
     const b = e.target.closest && e.target.closest('.dom-cat');
-    if (!b || b.disabled) return;
-    if (b.dataset.cat) { _domCat = b.dataset.cat; _domSub = null; }
-    else if (b.dataset.sub) { _domSub = b.dataset.sub; }
+    if (!b) return;
+    const st = domSt(b.dataset.rk);
+    if (b.dataset.cat) { st.cat = b.dataset.cat; st.sub = null; }
+    else if (b.dataset.sub) { st.sub = b.dataset.sub; }
     renderBrands();
   });
 }
@@ -5614,11 +5684,12 @@ function brandGroupHtml(title, tag, items, featured, colors, emptyMsg, catUi) {
 
   let list = items, feat = featured, nav = '';
   if (catUi) {
-    const stage = domCatStage(items, title);
+    // catUi 는 구역 키('kor'|'glo'). 국내·국외가 서로 다른 선택 상태를 갖는다.
+    const stage = domCatStage(items, catUi, title);
     // 아직 고르는 중이면 여기서 끝낸다(이미지·기사는 그리지 않는다).
     if (stage !== null) return `<div class="brand-group">${head}${stage}</div>`;
-    nav = domCrumb(title);
-    list = domFiltered(items);
+    nav = domCrumb(catUi);
+    list = domFiltered(items, catUi, title);
     // 대표 상품도 같은 분류로 거른다 — 남는 게 없으면 아래에서 목록 앞 3건을 쓴다.
     const keys = list.map((x) => x.link || x.title);
     feat = (featured || []).filter((x) => keys.indexOf(x.link || x.title) >= 0);
@@ -5646,9 +5717,10 @@ function renderBrands() {
   const hasKor = _domestic && _domestic.length;
   const hasGlo = _globalBrands && _globalBrands.length;
   if (!hasKor && !hasGlo) { el.innerHTML = emptyState('브랜드 신제품 데이터 준비중'); return; }
-  // 국내만 카테고리 선택 단계를 앞에 둔다(마지막 인자 true). 국외는 예전 그대로.
-  const kor = brandGroupHtml('국내', '', _domestic, _domesticFeatured, DOM_BRAND_COLORS, '국내 브랜드 신제품 준비중', true);
-  const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중');
+  // 국내·국외 모두 카테고리 선택 단계를 앞에 둔다. 마지막 인자가 구역 키다 —
+  // 서로 다른 키를 쓰므로 한쪽에서 고른 분류가 다른 쪽에 영향을 주지 않는다.
+  const kor = brandGroupHtml('국내', '', _domestic, _domesticFeatured, DOM_BRAND_COLORS, '국내 브랜드 신제품 준비중', 'kor');
+  const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중', 'glo');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
   el.innerHTML = kor + '<div class="brand-divider"></div>' + glo + foot;

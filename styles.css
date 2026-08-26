@@ -1049,6 +1049,9 @@ body {
   background: var(--field); color: var(--muted); font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums; }
 .dom-cat.is-active .dom-cat__n { background: rgba(255, 255, 255, .22); color: #fff; }
+/* 0건인 분류 — 눌러서 '없음'을 확인할 수 있게 두고, 흐리게만 표시한다 */
+.dom-cat.is-empty { color: var(--muted); }
+.dom-cat.is-empty .dom-cat__n { opacity: .7; }
 .dom-hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
 
 #fxChart { margin-top: 14px; }

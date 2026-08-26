@@ -917,7 +917,12 @@ DOMESTIC_BRAND_QUERY = {
     "허니냅스": '("허니냅스" OR "HoneyNaps")',
     "웰트": '("웰트" OR "WELT") (수면 OR 슬립테크 OR 불면증 OR 디지털치료 OR 슬립큐)',
 }
-GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(영어 검색)
+# 국외(영어 검색). 매트리스 4곳 + 슬립테크 5곳.
+#   슬립테크 5곳은 대시보드 '해외 슬립테크 주요 6개 기업' 카드와 같은 회사다
+#   (Sleep Number 는 이미 매트리스 쪽에 있어 중복으로 넣지 않는다).
+GLOBAL_MATTRESS_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]
+GLOBAL_SLEEPTECH_BRANDS = ["Eight Sleep", "Oura", "ResMed", "Whoop", "Withings"]
+GLOBAL_BRANDS = GLOBAL_MATTRESS_BRANDS + GLOBAL_SLEEPTECH_BRANDS
 
 # 이름이 일반 단어·타 고유명사와 충돌하는 브랜드는 정확 구문으로 좁힌다.
 # (기본 쿼리 '"브랜드" (new OR launch OR release OR mattress)' 는 OR 때문에
@@ -927,6 +932,14 @@ GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(�
 GLOBAL_BRAND_QUERY = {
     # 색상어 + 록밴드 Deep Purple + Purple Rain/Purple Heart 등과 충돌 → 정확 구문만
     "Purple": '"Purple mattress" OR "Purple Innovation" OR "Purple Mattress Company"',
+    # 슬립테크 — 이름이 일반 낱말과 겹치는 곳은 문맥어를 반드시 붙인다.
+    #   "Oura"  → 일반어 aura/oura 오탐 → 링·수면을 함께 요구
+    #   "Whoop" → 감탄사 whoop 과 충돌 → 웨어러블·수면을 함께 요구
+    "Oura": '"Oura Ring" OR "Oura Health" OR ("Oura" (sleep OR wearable OR ring))',
+    "Whoop": '"Whoop" (wearable OR sleep OR strap OR recovery OR fitness)',
+    "Eight Sleep": '"Eight Sleep" (pod OR sleep OR mattress OR launch)',
+    "ResMed": '"ResMed" (sleep OR apnea OR cpap OR launch)',
+    "Withings": '"Withings" (sleep OR health OR launch)',
     # 유령 캐릭터 Casper 와 충돌
     "Casper": '"Casper mattress" OR "Casper Sleep" OR "Casper bed"',
     # 일반 명사(꿀·과즙)와 충돌
@@ -939,8 +952,12 @@ GLOBAL_BRAND_QUERY = {
 
 # ── 국외 기사 관련성 필터 ────────────────────────────────────────────────
 # 매트리스 맥락 단어. 하나라도 있으면 통과시킨다(음악 아티스트 협업 마케팅 등도 살린다).
+# ★ 슬립테크 낱말을 함께 둔다. Oura/Whoop 기사는 mattress·bed 가 없고
+#   ring·wearable·recovery 만 있어, 이 목록이 없으면 전부 잘려 나간다.
 _ON_TOPIC_WORDS = ("mattress", "mattresses", "bed", "beds", "bedding", "sleep", "sleeper",
-                   "pillow", "pillows", "foam", "furniture")
+                   "pillow", "pillows", "foam", "furniture",
+                   "wearable", "wearables", "ring", "tracker", "smartwatch",
+                   "apnea", "insomnia", "cpap", "snoring", "recovery")
 # 명백히 무관한 분야(음악·연예) 매체
 _OFF_TOPIC_SOURCES = ("loudwire", "rollingstone", "billboard", "pitchfork", "consequence",
                       "spin.com", "nme.com", "kerrang", "revolvermag", "ultimateclassicrock",
@@ -979,6 +996,12 @@ GLOBAL_BRAND_ALIASES = {
     "Nectar": ("nectar sleep",),
     "Saatva": ("saatva",),
     "Sealy": ("sealy",),
+    # 슬립테크 — 회사 표기가 분명한 형태만(제목에 sleep/bed 가 없어도 통과)
+    "Eight Sleep": ("eight sleep",),
+    "Oura": ("oura ring", "oura health", "oura"),
+    "ResMed": ("resmed",),
+    "Whoop": ("whoop",),
+    "Withings": ("withings",),
 }
 
 
@@ -1117,6 +1140,12 @@ BRAND_DOMAINS = {
     "삼분의일": "3boon1.com",
     "허니냅스": "honeynaps.com",
     "웰트": "weltcorp.com",
+    # 국외 슬립테크(공식 사이트 확인)
+    "Eight Sleep": "eightsleep.com",
+    "Oura": "ouraring.com",
+    "ResMed": "resmed.com",
+    "Whoop": "whoop.com",
+    "Withings": "withings.com",
 }
 
 
@@ -1143,6 +1172,11 @@ _BRAND_CANON = {
     "삼분의일": "삼분의일", "3boon1": "삼분의일",
     "허니냅스": "허니냅스", "honeynaps": "허니냅스",
     "웰트": "웰트", "welt": "웰트", "weltcorp": "웰트",
+    "eightsleep": "Eight Sleep", "에이트슬립": "Eight Sleep",
+    "oura": "Oura", "ouraring": "Oura", "오우라": "Oura",
+    "resmed": "ResMed", "레스메드": "ResMed",
+    "whoop": "Whoop", "훅": "Whoop",
+    "withings": "Withings", "위딩스": "Withings",
 }
 
 
@@ -1495,9 +1529,15 @@ def _global_query(brand):
     return q if q else '"%s" (new OR launch OR release OR mattress)' % brand
 
 
+GLOBAL_ITEMS_MAX = 27       # 하단 목록 상한(브랜드 9곳 × 최대 3건). 국내와 같은 이유로 넉넉히
+
+
 def update_global_brands():
-    """국외 브랜드(Sleep Number·Tempur-Pedic·Purple·Serta) 신제품 뉴스 (영어)."""
-    return _brand_news(GLOBAL_BRANDS, _global_query, "en-US", "US")
+    """국외 브랜드 신제품 뉴스 (영어).
+       매트리스 4곳(Sleep Number·Tempur-Pedic·Purple·Serta)
+       + 슬립테크 5곳(Eight Sleep·Oura·ResMed·Whoop·Withings)."""
+    return _brand_news(GLOBAL_BRANDS, _global_query, "en-US", "US",
+                       items_max=GLOBAL_ITEMS_MAX)
 
 
 # ── 경쟁사 분석 — SEC EDGAR (무료·무키, 미국 상장사) ─────────────────────
