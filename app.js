@@ -5304,16 +5304,26 @@ const DOM_CATS = [
     { key: 'wearable', label: '웨어러블' },
     { key: 'scent', label: '향수' },
     { key: 'drug', label: '약' },
+    { key: 'stetc', label: '기타' },
   ] },
 ];
 const DOM_OTHER = { key: 'other', label: '기타', note: '(미분류)' };
 
+/* 슬립테크 기업. 이 브랜드 기사는 대분류를 '슬립테크'로 고정한다.
+   ★★ 왜 필요한가: 이 회사들의 기사는 제품 이름이 아니라 '유통 계약·MOU·임상
+     등록·플랫폼 공개'를 다룬다. 제품 종류 낱말이 없어 키워드로는 잡히지 않지만,
+     슬립테크 기사인 것은 분명하다. 그래서 소분류가 애매하면 '슬립테크 > 기타'로
+     받고, 대분류만은 놓치지 않는다.
+   ★ 코웨이 비렉스는 넣지 않는다 — 매트리스·안마의자 브랜드라 기사도 매트리스
+     쪽이다(요청 목록에도 빠져 있다). */
+const DOM_SLEEPTECH_BRANDS = ['에이슬립', '허니냅스', '웰트', '텐마인즈', '삼분의일'];
+
 /* 소분류별 키워드. 제목·상품명에서 찾는다.
    ★ 붙여쓰기/띄어쓰기를 모두 적어 둔다 — 기사 제목의 표기가 제각각이라
      한쪽만 적으면 놓친다('베드프레임' vs '베드 프레임').
-   ★★ 정의 순서가 곧 동점일 때의 우선순위다. body(매트리스 본체)를 맨 뒤에 둔 이유:
-     '침대 프레임'·'침대 커버' 처럼 body 키워드('침대')를 품은 말이 많아서,
-     같은 수로 걸리면 더 좁은 분류(프레임·베딩)가 이겨야 한다. */
+   ★★ 정의 순서가 곧 동점일 때의 우선순위다. body(매트리스 본체)를
+     맨 뒤에 둔 이유: '침대 프레임'·'침대 커버'처럼 body 키워드('침대')를 품은
+     말이 많아서, 같은 수로 걸리면 더 좁은 분류(프레임·베딩)가 이겨야 한다. */
 const DOM_RULES = {
   frame: ['프레임', '베드프레임', '베드 프레임', '헤드보드', '헤드 보드',
     '침대틀', '침대 틀', '침대 프레임', '저상형', '평상형',
@@ -5326,27 +5336,50 @@ const DOM_RULES = {
     '침구', '침구류', '베개', '베갯잇', '필로우', 'pillow', '경추베개', '경추 베개',
     '라텍스베개', '라텍스 베개', '메모리폼베개', '메모리폼 베개',
     '토퍼', '패드', '매트리스커버', '매트리스 커버', '침대커버', '침대 커버',
-    '침대시트', '침대 시트', 'duvet', '린넨', '리넨'],
+    '침대시트', '침대 시트', 'duvet', '린넨', '리넨',
+    // ★ '마이크'(웨어러블)와 겹치는 '마이크로파이버'를 여기에도 둔다 —
+    //   극세사 침구 기사가 웨어러블로 새지 않게 베딩 쪽 점수를 올려 준다.
+    '마이크로파이버', '마이크로화이버'],
+  // 웨어러블 / 디지털 수면측정 — 착용형에 한정하지 않는다. 비접촉·앱·진단까지.
   wearable: ['스마트링', '스마트 링', '슬립링', '슬립 링', 'smart ring',
     '스마트워치', '스마트 워치', '워치', 'watch',
     '스마트밴드', '스마트 밴드', '밴드', 'band', '웨어러블', 'wearable',
     '수면추적', '수면 추적', '수면추적기', '수면 추적기',
-    '수면 모니터링', '수면모니터링', '링 디바이스', '링디바이스',
-    '트래커', 'tracker', '반지형'],
+    '수면모니터링', '수면 모니터링', '트래커', 'tracker', '반지형',
+    '링 디바이스', '링디바이스',
+    // 비접촉·소리 기반 측정(에이슬립 '숨소리만으로 수면 측정' 유형)
+    '비접촉', '마이크', '호흡음', '호흡분석', '호흡 분석', '숨소리',
+    '수면측정', '수면 측정', '수면분석', '수면 분석',
+    // AI·데이터·진단
+    'ai 수면', '수면 ai', '수면단계', '수면 단계', '코골이',
+    '수면무호흡', '수면 무호흡', '무호흡',
+    '수면데이터', '수면 데이터', '수면다원검사', 'psg',
+    '수면진단', '수면 진단', '원격진단', '원격 진단',
+    // 앱·디지털 기기(처방 앱 유형)
+    '앱기반', '앱 기반', '처방앱', '처방 앱',
+    '디지털치료기기', '디지털 치료기기', '디지털의료기기', '디지털 의료기기',
+    'dtx'],
   scent: ['향수', '디퓨저', '방향제', '아로마', '아로마오일', '아로마 오일',
     '퍼퓸', 'perfume', '필로우미스트', '필로우 미스트',
     '수면스프레이', '수면 스프레이', '룸스프레이', '룸 스프레이',
     '인센스', '캔들', '에센셜오일', '에센셜 오일',
-    '라벤더', '라벤더오일', '라벤더 오일', '숙면향'],
+    '라벤더', '라벤더오일', '라벤더 오일',
+    '숙면향', '수면향', '수면 향', '향으로 수면'],
   drug: ['수면유도제', '수면 유도제', '멜라토닌', 'melatonin', '수면제',
     '수면보조제', '수면 보조제', '수면영양제', '수면 영양제',
     '락티움', '테아닌', '가바', 'GABA', '진정제', '처방전',
-    '수면다원검사', '수면건강기능식품', '수면 건강기능식품', '슬리핑 정'],
+    '수면건강기능식품', '수면 건강기능식품', '슬리핑 정',
+    // 불면증 치료(약이 아닌 치료법까지 이 분류가 받는다)
+    '불면증치료', '불면증 치료', '인지행동치료', 'cbt-i', 'cbti',
+    '디지털치료제', '디지털 치료제'],
   // ★ 맨 뒤 — 위 어느 분류에도 더 좁게 걸리지 않은 '매트리스 자체' 기사를 받는다.
   body: ['매트리스', '침대', '하이브리드', '스프링', '포켓스프링', '포켓 스프링',
     '본넬스프링', '본넬 스프링', '메모리폼', '라텍스', '폼매트리스', '폼 매트리스',
     '미디엄하드', '미디엄 하드', '미디엄펌', '경도', '양면매트리스', '양면 매트리스'],
 };
+
+// 슬립테크 대분류 안에서만 고를 소분류(기타는 걸린 게 없을 때 받는 자리)
+const DOM_ST_SUBS = ['wearable', 'scent', 'drug'];
 
 /* 제품이 아니라 행사·판촉을 다루는 기사인지 가늠하는 낱말(미분류 사유 설명용).
    ★ 이걸로 분류하지 않는다. 왜 안 걸렸는지 설명할 때만 쓴다. */
@@ -5376,19 +5409,47 @@ function domSearchText(it) {
   return t;
 }
 
-/** 항목 하나를 분류한다. 걸린 키워드가 가장 많은 소분류를 고르고, 없으면 null.
-    ★ 어느 키워드에 걸렸는지, 무엇을 검사했는지도 함께 돌려준다 —
-      콘솔에서 판정 근거와 '왜 안 걸렸는지'를 볼 수 있게. */
+/** 이 기사가 슬립테크 기업 것인지. 브랜드 칸과 제목 어디에 있어도 잡는다.
+    (제휴 기사는 브랜드가 상대 회사로 잡히기도 한다 —
+     "에이슬립·텐마인즈 협력…"의 브랜드 칸은 텐마인즈였다) */
+function domSleeptechBrand(it) {
+  const hay = String(it.brand || '') + ' ' + String(it.title || '')
+    + ' ' + String(it.product_name || '');
+  return DOM_SLEEPTECH_BRANDS.filter((b) => hay.indexOf(b) >= 0)[0] || null;
+}
+
+/** 주어진 소분류 후보들 중 걸린 키워드가 가장 많은 것. 없으면 null.
+    같은 수면 DOM_RULES 에 먼저 정의된 소분류가 이긴다. */
+function domPickSub(text, subs) {
+  let best = null;
+  subs.forEach((sub) => {
+    const hits = (DOM_RULES[sub] || []).filter((w) => text.indexOf(String(w).toLowerCase()) >= 0);
+    if (hits.length && (!best || hits.length > best.hits.length)) best = { sub: sub, hits: hits };
+  });
+  return best;
+}
+
+/** 항목 하나를 분류한다.
+    ★ 슬립테크 기업 기사면 대분류를 슬립테크로 고정하고, 소분류는
+      웨어러블·향수·약 중에서 고른다. 애매하면 '슬립테크 > 기타'.
+    ★ 그 밖의 기사는 6개 소분류 전체에서 키워드가 가장 많이 걸린 것으로. */
 function domClassifyItem(it) {
   const raw = domSearchText(it);
   const text = raw.toLowerCase();
-  if (!text.trim()) return { sub: null, hits: [], text: raw, why: '제목이 비어 있습니다' };
-  let best = null;
-  Object.keys(DOM_RULES).forEach((sub) => {
-    const hits = DOM_RULES[sub].filter((w) => text.indexOf(String(w).toLowerCase()) >= 0);
-    // 걸린 키워드가 더 많은 쪽이 이긴다. 같으면 먼저 정의된 소분류를 쓴다.
-    if (hits.length && (!best || hits.length > best.hits.length)) best = { sub: sub, hits: hits };
-  });
+  const stBrand = domSleeptechBrand(it);
+  if (!text.trim() && !stBrand) {
+    return { sub: null, hits: [], text: raw, why: '제목이 비어 있습니다' };
+  }
+
+  if (stBrand) {
+    const best = domPickSub(text, DOM_ST_SUBS);
+    if (best) return { sub: best.sub, hits: best.hits, text: raw, why: null, stBrand: stBrand };
+    // 슬립테크인 것은 분명하나 세부는 애매 → 기타로 받는다(미분류로 흘리지 않는다)
+    return { sub: 'stetc', hits: [], text: raw, stBrand: stBrand,
+      why: null, note: '슬립테크 기업(' + stBrand + ') 기사 — 세부 분류 낱말이 없어 기타' };
+  }
+
+  const best = domPickSub(text, Object.keys(DOM_RULES));
   if (best) return { sub: best.sub, hits: best.hits, text: raw, why: null };
 
   /* 못 걸렸을 때 — 지어내지 않는다. 본문에 실제로 있는 낱말만 근거로 적는다.
@@ -5408,7 +5469,9 @@ let _domClassSig = null;   // 같은 목록을 다시 분류했을 때 콘솔이
 function domClassify(items) {
   const list = items || [];
   const bySub = { other: [] };
-  Object.keys(DOM_RULES).forEach((k) => { bySub[k] = []; });
+  // ★ DOM_RULES 가 아니라 DOM_CATS 기준으로 칸을 만든다 —
+  //   '슬립테크 > 기타'처럼 키워드 규칙이 없는 소분류도 칸이 있어야 한다.
+  DOM_CATS.forEach((c) => c.subs.forEach((sb) => { bySub[sb.key] = []; }));
   const detail = [];
   list.forEach((it) => {
     const r = domClassifyItem(it);
