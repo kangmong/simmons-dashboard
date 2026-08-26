@@ -1481,6 +1481,18 @@ body {
 .sm-foot + .sm-foot { margin-top: 5px; }
 
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
+/* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
+.sm-growth { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 2px 0 4px; }
+.sm-growth span { padding: 3px 9px; border-radius: 999px; background: var(--accent-soft);
+  color: var(--accent); font-size: 11.5px; font-weight: 700; }
+.sm-mktsvg { width: 100%; height: auto; display: block; }
+.sm-mktlg { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; margin-top: 6px;
+  font-size: 11px; color: var(--muted); word-break: keep-all; }
+.sm-mktlg__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+  flex: 0 0 auto; }
+.sm-mktlg__dash { width: 16px; height: 0; border-top: 2px dashed var(--accent);
+  opacity: .75; flex: 0 0 auto; margin-left: 6px; }
+
 .sm-st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .sm-st { border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 13px 15px; background: var(--card); min-width: 0; }

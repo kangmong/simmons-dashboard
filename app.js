@@ -1221,6 +1221,76 @@ function smStInvest(st) {
     + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>' + excl;
 }
 
+/** 국내 수면·슬립테크 시장 규모 추이.
+    ★★ 발표된 세 시점(2011·2021·2025)만 점으로 찍는다. 사이 연도(2012~2020,
+      2022~2024)는 정기 통계가 없어 값을 만들지 않고, 구간을 점선으로만 잇는다.
+      점선은 '그 사이를 이렇게 지나갔다'는 뜻이 아니라 '발표 시점끼리 이었다'는 뜻이다.
+    ★ X축은 연도에 비례해 배치한다 — 2011→2021 은 10년, 2021→2025 는 4년이라
+      균등 간격으로 놓으면 기울기가 실제와 달라진다. */
+function smSleepMarket(d) {
+  const m = d.sleepMarket;
+  if (!m || !Array.isArray(m.points) || m.points.length < 2) return '';
+  const pts = m.points.slice().sort((a, b) => a.year - b.year)
+    .map((p) => ({ year: p.year, jo: p.eok / 10000, label: p.label }));
+  const y0 = pts[0].year, y1 = pts[pts.length - 1].year;
+  const vals = pts.map((p) => p.jo);
+  let lo = 0, hi = Math.max.apply(null, vals) * 1.28;
+
+  const W = VIZ_W, H = 190, padL = 46, padR = 22, padT = 26, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
+  const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = lo + (hi - lo) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toFixed(1)}</text>`;
+  }).join('');
+
+  // 구간 점선 + 구간별 성장 배수(실제 계산값)
+  let segs = '', mult = '';
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1], b = pts[i];
+    segs += `<line x1="${X(a.year).toFixed(1)}" y1="${Y(a.jo).toFixed(1)}" x2="${X(b.year).toFixed(1)}" y2="${Y(b.jo).toFixed(1)}"`
+      + ` stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" opacity=".75"/>`;
+    const x = (X(a.year) + X(b.year)) / 2, y = (Y(a.jo) + Y(b.jo)) / 2 - 8;
+    const times = Math.round((b.jo / a.jo) * 10) / 10;
+    mult += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700"`
+      + ` paint-order="stroke" stroke="var(--card)" stroke-width="3" fill="var(--accent)">약 ${times.toFixed(1)}배</text>`;
+  }
+  // 발표 시점 — 실선 원 + 값 라벨
+  const dots = pts.map((p, i) => {
+    const x = X(p.year), y = Y(p.jo);
+    const anchor = i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle');
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`
+      + `<text x="${x.toFixed(1)}" y="${(y - 12).toFixed(1)}" text-anchor="${anchor}" font-size="11" font-weight="800"`
+      + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`;
+  }).join('');
+  const xlab = pts.map((p, i) => {
+    const anchor = i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle');
+    return `<text x="${X(p.year).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${p.year}년</text>`;
+  }).join('');
+
+  const growth = [];
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1], b = pts[i];
+    growth.push(a.year + '→' + b.year + '년 약 '
+      + (Math.round((b.jo / a.jo) * 10) / 10).toFixed(1) + '배 성장');
+  }
+
+  return '<div class="sm-card sm-card--full"><div class="sm-h">' + escapeHtml(m.title)
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '조원') + ')</span></div>'
+    + '<div class="sm-growth">' + growth.map((t) => '<span>' + escapeHtml(t) + '</span>').join('') + '</div>'
+    + `<svg class="sm-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ' aria-label="' + escapeHtml(m.title) + '">'
+    + grid + xlab + segs + mult + dots
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`
+    + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>발표된 시점(실측)'
+    + '<span class="sm-mktlg__dash"></span>' + escapeHtml(m.gapNote || '') + '</div>'
+    + (m.source ? '<div class="sm-foot">' + escapeHtml(m.source) + '</div>' : '')
+    + '</div>';
+}
+
 /** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'. */
 function smSleepTech(d) {
   const st = d.sleepTech;
@@ -1291,6 +1361,7 @@ function smKoreaHtml() {
     + '년 침대 매트리스 시장 점유율</div>'
     + smShareDonut(d) + '</div>'
     + '</div>'
+    + smSleepMarket(d)
     + smSleepTech(d)
     + '</div>';
 }
