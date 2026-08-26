@@ -877,7 +877,17 @@ def _fmt_pubdate(s):
 # 국내: 상단(대표 출시 상품)과 하단(기사 목록)이 서로 다른 브랜드를 본다.
 # 수집은 두 목록의 합집합으로 '한 번만' 하고, 표시 단계에서 각각 필터링한다.
 DOMESTIC_FEATURED_BRANDS = ["한샘", "에이스침대", "이케아"]                    # 상단 3칸
-DOMESTIC_ITEM_BRANDS = ["씰리침대", "템퍼", "슬럼버랜드", "킹스다운", "지누스"]   # 하단 목록
+DOMESTIC_MATTRESS_BRANDS = ["씰리침대", "템퍼", "슬럼버랜드", "킹스다운", "지누스"]  # 매트리스
+# 침구(베딩) — 실재·활동 확인한 국내 침구 브랜드만 넣는다(공식 사이트 확인).
+#   이브자리 evezary.co.kr(1976 창업) · 알레르망 allerman.com(2000 설립)
+#   세사리빙 sesaliving.com(웰크론)
+DOMESTIC_BEDDING_BRANDS = ["이브자리", "알레르망", "세사리빙"]
+# 슬립테크 — 대시보드 국내 슬립테크 카드에 실은 6개 기업과 같은 목록.
+#   ★ 코웨이 비렉스는 기존 매트리스 목록에 없던 브랜드라 중복이 아니다(확인함).
+DOMESTIC_SLEEPTECH_BRANDS = ["에이슬립", "코웨이 비렉스", "텐마인즈",
+                             "삼분의일", "허니냅스", "웰트"]
+DOMESTIC_ITEM_BRANDS = (DOMESTIC_MATTRESS_BRANDS + DOMESTIC_BEDDING_BRANDS
+                        + DOMESTIC_SLEEPTECH_BRANDS)                         # 하단 목록
 DOMESTIC_BRANDS = DOMESTIC_FEATURED_BRANDS + DOMESTIC_ITEM_BRANDS            # 수집 대상(합집합)
 
 # 국내 브랜드 검색 쿼리 — 이름이 일반 단어·타 브랜드와 겹치면 '침대/매트리스'를 함께 요구한다.
@@ -893,6 +903,21 @@ DOMESTIC_BRAND_QUERY = {
     "슬럼버랜드": '("슬럼버랜드 매트리스" OR "슬럼버랜드 침대" OR "슬럼버랜드 호텔")',
     "킹스다운": '("킹스다운 매트리스" OR "킹스다운 침대")',
     "지누스": '("지누스" OR "지누스 매트리스" OR "Zinus") (신제품 OR 출시 OR 론칭)',
+    # 침구 — 신제품 절만 요구하면 기사 수가 너무 적어 침구·이불도 함께 허용한다.
+    "이브자리": '("이브자리" OR "evezary") (신제품 OR 출시 OR 론칭 OR 침구 OR 이불)',
+    "알레르망": '("알레르망" OR "ALLERMAN") (신제품 OR 출시 OR 론칭 OR 침구 OR 이불)',
+    "세사리빙": '("세사리빙" OR "웰크론 세사리빙") (신제품 OR 출시 OR 론칭 OR 침구 OR 이불)',
+    # 슬립테크 — 이름이 일반 낱말과 겹치는 곳은 문맥어를 반드시 붙인다.
+    #   "웰트"    → 구두 웰트·독일어 Welt 기사와 충돌
+    #   "삼분의일" → '삼분의 일'(분수)로 쓰인 일반 기사와 충돌
+    #   "비렉스"  → 코웨이 매트리스 브랜드명. 단독으로는 약해 매트리스·수면을 함께 요구
+    "에이슬립": '("에이슬립" OR "Asleep") (수면 OR 슬립테크 OR 출시 OR 투자)',
+    "코웨이 비렉스": '("코웨이 비렉스" OR "비렉스" OR "BEREX")'
+                  ' (매트리스 OR 침대 OR 수면 OR 출시)',
+    "텐마인즈": '("텐마인즈" OR "10minds" OR "모션필로우" OR "모션 필로우")',
+    "삼분의일": '"삼분의일" (매트리스 OR 수면 OR 슬립테크 OR 출시)',
+    "허니냅스": '("허니냅스" OR "HoneyNaps")',
+    "웰트": '("웰트" OR "WELT") (수면 OR 슬립테크 OR 불면증 OR 디지털치료 OR 슬립큐)',
 }
 GLOBAL_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]  # 국외(영어 검색)
 
@@ -997,11 +1022,22 @@ _NEWS_EXCLUDE = (
     "quarter results", "quarterly results", "earnings", "revenue", "net sales",
     "fiscal year", "financial results", "guidance", "stock", "shares", "investor",
     "실적", "매출", "영업이익", "순이익", "주가", "공시",
+    # 실측 누락 보완: "이불 팔아 번 돈으로 삼전닉스 샀더니…투자 대박 난 회사"
+    # 처럼 제품이 아니라 주식 투자 성과를 다룬 기사가 '이불' 때문에 신제품으로
+    # 잡혔다. 재무 기사와 같은 성격이라 좁은 문구로만 막는다.
+    # ("투자" 단독은 쓰지 않는다 — 슬립테크 기업의 투자 유치 기사가 통째로 사라진다)
+    # 같은 사건이 언론사마다 다른 표현으로 나와 한 번에 다 못 막았다. 실측대로 보강.
+    #   "…이불 팔아 1년 영업익 269억…"        → '영업이익' 아닌 '영업익' 표기
+    #   "…'삼전닉스'로 대박 난 이불 회사"      → '투자 대박' 아닌 '대박 난'
+    "투자 대박", "대박 난", "잭팟", "株", "영업익",
     # 인수합병·조직
     "acquire", "acquisition", "merger", "buyout", "stake", "ipo",
     "employee count", "headcount", "layoff", "layoffs",
     "ceo", "appoints", "names new ceo", "steps down",
     "인수", "합병", "지분", "상장", "인사", "임명", "구조조정",
+    # 실측 누락 보완: "템퍼코리아, 박성희 신임 대표 선임" 이 '인사/임명' 에
+    # 걸리지 않고 통과했다. 같은 성격이라 함께 막는다.
+    "선임", "신임",
     # 소송·파산 — 명세 목록에는 없었으나 실제 수집에서 상위 카드에 올라왔다.
     # ("Serta Simmons: The Bill Comes Due. Court Awards $400 Million",
     #  "Rabbi Trust Funds as Property of the Estate: The Sleep Number...")
@@ -1072,6 +1108,17 @@ BRAND_DOMAINS = {
     "Tempur-Pedic": "tempurpedic.com",
     "Purple": "purple.com",
     "Serta": "serta.com",
+    # 침구(공식 사이트 확인)
+    "이브자리": "evezary.co.kr",
+    "알레르망": "allerman.com",
+    "세사리빙": "sesaliving.com",
+    # 슬립테크(공식 사이트 확인)
+    "에이슬립": "asleep.ai",
+    "코웨이 비렉스": "coway.com",
+    "텐마인즈": "10minds.com",
+    "삼분의일": "3boon1.com",
+    "허니냅스": "honeynaps.com",
+    "웰트": "weltcorp.com",
 }
 
 
@@ -1088,6 +1135,16 @@ _BRAND_CANON = {
     "tempur-pedic": "Tempur-Pedic", "tempurpedic": "Tempur-Pedic", "tempur": "Tempur-Pedic", "템퍼": "Tempur-Pedic",
     "purple": "Purple", "퍼플": "Purple",
     "serta": "Serta", "썰타": "Serta", "서타": "Serta",
+    "이브자리": "이브자리", "evezary": "이브자리",
+    "알레르망": "알레르망", "allerman": "알레르망",
+    "세사리빙": "세사리빙", "sesaliving": "세사리빙", "웰크론세사리빙": "세사리빙",
+    "에이슬립": "에이슬립", "asleep": "에이슬립",
+    "코웨이비렉스": "코웨이 비렉스", "비렉스": "코웨이 비렉스", "berex": "코웨이 비렉스",
+    "코웨이": "코웨이 비렉스", "coway": "코웨이 비렉스",
+    "텐마인즈": "텐마인즈", "10minds": "텐마인즈", "tenminds": "텐마인즈",
+    "삼분의일": "삼분의일", "3boon1": "삼분의일",
+    "허니냅스": "허니냅스", "honeynaps": "허니냅스",
+    "웰트": "웰트", "welt": "웰트", "weltcorp": "웰트",
 }
 
 
@@ -1215,10 +1272,14 @@ def _product_name(title, brand, source):
     return t.strip() or (title or "").strip()
 
 
-def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=None):
-    """브랜드별 신제품 뉴스를 모아 {status, items(≤6), featured(브랜드당 1건·≤3)} 반환.
+def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=None,
+                items_max=6):
+    """브랜드별 신제품 뉴스를 모아 {status, items(≤items_max), featured(브랜드당 1건·≤3)} 반환.
        한 브랜드 검색이 실패해도 나머지는 반환. 전부 실패면 status=error. (국내·국외 공용)
 
+       items_max 는 하단 기사 목록의 상한이다(기본 6 — 국외는 종전 그대로).
+       ★ 국내는 브랜드가 18곳으로 늘어 6건이면 대부분의 브랜드가 잘려 나간다.
+         화면에서 분류별로 걸러 보기 때문에 풀을 넉넉히 남긴다.
        featured_brands / items_brands 를 주면 상단·하단이 서로 다른 브랜드를 본다.
        (수집은 brands 전체로 한 번만 하고 표시 단계에서 나눈다 — 중복 수집 없음)
        생략하면 종전처럼 양쪽 모두 전체 브랜드를 대상으로 한다."""
@@ -1378,10 +1439,10 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
             items.append(r)
             picked.add(id(r))
     for r in pool:  # 남은 슬롯 채움
-        if id(r) not in picked and len(items) < 6:
+        if id(r) not in picked and len(items) < items_max:
             items.append(r)
             picked.add(id(r))
-    items = sorted(items[:6], key=lambda x: x["date"], reverse=True)
+    items = sorted(items[:items_max], key=lambda x: x["date"], reverse=True)
     # 그래도 모자라면 빈 칸 대신 안내 카드를 채운다.
     while len(featured) < 3:
         featured.append({"brand": "", "title": "최근 관련 기사 없음", "source": "",
@@ -1413,12 +1474,21 @@ def _domestic_query(brand):
     return q if q else '"%s" (신제품 OR 출시 OR 론칭)' % brand
 
 
+DOMESTIC_ITEMS_MAX = 36     # 하단 목록 상한. 브랜드 14곳 × 최대 3건 = 42 후보를
+                            # 거의 자르지 않는 값. 화면에서 분류별로 걸러 보므로
+                            # 풀을 남겨 두는 편이 낫다(24 로 두면 9건이 잘렸다).
+
+
 def update_domestic():
     """국내 브랜드 신제품 뉴스 (한국어).
-       상단: 한샘·에이스침대·이케아 / 하단: 씰리침대·템퍼·슬럼버랜드·킹스다운·지누스."""
+       상단: 한샘·에이스침대·이케아
+       하단: 매트리스 5곳 + 침구 3곳 + 슬립테크 6곳.
+       ★ 상단(대표 출시 상품 3칸)의 대상 브랜드는 종전 그대로 둔다 — 늘린 것은
+         하단 기사 목록뿐이다."""
     return _brand_news(DOMESTIC_BRANDS, _domestic_query, "ko", "KR",
                        featured_brands=DOMESTIC_FEATURED_BRANDS,
-                       items_brands=DOMESTIC_ITEM_BRANDS)
+                       items_brands=DOMESTIC_ITEM_BRANDS,
+                       items_max=DOMESTIC_ITEMS_MAX)
 
 
 def _global_query(brand):
