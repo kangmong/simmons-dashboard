@@ -1461,7 +1461,15 @@ function gsSleepMarket(m) {
   const y0 = Math.min.apply(null, years), y1 = Math.max.apply(null, years);
   const lo = 0, hi = Math.max.apply(null, vals) * 1.3;
 
-  const W = VIZ_W, H = 210, padL = 52, padR = 26, padT = 30, padB = 30;
+  /* 여백·글자 크기는 이 차트에서만 쓴다(다른 차트의 VIZ_* 는 건드리지 않는다).
+     ★ 아래 여백(padB)을 넉넉히 둬서 X축 연도 라벨이 축선 '아래 고정 자리'에
+       놓이게 한다 — 값 라벨과 자리를 다투지 않는다.
+     ★ 좌우 여백은 양 끝 라벨('65.79억 달러' / '952억 달러')이 카드 경계를
+       넘지 않도록 잡은 값이다. */
+  const W = VIZ_W, H = 224, padL = 52, padR = 34, padT = 34, padB = 40;
+  const FS_VAL = 11.5;          // 값 라벨(작게 줄면 못 읽으므로 축 눈금보다 크게)
+  const FS_AX = 9.5;            // 축 눈금·연도 라벨
+  const LAB_UP = 13;            // 점 위로 띄우는 거리
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
   const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
@@ -1469,16 +1477,11 @@ function gsSleepMarket(m) {
   const grid = vizYFractions().map((t) => {
     const val = lo + (hi - lo) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
+      + `<text x="${padL - 7}" y="${(y + 3.4).toFixed(1)}" text-anchor="end" font-size="${FS_AX}" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
   }).join('');
-
-  // 값이 작은 쪽 시리즈는 라벨을 점 아래로 내린다 — 두 선의 라벨이 겹치지 않게.
-  const peak = (s) => Math.max.apply(null, s.pts.map((p) => p.usdEok));
-  const lowKey = series.slice().sort((a, b) => peak(a) - peak(b))[0].key;
 
   const body = series.map((s) => {
     const col = s.color || 'var(--accent)';
-    const below = series.length > 1 && s.key === lowKey;
     let seg = '';
     for (let i = 1; i < s.pts.length; i += 1) {
       const a = s.pts[i - 1], b = s.pts[i];
@@ -1492,19 +1495,21 @@ function gsSleepMarket(m) {
       const dot = (p.kind === 'forecast')
         ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--card)" stroke="${escapeHtml(col)}" stroke-width="2.5"/>`
         : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${escapeHtml(col)}" stroke="var(--card)" stroke-width="2"/>`;
+      // ★ 값 라벨은 언제나 점 '위'에 둔다. 예전엔 값이 작은 시리즈만 점 아래로
+      //   내렸는데, 그 자리가 X축 연도 라벨 자리와 겹쳐 '2021년'이 잘렸다.
       const anchor = i === 0 ? 'start' : (i === s.pts.length - 1 ? 'end' : 'middle');
-      const ly = below ? y + 19 : y - 12;
-      return dot + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="11" font-weight="800"`
+      return dot + `<text x="${x.toFixed(1)}" y="${(y - LAB_UP).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_VAL}" font-weight="800"`
         + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`;
     }).join('');
     return seg + dots;
   }).join('');
 
   // X축 — 발표된 연도만 찍는다(사이 연도는 값이 없으므로 눈금도 만들지 않는다).
+  // ★ 축선 아래 고정된 자리에 놓는다. 값 라벨은 모두 점 위에 있으므로 부딪히지 않는다.
   const yrs = years.filter((v, i) => years.indexOf(v) === i).sort((a, b) => a - b);
   const xlab = yrs.map((yr, i) => {
     const anchor = i === 0 ? 'start' : (i === yrs.length - 1 ? 'end' : 'middle');
-    return `<text x="${X(yr).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${yr}년</text>`;
+    return `<text x="${X(yr).toFixed(1)}" y="${(padT + plotH + 20).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_AX}" fill="var(--muted)">${yr}년</text>`;
   }).join('');
 
   // 한줄 요약 — 시리즈마다 한 문장. 배수·기간 모두 계산값이고 하드코딩이 없다.
@@ -1535,10 +1540,13 @@ function gsSleepMarket(m) {
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '억 달러') + ')</span></div>'
     + heads
     + (m.mixNote ? '<div class="gs-mixnote">※ ' + escapeHtml(m.mixNote) + '</div>' : '')
-    + `<svg class="sm-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    // 좁은 화면에서 라벨이 못 읽을 만큼 작아지지 않게, 아래 폭부터는 줄이는 대신
+    // 이 그래프 안에서만 좌우로 밀어 볼 수 있게 한다(.kp-t__wrap 과 같은 방식).
+    + '<div class="gs-svgwrap">'
+    + `<svg class="sm-mktsvg gs-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
     + ' aria-label="' + escapeHtml(m.title) + '">'
     + grid + xlab + body
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg></div>`
     + '<div class="gs-mktlg">' + lg + '</div>'
     + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>실측(조사기관이 발표한 값)'
     + '<span class="sm-mktlg__hollow"></span>전망(조사기관 예측)'

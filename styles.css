@@ -23,6 +23,8 @@
   --blue-soft: #E8F1FE;
   --field: #FBFCFD;         /* 드롭존/입력 배경 */
   --row-hover: #FAFBFC;     /* 테이블 행 hover */
+  --hl-bg: #FEF3C7;        /* 주의·강조 배경(노랑) — .sm-badge__prov 가 쓰던 값 */
+  --hl-ink: #92400E;       /* 그 위에 얹는 글자색 */
   --radius-sm: 10px;
 }
 
@@ -1121,7 +1123,7 @@ body {
     break-inside: avoid; box-shadow: none !important; transform: none !important;
     border: 1px solid var(--line); margin-bottom: 12px;
   }
-  .badge, .news-cat, .ds-origin, .app-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .badge, .news-cat, .ds-origin, .app-header, .gs-mixnote, .sm-badge__prov { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
 /* ── 월간 부문별 지수 (KOIMA) — 순수 추가 카드 전용 스타일 ─────────────────
@@ -1438,7 +1440,7 @@ body {
 .sm-h__u { font-size: 11.5px; font-weight: 500; color: var(--slate); }
 .sm-badge { margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 500; color: var(--slate); white-space: nowrap; }
-.sm-badge__prov { background: #FEF3C7; color: #92400E; font-weight: 700;
+.sm-badge__prov { background: var(--hl-bg, #FEF3C7); color: var(--hl-ink, #92400E); font-weight: 700;
   border-radius: 3px; padding: 1px 5px; font-size: 10.5px; }
 .sm-info { position: relative; cursor: help; color: var(--slate); font-size: 12px; }
 .sm-info__bub { display: none; position: absolute; right: 0; top: 18px; z-index: 30;
@@ -1529,9 +1531,25 @@ body {
 .gs-hdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   margin-right: 7px; vertical-align: 1px; flex: 0 0 auto; }
 /* 서로 다른 조사기관·범위라는 경고 — 그래프 바로 위에 둔다 */
-.gs-mixnote { margin: 2px 0 8px; padding: 6px 10px; border-radius: var(--radius-sm);
-  background: #FEF3C7; color: #92400E; font-size: 11.5px; line-height: 1.55;
-  word-break: keep-all; }
+.gs-mixnote { margin: 2px 0 10px; padding: 7px 11px; border-radius: var(--radius-sm);
+  background: var(--hl-bg, #FEF3C7); color: var(--hl-ink, #92400E);
+  border-left: 3px solid var(--hl-ink, #92400E);
+  font-size: 11.5px; line-height: 1.55; word-break: keep-all;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+/* 배경을 지우는 환경(윈도 고대비 등)에서도 강조가 남게 테두리로 버틴다 */
+@media (forced-colors: active) {
+  .gs-mixnote { border: 1px solid CanvasText; border-left-width: 3px; }
+}
+@media (max-width: 700px) {
+  .gs-mixnote { font-size: 11px; padding: 6px 9px; }
+}
+/* 좁아질 때 대비 — 이 그래프만. 620px 아래로는 더 줄이지 않고 좌우로 밀어 본다.
+   ★ 미디어 쿼리(화면 폭)가 아니라 min-width(담는 칸 폭)로 잡는다 —
+     화면은 넓어도 카드가 좁아지는 경우(사이드바·2열 배치)까지 함께 걸린다.
+     담는 칸이 620px 보다 넓으면 min-width 는 걸리지 않아 예전처럼 100% 로 늘어난다.
+   (다른 차트는 지금 방식 그대로 두고 .gs-mktsvg 에만 하한을 준다) */
+.gs-svgwrap { overflow-x: auto; }
+.gs-mktsvg { min-width: 620px; }
 /* 시리즈 범례 — 조사기관 이름과 조사 범위를 함께 적는다 */
 .gs-mktlg { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
 .gs-lg { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700;
