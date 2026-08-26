@@ -5298,6 +5298,7 @@ const DOM_CATS = [
   { key: 'mattress', label: '매트리스', subs: [
     { key: 'frame', label: '프레임' },
     { key: 'bedding', label: '베딩' },
+    { key: 'body', label: '매트리스 본체' },
   ] },
   { key: 'sleeptech', label: '슬립테크', subs: [
     { key: 'wearable', label: '웨어러블' },
@@ -5309,24 +5310,48 @@ const DOM_OTHER = { key: 'other', label: '기타', note: '(미분류)' };
 
 /* 소분류별 키워드. 제목·상품명에서 찾는다.
    ★ 붙여쓰기/띄어쓰기를 모두 적어 둔다 — 기사 제목의 표기가 제각각이라
-     한쪽만 적으면 놓친다('베드프레임' vs '베드 프레임'). */
+     한쪽만 적으면 놓친다('베드프레임' vs '베드 프레임').
+   ★★ 정의 순서가 곧 동점일 때의 우선순위다. body(매트리스 본체)를 맨 뒤에 둔 이유:
+     '침대 프레임'·'침대 커버' 처럼 body 키워드('침대')를 품은 말이 많아서,
+     같은 수로 걸리면 더 좁은 분류(프레임·베딩)가 이겨야 한다. */
 const DOM_RULES = {
   frame: ['프레임', '베드프레임', '베드 프레임', '헤드보드', '헤드 보드',
-    '침대틀', '침대 틀', '침대 프레임', '저상형', '평상형', '수납침대', '수납 침대',
-    '붙박이', '원목 침대', '슬랫', '모션베드', '모션 베드', '전동베드', '전동 베드'],
-  bedding: ['이불', '차렵', '침구', '베개', '베갯잇', '필로우', 'pillow', '경추베개',
+    '침대틀', '침대 틀', '침대 프레임', '저상형', '평상형',
+    '수납침대', '수납 침대', '벙커침대', '벙커 침대', '철제침대', '철제 침대',
+    '붙박이', '원목침대', '원목 침대', '슬랫',
+    '모션베드', '모션 베드', '전동베드', '전동 베드',
+    '리클라이닝베드', '리클라이닝 베드', '리클라이너'],
+  bedding: ['이불', '차렵', '차렵이불', '누비이불', '패딩이불', '패딩 이불',
+    '극세사이불', '극세사 이불', '구스이불', '구스 이불', '거위털', '구스다운',
+    '침구', '침구류', '베개', '베갯잇', '필로우', 'pillow', '경추베개', '경추 베개',
+    '라텍스베개', '라텍스 베개', '메모리폼베개', '메모리폼 베개',
     '토퍼', '패드', '매트리스커버', '매트리스 커버', '침대커버', '침대 커버',
-    'duvet', '린넨', '리넨', '요·', '차렵이불'],
-  wearable: ['스마트링', '스마트 링', 'smart ring', '스마트워치', '스마트 워치',
-    '워치', 'watch', '밴드', 'band', '웨어러블', 'wearable', '수면추적', '수면 추적',
+    '침대시트', '침대 시트', 'duvet', '린넨', '리넨'],
+  wearable: ['스마트링', '스마트 링', '슬립링', '슬립 링', 'smart ring',
+    '스마트워치', '스마트 워치', '워치', 'watch',
+    '스마트밴드', '스마트 밴드', '밴드', 'band', '웨어러블', 'wearable',
+    '수면추적', '수면 추적', '수면추적기', '수면 추적기',
+    '수면 모니터링', '수면모니터링', '링 디바이스', '링디바이스',
     '트래커', 'tracker', '반지형'],
-  scent: ['향수', '디퓨저', '방향제', '아로마', '퍼퓸', 'perfume', '필로우미스트',
-    '필로우 미스트', '룸스프레이', '룸 스프레이', '인센스', '캔들', '에센셜오일',
-    '에센셜 오일', '라벤더', '숙면향'],
-  drug: ['수면유도제', '수면 유도제', '멜라토닌', 'melatonin', '수면제', '수면영양제',
-    '수면 영양제', '수면보조제', '수면 보조제', '테아닌', '가바', 'GABA',
-    '수면건강기능식품', '슬리핑 정', '수면 건강기능식품'],
+  scent: ['향수', '디퓨저', '방향제', '아로마', '아로마오일', '아로마 오일',
+    '퍼퓸', 'perfume', '필로우미스트', '필로우 미스트',
+    '수면스프레이', '수면 스프레이', '룸스프레이', '룸 스프레이',
+    '인센스', '캔들', '에센셜오일', '에센셜 오일',
+    '라벤더', '라벤더오일', '라벤더 오일', '숙면향'],
+  drug: ['수면유도제', '수면 유도제', '멜라토닌', 'melatonin', '수면제',
+    '수면보조제', '수면 보조제', '수면영양제', '수면 영양제',
+    '락티움', '테아닌', '가바', 'GABA', '진정제', '처방전',
+    '수면다원검사', '수면건강기능식품', '수면 건강기능식품', '슬리핑 정'],
+  // ★ 맨 뒤 — 위 어느 분류에도 더 좁게 걸리지 않은 '매트리스 자체' 기사를 받는다.
+  body: ['매트리스', '침대', '하이브리드', '스프링', '포켓스프링', '포켓 스프링',
+    '본넬스프링', '본넬 스프링', '메모리폼', '라텍스', '폼매트리스', '폼 매트리스',
+    '미디엄하드', '미디엄 하드', '미디엄펌', '경도', '양면매트리스', '양면 매트리스'],
 };
+
+/* 제품이 아니라 행사·판촉을 다루는 기사인지 가늠하는 낱말(미분류 사유 설명용).
+   ★ 이걸로 분류하지 않는다. 왜 안 걸렸는지 설명할 때만 쓴다. */
+const DOM_EVENT_WORDS = ['캠페인', '기념', '주년', '행사', '프로모션', '이벤트',
+  '특가', '할인', '세일', '팝업', '전시', '후원', '협약', '수상'];
 
 /** 소분류 key → {대분류, 소분류} 라벨 (breadcrumb·콘솔용) */
 function domSubMeta(sub) {
@@ -5337,18 +5362,44 @@ function domSubMeta(sub) {
   return null;
 }
 
+/** 키워드를 찾을 본문. 브랜드명과 끝의 '- 언론사'는 빼고 본다.
+    ★★ 브랜드명을 빼는 게 핵심이다. 국내 브랜드에 '씰리침대·에이스침대'처럼
+      '침대'가 박혀 있어, 그대로 두면 어떤 기사든 '침대'에 걸려 전부
+      매트리스 본체로 쓸려 간다(브랜드는 제품 종류를 알려 주지 않는다). */
+function domSearchText(it) {
+  let t = String(it.title || '');
+  const src = String(it.source || '');
+  if (src && t.endsWith(' - ' + src)) t = t.slice(0, -(src.length + 3));
+  t = [t, it.product_name].filter(Boolean).join(' ');
+  const brand = String(it.brand || '').trim();
+  if (brand) t = t.split(brand).join(' ');
+  return t;
+}
+
 /** 항목 하나를 분류한다. 걸린 키워드가 가장 많은 소분류를 고르고, 없으면 null.
-    ★ 어느 키워드에 걸렸는지도 함께 돌려준다 — 콘솔에서 판정 근거를 볼 수 있게. */
+    ★ 어느 키워드에 걸렸는지, 무엇을 검사했는지도 함께 돌려준다 —
+      콘솔에서 판정 근거와 '왜 안 걸렸는지'를 볼 수 있게. */
 function domClassifyItem(it) {
-  const text = [it.title, it.product_name].filter(Boolean).join(' ').toLowerCase();
-  if (!text) return { sub: null, hits: [] };
+  const raw = domSearchText(it);
+  const text = raw.toLowerCase();
+  if (!text.trim()) return { sub: null, hits: [], text: raw, why: '제목이 비어 있습니다' };
   let best = null;
   Object.keys(DOM_RULES).forEach((sub) => {
     const hits = DOM_RULES[sub].filter((w) => text.indexOf(String(w).toLowerCase()) >= 0);
     // 걸린 키워드가 더 많은 쪽이 이긴다. 같으면 먼저 정의된 소분류를 쓴다.
     if (hits.length && (!best || hits.length > best.hits.length)) best = { sub: sub, hits: hits };
   });
-  return best || { sub: null, hits: [] };
+  if (best) return { sub: best.sub, hits: best.hits, text: raw, why: null };
+
+  /* 못 걸렸을 때 — 지어내지 않는다. 본문에 실제로 있는 낱말만 근거로 적는다.
+     ★ '행사 기사라서 못 걸렸다'고 단정하지 않는다. 확실한 것은 '제품 종류를
+       가리키는 낱말이 없다'는 사실 하나뿐이고, 나머지는 참고로만 덧붙인다. */
+  let why = '제품 종류를 가리키는 낱말이 없습니다(브랜드·언론사 이름 제외 후 검사)';
+  const pn = String(it.product_name || '').trim();
+  if (pn && raw.indexOf(pn) >= 0) why += ' — 제품 라인 이름(‘' + pn + '’)만 적혀 있습니다';
+  const ev = DOM_EVENT_WORDS.filter((w) => raw.indexOf(w) >= 0);
+  if (ev.length) why += ' · 함께 쓰인 낱말: ' + ev.join('·');
+  return { sub: null, hits: [], text: raw, why: why };
 }
 
 let _domClassSig = null;   // 같은 목록을 다시 분류했을 때 콘솔이 도배되지 않게
@@ -5362,7 +5413,8 @@ function domClassify(items) {
   list.forEach((it) => {
     const r = domClassifyItem(it);
     bySub[r.sub || 'other'].push(it);
-    detail.push({ sub: r.sub, hits: r.hits, title: String(it.title || '') });
+    detail.push({ sub: r.sub, hits: r.hits, title: String(it.title || ''),
+      text: r.text, why: r.why });
   });
 
   // 콘솔 출력 — 카테고리별 항목 수 + 미분류 수 + 미분류로 남은 제목
@@ -5377,8 +5429,12 @@ function domClassify(items) {
     });
     console.log('  ' + DOM_OTHER.label + DOM_OTHER.note + ' ' + bySub.other.length + '건');
     if (bySub.other.length) {
-      console.log('  ↳ 미분류로 남긴 항목(억지로 끼워 맞추지 않음):');
-      bySub.other.forEach((it) => console.log('     · ' + String(it.title || '')));
+      console.log('  ↳ 미분류로 남긴 항목 — 억지로 끼워 맞추지 않고 사유를 남긴다:');
+      detail.filter((d) => !d.sub).forEach((d) => {
+        console.log('     · ' + d.title);
+        console.log('       검사한 문구(브랜드·언론사 제외): "' + String(d.text || '').trim() + '"');
+        console.log('       사유: ' + d.why);
+      });
     }
     detail.filter((d) => d.sub).forEach((d) => {
       const m = domSubMeta(d.sub);
