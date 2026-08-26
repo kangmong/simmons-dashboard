@@ -6730,6 +6730,320 @@ function krNewsHtml(city, nw) {
   }).join('') + '</ul>';
 }
 
+/* ── 한국 도시 상세 · 과거 추이 그래프 4종 ────────────────────────────────
+   ★ 값은 Open-Meteo Historical Weather API(archive) 응답을 그대로 쓴다.
+     임의 보정하지 않는다. 단위 변환만 한다(일조시간 초 → 시간).
+   ★★ 특보는 기상청 기상특보 조회서비스(공공데이터포털)에서 받는다. 인증키가
+     없으면 서버가 status='no_key' 를 주고, 그래프는 '특보 연동 준비 중
+     (API 키 필요)'이라고 정직하게 적는다. 키가 없어도 4개 그래프는 다 그려진다.
+     키가 생기면 bands 만 채워져 음영이 자동으로 나타난다(구조만 미리 만들어 둠). */
+
+const KW_RANGES = [{ key: 30, label: '1개월' }, { key: 60, label: '2개월' }];
+const KW_TTL = 60 * 60 * 1000;      // 과거값은 자주 바뀌지 않는다 — 1시간 캐시
+
+let _kwRange = 30;
+let _kwHist = {};      // { '도시|일수': {ts, days:[…]} }
+let _kwAlert = {};     // { '도시|일수': {ts, status, bands:[…]} }
+let _kwBusy = {};
+
+/* 특보 종류별 음영 색. 어느 그래프가 어떤 특보를 받는지는 서버의 KIND_GROUP 과 같다. */
+const KW_ALERT_COLORS = {
+  폭염: '#EF4444', 한파: '#3B82F6', 태풍: '#7C3AED', 강풍: '#8B5CF6',
+  풍랑: '#6366F1', 건조: '#F59E0B', 호우: '#0EA5E9', 대설: '#64748B',
+};
+const KW_NO_KEY_NOTE = '특보 연동 준비 중 (기상청 API 키 필요)';
+
+/** 캐시 키 */
+function kwKey(city) { return city.ko + '|' + _kwRange; }
+
+/** Open-Meteo archive → 일별 배열. 실패하면 error 를 담아 돌려준다. */
+async function kwFetchHist(city, days) {
+  const end = new Date();
+  const start = new Date(end.getTime() - (days - 1) * 86400000);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const daily = ['temperature_2m_max', 'temperature_2m_mean', 'temperature_2m_min',
+    'wind_speed_10m_mean', 'wind_speed_10m_max',
+    'relative_humidity_2m_mean', 'relative_humidity_2m_min',
+    'precipitation_sum', 'sunshine_duration'].join(',');
+  const url = 'https://archive-api.open-meteo.com/v1/archive'
+    + `?latitude=${city.lat}&longitude=${city.lon}`
+    + `&start_date=${iso(start)}&end_date=${iso(end)}`
+    + `&daily=${daily}&timezone=Asia%2FSeoul`;
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    const t = (d.daily && d.daily.time) || [];
+    const g = (k, i) => (d.daily && d.daily[k] ? d.daily[k][i] : null);
+    const rows = t.map((day, i) => ({
+      day: day,
+      tmax: g('temperature_2m_max', i), tmean: g('temperature_2m_mean', i),
+      tmin: g('temperature_2m_min', i),
+      wmean: g('wind_speed_10m_mean', i), wmax: g('wind_speed_10m_max', i),
+      hmean: g('relative_humidity_2m_mean', i), hmin: g('relative_humidity_2m_min', i),
+      rain: g('precipitation_sum', i),
+      // 응답은 초 단위다. 보기 위해 시간으로만 바꾼다(값을 손대는 게 아니다).
+      sun: g('sunshine_duration', i) == null ? null
+        : Math.round((g('sunshine_duration', i) / 3600) * 100) / 100,
+    }));
+    return { ts: Date.now(), days: rows, units: d.daily_units || null };
+  } catch (e) {
+    console.warn('[korea] history fail:', city.ko, e);
+    return { ts: Date.now(), error: (e && e.message) || String(e), days: [] };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 서버 경유 기상특보. 키가 없으면 status='no_key' 가 온다(정상 흐름). */
+async function kwFetchAlert(city, days) {
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
+  try {
+    const res = await fetch('/api/kma-alert?region=' + encodeURIComponent(city.ko)
+      + '&days=' + days, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    return { ts: Date.now(), status: d.status || 'error', bands: d.bands || [],
+      reason: d.reason, stnExact: d.stn_exact, stnId: d.stnId };
+  } catch (e) {
+    console.warn('[korea] alert fail:', city.ko, e);
+    return { ts: Date.now(), status: 'error', bands: [], reason: (e && e.message) || String(e) };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 그래프용 데이터 확보 (TTL 지났을 때만 새로 받는다) */
+async function kwLoad(city, force) {
+  const k = kwKey(city);
+  if (!city || _kwBusy[k]) return;
+  const stale = (c) => !c || (Date.now() - c.ts) > KW_TTL;
+  if (!force && !stale(_kwHist[k]) && !stale(_kwAlert[k])) return;
+  _kwBusy[k] = true;
+  if (_krOn) renderKorea();
+  const [h, a] = await Promise.all([
+    (force || stale(_kwHist[k])) ? kwFetchHist(city, _kwRange) : Promise.resolve(_kwHist[k]),
+    (force || stale(_kwAlert[k])) ? kwFetchAlert(city, _kwRange) : Promise.resolve(_kwAlert[k]),
+  ]);
+  _kwHist[k] = h;
+  _kwAlert[k] = a;
+  _kwBusy[k] = false;
+  if (_krOn) renderKorea();
+}
+
+/** 이 그래프가 받을 특보만 골라 낸다(group 이 같은 것) */
+function kwBandsFor(alert, group) {
+  if (!alert || alert.status !== 'ok') return [];
+  return (alert.bands || []).filter((b) => b.group === group);
+}
+
+/** 그래프 하나. cfg = {days, series, unit, group, alert, right, bars} */
+function kwChart(cfg) {
+  const rows = cfg.days || [];
+  const n = rows.length;
+  if (n < 2) return '<div class="kw-empty">추이를 그릴 값이 부족합니다.</div>';
+
+  const vals = [];
+  cfg.series.forEach((s) => rows.forEach((r) => { if (r[s.key] != null) vals.push(r[s.key]); }));
+  if (!vals.length) return '<div class="kw-empty">값이 없습니다.</div>';
+  let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  if (cfg.zeroBase) lo = Math.min(0, lo);
+  const pad = (hi - lo) * 0.18 || 1;
+  lo -= pad; hi += pad;
+
+  const hasRight = !!cfg.right;
+  const W = 360, H = 178, padL = 34, padR = hasRight ? 30 : 10, padT = 12, padB = 22;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
+
+  // 오른쪽 축 스케일 (일조시간 또는 특보 0/1)
+  let RY = null, rLo = 0, rHi = 1;
+  if (hasRight) {
+    if (cfg.right.key) {
+      const rv = rows.map((r) => r[cfg.right.key]).filter((v) => v != null);
+      rLo = 0; rHi = rv.length ? Math.max.apply(null, rv) * 1.15 || 1 : 1;
+    }
+    RY = (v) => padT + (1 - (v - rLo) / ((rHi - rLo) || 1)) * plotH;
+  }
+
+  const grid = vizYFractions().map((t) => {
+    const val = lo + (hi - lo) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 4}" y="${(y + 2.6).toFixed(1)}" text-anchor="end" font-size="7.5" fill="var(--muted)">${krNum(val, (hi - lo) < 6 ? 1 : 0)}</text>`;
+  }).join('');
+
+  const rAxis = hasRight ? vizYFractions().map((t) => {
+    const val = rLo + (rHi - rLo) * t;
+    const y = RY(val);
+    const txt = cfg.right.key ? krNum(val, rHi < 6 ? 1 : 0) : (val >= 0.5 ? '있음' : '없음');
+    return `<text x="${padL + plotW + 4}" y="${(y + 2.6).toFixed(1)}" text-anchor="start" font-size="7.5" fill="${escapeHtml(cfg.right.color || 'var(--muted)')}">${escapeHtml(txt)}</text>`;
+  }).join('') : '';
+
+  // 특보 음영 — 날짜가 이 창 안에 있을 때만
+  const idxOf = {};
+  rows.forEach((r, i) => { idxOf[r.day] = i; });
+  const bw = plotW / Math.max(1, n - 1);
+  const bands = (cfg.bands || []).map((b) => {
+    const i = idxOf[b.from];
+    if (i == null) return '';
+    const c = KW_ALERT_COLORS[b.kind] || 'var(--slate)';
+    const x = X(i) - bw / 2;
+    return `<rect x="${Math.max(padL, x).toFixed(1)}" y="${padT}" width="${bw.toFixed(1)}" height="${plotH}"`
+      + ` fill="${c}" opacity="${b.level === '경보' ? '.22' : '.12'}"/>`;
+  }).join('');
+
+  // 막대(강수) → 선보다 먼저 그린다
+  const barsHtml = (cfg.bars || []).map((s) => rows.map((r, i) => {
+    const v = r[s.key];
+    if (v == null || v <= 0) return '';
+    const y = Y(v), y0 = Y(Math.max(lo, 0));
+    const w = Math.max(1.2, bw * 0.62);
+    return `<rect x="${(X(i) - w / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}"`
+      + ` height="${Math.max(0.6, y0 - y).toFixed(1)}" fill="${s.color}" opacity=".85"/>`;
+  }).join('')).join('');
+
+  const lines = cfg.series.filter((s) => !s.bar).map((s) => {
+    const pts = rows.map((r, i) => (r[s.key] == null ? null : X(i).toFixed(1) + ',' + Y(r[s.key]).toFixed(1)))
+      .filter(Boolean).join(' ');
+    if (!pts) return '';
+    return `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="${s.w || 1.4}"`
+      + (s.dash ? ` stroke-dasharray="${s.dash}"` : '') + ' stroke-linejoin="round"/>';
+  }).join('');
+
+  // 오른쪽 축 계열(일조시간)
+  const rLine = (hasRight && cfg.right.key) ? (() => {
+    const pts = rows.map((r, i) => (r[cfg.right.key] == null ? null
+      : X(i).toFixed(1) + ',' + RY(r[cfg.right.key]).toFixed(1))).filter(Boolean).join(' ');
+    return pts ? `<polyline points="${pts}" fill="none" stroke="${cfg.right.color}" stroke-width="1.2" stroke-dasharray="3 2"/>` : '';
+  })() : '';
+
+  // 특보 유무 계단선(오른쪽 축이 특보일 때)
+  const aStep = (hasRight && !cfg.right.key) ? (() => {
+    const on = {};
+    (cfg.bands || []).forEach((b) => { on[b.from] = true; });
+    const pts = rows.map((r, i) => X(i).toFixed(1) + ',' + RY(on[r.day] ? 1 : 0).toFixed(1)).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${cfg.right.color}" stroke-width="1.1" opacity=".8"/>`;
+  })() : '';
+
+  const xlab = orTickIdx(n, 4).map((i) => {
+    const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 14).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="var(--muted)">${escapeHtml(rows[i].day.slice(5).replace('-', '/'))}</text>`;
+  }).join('');
+
+  return `<svg class="kw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ' aria-label="' + escapeHtml(cfg.title || '추이') + '">'
+    + bands + grid + rAxis + xlab + barsHtml + rLine + aStep + lines
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`;
+}
+
+/** 그래프 한 칸(제목 + 범례 + 그래프 + 특보 안내) */
+function kwCard(cfg, alert) {
+  const bands = kwBandsFor(alert, cfg.group);
+  /* ★ 특보 보조축(오른쪽 '있음/없음')은 특보 데이터가 실제로 있을 때만 그린다.
+     키가 없어 데이터가 없는데 축과 계단선을 그리면, 바닥에 붙은 평평한 선이
+     마치 관측값인 것처럼 보인다 — 없는 걸 있는 것처럼 보이게 하지 않는다.
+     (일조시간처럼 key 가 있는 보조축은 실제 값이므로 그대로 둔다) */
+  if (cfg.right && !cfg.right.key && (!alert || alert.status !== 'ok')) {
+    cfg = Object.assign({}, cfg);
+    delete cfg.right;
+  }
+  const lg = cfg.series.concat(cfg.right && cfg.right.key
+    ? [{ label: cfg.right.label + ' (우축)', color: cfg.right.color, dash: '3 2' }] : [])
+    .map((s) => '<span class="kw-lg"><i style="background:' + escapeHtml(s.color) + '"></i>'
+      + escapeHtml(s.label) + '</span>').join('');
+  // 특보 안내 — 키가 없으면 그 사실을, 있으면 이 기간에 몇 건인지
+  let aNote;
+  if (!alert || alert.status === 'no_key') {
+    aNote = '<span class="kw-alertnote kw-alertnote--wait">' + escapeHtml(KW_NO_KEY_NOTE) + '</span>';
+  } else if (alert.status !== 'ok') {
+    aNote = '<span class="kw-alertnote">특보 정보를 불러오지 못했습니다</span>';
+  } else if (!bands.length) {
+    aNote = '<span class="kw-alertnote">이 기간 해당 특보 없음</span>';
+  } else {
+    const kinds = bands.filter((b, i, a) => a.findIndex((x) => x.kind === b.kind) === i);
+    aNote = '<span class="kw-alertnote">' + kinds.map((b) =>
+      '<i class="kw-abox" style="background:' + (KW_ALERT_COLORS[b.kind] || 'var(--slate)') + '"></i>'
+      + escapeHtml(b.kind)).join(' ') + ' ' + bands.length + '건' + '</span>';
+  }
+  return '<div class="kw-card"><div class="kw-h">' + escapeHtml(cfg.title)
+    + ' <span class="kw-h__u">(' + escapeHtml(cfg.unit) + ')</span></div>'
+    + '<div class="kw-lgs">' + lg + aNote + '</div>'
+    + kwChart(Object.assign({}, cfg, { bands: bands }))
+    + '</div>';
+}
+
+/** 과거 추이 4종 전체 */
+function kwSectionHtml(city) {
+  const k = kwKey(city);
+  const h = _kwHist[k], a = _kwAlert[k];
+  const chips = '<div class="icis-years kw-ranges">' + KW_RANGES.map((r) =>
+    '<button type="button" class="icis-year kw-range' + (r.key === _kwRange ? ' is-active' : '')
+    + '" data-kw-range="' + r.key + '">' + escapeHtml(r.label) + '</button>').join('') + '</div>';
+
+  let body;
+  if (_kwBusy[k] && !h) body = '<div class="kw-empty">추이를 불러오는 중…</div>';
+  else if (!h) body = '<div class="kw-empty">추이를 불러오는 중…</div>';
+  else if (h.error) body = '<div class="kw-empty">추이를 불러오지 못했습니다 (' + escapeHtml(h.error) + ')</div>';
+  else {
+    const D = h.days;
+    body = '<div class="kw-grid">'
+      + kwCard({
+        title: '기온', unit: '℃', group: 'temp', days: D,
+        series: [
+          { key: 'tmax', label: '최고', color: '#EF4444' },
+          { key: 'tmean', label: '평균', color: '#111827', w: 1.7 },
+          { key: 'tmin', label: '최저', color: '#3B82F6' },
+        ],
+        right: { label: '특보', color: '#9CA3AF' },   // key 없음 → 특보 0/1 보조축
+      }, a)
+      + kwCard({
+        title: '풍속', unit: 'km/h', group: 'wind', days: D, zeroBase: true,
+        series: [{ key: 'wmean', label: '평균풍속', color: '#7C3AED', w: 1.7 }],
+        right: { label: '특보', color: '#9CA3AF' },
+      }, a)
+      + kwCard({
+        title: '습도', unit: '%', group: 'humid', days: D,
+        series: [
+          { key: 'hmean', label: '평균습도', color: '#0EA5E9', w: 1.7 },
+          { key: 'hmin', label: '최저습도', color: '#F59E0B' },
+        ],
+        right: { label: '특보', color: '#9CA3AF' },
+      }, a)
+      + kwCard({
+        title: '강수 · 일조', unit: 'mm · 시간', group: 'rain', days: D, zeroBase: true,
+        series: [{ key: 'rain', label: '강수량', color: '#0284C7', bar: true }],
+        bars: [{ key: 'rain', color: '#0284C7' }],
+        right: { key: 'sun', label: '일조시간', color: '#F59E0B' },
+      }, a)
+      + '</div>';
+  }
+
+  const span = (h && h.days && h.days.length)
+    ? h.days[0].day + ' ~ ' + h.days[h.days.length - 1].day : '';
+  let aFoot = '';
+  if (a && a.status === 'no_key') {
+    aFoot = '※ ' + KW_NO_KEY_NOTE + '. 키를 넣으면 폭염·한파·태풍·강풍·건조·호우·대설 '
+      + '특보 구간이 각 그래프에 음영으로 표시됩니다.';
+  } else if (a && a.status === 'ok' && a.stnExact === false) {
+    aFoot = '※ 이 도시의 특보구역 코드가 아직 등록되지 않아 전국(지점 '
+      + (a.stnId || '108') + ') 기준으로 조회했습니다.';
+  } else if (a && a.status === 'error') {
+    aFoot = '※ 특보 조회 실패' + (a.reason ? ' (' + a.reason + ')' : '') + '.';
+  }
+
+  return '<div class="kw-wrap"><h4 class="kr-h">과거 추이 '
+    + '<span class="kr-h__s">' + escapeHtml(span ? '최근 ' + _kwRange + '일 · ' + span : '') + '</span>'
+    + '</h4>' + chips + body
+    + '<div class="kr-note">과거값 출처: Open-Meteo Historical Weather API (응답 값 그대로 · '
+    + '일조시간만 초→시간 변환) · 특보: 기상청 기상특보 조회서비스(공공데이터포털)</div>'
+    + (aFoot ? '<div class="kr-note">' + escapeHtml(aFoot) + '</div>' : '')
+    + '</div>';
+}
+
 /** 한국 상세 화면 전체 */
 function renderKorea() {
   const root = document.getElementById('worldclockRoot');
@@ -6778,6 +7092,7 @@ function renderKorea() {
         </div>
         <h4 class="kr-h">오늘 · 내일 · 모레 예보</h4>
         ${krForecastHtml(wx)}
+        ${kwSectionHtml(city)}
         <h4 class="kr-h">주요 날씨 이슈 <span class="kr-h__s">(${escapeHtml(city.ko)} 관련 최근 기사)</span></h4>
         ${krNewsHtml(city, nw)}
       </div>
@@ -6796,12 +7111,20 @@ function krWire() {
     const back = e.target.closest && e.target.closest('[data-kr-back]');
     if (back) { krClose(); return; }
     const rf = e.target.closest && e.target.closest('[data-kr-refresh]');
-    if (rf) { krLoad(_krCity, true); return; }
+    if (rf) { krLoad(_krCity, true); kwLoad(KR_CITIES[_krCity], true); return; }
+    const rg = e.target.closest && e.target.closest('[data-kw-range]');
+    if (rg) {                                  // 기간 버튼 — 추이만 다시 받는다
+      _kwRange = +rg.dataset.kwRange;
+      renderKorea();
+      kwLoad(KR_CITIES[_krCity], false);
+      return;
+    }
     const pin = e.target.closest && e.target.closest('[data-kr-city]');
     if (!pin) return;
     _krCity = +pin.dataset.krCity;
     renderKorea();
     krLoad(_krCity, false);   // 도시를 고를 때마다 최신인지 확인하고 필요하면 새로 받는다
+    kwLoad(KR_CITIES[_krCity], false);
   });
 }
 
@@ -6813,6 +7136,7 @@ function krOpen() {
   _wcOpen = null;
   renderKorea();
   krLoad(_krCity, false);
+  kwLoad(KR_CITIES[_krCity], false);
 }
 
 /** 세계 시간으로 복귀 — 기존 렌더 함수를 그대로 부른다(세계지도 로직 미변경) */

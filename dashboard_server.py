@@ -60,6 +60,17 @@ try:  # 순수 추가: 해상 정시성 최신 GLP 자동 탐색(기존 고정 U
 except Exception:  # noqa: BLE001
     update_schedule_reliability_auto = None
 
+try:  # 순수 추가: 기상청 기상특보(공공데이터포털). 인증키 없으면 no_key 만 돌려준다.
+    import importlib.util as _ilu2
+    _ka_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api", "kma_alert.py")
+    _ka_spec = _ilu2.spec_from_file_location("kma_alert", _ka_path)
+    _ka_mod = _ilu2.module_from_spec(_ka_spec)
+    _ka_spec.loader.exec_module(_ka_mod)
+    fetch_alerts = _ka_mod.fetch_alerts
+except Exception as _e:  # noqa: BLE001
+    print("[kma_alert] 로드 실패:", _e)
+    fetch_alerts = None
+
 try:  # 순수 추가: 지역 날씨 이슈 뉴스(Google 뉴스 RSS). api/ 아래라 경로로 불러온다.
     import importlib.util as _ilu
     _wn_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api", "weather_news.py")
@@ -2161,6 +2172,16 @@ def api_update():
     sections = run_fetchers(force=force)
     updated_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return jsonify({"updated_at": updated_at, "sections": sections})
+
+
+@app.route("/api/kma-alert", methods=["GET"])
+def api_kma_alert():
+    """기상특보 — 인증키(KMA_SERVICE_KEY)가 없으면 no_key 를 그대로 전달."""
+    region = request.args.get("region", "")
+    days = request.args.get("days", "60")
+    if fetch_alerts is None:
+        return jsonify({"status": "error", "reason": "특보 모듈을 불러오지 못했습니다", "bands": []})
+    return jsonify(fetch_alerts(region, days))
 
 
 @app.route("/api/weather-news", methods=["GET"])

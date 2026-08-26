@@ -16,6 +16,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/kma_alert.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -75,6 +79,13 @@
         "GET"
       ],
       "dest": "/api/weather_news.py"
+    },
+    {
+      "src": "/api/kma-alert",
+      "methods": [
+        "GET"
+      ],
+      "dest": "/api/kma_alert.py"
     },
     {
       "handle": "filesystem"
