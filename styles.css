@@ -816,6 +816,15 @@ body {
   background: var(--field); border: 1px solid var(--line);
   font-size: 11.5px; line-height: 1.55; color: var(--slate); word-break: keep-all; }
 .srr-cond b { color: var(--ink); font-weight: 700; margin-right: 2px; }
+/* KOIMA 리포트 — 헤드라인 단위·원화, 다른 부문 비교 목록 */
+.srr-hero__unit { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.srr-hero__krw { margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+.kr-oths { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.kr-oth { display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 9px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  font-size: 11.5px; color: var(--text); }
+.kr-oth b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.kr-oth.is-me { border-color: var(--ink); background: var(--field); font-weight: 700; }
 /* 그래프 바로 아래 적용 환율 — 위 여백만 살짝 준다 */
 .srr-chart .viz-fxnote { margin: 6px 0 0; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }

@@ -3998,8 +3998,12 @@ function renderKoimaHtml() {
   const controls = `<div class="koima-controls">${selects}</div>`;
 
   // 3) 기간 칩
+  const rptBtn = (ok && _koimaRange)
+    ? `<button type="button" class="oc-tool or-btn koima-report${_koimaReport ? ' is-on' : ''}"
+        data-koima-report="1" aria-expanded="${_koimaReport ? 'true' : 'false'}">📊 리포트 분석</button>`
+    : '';
   const chips = `<div class="icis-years koima-ranges">${KOIMA_RANGES.map((r) =>
-    `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
+    `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}${rptBtn}</div>`;
 
   let body;
   if (!_koimaData) {                                   // 1) 데이터 없음
@@ -4011,7 +4015,8 @@ function renderKoimaHtml() {
   } else {                                              // 3) 선택됨 → 차트 + 표
     const rows = koimaSliceRows();
     body = buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
-      + koimaRecentTable(rows, cat);
+      + koimaRecentTable(rows, cat)
+      + (_koimaReport ? krIndexHtml() : '');
   }
   return `<div class="viz-root viz-figure koima-figure">${head}${tabs}${controls}${chips}${body}${cap}</div>`;
 }
@@ -4157,6 +4162,8 @@ function wireKoimaControls(root) {
     if (yEl) _koimaEnd = `${yEl.value}-${mEl.value}`;
     renderMaterial();
   });
+  const krBtn = fig.querySelector('.koima-report');
+  if (krBtn) krBtn.addEventListener('click', () => { _koimaReport = !_koimaReport; renderMaterial(); });
   if (_koimaRange && _koimaData && !_koimaData.error) wireKoimaChart();
 }
 
@@ -4329,6 +4336,293 @@ function kpSummaryBar(item, rows) {
   </div>`;
 }
 
+/* ── KOIMA 리포트 분석 (월간 부문별 지수 · 일일 국제원자재가격) ─────────────
+   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿, 숫자는 화면에 이미 있는 값과 받아둔
+     관측치에서 계산한다. 외부 호출이 없어 비용도 없다.
+   ★★ 원인(중국 수요·공급망 등)은 이 데이터에 없다 — 한 줄도 지어내지 않는다.
+     서술하는 것은 값 자체의 움직임뿐: 등락률·최고/최저·평균·역대 대비 수준.
+   ★ 이 두 카드는 부문·품목·기간을 바꿀 때마다 renderMaterial() 이 다시 도므로
+     리포트가 늘 현재 선택을 따라간다(유가 카드처럼 [조회] 단계가 없다). */
+let _koimaReport = false;   // 월간 부문별 지수 리포트 펼침
+let _kpReport = false;      // 일일 국제원자재가격 리포트 펼침
+
+const KR_HI = 'var(--blue)';
+const KR_LO = 'var(--accent)';
+const KR_NOW = 'var(--ink)';
+
+function krN(v, d) { return (v == null) ? '—' : Number(v).toFixed(d == null ? 2 : d); }
+function krPct(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
+function krWord(v) { return v == null ? '보합' : (v > 0 ? '상승' : (v < 0 ? '하락' : '보합')); }
+
+/** 'YYYY-MM' / 'YYYY-MM-DD' → 축에 쓸 짧은 라벨 */
+function krShort(p) {
+  const s = String(p);
+  return (s.length > 7) ? s.slice(2).replace(/-/g, '.') : s.slice(2).replace('-', '.');
+}
+
+/** 단위에 맞춘 원화 병기. 환산할 수 없는 단위(CNY·원 등)면 null.
+    ★ 단위 판정은 이미 있는 krwFactor() 를 그대로 쓴다. */
+function krKrw(v, unit) {
+  const f = krwFactor(unit);
+  if (f == null || v == null) return null;
+  // ★ 축약(fmtKrwAxis)은 10,317원을 '1만'으로 줄여 본문에서 너무 뭉개진다.
+  //   본문에는 만 단위 소수 한 자리까지 쓴다(제품 카드 opKrw 와 같은 규칙).
+  const w = Number(v) * f, sign = w < 0 ? '-' : '', a = Math.abs(w);
+  return (a >= 1e4) ? (sign + (a / 1e4).toFixed(1) + '만 원')
+    : (sign + Math.round(a).toLocaleString('ko-KR') + '원');
+}
+
+/** 단일 계열 리포트 그래프 — 최고·최저·최근 3곳만 라벨을 단다.
+    pts=[{p,v}] · fmt=값 표기 · unit=원화 병기용(없으면 병기 생략) */
+function krChart(pts, fmt, unit) {
+  const n = pts.length;
+  if (n < 2) return '<div class="chart-empty">추이를 그릴 값이 부족합니다.</div>';
+  const vals = pts.map((x) => x.v);
+  let ymin = Math.min.apply(null, vals), ymax = Math.max.apply(null, vals);
+  const yp = (ymax - ymin) * 0.18 || 5;
+  ymin = Math.max(0, ymin - yp); ymax += yp;
+
+  const W = VIZ_W, H = 176, padL = 46, padR = 16, padT = 18, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => padL + (i / (n - 1)) * plotW;
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+  const kf = unit ? krwFactor(unit) : null;
+
+  const grid = vizYFractions().map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`
+      + (kf ? vizKrwTick(padL - 6, y, val, kf) : '');
+  }).join('');
+
+  const xlab = orTickIdx(n, 6).map((i, k) =>
+    `<text class="or-xlab${k % 2 ? ' or-xlab--alt' : ''}" x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(krShort(pts[i].p))}</text>`).join('');
+
+  let d = '';
+  pts.forEach((x, i) => { d += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(x.v).toFixed(1)} `; });
+  const line = `<path d="${d.trim()}" fill="none" stroke="var(--slate)" stroke-width="2" opacity=".55" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const dots = pts.map((x, i) =>
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="2" fill="var(--slate)" opacity=".5"/>`).join('');
+
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  const hiI = vals.indexOf(mx), loI = vals.indexOf(mn), nowI = n - 1;
+  const put = (i, color, tag) => {
+    if (i < 0) return '';
+    const v = pts[i].v, x = X(i), y = Y(v), up = y > padT + 26;
+    const ly = up ? y - 13 : y + 20;
+    const kw = unit ? krKrw(v, unit) : null;
+    return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
+      + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
+      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">${escapeHtml(fmt(v))}</text>`
+      + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
+      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">`
+      + `${tag}${kw ? ' · 약 ' + escapeHtml(kw) : ''}</text></g>`;
+  };
+  let marks = put(hiI, KR_HI, '최고') + put(loI, KR_LO, '최저');
+  if (nowI !== hiI && nowI !== loI) marks += put(nowI, KR_NOW, '최근');
+
+  const legend = '<div class="srr-legend">'
+    + '<span class="srr-lg"><i style="background:' + KR_HI + '"></i>최고</span>'
+    + '<span class="srr-lg"><i style="background:' + KR_LO + '"></i>최저</span>'
+    + '<span class="srr-lg"><i style="background:' + KR_NOW + '"></i>최근</span></div>';
+
+  return legend
+    + `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="추이 · 최고 최저 최근 강조">`
+    + grid + xlab + line + dots + marks
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`;
+}
+
+/* ── 1) 월간 부문별 지수 ─────────────────────────────────────────────── */
+
+/** 리포트 수치. 화면의 momPct/yoyPct 를 그대로 쓰고, 나머지는 관측치에서 계산한다. */
+function krIndexData() {
+  const cat = koimaCatOf(_koimaCat);
+  if (!_koimaData || _koimaData.error || !cat || !_koimaRange) return null;
+  const win = (koimaSliceRows() || []).filter((r) => r.index != null);
+  if (!win.length) return null;
+  const all = (cat.rows || []).filter((r) => r.index != null);
+  const last = win[win.length - 1];
+  // 최근 12개월 — 조회 구간이 아니라 '최신 월 기준 12개월'을 본다
+  const li = all.map((r) => r.period).indexOf(last.period);
+  const w12 = all.slice(Math.max(0, li - 11), li + 1);
+  const v12 = w12.map((r) => r.index);
+  const allMax = all.reduce((a, b) => (b.index > a.index ? b : a), all[0]);
+  const wv = win.map((r) => r.index);
+  return {
+    cat: cat, win: win, all: all, last: last,
+    hi12: w12.filter((r) => r.index === Math.max.apply(null, v12))[0],
+    lo12: w12.filter((r) => r.index === Math.min.apply(null, v12))[0],
+    n12: w12.length,
+    allMax: allMax,
+    ratio: allMax.index ? Math.round((last.index / allMax.index) * 1000) / 10 : null,
+    avg: Math.round((wv.reduce((a, b) => a + b, 0) / wv.length) * 100) / 100,
+    firstPeriod: all[0].period,
+  };
+}
+
+/** 다른 부문의 최신 전월비만 간단히 나열 */
+function krOtherCats() {
+  return koimaCatsOrdered().map((c) => {
+    const rows = (c.rows || []).filter((r) => r.index != null);
+    const r = rows[rows.length - 1];
+    return { key: c.key, label: c.label || c.key, pct: r ? r.momPct : null, period: r ? r.period : null };
+  });
+}
+
+function krIndexHtml() {
+  const d = krIndexData();
+  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
+  const rangeLbl = (KOIMA_RANGES.find((r) => r.key === _koimaRange) || {}).label || '';
+  const dir = d.last.momPct == null ? 'flat' : (d.last.momPct > 0 ? 'up' : (d.last.momPct < 0 ? 'down' : 'flat'));
+  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
+
+  const subs = [];
+  if (d.last.yoyPct != null) {
+    subs.push('전년 같은 달 대비로는 ' + krPct(d.last.yoyPct) + ' '
+      + (d.last.yoyPct > 0 ? '높습니다.' : (d.last.yoyPct < 0 ? '낮습니다.' : '같습니다.')));
+  }
+  subs.push('최근 ' + d.n12 + '개월 중 가장 높았던 달은 ' + d.hi12.period + '(' + krN(d.hi12.index)
+    + '), 가장 낮았던 달은 ' + d.lo12.period + '(' + krN(d.lo12.index) + ')입니다.');
+  if (d.ratio != null) {
+    subs.push('현재 지수는 역대 최고치(' + d.allMax.period + ', ' + krN(d.allMax.index)
+      + ') 대비 ' + d.ratio.toFixed(1) + '% 수준입니다 (' + d.firstPeriod + '부터 집계).');
+  }
+  subs.push('조회 구간(' + d.win[0].period + ' ~ ' + d.last.period + ' · ' + d.win.length
+    + '개월) 평균은 ' + krN(d.avg) + '입니다.');
+
+  const others = krOtherCats().map((c) => {
+    const cls = c.pct == null ? '' : (c.pct > 0 ? ' oc-up' : (c.pct < 0 ? ' oc-down' : ''));
+    return '<span class="kr-oth' + (c.key === _koimaCat ? ' is-me' : '') + '">'
+      + escapeHtml(c.label) + '<b class="' + cls.trim() + '">' + krPct(c.pct) + '</b></span>';
+  }).join('');
+
+  const sum = [];
+  sum.push(d.last.period + ' ' + d.cat.label + ' 지수는 ' + krN(d.last.index) + '로 전월 대비 '
+    + krPct(d.last.momPct) + ' ' + krWord(d.last.momPct) + '했고'
+    + (d.last.yoyPct != null ? ', 전년 같은 달보다는 ' + krPct(d.last.yoyPct) + ' '
+      + (d.last.yoyPct > 0 ? '높습니다.' : '낮습니다.') : '입니다.'));
+  if (d.ratio != null) {
+    sum.push('역대 최고치(' + d.allMax.period + ' ' + krN(d.allMax.index) + ') 대비 '
+      + d.ratio.toFixed(1) + '% 수준이며, 최근 ' + d.n12 + '개월 범위는 '
+      + krN(d.lo12.index) + ' ~ ' + krN(d.hi12.index) + '입니다.');
+  }
+
+  return '<div class="srr">'
+    + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
+    + escapeHtml(d.cat.label) + ' · ' + escapeHtml(_koimaData.baseline || '') + '</span></div>'
+    + '<p class="srr-cond"><b>현재 조회 조건</b> · 부문 ' + escapeHtml(d.cat.label)
+    + ' · 기간 ' + escapeHtml(rangeLbl) + ' (' + escapeHtml(d.win[0].period) + ' ~ '
+    + escapeHtml(d.last.period) + ' · ' + d.win.length + '개월)</p>'
+    + '<p class="srr-def">KOIMA 부문별 지수란 수입 원자재 가격을 부문별로 묶어 지수로 만든 값으로, '
+    + escapeHtml(_koimaData.baseline || '') + '입니다.</p>'
+    + '<div class="srr-hero"><div class="srr-hero__when">' + escapeHtml(d.last.period + ' · ' + d.cat.label) + '</div>'
+    + '<div class="srr-hero__row"><span class="srr-hero__v">' + krN(d.last.index) + '</span>'
+    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
+    + escapeHtml(krPct(d.last.momPct == null ? null : Math.abs(d.last.momPct)).replace('+', ''))
+    + '<span class="srr-hero__vs">전월 대비</span></span></div></div>'
+    + subs.map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('')
+    + '<div class="srr-chart">' + krChart(d.win.map((r) => ({ p: r.period, v: r.index })),
+      (v) => krN(v), null) + '</div>'
+    + '<h4 class="srr-h">다른 부문도 함께 보기 <span class="srr-hint">각 부문의 최신 전월비</span></h4>'
+    + '<div class="kr-oths">' + others + '</div>'
+    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
+    + sum.map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
+    + '</div></div>';
+}
+
+/* ── 2) 일일 국제원자재가격 ──────────────────────────────────────────── */
+
+/** period <= target 인 마지막 행 */
+function krAtOrBefore(rows, target) {
+  let hit = null;
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rows[i].date <= target) hit = rows[i]; else break;
+  }
+  return hit;
+}
+
+function krPriceData() {
+  const cat = kpCatOf(_kpCat);
+  const item = kpItemOf(cat, _kpItem);
+  if (!_kpData || _kpData.error || !item || !_kpRange) return null;
+  const win = (kpSliceRows(item) || []).filter((r) => r.price != null);
+  if (!win.length) return null;
+  const all = (item.rows || []).filter((r) => r.price != null);
+  const last = win[win.length - 1];
+  const vals = win.map((r) => r.price);
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  // ★ 전년동일비는 원본에 없다(전일·전주·전월비만 온다). 받아둔 3년치에서 직접 계산한다.
+  const yoyBase = krAtOrBefore(all, opShift(last.date, -1, 0, 0));
+  return {
+    cat: cat, item: item, win: win, all: all, last: last,
+    hi: win.filter((r) => r.price === mx)[0], lo: win.filter((r) => r.price === mn)[0],
+    avg: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
+    yoy: (yoyBase && yoyBase.date !== last.date && yoyBase.price)
+      ? { base: yoyBase, value: Math.round((last.price - yoyBase.price) * 100) / 100,
+        pct: Math.round(((last.price - yoyBase.price) / yoyBase.price) * 10000) / 100 }
+      : null,
+  };
+}
+
+function krPriceHtml() {
+  const d = krPriceData();
+  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
+  const u = d.item.unit || '';
+  const rangeLbl = (KP_RANGES.find((r) => r.key === _kpRange) || {}).label || '';
+  const dir = d.last.domPct == null ? 'flat' : (d.last.domPct > 0 ? 'up' : (d.last.domPct < 0 ? 'down' : 'flat'));
+  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
+  const withKrw = (v) => krN(v) + ' ' + u + (krKrw(v, u) ? ' (약 ' + krKrw(v, u) + '/' + u.split('/')[1] + ')' : '');
+
+  const subs = [];
+  subs.push(d.item.name + '는 ' + (d.item.market || '-') + ' 시장에서 '
+    + (d.item.spotFutures || '현물') + '로 거래되며, 단위는 ' + u + '입니다.');
+  const cmp = [];
+  if (d.last.wowPct != null) cmp.push('전주 대비 ' + krPct(d.last.wowPct));
+  if (d.last.momPct != null) cmp.push('전월 같은 날 대비 ' + krPct(d.last.momPct));
+  if (d.yoy) cmp.push('전년 같은 날(' + d.yoy.base.date + ') 대비 ' + krPct(d.yoy.pct));
+  if (cmp.length) subs.push(cmp.join(', ') + ' 수준입니다.');
+  subs.push('조회 기간 최고가는 ' + d.hi.date + ' ' + withKrw(d.hi.price)
+    + ', 최저가는 ' + d.lo.date + ' ' + withKrw(d.lo.price) + '입니다.');
+  subs.push('조회 기간(' + d.win[0].date + ' ~ ' + d.last.date + ' · ' + d.win.length
+    + '일) 평균은 ' + withKrw(d.avg) + '입니다.');
+
+  const sum = [];
+  sum.push(d.last.date + ' ' + d.item.name + ' 가격은 ' + withKrw(d.last.price)
+    + '로 전일 대비 ' + krPct(d.last.domPct) + ' ' + krWord(d.last.domPct) + '했습니다.');
+  const s2 = [];
+  if (d.last.wowPct != null) s2.push('전주 ' + krPct(d.last.wowPct));
+  if (d.last.momPct != null) s2.push('전월 ' + krPct(d.last.momPct));
+  if (d.yoy) s2.push('전년 ' + krPct(d.yoy.pct));
+  if (s2.length) sum.push('비교 기준별로는 ' + s2.join(' · ') + '이며, 거래시장은 '
+    + (d.item.market || '-') + '입니다.');
+  sum.push('조회 기간 범위는 ' + krN(d.lo.price) + ' ~ ' + krN(d.hi.price) + ' ' + u
+    + ', 평균은 ' + krN(d.avg) + ' ' + u + '입니다.');
+
+  return '<div class="srr">'
+    + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
+    + escapeHtml(d.item.name + ' · ' + (d.item.market || '-') + ' · ' + u) + '</span></div>'
+    + '<p class="srr-cond"><b>현재 조회 조건</b> · 부문 ' + escapeHtml(d.cat ? d.cat.label : '-')
+    + ' · 품목 ' + escapeHtml(d.item.name) + ' · 기간 ' + escapeHtml(rangeLbl)
+    + ' (' + escapeHtml(d.win[0].date) + ' ~ ' + escapeHtml(d.last.date) + ' · ' + d.win.length + '일)</p>'
+    + '<p class="srr-def">KOIMA 일일 국제원자재가격이란 주요 원자재의 거래시장별 하루 시세로, '
+    + '품목마다 거래되는 시장과 단위가 다릅니다.</p>'
+    + '<div class="srr-hero"><div class="srr-hero__when">' + escapeHtml(d.last.date + ' · ' + d.item.name) + '</div>'
+    + '<div class="srr-hero__row"><span class="srr-hero__v">' + krN(d.last.price) + '</span>'
+    + '<span class="srr-hero__unit">' + escapeHtml(u) + '</span>'
+    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
+    + escapeHtml(krPct(d.last.domPct == null ? null : Math.abs(d.last.domPct)).replace('+', ''))
+    + '<span class="srr-hero__vs">전일 대비</span></span></div>'
+    + (krKrw(d.last.price, u) ? '<div class="srr-hero__krw">≈ 약 ' + escapeHtml(krKrw(d.last.price, u))
+      + '/' + escapeHtml(u.split('/')[1] || '') + '</div>' : '')
+    + '</div>'
+    + subs.map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('')
+    + '<div class="srr-chart">' + krChart(d.win.map((r) => ({ p: r.date, v: r.price })),
+      (v) => krN(v), u) + (krwFactor(u) != null ? krwNote('USD') : '') + '</div>'
+    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
+    + sum.map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
+    + '</div></div>';
+}
+
 /** 카드 HTML — 3단계 빈 상태 */
 function renderKoimaPriceHtml() {
   const head = `<div class="viz-head"><div>
@@ -4356,8 +4650,12 @@ function renderKoimaPriceHtml() {
   </div>`;
 
   // 3) 기간 칩
+  const rptBtn = (ok && _kpRange && item)
+    ? `<button type="button" class="oc-tool or-btn kp-report${_kpReport ? ' is-on' : ''}"
+        data-kp-report="1" aria-expanded="${_kpReport ? 'true' : 'false'}">📊 리포트 분석</button>`
+    : '';
   const chips = `<div class="icis-years kp-ranges">${KP_RANGES.map((r) =>
-    `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
+    `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}${rptBtn}</div>`;
 
   let body;
   if (_kpBusy) {                                    // 로드 중
@@ -4371,7 +4669,8 @@ function renderKoimaPriceHtml() {
   } else {                                          // 3) 선택됨
     const rows = kpSliceRows(item);
     body = kpSummaryBar(item, rows) + buildKpChart(rows, item, cat)
-      + '<div class="viz-tooltip" id="kpTooltip"></div>' + kpRecentTable(rows, item);
+      + '<div class="viz-tooltip" id="kpTooltip"></div>' + kpRecentTable(rows, item)
+      + (_kpReport ? krPriceHtml() : '');
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
@@ -4511,6 +4810,8 @@ function wireKpControls(root) {
     _kpRange = b.dataset.range;
     renderMaterial();
   });
+  const kprBtn = fig.querySelector('.kp-report');
+  if (kprBtn) kprBtn.addEventListener('click', () => { _kpReport = !_kpReport; renderMaterial(); });
   if (_kpRange && _kpData && !_kpData.error && !_kpBusy) wireKpChart();
 }
 
@@ -5178,9 +5479,9 @@ function resetDashboard() {
   _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _ocReport = false; _oilChart = null; // 국제유가(원유) 비우기
   _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opReport = false; _opChart = null; // 국제유가(제품) 비우기
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
-  _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
+  _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null; _koimaReport = false;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
-  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false;
+  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false; _kpReport = false;
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
