@@ -1124,8 +1124,9 @@ function smRevCompare(d) {
     const memo = r.memo ? '<div class="sm-hmemo">' + escapeHtml(r.memo) + '</div>' : '';
     return '<div class="sm-hrow' + (mine ? ' is-mine' : '') + '">'
       + '<div class="sm-hname" title="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + yr + '</div>'
-      + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1) + '%"></div>' + memo + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1) + '%"></div></div>'
       + '<div class="sm-hval">' + smNum(r.revenue) + ' ' + smDelta(r.yoyChangePct) + '</div>'
+      + memo
       + '</div>';
   }).join('');
   const notes = Array.isArray(c.notes) ? c.notes : (c.note ? [c.note] : []);
