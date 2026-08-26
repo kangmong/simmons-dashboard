@@ -5336,8 +5336,6 @@ const DOM_CATS = [
   ] },
   { key: 'sleeptech', label: '슬립테크', subs: [
     { key: 'wearable', label: '웨어러블' },
-    { key: 'scent', label: '향수' },
-    { key: 'drug', label: '약' },
     { key: 'stetc', label: '기타' },
   ] },
 ];
@@ -5414,28 +5412,6 @@ const DOM_RULES = {
     'cpap', 'polysomnography', 'psg', 'sleep stage', 'sleep stages',
     'sleep data', 'monitoring', 'diagnosis', 'digital therapeutic',
     'digital therapeutics', 'dtx'],
-  scent: ['향수', '디퓨저', '방향제', '아로마', '아로마오일', '아로마 오일',
-    '퍼퓸', '필로우미스트', '필로우 미스트',
-    '수면스프레이', '수면 스프레이', '룸스프레이', '룸 스프레이',
-    '인센스', '캔들', '에센셜오일', '에센셜 오일',
-    '라벤더', '라벤더오일', '라벤더 오일',
-    '숙면향', '수면향', '수면 향', '향으로 수면',
-    // 영문
-    'fragrance', 'aroma', 'aromatherapy', 'diffuser', 'perfume', 'scent',
-    'pillow mist', 'room spray', 'candle', 'candles',
-    'essential oil', 'essential oils', 'lavender'],
-  drug: ['수면유도제', '수면 유도제', '멜라토닌', '수면제',
-    '수면보조제', '수면 보조제', '수면영양제', '수면 영양제',
-    '락티움', '테아닌', '가바', '진정제', '처방전',
-    '수면건강기능식품', '수면 건강기능식품', '슬리핑 정',
-    // 불면증 치료(약이 아닌 치료법까지 이 분류가 받는다)
-    '불면증치료', '불면증 치료', '인지행동치료',
-    '디지털치료제', '디지털 치료제',
-    // 영문
-    'melatonin', 'sleep aid', 'sleep aids', 'sleeping pill', 'sleeping pills',
-    'sleep supplement', 'sleep supplements', 'supplement', 'sedative',
-    'cbt-i', 'cbti', 'insomnia treatment', 'insomnia', 'prescription',
-    'l-theanine', 'theanine', 'magnesium', 'gaba'],
   // ★ 맨 뒤 — 위 어느 분류에도 더 좁게 걸리지 않은 '매트리스 자체' 기사를 받는다.
   body: ['매트리스', '침대', '하이브리드', '스프링', '포켓스프링', '포켓 스프링',
     '본넬스프링', '본넬 스프링', '메모리폼', '라텍스', '폼매트리스', '폼 매트리스',
@@ -5446,8 +5422,10 @@ const DOM_RULES = {
     'firmness', 'medium-firm', 'smart bed', 'smart mattress'],
 };
 
-// 슬립테크 대분류 안에서만 고를 소분류(기타는 걸린 게 없을 때 받는 자리)
-const DOM_ST_SUBS = ['wearable', 'scent', 'drug'];
+/* 슬립테크 대분류 안에서 키워드로 고를 소분류.
+   ★ 향수·약은 요청에 따라 없앴다(실데이터 0건이라 옮길 기사도 없었다).
+     남은 것은 웨어러블 하나뿐이고, 여기 안 걸리면 '슬립테크 > 기타'가 받는다. */
+const DOM_ST_SUBS = ['wearable'];
 
 /* 제품이 아니라 행사·판촉을 다루는 기사인지 가늠하는 낱말(미분류 사유 설명용).
    ★ 이걸로 분류하지 않는다. 왜 안 걸렸는지 설명할 때만 쓴다. */
