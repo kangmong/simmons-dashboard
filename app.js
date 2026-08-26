@@ -1278,8 +1278,20 @@ function smSleepMarket(d) {
       + (Math.round((b.jo / a.jo) * 10) / 10).toFixed(1) + '배 성장');
   }
 
+  // 한줄 요약 — 처음과 끝 두 시점만으로 만든다(배수·기간 모두 계산값, 하드코딩 없음).
+  const a0 = pts[0], aN = pts[pts.length - 1];
+  const totX = Math.round((aN.jo / a0.jo) * 10) / 10;
+  const span = aN.year - a0.year;
+  // 제목에서 '규모 추이'를 떼어 문장 주어로 쓴다 — 제목이 바뀌면 문장도 따라간다.
+  const subj = String(m.title || '').replace(/\s*규모\s*추이\s*$/, '') || '이 시장';
+  const lead = '<div class="sm-mkthead">' + escapeHtml(subj) + '은 '
+    + escapeHtml(a0.year + '년 ' + a0.label) + '에서 '
+    + escapeHtml(aN.year + '년 ' + aN.label) + '으로 '
+    + escapeHtml(span + '년간') + ' <b>약 ' + totX.toFixed(1) + '배</b> 성장했습니다.</div>';
+
   return '<div class="sm-card sm-card--full"><div class="sm-h">' + escapeHtml(m.title)
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '조원') + ')</span></div>'
+    + lead
     + '<div class="sm-growth">' + growth.map((t) => '<span>' + escapeHtml(t) + '</span>').join('') + '</div>'
     + `<svg class="sm-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
     + ' aria-label="' + escapeHtml(m.title) + '">'

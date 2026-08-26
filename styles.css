@@ -1482,6 +1482,10 @@ body {
 
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
 /* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
+/* 한줄 요약 — 다른 리포트 헤드라인과 같은 결(크고 굵게, 핵심 배수만 강조색) */
+.sm-mkthead { margin: 6px 0 8px; font-size: 16px; font-weight: 800; line-height: 1.5;
+  color: var(--ink); word-break: keep-all; letter-spacing: -.01em; }
+.sm-mkthead b { color: var(--accent); font-weight: 800; }
 .sm-growth { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 2px 0 4px; }
 .sm-growth span { padding: 3px 9px; border-radius: 999px; background: var(--accent-soft);
   color: var(--accent); font-size: 11.5px; font-weight: 700; }
