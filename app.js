@@ -6734,9 +6734,10 @@ function krNewsHtml(city, nw) {
    ★ 값은 Open-Meteo Historical Weather API(archive) 응답을 그대로 쓴다.
      임의 보정하지 않는다. 단위 변환만 한다(일조시간 초 → 시간).
    ★★ 특보는 기상청 기상특보 조회서비스(공공데이터포털)에서 받는다. 인증키가
-     없으면 서버가 status='no_key' 를 주고, 그래프는 '특보 연동 준비 중
-     (API 키 필요)'이라고 정직하게 적는다. 키가 없어도 4개 그래프는 다 그려진다.
-     키가 생기면 bands 만 채워져 음영이 자동으로 나타난다(구조만 미리 만들어 둠). */
+     없으면 서버가 status='no_key' 를 주고, 그래프에는 특보 관련 표시를 아무것도
+     하지 않는다(안내 배지·각주 없음). 4개 그래프는 그대로 다 그려진다.
+     ★ 받아 오는 구조는 그대로 살려 뒀다 — 키가 생기면 bands 가 채워지고
+       음영·특보 보조축·종류 안내가 자동으로 나타난다(kwCard 의 아래 분기들). */
 
 const KW_RANGES = [{ key: 30, label: '1개월' }, { key: 60, label: '2개월' }];
 const KW_TTL = 60 * 60 * 1000;      // 과거값은 자주 바뀌지 않는다 — 1시간 캐시
@@ -6751,7 +6752,6 @@ const KW_ALERT_COLORS = {
   폭염: '#EF4444', 한파: '#3B82F6', 태풍: '#7C3AED', 강풍: '#8B5CF6',
   풍랑: '#6366F1', 건조: '#F59E0B', 호우: '#0EA5E9', 대설: '#64748B',
 };
-const KW_NO_KEY_NOTE = '특보 연동 준비 중 (기상청 API 키 필요)';
 
 /** 캐시 키 */
 function kwKey(city) { return city.ko + '|' + _kwRange; }
@@ -6956,9 +6956,11 @@ function kwCard(cfg, alert) {
     .map((s) => '<span class="kw-lg"><i style="background:' + escapeHtml(s.color) + '"></i>'
       + escapeHtml(s.label) + '</span>').join('');
   // 특보 안내 — 키가 없으면 그 사실을, 있으면 이 기간에 몇 건인지
-  let aNote;
+  /* ★ 인증키가 없거나(no_key) 아직 받아 오는 중이면 아무 표시도 하지 않는다.
+     (특보를 받아 오는 구조 자체는 그대로다 — 키가 생기면 아래 분기들이 살아난다) */
+  let aNote = '';
   if (!alert || alert.status === 'no_key') {
-    aNote = '<span class="kw-alertnote kw-alertnote--wait">' + escapeHtml(KW_NO_KEY_NOTE) + '</span>';
+    aNote = '';
   } else if (alert.status !== 'ok') {
     aNote = '<span class="kw-alertnote">특보 정보를 불러오지 못했습니다</span>';
   } else if (!bands.length) {
@@ -7024,11 +7026,9 @@ function kwSectionHtml(city) {
 
   const span = (h && h.days && h.days.length)
     ? h.days[0].day + ' ~ ' + h.days[h.days.length - 1].day : '';
+  // 키가 없을 때(no_key)는 각주도 남기지 않는다. 그 밖의 상태 안내는 그대로 둔다.
   let aFoot = '';
-  if (a && a.status === 'no_key') {
-    aFoot = '※ ' + KW_NO_KEY_NOTE + '. 키를 넣으면 폭염·한파·태풍·강풍·건조·호우·대설 '
-      + '특보 구간이 각 그래프에 음영으로 표시됩니다.';
-  } else if (a && a.status === 'ok' && a.stnExact === false) {
+  if (a && a.status === 'ok' && a.stnExact === false) {
     aFoot = '※ 이 도시의 특보구역 코드가 아직 등록되지 않아 전국(지점 '
       + (a.stnId || '108') + ') 기준으로 조회했습니다.';
   } else if (a && a.status === 'error') {
