@@ -2763,11 +2763,6 @@ function srReportHtml() {
     + '<h4 class="srr-h">참고 지표 <span class="srr-hint">최고·최저에 마우스를 올리면 그래프에서 해당 지점이 표시됩니다</span></h4>'
     + stats
     + '<div class="srr-chart">' + srReportChart(d.pts, d.hi.ym, d.lo.ym) + '</div>'
-    + '<h4 class="srr-h">원인 분석</h4>'
-    + '<p class="srr-p srr-p--muted">원인 분석은 준비 중입니다. '
-    + 'Sea-Intelligence 가 제공하는 것은 월별 정시성 수치뿐이라, '
-    + '수치 변동의 배경(항만 적체·항로 우회·계절 요인 등)은 이 데이터만으로 판단할 수 없습니다. '
-    + '추정해서 채우지 않았습니다.</p>'
     + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
     + srSummaryText(d).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
     + '</div>'
