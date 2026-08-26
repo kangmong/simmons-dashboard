@@ -1181,6 +1181,45 @@ function smShareDonut(d) {
 }
 
 
+/** 기업 아이콘 — 회사별 색 원에 이니셜.
+    ★ 각사 공식 로고를 외부에서 끌어오지 않았다. 로고 주소를 검증할 수 없어
+      깨진 이미지나 엉뚱한 회사 로고가 붙을 위험이 있어서다(지시받은 대비책 그대로).
+      색·이니셜은 데이터 파일에 있고, 없으면 이름 첫 글자로 대신한다. */
+function smStIcon(c) {
+    const ini = c.initial || String(c.name || '?').trim().charAt(0);
+    return '<span class="sm-st__ico" style="background:' + escapeHtml(c.color || 'var(--slate)')
+      + '" aria-hidden="true">' + escapeHtml(ini) + '</span>';
+}
+
+/** (3-b) 투자 유치액 막대그래프 — 매출이 아니라 '공개된 누적 투자액'으로 견준다.
+    ★ 금액이 확인되지 않은 회사는 막대를 만들지 않고 왜 빠졌는지만 적는다. */
+function smStInvest(st) {
+  const all = st.companies || [];
+  const bars = all.filter((c) => typeof c.investEok === 'number' && c.investEok > 0)
+    .slice().sort((a, b) => b.investEok - a.investEok);
+  if (!bars.length) return '';
+  const max = Math.max.apply(null, bars.map((c) => c.investEok)) || 1;
+  const out = all.filter((c) => !(typeof c.investEok === 'number' && c.investEok > 0));
+  const rows = bars.map((c) => {
+    const w = Math.max(2, (c.investEok / max) * 100);
+    return '<div class="sm-hrow">'
+      + '<div class="sm-hname" title="' + escapeHtml(c.name) + '">' + smStIcon(c)
+      + escapeHtml(c.name) + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
+      + '%;background:' + escapeHtml(c.color || 'var(--slate)') + ';opacity:1"></div></div>'
+      + '<div class="sm-hval">' + c.investEok.toLocaleString('ko-KR') + '억</div>'
+      + (c.investBasis ? '<div class="sm-hmemo">' + escapeHtml(c.investBasis) + '</div>' : '')
+      + '</div>';
+  }).join('');
+  const excl = out.length
+    ? '<div class="sm-foot">※ 그래프에서 제외: '
+      + out.map((c) => escapeHtml(c.name) + '(' + escapeHtml(c.investExcluded || '금액 미확인') + ')').join(', ')
+      + '</div>' : '';
+  return '<h3 class="subhead sm-st__ih">투자 유치액 비교 <span class="sm-h__u">(단위: 억원)</span></h3>'
+    + (st.investNote ? '<div class="sm-othfoot">※ ' + escapeHtml(st.investNote) + '</div>' : '')
+    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>' + excl;
+}
+
 /** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'. */
 function smSleepTech(d) {
   const st = d.sleepTech;
@@ -1196,7 +1235,8 @@ function smSleepTech(d) {
         : escapeHtml(x.label)) + '</li>';
     }).join('');
     return '<div class="sm-st">'
-      + '<div class="sm-st__h">' + escapeHtml(c.name) + '</div>'
+      + '<div class="sm-st__hd">' + smStIcon(c)
+      + '<span class="sm-st__h">' + escapeHtml(c.name) + '</span></div>'
       + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
       + row('설립', c.founded) + row('주요 제품·서비스', c.products)
       + row('투자 유치', c.funding) + row('매출·재무', c.revenue) + row('그 밖에', c.extra)
@@ -1206,6 +1246,7 @@ function smSleepTech(d) {
   return '<div class="sm-card sm-card--full"><div class="sm-h">'
     + escapeHtml(st.title || '국내 슬립테크 시장 주요 기업') + '</div>'
     + '<div class="sm-st-grid">' + cards + '</div>'
+    + smStInvest(st)
     + (st.note ? '<div class="sm-foot">' + escapeHtml(st.note) + '</div>' : '')
     + '</div>';
 }

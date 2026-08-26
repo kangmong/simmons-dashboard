@@ -1484,7 +1484,16 @@ body {
 .sm-st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .sm-st { border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 13px 15px; background: var(--card); min-width: 0; }
-.sm-st__h { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 5px; }
+.sm-st__hd { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sm-st__h { font-size: 14px; font-weight: 800; color: var(--ink); min-width: 0; }
+/* 기업 아이콘 — 공식 로고 대신 회사별 색 원 + 이니셜(일관된 스타일 유지) */
+.sm-st__ico { display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto;
+  color: #fff; font-size: 11px; font-weight: 800; letter-spacing: -.02em; }
+.sm-hname .sm-st__ico { width: 20px; height: 20px; font-size: 9.5px; margin-right: 5px;
+  vertical-align: -5px; }
+.sm-st__ih { margin: 18px 0 4px; }
+.sm-hbars--inv { margin-top: 8px; }
 .sm-st__desc { margin: 0 0 9px; font-size: 12.5px; line-height: 1.6; color: var(--text);
   word-break: keep-all; }
 .sm-st__row { display: flex; gap: 8px; margin-top: 5px; font-size: 12px; line-height: 1.55; }

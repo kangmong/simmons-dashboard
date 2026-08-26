@@ -122,7 +122,7 @@
   "othersNote": "기타업체에는 템퍼코리아, 씰리코리아, 금성침대, 지누스 등이 포함됩니다. ※ IMARC 원자료에는 기타업체의 개별 기업명이 명시되어 있지 않으며, 위 목록은 국내 주요 매트리스 기업 현황을 참고해 예시로 제시한 것입니다."
  },
  "sleepTech": {
-  "title": "국내 슬립테크 시장 주요 4개 기업",
+  "title": "국내 슬립테크 시장 주요 6개 기업",
   "note": "비상장 스타트업은 매출이 공시되지 않아 언론 보도로 확인된 투자 유치 규모로 대신 적었습니다. 확인되지 않은 항목은 '비공개' 또는 '미확인'으로 두었고, 추정치를 만들지 않았습니다.",
   "companies": [
    {
@@ -141,7 +141,11 @@
       "label": "에이슬립 공식 회사 소개",
       "url": "https://www.asleep.ai/company"
      }
-    ]
+    ],
+    "initial": "A",
+    "color": "#3B82F6",
+    "investEok": 180,
+    "investBasis": "누적 (시드 2.5억 + 시리즈A 17.5억 + 시리즈B 160억)"
    },
    {
     "name": "코웨이 (비렉스 BEREX)",
@@ -159,7 +163,11 @@
       "label": "파이낸셜투데이 — 코웨이 '비렉스', 슬립테크로 시장 판도 흔든다",
       "url": "https://www.ftoday.co.kr/news/articleView.html?idxno=362610"
      }
-    ]
+    ],
+    "initial": "C",
+    "color": "#12B981",
+    "investEok": null,
+    "investExcluded": "상장사(사업부문)"
    },
    {
     "name": "텐마인즈 (10minds)",
@@ -178,7 +186,11 @@
       "label": "벤처스퀘어 — 에이슬립·텐마인즈, 차세대 수면 플랫폼 구축",
       "url": "https://www.venturesquare.net/1102251"
      }
-    ]
+    ],
+    "initial": "10",
+    "color": "#8B5CF6",
+    "investEok": null,
+    "investExcluded": "투자 유치 미확인"
    },
    {
     "name": "삼분의일",
@@ -196,8 +208,59 @@
       "label": "한국경제 — 꿀잠 팝니다…입소문 타고 年150억 대박난 기업 (2021-09-09)",
       "url": "https://www.hankyung.com/article/2021090948621"
      }
+    ],
+    "initial": "⅓",
+    "color": "#F59E0B",
+    "investEok": 160,
+    "investBasis": "누적 (2021년 시리즈A 120억 포함)"
+   },
+   {
+    "name": "허니냅스 (HoneyNaps)",
+    "initial": "H",
+    "color": "#EA580C",
+    "founded": "2015년 7월",
+    "desc": "수면다원검사(PSG) 판독을 AI 로 자동화한 의료AI 기업. 전문의가 3~4시간 걸리던 판독을 알고리즘이 대신한다.",
+    "products": "솜눔(SOMNUM) — AI 기반 수면다원검사 자동 판독 솔루션 · 미국 FDA 승인",
+    "funding": "시리즈B 150억원(하이투자파트너스 주도 · KDB산업은행·쿼드자산운용·알바트로스인베스트먼트 참여), 누적 213억원",
+    "revenue": "비공개 (비상장)",
+    "extra": "2023년 FDA 승인(세계 3번째) · 2024년 8월 미국 의료기관 수출 개시 · '국내 슬립테크 1호 상장'을 추진 중인 스타트업으로 알려짐",
+    "investEok": 213,
+    "investBasis": "누적 (시리즈B 150억 포함)",
+    "sources": [
+     {
+      "label": "딜사이트 — 하이투자파트너스, AI 슬립테크 '허니냅스' 투자 (2024-02-21)",
+      "url": "https://dealsite.co.kr/articles/118417"
+     },
+     {
+      "label": "전자신문 — 수면 AI 기업 허니냅스, 美 FDA 승인 획득 (2023-08-21)",
+      "url": "https://www.etnews.com/20230821000272"
+     }
+    ]
+   },
+   {
+    "name": "웰트 (Welt)",
+    "initial": "W",
+    "color": "#0EA5E9",
+    "founded": "미확인",
+    "desc": "불면증 인지행동치료(CBT-I)를 앱으로 구현한 디지털 치료기기 기업. 대표는 강성지.",
+    "products": "슬립큐(SleepQ) — 불면증 디지털 치료기기 · 통합심사 1호 혁신의료기기 · 2023년 식약처 허가",
+    "funding": "2021년 한독이 30억원 투자, 지분 약 9% 확보(주요 주주). 이후 추가 라운드는 확인되지 않았습니다.",
+    "revenue": "비공개 (비상장)",
+    "extra": "2024년 4월 슬립큐 첫 처방 개시 · 2027년 코스닥 상장 목표로 IPO 준비 중",
+    "investEok": 30,
+    "investBasis": "2021년 한독 투자분 (확인된 금액)",
+    "sources": [
+     {
+      "label": "팜이데일리 — 강성지 웰트 대표 인터뷰(한독 30억·지분 9%대 언급)",
+      "url": "https://pharm.edaily.co.kr/News/Read?newsId=01525206642334232"
+     },
+     {
+      "label": "EBN — 한독·웰트 '불면증 디지털 치료기기 슬립큐' 상용 시장 확대",
+      "url": "https://www.ebn.co.kr/news/articleView.html?idxno=1701983"
+     }
     ]
    }
-  ]
+  ],
+  "investNote": "대부분 비상장 스타트업이라 매출액 대신 공개된 누적 투자 유치액을 기준으로 비교합니다."
  }
 }
