@@ -787,6 +787,18 @@ body {
 .srr-stats:has(.srr-stat--hi:hover) ~ .srr-chart .srr-mark--hi .srr-ring { opacity: 1; }
 .srr-stats:has(.srr-stat--lo:hover) ~ .srr-chart .srr-mark--lo .srr-ring { opacity: 1; }
 .srr-hint { margin-left: 6px; font-size: 10.5px; font-weight: 500; color: var(--muted); }
+/* 지표 정의 — 본문보다 작고 연하게(참고 설명) */
+.srr-def { margin: 6px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--muted);
+  word-break: keep-all; }
+/* 총 내용 정리 — 리포트의 결론. 회색 패널 위에 흰 카드 + 진한 글씨로 띄운다 */
+.srr-sum { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--line);
+  border-left: 3px solid var(--ink); border-radius: var(--radius-sm);
+  background: var(--card); }
+.srr-sum__h { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 5px;
+  letter-spacing: -.01em; }
+.srr-sum__p { margin: 0 0 3px; font-size: 13.5px; font-weight: 600; line-height: 1.65;
+  color: var(--ink); word-break: keep-all; }
+.srr-sum__p:last-child { margin-bottom: 0; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sr-lv__name { font-weight: 700; color: var(--ink); }
 .sr-lv__note { color: var(--muted); }

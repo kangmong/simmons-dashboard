@@ -2697,6 +2697,33 @@ function srReportChart(pts, hiYm, loYm) {
     + `</svg>`;
 }
 
+/** '총 내용 정리' 문장 — 리포트에 이미 나온 값만 압축한다.
+    ★ 새 숫자도, 원인 추정도 만들지 않는다. 근거가 없는 조각은 문장에서 빠진다
+      (전월 비교가 없으면 그 절을, 전년 자료가 없으면 그 절을 통째로 뺀다). */
+function srSummaryText(d) {
+  const out = [];
+  const head = srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v);
+  const mom = (d.mom == null) ? null
+    : '전월 대비 ' + srR1(Math.abs(d.mom)).toFixed(1) + '%p '
+      + (d.mom > 0 ? '상승' : (d.mom < 0 ? '하락' : '보합'));
+  const yoy = (d.yoyDiff == null) ? null
+    : (d.yoyDiff === 0 ? '1년 전과 같은'
+      : '1년 전보다 ' + srR1(Math.abs(d.yoyDiff)).toFixed(1) + '%p '
+        + (d.yoyDiff > 0 ? '높은' : '낮은'));
+  if (mom && yoy) out.push(head + '로 ' + mom + '했고, ' + yoy + ' 수준입니다.');
+  else if (mom) out.push(head + '로 ' + mom + '했습니다.');
+  else if (yoy) out.push(head + '로, ' + yoy + ' 수준입니다.');
+  else out.push(head + '입니다.');
+
+  if (d.streak && d.streak.n >= SR_STREAK_MIN) {
+    out.push(d.streak.n + '개월 연속 ' + (d.streak.up ? '오름세' : '내림세') + '입니다.');
+  }
+  if (d.wWord) {
+    out.push('최근 ' + d.win.length + '개월간은 ' + d.wWord + '세를 보이고 있습니다.');
+  }
+  return out;
+}
+
 /** 리포트 본문. 버튼을 누르기 전에는 호출되지 않는다. */
 function srReportHtml() {
   const d = srReportData(_srYear);
@@ -2730,6 +2757,8 @@ function srReportHtml() {
   return '<div class="srr">'
     + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(scope)
     + ' · ' + escapeHtml(d.pts.length + '개월 관측') + '</span></div>'
+    + '<p class="srr-def">해상 정시성이란 선사가 사전에 공표한 도착 예정일에 '
+    + '실제로 도착한 선박의 비율(%)을 뜻합니다.</p>'
     + head + subs
     + '<h4 class="srr-h">참고 지표 <span class="srr-hint">최고·최저에 마우스를 올리면 그래프에서 해당 지점이 표시됩니다</span></h4>'
     + stats
@@ -2739,6 +2768,9 @@ function srReportHtml() {
     + 'Sea-Intelligence 가 제공하는 것은 월별 정시성 수치뿐이라, '
     + '수치 변동의 배경(항만 적체·항로 우회·계절 요인 등)은 이 데이터만으로 판단할 수 없습니다. '
     + '추정해서 채우지 않았습니다.</p>'
+    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
+    + srSummaryText(d).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
+    + '</div>'
     + '</div>';
 }
 
