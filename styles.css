@@ -798,6 +798,17 @@ body {
 .srr-sum__p { margin: 0 0 3px; font-size: 13.5px; font-weight: 600; line-height: 1.65;
   color: var(--ink); word-break: keep-all; }
 .srr-sum__p:last-child { margin-bottom: 0; }
+
+/* ── 국제유가 리포트 (원유·석유제품 공용) ─────────────────────────────── */
+/* 도구줄의 리포트 버튼 — 다른 도구와 같은 크기, 켜지면 강조 */
+.or-btn.is-on { background: var(--accent); border-color: var(--accent); color: var(--card); }
+/* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
+.or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
+.or-tbl .or-lo { display: block; color: var(--accent); font-weight: 700; }
+.or-tbl .or-when { display: block; margin-top: 1px; font-size: 10px; font-weight: 400;
+  color: var(--muted); }
+.or-tbl thead th { text-align: right; }
+.or-tbl thead th.oc-th-p { text-align: left; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sr-lv__name { font-weight: 700; color: var(--ink); }
 .sr-lv__note { color: var(--muted); }
