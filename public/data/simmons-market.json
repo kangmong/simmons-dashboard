@@ -1,44 +1,200 @@
 {
-  "_comment": [
-    "★ 시몬스는 비상장사다. DART 등 공시 API 로 자동 조회가 되지 않는다.",
-    "★ 아래 수치는 각 연도 실적 발표 기사(헤럴드경제·아주경제·인더스트리뉴스 등)를",
-    "   보고 사람이 수기 입력한 값이다. 감사보고서 확정치와 다를 수 있다.",
-    "★ 같은 사실을 화면에도 ⓘ 툴팁으로 표시한다.",
-    "★ 이 파일이 국내 섹션 세 차트의 유일한 데이터 소스다(single source of truth).",
-    "   차트에 값을 하드코딩하지 않는다 — 이 파일만 고치면 배포 시 반영된다.",
-    "★ 자동 갱신: scripts/check-earnings.js (GitHub Actions) 가 새 연도 실적을",
-    "   찾으면 PR 만 열고 자동 merge 하지 않는다. 비상장사 수치라 오탐이 가능해",
-    "   사람이 출처를 확인한 뒤 merge 한다.",
-    "★ isProvisional: 확정 실적 발표 전(예: 매년 1~2월) true 로 두면 '잠정치' 배지가 뜬다.",
-    "   연도별로 따로 표시하려면 해당 항목에 \"provisional\": true 를 넣는다."
-  ],
-  "lastUpdated": "2026-08-21",
-  "isProvisional": false,
-  "dataEntry": "manual",
-  "unit": "억원",
-  "simmonsPerformance": [
-    { "year": 2022, "revenue": 2858, "operatingProfit": 118 },
-    { "year": 2023, "revenue": 3138, "operatingProfit": 319 },
-    { "year": 2024, "revenue": 3295, "operatingProfit": 527 },
-    { "year": 2025, "revenue": 3239, "operatingProfit": 405 }
-  ],
-  "competitorRevenueLastYear": {
-    "year": 2025,
-    "companies": [
-      { "name": "코웨이(비렉스, 매트리스+렌탈 합산)", "revenue": 3654, "yoyChangePct": 15.4 },
-      { "name": "시몬스", "revenue": 3239, "yoyChangePct": -1.7 },
-      { "name": "에이스침대", "revenue": 3173, "yoyChangePct": -2.7 }
-    ],
-    "note": "코웨이는 매트리스 렌탈+일시불 합산 매출이며, 재무제표상 렌탈사업부 전체 매출만 공시되어 매트리스 단독 매출 여부는 업계에서 이견이 있음(2026년 3월 시몬스-코웨이 '1위' 공방 참고)."
+ "_comment": [
+  "★ 시몬스는 비상장사다. DART 등 공시 API 로 자동 조회가 되지 않는다.",
+  "★ 아래 수치는 각 연도 실적 발표 기사(헤럴드경제·아주경제·인더스트리뉴스 등)를",
+  "   보고 사람이 수기 입력한 값이다. 감사보고서 확정치와 다를 수 있다.",
+  "★ 같은 사실을 화면에도 ⓘ 툴팁으로 표시한다.",
+  "★ 이 파일이 국내 섹션 세 차트의 유일한 데이터 소스다(single source of truth).",
+  "   차트에 값을 하드코딩하지 않는다 — 이 파일만 고치면 배포 시 반영된다.",
+  "★ 자동 갱신: scripts/check-earnings.js (GitHub Actions) 가 새 연도 실적을",
+  "   찾으면 PR 만 열고 자동 merge 하지 않는다. 비상장사 수치라 오탐이 가능해",
+  "   사람이 출처를 확인한 뒤 merge 한다.",
+  "★ isProvisional: 확정 실적 발표 전(예: 매년 1~2월) true 로 두면 '잠정치' 배지가 뜬다.",
+  "   연도별로 따로 표시하려면 해당 항목에 \"provisional\": true 를 넣는다."
+ ],
+ "lastUpdated": "2026-08-26",
+ "isProvisional": false,
+ "dataEntry": "manual",
+ "unit": "억원",
+ "simmonsPerformance": [
+  {
+   "year": 2022,
+   "revenue": 2858,
+   "operatingProfit": 118
   },
-  "marketShare2025": {
-    "source": "IMARC 추정치",
-    "unit": "%",
-    "data": [
-      { "name": "코웨이", "share": 29.2 },
-      { "name": "시몬스", "share": 25.9 },
-      { "name": "에이스침대", "share": 25.4 },
-      { "name": "기타업체", "share": 19.5 }
-    ]
+  {
+   "year": 2023,
+   "revenue": 3138,
+   "operatingProfit": 319
+  },
+  {
+   "year": 2024,
+   "revenue": 3295,
+   "operatingProfit": 527
+  },
+  {
+   "year": 2025,
+   "revenue": 3239,
+   "operatingProfit": 405
   }
+ ],
+ "competitorRevenueLastYear": {
+  "year": 2025,
+  "companies": [
+   {
+    "name": "코웨이(비렉스, 매트리스+렌탈 합산)",
+    "revenue": 3654,
+    "yoyChangePct": 15.4
+   },
+   {
+    "name": "시몬스",
+    "revenue": 3239,
+    "yoyChangePct": -1.7
+   },
+   {
+    "name": "에이스침대",
+    "revenue": 3173,
+    "yoyChangePct": -2.7
+   }
+  ],
+  "note": "코웨이는 매트리스 렌탈+일시불 합산 매출이며, 재무제표상 렌탈사업부 전체 매출만 공시되어 매트리스 단독 매출 여부는 업계에서 이견이 있음(2026년 3월 시몬스-코웨이 '1위' 공방 참고)."
+ },
+ "marketShare2025": {
+  "source": "IMARC 추정치",
+  "unit": "%",
+  "data": [
+   {
+    "name": "코웨이",
+    "share": 29.2
+   },
+   {
+    "name": "시몬스",
+    "share": 25.9
+   },
+   {
+    "name": "에이스침대",
+    "share": 25.4
+   },
+   {
+    "name": "기타업체",
+    "share": 19.5
+   }
+  ],
+  "othersLabel": "기타업체",
+  "othersExamples": [
+   "템퍼코리아",
+   "씰리코리아",
+   "금성침대",
+   "지누스"
+  ],
+  "othersNote": "기타업체에는 템퍼코리아, 씰리코리아, 금성침대, 지누스 등이 포함됩니다. ※ IMARC 원자료에는 기타업체의 개별 기업명이 명시되어 있지 않으며, 위 목록은 국내 주요 매트리스 기업 현황을 참고해 예시로 제시한 것입니다."
+ },
+ "industryPositions": {
+  "note": "국내 침대·매트리스 업계 주요 기업의 포지션. 매출 순위가 아니라 사업 성격 구분이다.",
+  "companies": [
+   {
+    "name": "에이스침대",
+    "position": "침대 전문 / 프리미엄"
+   },
+   {
+    "name": "코웨이 비렉스",
+    "position": "렌탈 + 슬립케어"
+   },
+   {
+    "name": "템퍼코리아",
+    "position": "프리미엄 메모리폼"
+   },
+   {
+    "name": "씰리코리아",
+    "position": "글로벌 프리미엄 매트리스"
+   },
+   {
+    "name": "금성침대",
+    "position": "국내 침대 전문"
+   },
+   {
+    "name": "지누스",
+    "position": "온라인 중심 / 가성비 매트리스"
+   }
+  ]
+ },
+ "sleepTech": {
+  "title": "국내 슬립테크 시장 주요 4개 기업",
+  "note": "비상장 스타트업은 매출이 공시되지 않아 언론 보도로 확인된 투자 유치 규모로 대신 적었습니다. 확인되지 않은 항목은 '비공개' 또는 '미확인'으로 두었고, 추정치를 만들지 않았습니다.",
+  "companies": [
+   {
+    "name": "에이슬립 (Asleep)",
+    "founded": "2020년 6월",
+    "desc": "KAIST 전기전자 연구진이 창업한 수면 AI 기업. 비접촉 방식으로 수면 중 호흡·움직임을 감지해 수면 단계를 분석한다.",
+    "products": "Asleep Track(수면분석 API) · 비접촉 수면 측정 솔루션",
+    "funding": "2022년 3월 시리즈B 160억원 (인터베스트·카카오벤처스·삼성벤처투자·하나은행). 설립 1년 9개월 만에 기업가치 약 900억원 인정",
+    "revenue": "비공개 (비상장)",
+    "sources": [
+     {
+      "label": "와우테일 — 슬립테크 '에이슬립', 160억원 시리즈B 투자 유치 (2022-03-31)",
+      "url": "https://wowtale.net/2022/03/31/37048/"
+     },
+     {
+      "label": "에이슬립 공식 회사 소개",
+      "url": "https://www.asleep.ai/company"
+     }
+    ]
+   },
+   {
+    "name": "코웨이 (비렉스 BEREX)",
+    "founded": "브랜드 출범 2022년 12월 (코웨이 법인 1989년)",
+    "desc": "코웨이의 슬립·힐링케어 브랜드. 스프링 대신 공기 주입식 슬립셀을 넣어 경도를 9단계로 조절하는 스마트 매트리스를 렌탈로 공급한다.",
+    "products": "비렉스 스마트 매트리스 · 스마트베드 · 슬립케어 렌탈",
+    "funding": "해당 없음 (코스피 상장사 코웨이 021240의 사업 부문)",
+    "revenue": "2025년 국내 침대 사업 매출 3,654억원 (전년 대비 +15.4%)",
+    "sources": [
+     {
+      "label": "전자신문 — 코웨이, 맞춤형 수면환경 '비렉스 스마트 매트리스' 출시 (2022-12-30)",
+      "url": "https://www.etnews.com/20221230000115"
+     },
+     {
+      "label": "파이낸셜투데이 — 코웨이 '비렉스', 슬립테크로 시장 판도 흔든다",
+      "url": "https://www.ftoday.co.kr/news/articleView.html?idxno=362610"
+     }
+    ]
+   },
+   {
+    "name": "텐마인즈 (10minds)",
+    "founded": "2004년 11월",
+    "desc": "코골이 소리를 감지하면 베개 속 에어백이 부풀어 고개 각도를 바꿔 주는 AI 모션필로우를 만드는 헬스케어가전 기업.",
+    "products": "AI 모션필로우(코골이 완화 스마트 베개)",
+    "funding": "미확인 (공개된 투자 유치 정보를 찾지 못했습니다)",
+    "revenue": "비공개 (비상장)",
+    "extra": "CES 혁신상 3회 수상(2020·2022·2023) · 2024년 10월 코골이 완화 기술 미국 특허 등록 · 에이슬립과 차세대 수면 플랫폼 공동개발 업무협약",
+    "sources": [
+     {
+      "label": "머니투데이 — 텐마인즈, AI 코골이 완화 베개 기술로 美 특허 등록 (2024-10-29)",
+      "url": "https://news.mt.co.kr/mtview.php?no=2024102915051219109"
+     },
+     {
+      "label": "벤처스퀘어 — 에이슬립·텐마인즈, 차세대 수면 플랫폼 구축",
+      "url": "https://www.venturesquare.net/1102251"
+     }
+    ]
+   },
+   {
+    "name": "삼분의일",
+    "founded": "2017년",
+    "desc": "메모리폼 매트리스를 D2C(소비자 직거래)로 판매하며 시작한 수면 전문 브랜드. 수면 데이터를 다루는 테크 조직을 함께 운영한다.",
+    "products": "삼분의일 매트리스 · 스마트 매트리스 · 무인 체험 매장",
+    "funding": "2021년 8월 시리즈A 120억원 (알토스벤처스·DSC인베스트먼트·딜라이트룸·캡스톤파트너스), 누적 투자 약 160억원",
+    "revenue": "비공개 (비상장) — 2021년 언론 보도 기준 연 매출 약 150억원 규모로 알려짐",
+    "sources": [
+     {
+      "label": "머니투데이 — 수면전문 스타트업 '삼분의일', 120억 시리즈A 투자유치 (2021-08-04)",
+      "url": "https://www.mt.co.kr/future/2021/08/04/2021080410113568568"
+     },
+     {
+      "label": "한국경제 — 꿀잠 팝니다…입소문 타고 年150억 대박난 기업 (2021-09-09)",
+      "url": "https://www.hankyung.com/article/2021090948621"
+     }
+    ]
+   }
+  ]
+ }
 }

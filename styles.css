@@ -1454,6 +1454,45 @@ body {
 .sm-delta.down { color: var(--accent); }
 .sm-delta.flat { color: var(--slate); }
 .sm-foot { margin-top: 12px; font-size: 11px; color: var(--slate); line-height: 1.55; }
+
+/* ── 국내 · 업계 포지션 표 ─────────────────────────────────────────────── */
+.sm-pos-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.sm-pos { border-collapse: collapse; width: 100%; font-size: 13px; }
+.sm-pos th, .sm-pos td { padding: 9px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+.sm-pos thead th { background: var(--field); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.sm-pos tbody tr:last-child td { border-bottom: none; }
+.sm-pos__n { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.sm-pos td { color: var(--text); }
+
+/* ── 국내 · 점유율 '기타업체' 안내 ─────────────────────────────────────── */
+.sm-oth { position: relative; cursor: help; }
+.sm-oth__bub {
+  position: absolute; left: 0; bottom: calc(100% + 7px); z-index: 20;
+  width: max-content; max-width: 300px; padding: 8px 10px;
+  border-radius: var(--radius-sm); background: var(--ink); color: var(--card);
+  font-size: 11.5px; font-weight: 500; line-height: 1.55; text-align: left;
+  word-break: keep-all; box-shadow: var(--shadow-hover);
+  opacity: 0; visibility: hidden; transition: opacity 140ms ease;
+}
+.sm-oth:hover .sm-oth__bub, .sm-oth:focus-visible .sm-oth__bub { opacity: 1; visibility: visible; }
+.sm-othfoot { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--slate);
+  word-break: keep-all; }
+
+/* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
+.sm-st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.sm-st { border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 13px 15px; background: var(--card); min-width: 0; }
+.sm-st__h { font-size: 14px; font-weight: 800; color: var(--ink); margin-bottom: 5px; }
+.sm-st__desc { margin: 0 0 9px; font-size: 12.5px; line-height: 1.6; color: var(--text);
+  word-break: keep-all; }
+.sm-st__row { display: flex; gap: 8px; margin-top: 5px; font-size: 12px; line-height: 1.55; }
+.sm-st__k { flex: 0 0 88px; color: var(--muted); }
+.sm-st__v { flex: 1 1 auto; min-width: 0; color: var(--text); word-break: keep-all; }
+.sm-st__src { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line);
+  font-size: 10.5px; color: var(--muted); }
+.sm-st__src ul { margin: 3px 0 0; padding-left: 15px; }
+.sm-st__src li { margin-bottom: 2px; line-height: 1.5; word-break: break-all; }
+@media (max-width: 720px) { .sm-st-grid { grid-template-columns: 1fr; } }
 /* 각주 안의 원본 데이터 링크 — 각주 글자 크기는 그대로 두고 색·밑줄로만 구분한다.
    hover 하면 밑줄이 진해지고 색이 어두워져 '눌린다'는 것이 드러난다. */
 .src-link {

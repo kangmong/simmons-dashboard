@@ -1155,15 +1155,66 @@ function smShareDonut(d) {
     + '" text-anchor="middle">' + escapeHtml(yr) + '년 시장 점유율</text>'
     + '<text class="sm-dc2" x="' + cc + '" y="' + (cc + 12)
     + '" text-anchor="middle">' + escapeHtml(m.source || '') + '</text>';
-  const legend = rows.map((r) => '<span><i style="background:'
-    + (SM_SHARE_COL[r.name] || '#9CA3AF') + '"></i>' + escapeHtml(r.name)
-    + ' <b>' + r.share + '%</b></span>').join('');
+  // '기타업체'는 어떤 회사인지 알 수 없어 hover 로 예시를 보여 준다(각주로도 밝힌다)
+  const oNote = m.othersNote || '';
+  const oLabel = m.othersLabel || '기타업체';
+  const legend = rows.map((r) => {
+    const isOther = (r.name === oLabel) && oNote;
+    return '<span' + (isOther ? ' class="sm-oth" tabindex="0" role="note"' : '') + '>'
+      + '<i style="background:' + (SM_SHARE_COL[r.name] || '#9CA3AF') + '"></i>'
+      + escapeHtml(r.name) + ' <b>' + r.share + '%</b>'
+      + (isOther ? '<span class="sm-oth__bub">' + escapeHtml(oNote) + '</span>' : '')
+      + '</span>';
+  }).join('');
+  const foot = oNote ? '<div class="sm-othfoot">' + escapeHtml(oNote) + '</div>' : '';
   return '<div class="sm-donutwrap">'
     + '<svg class="sm-donut" viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="'
     + escapeHtml(yr) + '년 시장 점유율">'
     + '<g transform="rotate(-90 ' + cc + ' ' + cc + ')">' + segs + '</g>'
     + center + '</svg>'
-    + '<div class="sm-legend sm-legend--wrap">' + legend + '</div></div>';
+    + '<div class="sm-legend sm-legend--wrap">' + legend + '</div>' + foot + '</div>';
+}
+
+/** (1) 업계 포지션 표 — 매출 순위가 아니라 사업 성격 구분이다. */
+function smPositionTable(d) {
+  const p = d.industryPositions;
+  if (!p || !Array.isArray(p.companies) || !p.companies.length) return '';
+  const rows = p.companies.map((c) => '<tr><td class="sm-pos__n">'
+    + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.position) + '</td></tr>').join('');
+  return '<div class="sm-card sm-card--full"><div class="sm-h">국내 침대 업계 주요 기업 포지션</div>'
+    + '<div class="sm-pos-wrap"><table class="sm-pos"><thead><tr>'
+    + '<th>기업</th><th>포지션</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + (p.note ? '<div class="sm-foot">' + escapeHtml(p.note) + '</div>' : '')
+    + '</div>';
+}
+
+/** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'. */
+function smSleepTech(d) {
+  const st = d.sleepTech;
+  if (!st || !Array.isArray(st.companies) || !st.companies.length) return '';
+  const row = (k, v) => (v ? '<div class="sm-st__row"><span class="sm-st__k">'
+    + escapeHtml(k) + '</span><span class="sm-st__v">' + escapeHtml(v) + '</span></div>' : '');
+  const cards = st.companies.map((c) => {
+    const src = (c.sources || []).map((x) => {
+      const u = safeUrl(x.url);
+      return '<li>' + (u
+        ? '<a class="src-link" href="' + escapeHtml(u) + '" target="_blank" rel="noopener noreferrer">'
+          + escapeHtml(x.label) + '</a>'
+        : escapeHtml(x.label)) + '</li>';
+    }).join('');
+    return '<div class="sm-st">'
+      + '<div class="sm-st__h">' + escapeHtml(c.name) + '</div>'
+      + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
+      + row('설립', c.founded) + row('주요 제품·서비스', c.products)
+      + row('투자 유치', c.funding) + row('매출·재무', c.revenue) + row('그 밖에', c.extra)
+      + (src ? '<div class="sm-st__src">출처<ul>' + src + '</ul></div>' : '')
+      + '</div>';
+  }).join('');
+  return '<div class="sm-card sm-card--full"><div class="sm-h">'
+    + escapeHtml(st.title || '국내 슬립테크 시장 주요 기업') + '</div>'
+    + '<div class="sm-st-grid">' + cards + '</div>'
+    + (st.note ? '<div class="sm-foot">' + escapeHtml(st.note) + '</div>' : '')
+    + '</div>';
 }
 
 /** 국내 섹션 본문 — 차트 A 풀와이드 / 차트 B·C 2열 */
@@ -1204,7 +1255,10 @@ function smKoreaHtml() {
     + '<div class="sm-card"><div class="sm-h">' + escapeHtml(String(sy))
     + '년 침대 매트리스 시장 점유율</div>'
     + smShareDonut(d) + '</div>'
-    + '</div></div>';
+    + '</div>'
+    + smPositionTable(d)
+    + smSleepTech(d)
+    + '</div>';
 }
 
 /** 제목 옆 약어 배지 + hover/포커스 툴팁.
