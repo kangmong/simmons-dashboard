@@ -809,6 +809,10 @@ body {
   color: var(--muted); }
 .or-tbl thead th { text-align: right; }
 .or-tbl thead th.oc-th-p { text-align: left; }
+/* X축 라벨 — 폭이 좁아지면 홀수 번째를 숨겨 6개 → 3개로 줄인다(겹침 방지) */
+@media (max-width: 640px) { .or-xlab--alt { display: none; } }
+/* 그래프 바로 아래 적용 환율 — 위 여백만 살짝 준다 */
+.srr-chart .viz-fxnote { margin: 6px 0 0; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sr-lv__name { font-weight: 700; color: var(--ink); }
 .sr-lv__note { color: var(--muted); }

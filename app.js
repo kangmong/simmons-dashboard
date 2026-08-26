@@ -2559,6 +2559,24 @@ const OR_HI = 'var(--blue)';
 const OR_LO = 'var(--accent)';
 const OR_NOW = 'var(--ink)';
 
+/** X축용 짧은 라벨 — '2026년 08월 03일'(11자)을 그대로 쓰면 축에서 겹친다.
+    ★ 표시 전용이다. 표·문장은 계속 긴 라벨(c.label)을 쓴다. */
+function orShortLabel(period, term) {
+  const p = String(period);
+  if (term === 'y') return p.slice(0, 4);
+  if (term === 'm') return p.slice(2, 4) + '.' + p.slice(5, 7);
+  if (term === 'w') return p.slice(2, 4) + '.' + p.slice(5, 7) + ' ' + p.split('W')[1] + '주';
+  return p.slice(2, 4) + '.' + p.slice(5, 7) + '.' + p.slice(8, 10);
+}
+
+/** 균등 간격으로 최대 max 개만 고른다(양 끝은 항상 포함). */
+function orTickIdx(n, max) {
+  if (n <= max) return Array.from({ length: n }, (_, i) => i);
+  const out = [];
+  for (let k = 0; k < max; k += 1) out.push(Math.round((k * (n - 1)) / (max - 1)));
+  return out.filter((v, i, a) => a.indexOf(v) === i);
+}
+
 /** 리포트 전용 그래프. 라벨은 대표 계열의 최고·최저·최근 3곳에만 단다.
     ★ 카드 본문의 buildOilChart / buildProductChart 는 건드리지 않는다. */
 function orChart(c, st, head) {
@@ -2579,10 +2597,13 @@ function orChart(c, st, head) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`;
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`
+      + vizKrwTick(padL - 6, y, val, krwRate('USD'));   // 달러 아래 작은 원화(다른 카드와 같은 헬퍼)
   }).join('');
-  const xlab = vizTickIdx(n, plotW, 52).map((i) =>
-    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(c.label(c.win[i].period))}</text>`).join('');
+  // ★ 라벨은 짧은 형태로, 개수는 최대 6개만. 좁은 화면에서는 CSS 가 홀수 번째를 숨겨 3개로 준다.
+  const ticks = orTickIdx(n, 6);
+  const xlab = ticks.map((i, k) =>
+    `<text class="or-xlab${k % 2 ? ' or-xlab--alt' : ''}" x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(orShortLabel(c.win[i].period, c.q.term))}</text>`).join('');
 
   // 대표 계열은 진하게, 나머지는 옅게 — 라벨이 붙는 선이 어느 것인지 드러난다
   const lines = live.map((x) => {
@@ -2602,13 +2623,15 @@ function orChart(c, st, head) {
     const idxOf = (p) => c.win.map((r) => r.period).indexOf(p);
     const put = (i, v, color, tag) => {
       if (i < 0) return '';
+      const kw = opKrw(v);   // 배럴당 원화 — 제품 카드가 쓰는 것과 같은 함수(환율은 usd_krw)
       const x = X(i), y = Y(v), up = y > padT + 26;
       const ly = up ? y - 13 : y + 20;
       return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
         + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
         + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">$${v.toFixed(2)}</text>`
         + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
-        + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">${tag}</text></g>`;
+        + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">`
+        + `${tag}${kw ? ' · 약 ' + escapeHtml(kw) : ''}</text></g>`;
     };
     const hiI = idxOf(head.hi.p), loI = idxOf(head.lo.p), nowI = idxOf(head.last.p);
     marks += put(hiI, head.hi.v, OR_HI, '최고');
@@ -2665,7 +2688,7 @@ function orReportHtml(kind) {
     + hero + subs
     + '<h4 class="srr-h">' + escapeHtml(OR_NOUN[kind]) + '별 지표</h4>'
     + orTable(c, st)
-    + '<div class="srr-chart">' + orChart(c, st, head) + '</div>'
+    + '<div class="srr-chart">' + orChart(c, st, head) + krwNote('USD') + '</div>'
     + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
     + orSummary(c, st, head).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
     + '</div></div>';
