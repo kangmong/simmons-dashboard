@@ -1932,15 +1932,25 @@ function wireCrudeControls(root) {
     form.addEventListener('change', (e) => {
       const t = e.target;
       if (!t || !_ocForm) return;
+      // ★ 리포트가 열려 있는데 조건을 바꾸면, 화면의 폼과 리포트가 서로 다른 조건을
+      //   가리켜 리포트가 '고정된' 것처럼 보인다. 그래서 조건이 바뀌면 리포트를 닫는다.
+      //   ([조회]를 눌러야 새 조건이 확정된다는 이 카드의 규칙은 그대로다)
+      const wasOpen = _ocReport;
       if (t.name === 'ocTerm') {
         _ocForm = ocFormFor(t.value, new Set(_ocForm.on));
+        if (wasOpen) { _ocReport = false; renderMaterial(); return; }
         form.innerHTML = ocControlsHtml();
         return;
       }
       const k = t.getAttribute && t.getAttribute('data-oc');
-      if (k) { _ocForm[k] = t.value; return; }
-      const p = t.getAttribute && t.getAttribute('data-oc-prod');
-      if (p) { if (t.checked) _ocForm.on.add(p); else _ocForm.on.delete(p); }
+      if (k) {
+        _ocForm[k] = t.value;
+      } else {
+        const p = t.getAttribute && t.getAttribute('data-oc-prod');
+        if (!p) return;
+        if (t.checked) _ocForm.on.add(p); else _ocForm.on.delete(p);
+      }
+      if (wasOpen) { _ocReport = false; renderMaterial(); }
     });
     form.addEventListener('click', (e) => {
       const go = e.target.closest && e.target.closest('.oc-go');
@@ -2684,6 +2694,8 @@ function orReportHtml(kind) {
     + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(c.span)
     + ' · ' + escapeHtml(c.termLabel + ' 기준 ' + c.win.length + '개 구간')
     + ' · ' + escapeHtml(c.unit) + '</span></div>'
+    + '<p class="srr-cond"><b>현재 조회 조건</b> · ' + escapeHtml(c.termLabel) + ' 기준 · '
+    + escapeHtml(c.span) + ' · ' + escapeHtml(c.ser.map((x) => x.label).join(', ')) + '</p>'
     + '<p class="srr-def">' + escapeHtml(OR_DEF[kind]) + '</p>'
     + hero + subs
     + '<h4 class="srr-h">' + escapeHtml(OR_NOUN[kind]) + '별 지표</h4>'
@@ -2749,15 +2761,23 @@ function wireProductControls(root) {
     form.addEventListener('change', (e) => {
       const t = e.target;
       if (!t || !_opForm) return;
+      // ★ 원유 카드와 같은 이유로, 조건이 바뀌면 열려 있던 리포트를 닫는다.
+      const wasOpen = _opReport;
       if (t.name === 'opTerm') {
         _opForm = opFormFor(t.value, new Set(_opForm.on));
+        if (wasOpen) { _opReport = false; renderMaterial(); return; }
         form.innerHTML = opControlsHtml();
         return;
       }
       const k = t.getAttribute && t.getAttribute('data-op');
-      if (k) { _opForm[k] = t.value; return; }
-      const p = t.getAttribute && t.getAttribute('data-op-prod');
-      if (p) { if (t.checked) _opForm.on.add(p); else _opForm.on.delete(p); }
+      if (k) {
+        _opForm[k] = t.value;
+      } else {
+        const p = t.getAttribute && t.getAttribute('data-op-prod');
+        if (!p) return;
+        if (t.checked) _opForm.on.add(p); else _opForm.on.delete(p);
+      }
+      if (wasOpen) { _opReport = false; renderMaterial(); }
     });
     form.addEventListener('click', (e) => {
       const go = e.target.closest && e.target.closest('.op-go');

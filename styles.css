@@ -811,6 +811,11 @@ body {
 .or-tbl thead th.oc-th-p { text-align: left; }
 /* X축 라벨 — 폭이 좁아지면 홀수 번째를 숨겨 6개 → 3개로 줄인다(겹침 방지) */
 @media (max-width: 640px) { .or-xlab--alt { display: none; } }
+/* 리포트가 어떤 조회 결과를 근거로 하는지 상단에 밝힌다 */
+.srr-cond { margin: 8px 0 0; padding: 6px 10px; border-radius: 6px;
+  background: var(--field); border: 1px solid var(--line);
+  font-size: 11.5px; line-height: 1.55; color: var(--slate); word-break: keep-all; }
+.srr-cond b { color: var(--ink); font-weight: 700; margin-right: 2px; }
 /* 그래프 바로 아래 적용 환율 — 위 여백만 살짝 준다 */
 .srr-chart .viz-fxnote { margin: 6px 0 0; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
