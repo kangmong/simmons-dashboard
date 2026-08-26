@@ -1455,14 +1455,6 @@ body {
 .sm-delta.flat { color: var(--slate); }
 .sm-foot { margin-top: 12px; font-size: 11px; color: var(--slate); line-height: 1.55; }
 
-/* ── 국내 · 업계 포지션 표 ─────────────────────────────────────────────── */
-.sm-pos-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.sm-pos { border-collapse: collapse; width: 100%; font-size: 13px; }
-.sm-pos th, .sm-pos td { padding: 9px 14px; border-bottom: 1px solid var(--line); text-align: left; }
-.sm-pos thead th { background: var(--field); font-weight: 700; color: var(--ink); white-space: nowrap; }
-.sm-pos tbody tr:last-child td { border-bottom: none; }
-.sm-pos__n { font-weight: 700; color: var(--ink); white-space: nowrap; }
-.sm-pos td { color: var(--text); }
 
 /* ── 국내 · 점유율 '기타업체' 안내 ─────────────────────────────────────── */
 .sm-oth { position: relative; cursor: help; }
@@ -1477,6 +1469,12 @@ body {
 .sm-oth:hover .sm-oth__bub, .sm-oth:focus-visible .sm-oth__bub { opacity: 1; visibility: visible; }
 .sm-othfoot { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--slate);
   word-break: keep-all; }
+
+/* 매출 비교 막대 — 회사마다 기준 회계연도가 달라 이름 옆에 연도를 적는다 */
+.sm-hyr { margin-left: 4px; font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.sm-hmemo { margin-top: 3px; font-size: 10.5px; line-height: 1.5; color: var(--muted);
+  word-break: keep-all; }
+.sm-foot + .sm-foot { margin-top: 5px; }
 
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
 .sm-st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
