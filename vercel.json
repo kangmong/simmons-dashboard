@@ -12,6 +12,10 @@
       }
     },
     {
+      "src": "api/weather_news.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -50,6 +54,10 @@
     {
       "src": "public/logos/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/maps/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -60,6 +68,13 @@
         "POST"
       ],
       "dest": "/api/update.py"
+    },
+    {
+      "src": "/api/weather-news",
+      "methods": [
+        "GET"
+      ],
+      "dest": "/api/weather_news.py"
     },
     {
       "handle": "filesystem"

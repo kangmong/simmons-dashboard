@@ -6384,8 +6384,12 @@ function renderWorldClock() {
   const dots = WORLD_CITIES.map((c, i) => {
     const x = (c.lon + 180) / 360 * 100;
     const y = (90 - c.lat) / 180 * 100;
-    return `<button class="wc-mk wc-${c.dir}" data-i="${i}" type="button"
-        style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" aria-label="${escapeHtml(c.ko)}">
+    // 서울만 상세 화면이 있어 표시를 조금 더 준다.
+    // ★ 두 값은 서울이 아니면 빈 문자열이라, 나머지 마커의 HTML 은 예전과 한 글자도 다르지 않다.
+    const krCls = (c.ko === '서울') ? ' wc-mk--kr' : '';
+    const krHint = (c.ko === '서울') ? ' title="눌러서 국내 주요 도시 날씨 보기"' : '';
+    return `<button class="wc-mk wc-${c.dir}${krCls}" data-i="${i}" type="button"
+        style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" aria-label="${escapeHtml(c.ko)}"${krHint}>
         <span class="wc-dot"></span><span class="wc-name">${escapeHtml(c.ko)}</span>
       </button>`;
   }).join('');
@@ -6402,7 +6406,7 @@ function renderWorldClock() {
 /** 매 틱(30초): 마커 주야 구분 + 열린 툴팁 갱신 */
 function wcTick() {
   const root = document.getElementById('worldclockRoot');
-  if (!root || !_wcShown) return;
+  if (!root || !_wcShown || _krOn) return;   // 한국 상세 화면이 열려 있으면 건드리지 않는다
   const now = new Date();
   const seoulOff = wcOffsetMin(wcParts('Asia/Seoul', now), now);
   root.querySelectorAll('.wc-mk').forEach((mk) => {
@@ -6461,9 +6465,15 @@ function wcWire() {
     wcHideTip();
   });
   // 탭/클릭: 핀 고정 토글(모바일 대응)
+  // ★ 서울만 예외 — 한국 상세 화면으로 들어간다. 다른 도시는 예전 그대로 툴팁 토글.
   markers.addEventListener('click', (e) => {
     const mk = e.target.closest('.wc-mk'); if (!mk) return;
     const i = +mk.dataset.i;
+    if (WORLD_CITIES[i] && WORLD_CITIES[i].ko === '서울') {
+      e.stopPropagation();
+      krOpen();
+      return;
+    }
     if (_wcOpen === i) { _wcOpen = null; wcHideTip(); }
     else { _wcOpen = i; wcShowTip(i, true); }
     e.stopPropagation();
@@ -6480,13 +6490,343 @@ function wcOutside(e) {
   _wcOpen = null; wcHideTip();
 }
 
+/* ── 한국 상세 화면 (세계 시간 카드 안) ─────────────────────────────────────
+   ★ 기존 세계지도(WORLD_CITIES·renderWorldClock)는 건드리지 않는다.
+     서울 마커를 눌렀을 때만 이 화면으로 바꿔 끼우고, [세계 시간으로 돌아가기]
+     를 누르면 원래 렌더 함수를 그대로 다시 부른다.
+   ★ 날씨: Open-Meteo (키 불필요·무료). 응답 값을 그대로 쓰고 임의 보정하지 않는다.
+   ★ 뉴스: 서버의 /api/weather-news → 구글 뉴스 RSS. 제목·링크·언론사·날짜만.
+     없으면 '없음'을 정직하게 띄운다(지어내지 않는다).
+   ★ 지도: public/maps/korea.svg — 아래 KR_PROJ 와 '같은 식'으로 만들었다.
+     그래서 lat/lon 을 그대로 넣으면 핀이 정확히 그 자리에 찍힌다. */
+
+// korea.svg 를 만들 때 쓴 투영 상수(등장방형 · 표준위도 36°). 바꾸면 지도도 다시 만들어야 한다.
+const KR_PROJ = { lon0: 124.50, lat1: 38.70, k: Math.cos(36 * Math.PI / 180), s: 120, w: 631.0, h: 684.0 };
+
+/* 주요 도시 — 위도/경도는 각 시청 기준 공개 좌표.
+   ★ 15개 전부 지도 폴리곤 안에 들어가는지 좌표로 검증했다(점-내부 판정). */
+const KR_CITIES = [
+  { ko: '서울', lat: 37.5665, lon: 126.9780 },
+  { ko: '인천', lat: 37.4563, lon: 126.7052 },
+  { ko: '수원', lat: 37.2636, lon: 127.0286 },
+  { ko: '강릉', lat: 37.7519, lon: 128.8761 },
+  { ko: '세종', lat: 36.4800, lon: 127.2890 },
+  { ko: '대전', lat: 36.3504, lon: 127.3845 },
+  { ko: '포항', lat: 36.0190, lon: 129.3435 },
+  { ko: '대구', lat: 35.8714, lon: 128.6014 },
+  { ko: '울산', lat: 35.5384, lon: 129.3114 },
+  { ko: '부산', lat: 35.1796, lon: 129.0756 },
+  { ko: '광주', lat: 35.1595, lon: 126.8526 },
+  { ko: '거제', lat: 34.8806, lon: 128.6211 },
+  { ko: '통영', lat: 34.8544, lon: 128.4331 },
+  { ko: '목포', lat: 34.8118, lon: 126.3922 },
+  { ko: '제주', lat: 33.4996, lon: 126.5312 },
+];
+
+const KR_WX_TTL = 30 * 60 * 1000;   // 날씨 캐시 30분(요청 '1시간 이내' 요건보다 짧게)
+const KR_FORECAST_NOTE = '예보는 기상 모델 예측값으로, 실제와 다를 수 있습니다. '
+  + '먼 날짜일수록 정확도가 낮습니다.';
+const KR_MAP_SRC = '지도: southkorea-maps (POPONG, CC BY 4.0) · 원자료 통계청 2013';
+
+let _krOn = false;      // 한국 상세 화면이 열렸는지
+let _krCity = 0;        // 고른 도시 index (기본 서울)
+let _krWx = {};         // { 도시명: {ts, cur, days} }
+let _krNews = {};       // { 도시명: {ts, status, items} }
+let _krBusy = {};       // { 도시명: true } — 요청 중
+let _krWired = false;   // root 는 재렌더에도 살아 있어 리스너가 쌓인다 → 한 번만 붙인다
+
+/** lat/lon → korea.svg 안의 백분율 좌표(지도 생성식과 동일) */
+function krXY(lat, lon) {
+  const p = KR_PROJ;
+  return {
+    x: ((lon - p.lon0) * p.k * p.s) / p.w * 100,
+    y: ((p.lat1 - lat) * p.s) / p.h * 100,
+  };
+}
+
+/** WMO 코드 → 한국어 날씨 이름 (아이콘은 기존 wmoIcon 재사용) */
+function krWmoText(code) {
+  if (code == null) return '—';
+  if (code === 0) return '맑음';
+  if (code === 1) return '대체로 맑음';
+  if (code === 2) return '구름 조금';
+  if (code === 3) return '흐림';
+  if (code === 45 || code === 48) return '안개';
+  if (code >= 51 && code <= 57) return '이슬비';
+  if (code >= 61 && code <= 67) return '비';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return '눈';
+  if (code >= 80 && code <= 82) return '소나기';
+  if (code === 95) return '천둥번개';
+  if (code === 96 || code === 99) return '천둥번개·우박';
+  return '—';
+}
+
+function krNum(v, digits) {
+  if (v == null || !isFinite(v)) return '—';
+  const d = digits == null ? 0 : digits;
+  return Number(v).toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+/** 시간 배열에서 특정 날짜의 오전(06~11시)·오후(12~17시) 평균을 낸다.
+    ★ Open-Meteo 는 일별로 최고/최저만 주므로, 오전·오후를 나누려면 시간별을 모아야 한다.
+      값을 만들어 내는 게 아니라 응답에 있는 시간값을 평균만 낸다. */
+function krAmPm(hourly, day, key) {
+  const t = hourly && hourly.time, arr = hourly && hourly[key];
+  if (!Array.isArray(t) || !Array.isArray(arr)) return { am: null, pm: null };
+  let as = 0, an = 0, ps = 0, pn = 0;
+  for (let i = 0; i < t.length; i += 1) {
+    const s = String(t[i]);
+    if (s.slice(0, 10) !== day) continue;
+    const h = parseInt(s.slice(11, 13), 10);
+    const v = arr[i];
+    if (v == null) continue;
+    if (h >= 6 && h <= 11) { as += v; an += 1; }
+    else if (h >= 12 && h <= 17) { ps += v; pn += 1; }
+  }
+  return { am: an ? as / an : null, pm: pn ? ps / pn : null };
+}
+
+/** Open-Meteo 로 현재 날씨 + 3일 예보. 실패하면 error 를 담아 돌려준다. */
+async function krFetchWeather(city) {
+  const url = 'https://api.open-meteo.com/v1/forecast'
+    + `?latitude=${city.lat}&longitude=${city.lon}`
+    + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation'
+    + '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation_probability'
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+    + '&timezone=Asia%2FSeoul&forecast_days=3';
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 9000) : null;
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    const days = (d.daily && d.daily.time ? d.daily.time : []).map((day, i) => ({
+      day: day,
+      code: d.daily.weather_code ? d.daily.weather_code[i] : null,
+      tmax: d.daily.temperature_2m_max ? d.daily.temperature_2m_max[i] : null,
+      tmin: d.daily.temperature_2m_min ? d.daily.temperature_2m_min[i] : null,
+      pop: d.daily.precipitation_probability_max ? d.daily.precipitation_probability_max[i] : null,
+      t: krAmPm(d.hourly, day, 'temperature_2m'),
+      rh: krAmPm(d.hourly, day, 'relative_humidity_2m'),
+      ws: krAmPm(d.hourly, day, 'wind_speed_10m'),
+      pp: krAmPm(d.hourly, day, 'precipitation_probability'),
+    }));
+    return { ts: Date.now(), cur: d.current || null, units: d.current_units || null, days: days };
+  } catch (e) {
+    console.warn('[korea] weather fail:', city.ko, e);
+    return { ts: Date.now(), error: (e && e.message) || String(e), cur: null, days: [] };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 서버 경유로 지역 날씨 이슈 뉴스. 실패해도 화면은 뜬다. */
+async function krFetchNews(city) {
+  const ctrl = ('AbortController' in window) ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+  try {
+    const res = await fetch('/api/weather-news?region=' + encodeURIComponent(city.ko),
+      { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    return { ts: Date.now(), status: d.status || 'ok', items: d.items || [], reason: d.reason };
+  } catch (e) {
+    console.warn('[korea] news fail:', city.ko, e);
+    return { ts: Date.now(), status: 'error', items: [], reason: (e && e.message) || String(e) };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 고른 도시의 날씨·뉴스를 필요할 때만 새로 받는다(캐시 TTL 지났을 때만). */
+async function krLoad(i, force) {
+  const city = KR_CITIES[i];
+  if (!city || _krBusy[city.ko]) return;
+  const stale = (c) => !c || (Date.now() - c.ts) > KR_WX_TTL;
+  if (!force && !stale(_krWx[city.ko]) && !stale(_krNews[city.ko])) return;
+  _krBusy[city.ko] = true;
+  renderKorea();
+  const [wx, news] = await Promise.all([
+    (force || stale(_krWx[city.ko])) ? krFetchWeather(city) : Promise.resolve(_krWx[city.ko]),
+    (force || stale(_krNews[city.ko])) ? krFetchNews(city) : Promise.resolve(_krNews[city.ko]),
+  ]);
+  _krWx[city.ko] = wx;
+  _krNews[city.ko] = news;
+  _krBusy[city.ko] = false;
+  if (_krOn) renderKorea();
+}
+
+/** 오늘/내일/모레 라벨 */
+function krDayLabel(day, i) {
+  const names = ['오늘', '내일', '모레'];
+  const md = day ? day.slice(5).replace('-', '/') : '';
+  return (names[i] || md) + (md ? ' (' + md + ')' : '');
+}
+
+/** 현재 날씨 4칸 */
+function krNowHtml(city, wx) {
+  if (!wx || wx.error || !wx.cur) {
+    return '<div class="kr-now kr-now--empty">' + escapeHtml(
+      wx && wx.error ? '날씨를 불러오지 못했습니다 (' + wx.error + ')' : '날씨를 불러오는 중…') + '</div>';
+  }
+  const c = wx.cur;
+  const cell = (k, v, u) => '<div class="kr-cell"><span class="kr-cell__k">' + escapeHtml(k)
+    + '</span><span class="kr-cell__v">' + escapeHtml(v)
+    + (u ? '<i>' + escapeHtml(u) + '</i>' : '') + '</span></div>';
+  return '<div class="kr-nowwrap">'
+    + '<div class="kr-nowhead"><span class="kr-nowicon">' + wmoIcon(c.weather_code) + '</span>'
+    + '<span class="kr-nowtemp">' + krNum(c.temperature_2m, 1) + '<i>℃</i></span>'
+    + '<span class="kr-nowtext">' + escapeHtml(krWmoText(c.weather_code)) + '</span></div>'
+    + '<div class="kr-cells">'
+    + cell('바람', krNum(c.wind_speed_10m, 1), 'km/h')
+    + cell('습도', krNum(c.relative_humidity_2m), '%')
+    + cell('1시간 강수량', krNum(c.precipitation, 1), 'mm')
+    + cell('기온', krNum(c.temperature_2m, 1), '℃')
+    + '</div></div>';
+}
+
+/** 3일 예보 표 — 오전/오후로 나눠 기온·습도·평균풍속·강수확률 */
+function krForecastHtml(wx) {
+  if (!wx || wx.error || !wx.days || !wx.days.length) {
+    return '<div class="kr-fc__empty">예보를 불러오지 못했습니다.</div>';
+  }
+  const half = (d, k, key, digits, unit) => '<td class="kr-fc__v">'
+    + escapeHtml(krNum(d[key][k], digits)) + (unit ? '<i>' + escapeHtml(unit) + '</i>' : '') + '</td>';
+  const rows = wx.days.map((d, i) => ['am', 'pm'].map((k) =>
+    '<tr>'
+    + (k === 'am' ? '<td class="kr-fc__d" rowspan="2"><b>' + escapeHtml(krDayLabel(d.day, i))
+      + '</b><span class="kr-fc__ic">' + wmoIcon(d.code) + ' '
+      + escapeHtml(krWmoText(d.code)) + '</span>'
+      + '<span class="kr-fc__mm">' + escapeHtml(krNum(d.tmin, 0)) + '° / '
+      + escapeHtml(krNum(d.tmax, 0)) + '°</span></td>' : '')
+    + '<td class="kr-fc__h">' + (k === 'am' ? '오전' : '오후') + '</td>'
+    + half(d, k, 't', 1, '℃') + half(d, k, 'rh', 0, '%')
+    + half(d, k, 'ws', 1, 'km/h') + half(d, k, 'pp', 0, '%')
+    + '</tr>').join('')).join('');
+  return '<div class="kr-fc__wrap"><table class="kr-fc">'
+    + '<thead><tr><th>날짜</th><th></th><th>기온</th><th>습도</th><th>평균풍속</th><th>강수확률</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table></div>'
+    + '<div class="kr-note">※ ' + escapeHtml(KR_FORECAST_NOTE) + '</div>';
+}
+
+/** 지역 날씨 이슈 뉴스 — 제목·링크·언론사·날짜만 */
+function krNewsHtml(city, nw) {
+  if (!nw) return '<div class="kr-nw__empty">뉴스를 불러오는 중…</div>';
+  if (nw.status !== 'ok') {
+    return '<div class="kr-nw__empty">뉴스를 불러오지 못했습니다'
+      + (nw.reason ? ' (' + escapeHtml(nw.reason) + ')' : '') + '</div>';
+  }
+  if (!nw.items.length) {
+    return '<div class="kr-nw__empty">최근 관련 뉴스가 없습니다.</div>';
+  }
+  return '<ul class="kr-nw">' + nw.items.map((it) => {
+    const u = safeUrl(it.link);
+    const meta = [it.source, it.date].filter(Boolean).join(' · ');
+    return '<li class="kr-nw__i">'
+      + (u ? '<a class="kr-nw__t" href="' + escapeHtml(u) + '" target="_blank" rel="noopener noreferrer">'
+        + escapeHtml(it.title) + '</a>' : '<span class="kr-nw__t">' + escapeHtml(it.title) + '</span>')
+      + (meta ? '<span class="kr-nw__m">' + escapeHtml(meta) + '</span>' : '') + '</li>';
+  }).join('') + '</ul>';
+}
+
+/** 한국 상세 화면 전체 */
+function renderKorea() {
+  const root = document.getElementById('worldclockRoot');
+  if (!root) return;
+  const city = KR_CITIES[_krCity] || KR_CITIES[0];
+  const wx = _krWx[city.ko], nw = _krNews[city.ko];
+  const busy = !!_krBusy[city.ko];
+  const now = new Date();
+  const p = wcParts('Asia/Seoul', now);
+  const stamp = `${p.year}-${p.month}-${p.day} ${String(p.h).padStart(2, '0')}:${p.minute}`;
+
+  const pins = KR_CITIES.map((c, i) => {
+    const q = krXY(c.lat, c.lon);
+    return `<button type="button" class="kr-pin${i === _krCity ? ' is-on' : ''}" data-kr-city="${i}"
+        style="left:${q.x.toFixed(2)}%;top:${q.y.toFixed(2)}%" aria-label="${escapeHtml(c.ko)}"
+        aria-pressed="${i === _krCity ? 'true' : 'false'}">
+        <span class="kr-pin__d"></span><span class="kr-pin__n">${escapeHtml(c.ko)}</span></button>`;
+  }).join('');
+
+  // 상세 패널 왼쪽의 '작은 지도' — 같은 지도를 쓰고 고른 도시에만 핀을 찍는다
+  const mini = krXY(city.lat, city.lon);
+  const miniMap = `<div class="kr-mini">
+      <img class="kr-mini__img" src="public/maps/korea.svg" alt="" aria-hidden="true">
+      <span class="kr-mini__pin" style="left:${mini.x.toFixed(2)}%;top:${mini.y.toFixed(2)}%"></span>
+    </div>`;
+
+  root.innerHTML = `
+    <div class="kr-bar">
+      <button type="button" class="kr-back" data-kr-back="1">‹ 세계 시간으로 돌아가기</button>
+      <span class="kr-bar__t">대한민국 주요 도시 날씨</span>
+      <button type="button" class="oc-tool kr-refresh" data-kr-refresh="1"${busy ? ' disabled' : ''}>${busy ? '불러오는 중…' : '↻ 새로 고침'}</button>
+    </div>
+    <div class="kr-wrap">
+      <div class="kr-mapbox">
+        <img class="kr-map__img" src="public/maps/korea.svg" alt="대한민국 지도" >
+        <div class="kr-pins">${pins}</div>
+      </div>
+      <div class="kr-panel">
+        <div class="kr-phead">
+          <span class="kr-phead__c">${escapeHtml(city.ko)}</span>
+          <span class="kr-phead__t">${escapeHtml(stamp)} 발표 기준</span>
+        </div>
+        <div class="kr-pbody">
+          ${miniMap}
+          <div class="kr-pinfo">${krNowHtml(city, wx)}</div>
+        </div>
+        <h4 class="kr-h">오늘 · 내일 · 모레 예보</h4>
+        ${krForecastHtml(wx)}
+        <h4 class="kr-h">주요 날씨 이슈 <span class="kr-h__s">(${escapeHtml(city.ko)} 관련 최근 기사)</span></h4>
+        ${krNewsHtml(city, nw)}
+      </div>
+    </div>
+    <div class="comp-caption">날씨: Open-Meteo · 뉴스: Google 뉴스 검색 · ${escapeHtml(KR_MAP_SRC)}</div>`;
+  krWire();
+}
+
+/** 한국 화면 배선 — 도시 핀 / 돌아가기 / 새로 고침 */
+function krWire() {
+  if (_krWired) return;
+  const root = document.getElementById('worldclockRoot');
+  if (!root) return;
+  _krWired = true;
+  root.addEventListener('click', (e) => {
+    const back = e.target.closest && e.target.closest('[data-kr-back]');
+    if (back) { krClose(); return; }
+    const rf = e.target.closest && e.target.closest('[data-kr-refresh]');
+    if (rf) { krLoad(_krCity, true); return; }
+    const pin = e.target.closest && e.target.closest('[data-kr-city]');
+    if (!pin) return;
+    _krCity = +pin.dataset.krCity;
+    renderKorea();
+    krLoad(_krCity, false);   // 도시를 고를 때마다 최신인지 확인하고 필요하면 새로 받는다
+  });
+}
+
+/** 서울 마커에서 진입 */
+function krOpen() {
+  _krOn = true;
+  _krCity = 0;
+  wcHideTip();
+  _wcOpen = null;
+  renderKorea();
+  krLoad(_krCity, false);
+}
+
+/** 세계 시간으로 복귀 — 기존 렌더 함수를 그대로 부른다(세계지도 로직 미변경) */
+function krClose() {
+  _krOn = false;
+  renderWorldClock();
+}
+
 /** [업데이트]에 연결: Open-Meteo로 18개 도시 날씨 1회 요청 → 마커 표시.
  *  실패해도 마커·시계는 뜨고 기온만 '—'. */
 async function updateWorldWeather() {
   // 먼저 마커부터 표시(시계 동작 보장). 날씨는 도착하면 채우고, 실패/지연이면 '—' 유지
   _wcShown = true;
   _wcWeather = null;
-  renderWorldClock();
+  if (!_krOn) renderWorldClock();   // 한국 상세 화면을 보고 있으면 그대로 둔다
   const ctrl = ('AbortController' in window) ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null;  // 지연 방어(무한 대기 방지)
   try {
@@ -6508,11 +6848,12 @@ async function updateWorldWeather() {
   } finally {
     if (timer) clearTimeout(timer);
   }
-  renderWorldClock();  // 날씨 반영해 재렌더(실패 시 '—')
+  if (!_krOn) renderWorldClock();  // 날씨 반영해 재렌더(실패 시 '—'). 한국 화면 중이면 유지
 }
 
 /** [초기화]: 마커 제거하고 회색 지도 + 안내 상태로 */
 function resetWorldClock() {
+  _krOn = false;        // 한국 상세 화면도 닫는다
   _wcShown = false;
   _wcWeather = null;
   _wcOpen = null;
