@@ -787,8 +787,6 @@ body {
 .srr-stats:has(.srr-stat--hi:hover) ~ .srr-chart .srr-mark--hi .srr-ring { opacity: 1; }
 .srr-stats:has(.srr-stat--lo:hover) ~ .srr-chart .srr-mark--lo .srr-ring { opacity: 1; }
 .srr-hint { margin-left: 6px; font-size: 10.5px; font-weight: 500; color: var(--muted); }
-.srr-limit { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line);
-  font-size: 11.5px; line-height: 1.6; color: var(--slate); word-break: keep-all; }
 .sr-lv__range { font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sr-lv__name { font-weight: 700; color: var(--ink); }
 .sr-lv__note { color: var(--muted); }
