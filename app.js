@@ -2553,30 +2553,148 @@ function srReportData(year) {
   };
 }
 
-/** 종합 문단 — 문장은 템플릿, 숫자는 전부 계산값. 근거 없는 문장은 아예 넣지 않는다. */
-function srReportSentences(d) {
+/** 헤드라인용 — 최신값과 전월 대비. 숫자는 srReportData 가 계산한 것을 그대로 쓴다. */
+function srHeadline(d) {
+  const dir = (d.mom == null) ? 'flat' : (d.mom > 0 ? 'up' : (d.mom < 0 ? 'down' : 'flat'));
+  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
+  return {
+    ym: d.last.ym, value: srPct(d.last.v), dir: dir, arrow: arrow,
+    delta: (d.mom == null) ? null : srR1(Math.abs(d.mom)).toFixed(1) + '%p',
+  };
+}
+
+/** 헤드라인 아래 보조 문장들. 근거가 없는 문장은 넣지 않는다(기존 규칙 그대로). */
+function srReportSubs(d) {
   const out = [];
-  if (d.mom != null) {
-    out.push(srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v) + '로, 전월('
-      + srYmLabel(d.prev.ym) + ' ' + srPct(d.prev.v) + ') 대비 '
-      + srPp(d.mom) + ' ' + (d.mom > 0 ? '상승' : (d.mom < 0 ? '하락' : '보합')) + '했습니다.');
-  } else {
-    out.push(srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v) + '입니다.');
-  }
   if (d.yoyDiff != null) {
-    out.push('전년 동월(' + srYmLabel(d.yoy.ym) + ' ' + srPct(d.yoy.v) + ') 대비로는 '
-      + srPp(d.yoyDiff) + ' ' + (d.yoyDiff > 0 ? '높습니다' : (d.yoyDiff < 0 ? '낮습니다' : '같습니다')) + '.');
+    const gap = srR1(Math.abs(d.yoyDiff)).toFixed(1);
+    out.push('1년 전 같은 달(' + srYmLabel(d.yoy.ym) + ' ' + srPct(d.yoy.v) + ')보다 '
+      + (d.yoyDiff === 0 ? '변화가 없습니다.' : gap + '%p ' + (d.yoyDiff > 0 ? '높습니다.' : '낮습니다.')));
   }
-  // ★ 연속 추세는 실제로 연속일 때만 — 아니면 이 문장 자체를 생략한다
   if (d.streak && d.streak.n >= SR_STREAK_MIN) {
-    out.push('최근 ' + d.streak.n + '개월 연속 ' + (d.streak.up ? '상승' : '하락') + '세를 보이고 있습니다.');
+    out.push(d.streak.n + '개월 연속 ' + (d.streak.up ? '오름세' : '내림세') + '입니다.');
   }
   if (d.wWord) {
-    out.push('최근 ' + d.win.length + '개월 흐름은 ' + d.wWord + '세입니다 ('
-      + srYmLabel(d.win[0].ym) + ' ' + srPct(d.win[0].v) + ' → '
-      + srYmLabel(d.last.ym) + ' ' + srPct(d.last.v) + ', ' + srPp(d.wDiff) + ').');
+    const a = srPct(d.win[0].v), b = srPct(d.last.v), gap = srPp(d.wDiff);
+    if (d.wWord === '보합') {
+      out.push('최근 ' + d.win.length + '개월은 큰 변화 없이 ' + Math.floor(d.last.v)
+        + '%대를 유지하고 있습니다 (' + a + ' → ' + b + ', ' + gap + ').');
+    } else {
+      out.push('최근 ' + d.win.length + '개월 동안 ' + a + '에서 ' + b + '로 '
+        + gap + ' ' + (d.wWord === '상승' ? '올랐습니다' : '내렸습니다') + '.');
+    }
   }
   return out;
+}
+
+/** 가장 낙폭이 큰 '연속 하락 구간'. [시작 index, 끝 index] · 없으면 null.
+    ★ 표시 전용이다 — srReportData 의 수치 계산에는 관여하지 않는다. */
+function srDropRun(pts) {
+  let best = null, i = 0;
+  while (i < pts.length - 1) {
+    if (pts[i + 1].v >= pts[i].v) { i += 1; continue; }
+    let j = i;
+    while (j < pts.length - 1 && pts[j + 1].v < pts[j].v) j += 1;
+    const drop = pts[i].v - pts[j].v;
+    if (!best || drop > best.drop) best = { from: i, to: j, drop: drop };
+    i = j;
+  }
+  return best;
+}
+
+/* 리포트 강조 색 — 참고 지표 카드와 그래프가 같은 규칙을 쓴다.
+   ★ 최고=파랑 · 최저=빨강. 이 카드의 지표는 '높을수록 좋은' 정시성이라
+     주가 카드(오르면 빨강)와 반대다 — 리포트 안에서만 이 규칙을 쓴다. */
+const SRR_HI = 'var(--blue)';
+const SRR_LO = 'var(--accent)';
+const SRR_NOW = 'var(--ink)';
+
+/** 리포트 전용 그래프 — 의미 있는 지점(최고·최저·최신·최대 낙폭)만 라벨을 단다.
+    ★ 카드 본문의 buildSrChart 는 건드리지 않는다. 전역 _srChart 도 쓰지 않아
+      본문 차트의 툴팁 동작에 영향이 없다. */
+function srReportChart(pts, hiYm, loYm) {
+  const n = pts.length;
+  if (n < 2) return '<div class="chart-empty">추이를 그릴 관측치가 부족합니다.</div>';
+  const vals = pts.map((p) => p.v);
+  let ymin = Math.min.apply(null, vals), ymax = Math.max.apply(null, vals);
+  const yp = (ymax - ymin) * 0.18 || 5;
+  ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
+
+  const W = VIZ_W, H = 176, padL = 40, padR = 16, padT = 18, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => padL + (i / (n - 1)) * plotW;
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
+      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val)}%</text>`;
+  }).join('');
+
+  const xlab = vizTickIdx(n, plotW, 46).map((i) =>
+    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(pts[i].ym.slice(2).replace('-', '.'))}</text>`).join('');
+
+  // 최대 낙폭 구간 — 음영 + 그 구간만 색을 달리한 선
+  const run = srDropRun(pts);
+  let band = '', dropLine = '';
+  if (run && run.to > run.from) {
+    const x0 = X(run.from), x1 = X(run.to);
+    band = `<rect x="${x0.toFixed(1)}" y="${padT}" width="${(x1 - x0).toFixed(1)}" height="${plotH}"`
+      + ` fill="${SRR_LO}" opacity=".07"/>`;
+    let dp = '';
+    for (let i = run.from; i <= run.to; i += 1) {
+      dp += `${i === run.from ? 'M' : 'L'}${X(i).toFixed(1)} ${Y(pts[i].v).toFixed(1)} `;
+    }
+    dropLine = `<path d="${dp.trim()}" fill="none" stroke="${SRR_LO}" stroke-width="3"`
+      + ` stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`;
+  }
+
+  let path = '';
+  pts.forEach((p, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.v).toFixed(1)} `; });
+  const line = `<path d="${path.trim()}" fill="none" stroke="var(--slate)" stroke-width="2"`
+    + ` stroke-linejoin="round" stroke-linecap="round" opacity=".55"/>`;
+
+  // 평범한 지점은 점만 남기고 숫자는 생략한다
+  const plain = pts.map((p, i) =>
+    `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="2" fill="var(--slate)" opacity=".5"/>`).join('');
+
+  // 강조 지점 — 최고 / 최저 / 최신. 겹치면 최고·최저를 우선한다.
+  const marks = [];
+  const add = (i, color, tag, cls) => {
+    const x = X(i), y = Y(pts[i].v);
+    const up = y > padT + 26;                       // 위쪽 공간이 없으면 라벨을 아래로
+    const ly = up ? y - 13 : y + 20;
+    marks.push(`<g class="srr-mark ${cls}">`
+      + `<circle class="srr-ring" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="${color}" stroke-width="2" opacity="0"/>`
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
+      + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
+      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">${pts[i].v.toFixed(1)}%</text>`
+      + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
+      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">${escapeHtml(tag)}</text>`
+      + `</g>`);
+  };
+  const hiI = pts.map((p) => p.ym).indexOf(hiYm);
+  const loI = pts.map((p) => p.ym).indexOf(loYm);
+  const nowI = n - 1;
+  if (hiI >= 0) add(hiI, SRR_HI, '최고', 'srr-mark--hi');
+  if (loI >= 0) add(loI, SRR_LO, '최저', 'srr-mark--lo');
+  if (nowI !== hiI && nowI !== loI) add(nowI, SRR_NOW, '최근', 'srr-mark--now');
+
+  const legend = '<div class="srr-legend">'
+    + '<span class="srr-lg"><i style="background:' + SRR_HI + '"></i>최고</span>'
+    + '<span class="srr-lg"><i style="background:' + SRR_LO + '"></i>최저</span>'
+    + '<span class="srr-lg"><i style="background:' + SRR_NOW + '"></i>최근</span>'
+    + (run && run.to > run.from
+      ? '<span class="srr-lg srr-lg--band"><i></i>최대 낙폭 구간 (−'
+        + srR1(run.drop).toFixed(1) + '%p)</span>' : '')
+    + '</div>';
+
+  return legend
+    + `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ` aria-label="정시성 추이 · 최고 최저 최근 지점 강조">`
+    + band + grid + xlab + line + dropLine + plain + marks.join('')
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>`
+    + `</svg>`;
 }
 
 /** 리포트 본문. 버튼을 누르기 전에는 호출되지 않는다. */
@@ -2584,33 +2702,45 @@ function srReportHtml() {
   const d = srReportData(_srYear);
   if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
   const scope = (_srYear === 'all') ? '전체 기간' : (_srYear + '년');
-  const sentences = srReportSentences(d).map((t) =>
+  const h = srHeadline(d);
+
+  const head = '<div class="srr-hero">'
+    + '<div class="srr-hero__when">' + escapeHtml(srYmLabel(h.ym)) + ' 해상 정시성</div>'
+    + '<div class="srr-hero__row">'
+    + '<span class="srr-hero__v">' + escapeHtml(h.value) + '</span>'
+    + (h.delta
+      ? '<span class="srr-hero__d srr-' + h.dir + '">' + h.arrow + ' ' + escapeHtml(h.delta)
+        + '<span class="srr-hero__vs">전월 대비</span></span>'
+      : '<span class="srr-hero__d srr-flat">전월 비교 자료 없음</span>')
+    + '</div></div>';
+
+  const subs = srReportSubs(d).map((t) =>
     '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
-  const cell = (k, v, sub) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
-    + '</span><span class="gs-v">' + escapeHtml(v) + '</span>'
-    + (sub ? '<span class="srr-sub">' + escapeHtml(sub) + '</span>' : '') + '</div>';
-  const stats = '<div class="gs">'
-    + cell('조회 기간 최고', srPct(d.hi.v), srYmLabel(d.hi.ym))
-    + cell('조회 기간 최저', srPct(d.lo.v), srYmLabel(d.lo.ym))
-    + cell('조회 기간 평균', srPct(d.avg), d.pts.length + '개월 기준')
+
+  const cell = (k, v, sub, cls) => '<div class="gs-cell srr-stat ' + cls + '">'
+    + '<span class="gs-k">' + escapeHtml(k) + '</span>'
+    + '<span class="gs-v">' + escapeHtml(v) + '</span>'
+    + '<span class="srr-sub">' + escapeHtml(sub) + '</span></div>';
+  const stats = '<div class="gs srr-stats">'
+    + cell('조회 기간 최고', srPct(d.hi.v), srYmLabel(d.hi.ym), 'srr-stat--hi')
+    + cell('조회 기간 최저', srPct(d.lo.v), srYmLabel(d.lo.ym), 'srr-stat--lo')
+    + cell('조회 기간 평균', srPct(d.avg), d.pts.length + '개월 기준', 'srr-stat--avg')
     + '</div>';
-  // 그래프 — 카드가 쓰는 것과 같은 로직·같은 선택 기간
-  const v = srViewData(_srYear);
-  const chart = buildSrChart(v.months, v.series);
 
   return '<div class="srr">'
     + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(scope)
     + ' · ' + escapeHtml(d.pts.length + '개월 관측') + '</span></div>'
-    + '<h4 class="srr-h">종합</h4>' + sentences
-    + '<h4 class="srr-h">참고 지표</h4>' + stats
-    + '<h4 class="srr-h">추이</h4><div class="srr-chart">' + chart + '</div>'
+    + head + subs
+    + '<h4 class="srr-h">참고 지표 <span class="srr-hint">최고·최저에 마우스를 올리면 그래프에서 해당 지점이 표시됩니다</span></h4>'
+    + stats
+    + '<div class="srr-chart">' + srReportChart(d.pts, d.hi.ym, d.lo.ym) + '</div>'
     + '<h4 class="srr-h">원인 분석</h4>'
     + '<p class="srr-p srr-p--muted">원인 분석은 준비 중입니다. '
     + 'Sea-Intelligence 가 제공하는 것은 월별 정시성 수치뿐이라, '
     + '수치 변동의 배경(항만 적체·항로 우회·계절 요인 등)은 이 데이터만으로 판단할 수 없습니다. '
     + '추정해서 채우지 않았습니다.</p>'
     + '<div class="srr-limit">이 리포트는 AI 가 아니라 규칙(템플릿)으로 만들어집니다. '
-    + '문장의 모든 수치는 위 그래프와 같은 원본 관측치에서 계산한 값입니다. '
+    + '문장의 모든 수치는 원본 관측치에서 계산한 값입니다. '
     + '원본에 지역·항로별 구분이 없어 지역별 동향은 넣지 않았습니다.</div>'
     + '</div>';
 }
