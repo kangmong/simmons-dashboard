@@ -1200,6 +1200,22 @@ function stInvestVal(c) {
   return null;
 }
 
+/** 백만 달러 → '약 1조 7,294억원' 문구. 환율이 없으면 null(= 달러만 남는다).
+    ★ 계산: 백만 달러 × 1,000,000 × 환율 ÷ 100,000,000 = 억원
+      = 백만 달러 × 환율 ÷ 100   (1,250 × 1,383.49 ÷ 100 = 17,293.6억원)
+    ★ 환율은 국제유가·해외 시장 그래프가 쓰는 공용 헬퍼(krwRate)를 그대로 쓴다 —
+      매일 자동 갱신되는 값이고, 이 카드가 따로 받아 오지 않는다. */
+function stKrwEok(musd, rate) {
+  if (rate == null || musd == null || !isFinite(musd)) return null;
+  const eok = Math.round((Number(musd) * rate) / 100);   // 억원(정수)
+  const n = (x) => x.toLocaleString('ko-KR');
+  if (eok >= 10000) {
+    const jo = Math.floor(eok / 10000), rest = eok % 10000;
+    return '약 ' + n(jo) + '조' + (rest ? ' ' + n(rest) + '억원' : '원');
+  }
+  return '약 ' + n(eok) + '억원';
+}
+
 /** (3-b) 투자 유치액 막대그래프 — 매출이 아니라 '공개된 누적 투자액'으로 견준다.
     ★ 금액이 확인되지 않은 회사는 막대를 만들지 않고 왜 빠졌는지만 적는다.
     ★ 단위는 섹션이 정한다. st.investUnit 이 없으면 국내 기본값(억원)을 그대로 쓴다. */
@@ -1212,15 +1228,21 @@ function smStInvest(st) {
   const out = all.filter((c) => !has(c));
   const unitLabel = st.investUnit || '억원';          // 제목 옆 (단위: …)
   const suffix = st.investUnit ? '' : '억';            // 값 뒤에 붙는 글자(국내: 180억)
+  /* ★ 값이 달러일 때만 원화를 병기한다. 국내는 이미 억원이라 환산할 것이 없고,
+     이 조건이 false 면 아래 출력이 예전과 한 글자도 다르지 않다. */
+  const isUsd = /달러/.test(unitLabel);
+  const rate = isUsd ? krwRate('USD') : null;
   const rows = bars.map((c) => {
     const v = stInvestVal(c);
+    const krw = stKrwEok(v, rate);
     const w = Math.max(2, (v / max) * 100);
     return '<div class="sm-hrow">'
       + '<div class="sm-hname" title="' + escapeHtml(c.name) + '">' + smStLogo(c, 'sm-st__logo--bar')
       + escapeHtml(c.name) + '</div>'
       + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
       + '%;background:' + escapeHtml(c.color || 'var(--slate)') + ';opacity:1"></div></div>'
-      + '<div class="sm-hval">' + v.toLocaleString('ko-KR') + suffix + '</div>'
+      + '<div class="sm-hval">' + v.toLocaleString('ko-KR') + suffix
+      + (krw ? '<span class="sm-hkrw">' + escapeHtml(krw) + '</span>' : '') + '</div>'
       + (c.investBasis ? '<div class="sm-hmemo">' + escapeHtml(c.investBasis) + '</div>' : '')
       + '</div>';
   }).join('');
@@ -1231,7 +1253,8 @@ function smStInvest(st) {
   return '<h3 class="subhead sm-st__ih">' + escapeHtml(st.investHeading || '투자 유치액 비교')
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(unitLabel) + ')</span></h3>'
     + (st.investNote ? '<div class="sm-othfoot">※ ' + escapeHtml(st.investNote) + '</div>' : '')
-    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>' + excl;
+    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + (rate != null ? krwNote('USD') : '') + excl;
 }
 
 /** 국내 수면·슬립테크 시장 규모 추이.

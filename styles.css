@@ -1749,3 +1749,7 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* 통화 칩이 다중 선택이라는 것을 한 줄로 알린다 */
 .fx-curhint { align-self: center; margin-left: 4px; font-size: 11px; color: var(--muted); }
+
+/* 투자 막대 값 아래 원화 병기(달러 단위 그래프에서만 나온다) */
+.sm-hkrw { display: block; margin-top: 1px; font-size: 10.5px; font-weight: 600;
+  color: var(--muted); white-space: nowrap; }
