@@ -1687,6 +1687,13 @@ function renderMaterial() {
     _srYear = b.dataset.year;
     renderMaterial();
   });
+  const srFig = root.querySelector('.sr-figure');
+  if (srFig) srFig.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-sr-report]');
+    if (!b) return;
+    _srReport = !_srReport;      // 펼치기/접기
+    renderMaterial();
+  });
   if (_srData && !_srData.error) wireSrChart();
 
   wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
@@ -2466,6 +2473,148 @@ function wireProductControls(root) {
 /* ── 해상 정시성 (Sea-Intelligence Global Schedule Reliability) ── */
 
 /** 선택 연도에 맞춰 표시할 연도(선) 목록 구성 */
+/* ── 해상 정시성 · 리포트 분석 ─────────────────────────────────────────────
+   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿이고 숫자는 전부 받아둔 관측치에서 계산한다.
+     외부 호출이 없으므로 비용도 없다.
+   ★★ 없는 것을 지어내지 않는다. Sea-Intelligence 가 주는 것은 '월별 전세계 정시성
+     한 줄'뿐이다 — payload 실측 결과 years={연도: 월 12개 값} 이 전부이고
+     지역·항로·선사 구분이 아예 없다. 그래서 '지역/항로별 동향' 절은 만들지 않고,
+     왜 없는지만 밝힌다.
+   ★★ 원인(춘절·홍해 등)은 이 데이터에 없다. 추정해서 채우지 않고 '준비 중'으로 둔다.
+     서술하는 것은 오직 숫자 자체의 변화뿐이다 — 증감 · 최고/최저 · 평균 · 연속 추세. */
+let _srReport = false;      // 리포트 펼침 상태
+
+const SR_FLAT_BAND = 1.0;   // 6개월 변화가 이 %p 미만이면 '보합'으로 본다
+const SR_STREAK_MIN = 2;    // 연속 개월이 이 수 이상일 때만 '연속' 문장을 낸다
+// ★ 3 으로 뒀더니 실데이터(2021~2026)에서 한 번도 뜨지 않았다 — 이 지표는 등락이
+//   잦아 최대 연속이 2개월이다. '연속이 아니면 생략'이 원칙이므로 2 로 둔다.
+
+function srR1(v) { return Math.round(v * 10) / 10; }
+function srPct(v) { return (v == null) ? '—' : srR1(v).toFixed(1) + '%'; }
+function srPp(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + srR1(v).toFixed(1) + '%p'; }
+function srYmLabel(ym) { return ym.slice(0, 4) + '년 ' + ym.slice(5, 7) + '월'; }
+
+/** 연도 목록의 관측치를 시간순으로 편다. [{ym:'2026-06', v:62.6}] (결측은 뺀다) */
+function srFlatten(years) {
+  const out = [];
+  (years || []).forEach((y) => {
+    const arr = (_srData.years || {})[y] || [];
+    arr.forEach((v, i) => {
+      if (v != null) out.push({ ym: y + '-' + String(i + 1).padStart(2, '0'), v: Number(v) });
+    });
+  });
+  return out.sort((a, b) => (a.ym < b.ym ? -1 : 1));
+}
+
+/** 마지막 지점에서 거슬러 올라간 '같은 방향 연속' 개월 수. 없으면 null */
+function srStreak(pts) {
+  const mv = [];
+  for (let i = 1; i < pts.length; i += 1) mv.push(srR1(pts[i].v - pts[i - 1].v));
+  if (!mv.length) return null;
+  const last = mv[mv.length - 1];
+  if (last === 0) return null;
+  const up = last > 0;
+  let n = 0;
+  for (let i = mv.length - 1; i >= 0; i -= 1) {
+    if (mv[i] === 0 || (mv[i] > 0) !== up) break;
+    n += 1;
+  }
+  return { up: up, n: n };
+}
+
+/** 리포트에 쓸 수치 묶음. 관측치가 없으면 null */
+function srReportData(year) {
+  if (!_srData || _srData.error || !_srData.years) return null;
+  const all = Object.keys(_srData.years).sort();
+  const pick = (year === 'all') ? all : all.filter((y) => y === year);
+  const pts = srFlatten(pick);
+  if (!pts.length) return null;
+  const whole = srFlatten(all);          // 전월·전년동월은 조회 창 밖도 봐야 한다
+  const last = pts[pts.length - 1];
+  const wi = whole.map((p) => p.ym).indexOf(last.ym);
+  const prev = wi > 0 ? whole[wi - 1] : null;
+  const yoyYm = (Number(last.ym.slice(0, 4)) - 1) + '-' + last.ym.slice(5, 7);
+  const yoy = whole.filter((p) => p.ym === yoyYm)[0] || null;
+  const vals = pts.map((p) => p.v);
+  const hi = pts.filter((p) => p.v === Math.max.apply(null, vals))[0];
+  const lo = pts.filter((p) => p.v === Math.min.apply(null, vals))[0];
+  const win = pts.slice(-6);
+  const wDiff = win.length >= 2 ? srR1(win[win.length - 1].v - win[0].v) : null;
+  return {
+    pts: pts, last: last, prev: prev, yoy: yoy,
+    mom: prev ? srR1(last.v - prev.v) : null,
+    yoyDiff: yoy ? srR1(last.v - yoy.v) : null,
+    hi: hi, lo: lo,
+    avg: srR1(vals.reduce((a, b) => a + b, 0) / vals.length),
+    streak: srStreak(pts),
+    win: win, wDiff: wDiff,
+    wWord: (wDiff == null) ? null
+      : (Math.abs(wDiff) < SR_FLAT_BAND ? '보합' : (wDiff > 0 ? '상승' : '하락')),
+  };
+}
+
+/** 종합 문단 — 문장은 템플릿, 숫자는 전부 계산값. 근거 없는 문장은 아예 넣지 않는다. */
+function srReportSentences(d) {
+  const out = [];
+  if (d.mom != null) {
+    out.push(srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v) + '로, 전월('
+      + srYmLabel(d.prev.ym) + ' ' + srPct(d.prev.v) + ') 대비 '
+      + srPp(d.mom) + ' ' + (d.mom > 0 ? '상승' : (d.mom < 0 ? '하락' : '보합')) + '했습니다.');
+  } else {
+    out.push(srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v) + '입니다.');
+  }
+  if (d.yoyDiff != null) {
+    out.push('전년 동월(' + srYmLabel(d.yoy.ym) + ' ' + srPct(d.yoy.v) + ') 대비로는 '
+      + srPp(d.yoyDiff) + ' ' + (d.yoyDiff > 0 ? '높습니다' : (d.yoyDiff < 0 ? '낮습니다' : '같습니다')) + '.');
+  }
+  // ★ 연속 추세는 실제로 연속일 때만 — 아니면 이 문장 자체를 생략한다
+  if (d.streak && d.streak.n >= SR_STREAK_MIN) {
+    out.push('최근 ' + d.streak.n + '개월 연속 ' + (d.streak.up ? '상승' : '하락') + '세를 보이고 있습니다.');
+  }
+  if (d.wWord) {
+    out.push('최근 ' + d.win.length + '개월 흐름은 ' + d.wWord + '세입니다 ('
+      + srYmLabel(d.win[0].ym) + ' ' + srPct(d.win[0].v) + ' → '
+      + srYmLabel(d.last.ym) + ' ' + srPct(d.last.v) + ', ' + srPp(d.wDiff) + ').');
+  }
+  return out;
+}
+
+/** 리포트 본문. 버튼을 누르기 전에는 호출되지 않는다. */
+function srReportHtml() {
+  const d = srReportData(_srYear);
+  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
+  const scope = (_srYear === 'all') ? '전체 기간' : (_srYear + '년');
+  const sentences = srReportSentences(d).map((t) =>
+    '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
+  const cell = (k, v, sub) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
+    + '</span><span class="gs-v">' + escapeHtml(v) + '</span>'
+    + (sub ? '<span class="srr-sub">' + escapeHtml(sub) + '</span>' : '') + '</div>';
+  const stats = '<div class="gs">'
+    + cell('조회 기간 최고', srPct(d.hi.v), srYmLabel(d.hi.ym))
+    + cell('조회 기간 최저', srPct(d.lo.v), srYmLabel(d.lo.ym))
+    + cell('조회 기간 평균', srPct(d.avg), d.pts.length + '개월 기준')
+    + '</div>';
+  // 그래프 — 카드가 쓰는 것과 같은 로직·같은 선택 기간
+  const v = srViewData(_srYear);
+  const chart = buildSrChart(v.months, v.series);
+
+  return '<div class="srr">'
+    + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(scope)
+    + ' · ' + escapeHtml(d.pts.length + '개월 관측') + '</span></div>'
+    + '<h4 class="srr-h">종합</h4>' + sentences
+    + '<h4 class="srr-h">참고 지표</h4>' + stats
+    + '<h4 class="srr-h">추이</h4><div class="srr-chart">' + chart + '</div>'
+    + '<h4 class="srr-h">원인 분석</h4>'
+    + '<p class="srr-p srr-p--muted">원인 분석은 준비 중입니다. '
+    + 'Sea-Intelligence 가 제공하는 것은 월별 정시성 수치뿐이라, '
+    + '수치 변동의 배경(항만 적체·항로 우회·계절 요인 등)은 이 데이터만으로 판단할 수 없습니다. '
+    + '추정해서 채우지 않았습니다.</p>'
+    + '<div class="srr-limit">이 리포트는 AI 가 아니라 규칙(템플릿)으로 만들어집니다. '
+    + '문장의 모든 수치는 위 그래프와 같은 원본 관측치에서 계산한 값입니다. '
+    + '원본에 지역·항로별 구분이 없어 지역별 동향은 넣지 않았습니다.</div>'
+    + '</div>';
+}
+
 function srViewData(year) {
   const yrs = Object.keys(_srData.years).sort();
   const months = _srData.months;
@@ -2481,10 +2630,16 @@ function srViewData(year) {
 /** 해상 정시성 블록 HTML (ICIS와 동일 스타일: 연도 버튼 → 선그래프) */
 function renderScheduleReliabilityHtml() {
   if (!_srData) return '';
+  // 연도를 고른 뒤에만 리포트를 낼 수 있다(관측 구간이 정해져야 계산이 된다)
+  const canReport = !_srData.error && _srYear;
+  const reportBtn = canReport
+    ? `<button type="button" class="srr-btn${_srReport ? ' is-on' : ''}" data-sr-report="1"
+        aria-expanded="${_srReport ? 'true' : 'false'}">📊 리포트 분석</button>`
+    : '';
   const head = `<div class="viz-head"><div>
       <div class="viz-title">해상 정시성 (Global Schedule Reliability)</div>
       <div class="viz-sub">월별 정시 도착 비율(%) · 연도별</div>
-    </div></div>`;
+    </div>${reportBtn}</div>`;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -2503,7 +2658,7 @@ function renderScheduleReliabilityHtml() {
   } else {
     const { months, series } = srViewData(_srYear);
     body = buildSrChart(months, series);
-    extras = renderSrTermsHtml() + renderSrForecastHtml();
+    extras = (_srReport ? srReportHtml() : '') + renderSrTermsHtml() + renderSrForecastHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
@@ -4528,7 +4683,7 @@ function resetDashboard() {
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
-  _srData = null; _srYear = null; _srChart = null;       // 해상 정시성 비우기
+  _srData = null; _srYear = null; _srChart = null; _srReport = false; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
   _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _oilChart = null; // 국제유가(원유) 비우기
   _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opChart = null; // 국제유가(제품) 비우기
