@@ -5928,48 +5928,50 @@ function fxrCtx() {
   if (!_fx || !_fxCur || !_fxMonths) return null;
   const sl = fxSlice(_fxMonths);
   if (!sl.dates || !sl.dates.length) return null;
-  // 표·순위는 항상 3통화를 함께 본다(요청: 3개 통화 동시 비교).
-  const st = FX_CURS.map((c) => fxrStats(c, sl));
+  /* ★★ 지금 화면에서 고른 통화만 다룬다.
+     예전에는 FX_CURS(3통화)를 통째로 계산해, USD 하나만 골라도 리포트에
+     EUR·JPY 비교가 섞여 나왔다. 고른 것과 읽는 것이 어긋나던 원인이다. */
+  const drawCurs = (_fxCur === 'all') ? FX_CURS.slice() : [_fxCur];
+  const st = drawCurs.map((c) => fxrStats(c, sl));
   const live = st.filter((x) => x.n);
   if (!live.length) return null;
-  // '전체'를 골랐으면 헤드라인 기준은 원/달러로 둔다(가장 널리 쓰는 기준).
-  const headCur = (_fxCur === 'all') ? 'USD' : _fxCur;
-  const drawCurs = (_fxCur === 'all') ? FX_CURS.slice() : [_fxCur];
+  const headCur = drawCurs[0];          // 단일이면 그 통화, '전체'면 첫 번째(USD)
   return {
     sl: sl, st: st, live: live, headCur: headCur, drawCurs: drawCurs,
     months: _fxMonths, isAll: _fxCur === 'all',
+    multi: drawCurs.length > 1,         // 통화가 둘 이상일 때만 '비교'를 말한다
     span: sl.dates[0] + ' ~ ' + sl.dates[sl.dates.length - 1],
     days: sl.dates.length,
     head: st.filter((x) => x.cur === headCur)[0],
   };
 }
 
-/** 통화별 지표 표 — 3통화를 한 표에서 견준다. 고른 통화는 굵게. */
+/** 통화별 지표 표 — '고른 통화'만 담는다(고른 게 하나면 한 줄). */
 function fxrTable(c) {
   const row = (x) => {
-    const on = c.drawCurs.indexOf(x.cur) >= 0;
+    // 표에 들어오는 것 자체가 고른 통화뿐이라 굵게/보통을 나눌 이유가 없다.
     const nameCell = '<td class="oc-td-p"><span class="oc-swatch" style="background:'
-      + x.color + '"></span>' + (on ? '<b>' : '') + escapeHtml(x.label) + ' '
-      + escapeHtml(x.name) + (on ? '</b>' : '') + '</td>';
+      + x.color + '"></span><b>' + escapeHtml(x.label) + ' '
+      + escapeHtml(x.name) + '</b></td>';
     if (!x.n) return '<tr>' + nameCell + '<td class="oc-num" colspan="6">이 기간 값 없음</td></tr>';
     const d = fxrDay(x.cur), dp = fxrDayPct(d);
     const dCls = (d && d.change != null) ? (d.change > 0 ? ' oc-up' : (d.change < 0 ? ' oc-down' : '')) : '';
     const pCls = x.pct == null ? '' : (x.pct > 0 ? ' oc-up' : (x.pct < 0 ? ' oc-down' : ''));
     return '<tr>' + nameCell
       + '<td class="oc-num">' + fxrWon(x.last.v) + '</td>'
-      + '<td class="oc-num' + dCls + '">' + (d ? fxrSigned(d.change) : '—')
-      + '<span class="or-when">' + escapeHtml(fxrPct(dp)) + '</span></td>'
       + '<td class="oc-num' + pCls + '">' + fxrSigned(x.chg)
       + '<span class="or-when">' + escapeHtml(fxrPct(x.pct)) + '</span></td>'
       + '<td class="oc-num"><span class="or-hi">' + fxrWon(x.hi.v) + '</span>'
       + '<span class="or-when">' + escapeHtml(x.hi.d) + '</span></td>'
       + '<td class="oc-num"><span class="or-lo">' + fxrWon(x.lo.v) + '</span>'
       + '<span class="or-when">' + escapeHtml(x.lo.d) + '</span></td>'
-      + '<td class="oc-num">' + fxrWon(x.avg) + '</td></tr>';
+      + '<td class="oc-num">' + fxrWon(x.avg) + '</td>'
+      + '<td class="oc-num' + dCls + '">' + (d ? fxrSigned(d.change) : '—')
+      + '<span class="or-when">' + escapeHtml(fxrPct(dp)) + '</span></td></tr>';
   };
   return '<div class="oc-tablewrap"><table class="oc-table or-tbl"><thead><tr>'
-    + '<th class="oc-th-p">통화</th><th>최근값</th><th>전일 대비</th><th>기간 등락</th>'
-    + '<th>최고</th><th>최저</th><th>평균</th>'
+    + '<th class="oc-th-p">통화</th><th>최근값</th><th>기간 등락</th>'
+    + '<th>최고</th><th>최저</th><th>평균</th><th>참고 · 전일 대비</th>'
     + '</tr></thead><tbody>' + c.st.map(row).join('') + '</tbody></table></div>';
 }
 
@@ -5997,22 +5999,30 @@ function fxrSubs(c) {
       + '최저 ' + fxrWon(h.lo.v) + '(' + h.lo.d + ')입니다.');
     out.push('같은 기간 평균은 ' + fxrWon(h.avg) + '이고, 값이 있는 날은 '
       + h.n + '일입니다.');
-    if (h.pct != null) {
-      const w = h.chg > 0 ? '상승' : (h.chg < 0 ? '하락' : '보합');
-      out.push('기간 첫날(' + h.first.d + ' ' + fxrWon(h.first.v) + ') 대비로는 '
-        + fxrSigned(h.chg) + '(' + fxrPct(h.pct) + ') ' + fxrMag(h.pct) + w + '했습니다.');
-    }
     const diff = Math.round((h.last.v - h.avg) * 100) / 100;
     out.push('최근값은 기간 평균보다 ' + fxrSigned(diff) + ' '
       + (diff > 0 ? '높은' : (diff < 0 ? '낮은' : '같은')) + ' 수준입니다.');
   }
-  const rank = c.live.filter((x) => x.pct != null)
-    .slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
-  if (rank.length >= 2) {
-    const top = rank[0], bot = rank[rank.length - 1];
-    out.push('이번 기간 원화 대비 변동폭이 가장 큰 통화는 ' + top.label
-      + '(' + fxrPct(top.pct) + '), 가장 작은 통화는 ' + bot.label
-      + '(' + fxrPct(bot.pct) + ')입니다.');
+  /* ★ 통화 비교는 '둘 이상 골랐을 때'만 말한다.
+     하나만 골랐는데 다른 통화를 끌어오면, 고른 조건과 읽는 내용이 어긋난다. */
+  if (c.multi) {
+    const rank = c.live.filter((x) => x.pct != null)
+      .slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    if (rank.length >= 2) {
+      const top = rank[0], bot = rank[rank.length - 1];
+      out.push('고른 ' + c.drawCurs.length + '개 통화 가운데 이번 기간 원화 대비 '
+        + '변동폭이 가장 큰 통화는 ' + top.label + '(' + fxrPct(top.pct) + '), '
+        + '가장 작은 통화는 ' + bot.label + '(' + fxrPct(bot.pct) + ')입니다.');
+    }
+  }
+  /* ★ 전일 대비는 시간 기준이 달라 헷갈리기 쉽다. 문장 앞에 '참고'를 붙여
+     기간 기준 문장들과 확실히 갈라 놓는다. */
+  const d = fxrDay(h.cur), dp = fxrDayPct(d);
+  if (d && d.change != null) {
+    const w = d.change > 0 ? '상승' : (d.change < 0 ? '하락' : '보합');
+    out.push('참고 · 전일 대비(하루 기준)로는 ' + h.label + '가 '
+      + fxrSigned(d.change) + '(' + fxrPct(dp) + ') ' + w + '했습니다. '
+      + '위 문장들은 모두 조회 기간(' + c.months + '개월) 기준입니다.');
   }
   return out;
 }
@@ -6020,36 +6030,45 @@ function fxrSubs(c) {
 /** 총 내용 정리 — 맨 앞이 한줄평이다. 모두 계산값으로만 만든다. */
 function fxrSummary(c) {
   const out = [];
-  // ① 한줄평 — 전일 대비 방향 + 변동폭이 가장 큰 통화
-  const days = FX_CURS.map((x) => fxrDay(x)).filter((r) => r && r.change != null);
-  if (days.length) {
-    const up = days.filter((r) => r.change > 0).length;
-    const dn = days.filter((r) => r.change < 0).length;
-    const fl = days.length - up - dn;
-    const mv = days.slice().sort((a, b) =>
-      Math.abs(fxrDayPct(b) || 0) - Math.abs(fxrDayPct(a) || 0))[0];
-    const mag = fxrMag(fxrDayPct(mv));   // 가장 큰 변동폭의 등급
+  /* ① 한줄평 — '조회 기간' 기준으로 말한다.
+     ★★ 예전에는 전일 대비(하루)로 한줄평을 쓰고 바로 다음 문장은 3개월을 말해
+       시간 기준이 섞였다. 헤드라인·한줄평·보조 문장을 모두 조회 기간으로 맞춘다.
+     ★★ 그리고 고른 통화만 센다 — 예전에는 FX_CURS(3통화)를 통째로 셌다. */
+  const per = c.live.filter((x) => x.pct != null);
+  if (per.length) {
+    const up = per.filter((x) => x.chg > 0).length;
+    const dn = per.filter((x) => x.chg < 0).length;
+    const fl = per.length - up - dn;
+    const mv = per.slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))[0];
+    const mag = fxrMag(mv.pct);          // 가장 큰 변동폭의 등급
     /* ★ '소폭'을 어디에 붙이느냐가 뜻을 바꾼다.
-       세 통화가 같은 방향이면 '가장 큰 변동폭이 소폭' = '모두 소폭' 이므로
-       방향 동사에 붙여도 참이다. 방향이 섞였을 때는 그렇게 말할 수 없으니
+       고른 통화가 모두 같은 방향이면 '가장 큰 변동폭이 소폭' = '모두 소폭'
+       이므로 방향 동사에 붙여도 참이다. 방향이 섞였을 때는 그렇게 말할 수 없으니
        가장 많이 움직인 통화 쪽에만 붙인다. */
+    const base = '조회 기간(' + c.months + '개월) 동안 ';
     let dir, magOnMover = true;
-    if (dn === days.length) { dir = days.length + '개 통화 모두 전일 대비 ' + mag + '하락했으며'; magOnMover = false; }
-    else if (up === days.length) { dir = days.length + '개 통화 모두 전일 대비 ' + mag + '상승했으며'; magOnMover = false; }
-    else if (fl === days.length) { dir = days.length + '개 통화 모두 전일과 같은 수준이며'; magOnMover = false; }
-    else {
-      const parts = [];
-      if (up) parts.push(up + '개 통화가 상승');
-      if (dn) parts.push(dn + '개가 하락');
-      if (fl) parts.push(fl + '개가 보합');
-      dir = '전일 대비 ' + parts.join('하고 ') + '했으며';
+    if (!c.multi) {                       // 통화 하나 — 비교하지 않고 그 통화만 말한다
+      const w = mv.chg > 0 ? '상승' : (mv.chg < 0 ? '하락' : '보합');
+      out.push(mv.label + '는 ' + base + fxrSigned(mv.chg) + '('
+        + fxrPct(mv.pct) + ') ' + mag + w + '했습니다.');
+    } else {
+      if (dn === per.length) { dir = '고른 ' + per.length + '개 통화 모두 ' + base + mag + '하락했으며'; magOnMover = false; }
+      else if (up === per.length) { dir = '고른 ' + per.length + '개 통화 모두 ' + base + mag + '상승했으며'; magOnMover = false; }
+      else if (fl === per.length) { dir = '고른 ' + per.length + '개 통화 모두 ' + base + '거의 움직이지 않았으며'; magOnMover = false; }
+      else {
+        const parts = [];
+        if (up) parts.push(up + '개 통화가 상승');
+        if (dn) parts.push(dn + '개가 하락');
+        if (fl) parts.push(fl + '개가 보합');
+        dir = base + parts.join('하고 ') + '했으며';
+      }
+      const tail = '변동폭이 가장 큰 통화는 ' + mv.label
+        + '(' + fxrSigned(mv.chg) + ', ' + fxrPct(mv.pct) + ')';
+      out.push('최근 환율은 ' + dir + ', ' + tail
+        + (magOnMover ? '로 ' + mag + '움직였습니다.' : '입니다.'));
     }
-    const tail = '변동폭이 가장 큰 통화는 ' + FX_META[mv.cur].label
-      + '(' + fxrSigned(mv.change) + ', ' + fxrPct(fxrDayPct(mv)) + ')';
-    out.push('최근 환율은 ' + dir + ', ' + tail
-      + (magOnMover ? '로 ' + mag + '움직였습니다.' : '입니다.'));
   }
-  // ② 기간 관점
+  // ② 기간 관점 — 헤드라인 통화의 경로
   const h = c.head;
   if (h.n && h.pct != null) {
     const w = h.chg > 0 ? '올랐고' : (h.chg < 0 ? '내렸고' : '보합이었고');
@@ -6061,7 +6080,8 @@ function fxrSummary(c) {
   }
   // ③ 원인은 쓰지 않는다 — 이 데이터로 알 수 없다는 사실만 남긴다.
   out.push('환율이 왜 그렇게 움직였는지는 이 시세 데이터만으로 알 수 없어 적지 않았습니다. '
-    + '위 문장의 모든 수치는 같은 원본 시세에서 계산한 값입니다.');
+    + '위 문장은 모두 조회 기간(' + c.months + '개월) 기준이며, 수치는 같은 원본 시세에서 '
+    + '계산한 값입니다.');
   return out;
 }
 
@@ -6135,36 +6155,50 @@ function fxrReportHtml() {
   if (!c) return '<div class="srr"><div class="chart-empty">리포트를 만들 시세가 없습니다.</div></div>';
   const h = c.head;
   const d = fxrDay(h.cur), dp = fxrDayPct(d);
-  const dir = (!d || d.change == null) ? 'flat' : (d.change > 0 ? 'up' : (d.change < 0 ? 'down' : 'flat'));
+  /* ★★ 헤드라인은 '조회 기간' 변화다(전일 대비 아님).
+     한 리포트 안에서 시간 기준이 섞이지 않도록, 전일 대비는 아래 줄에
+     '참고'라고 못 박아 따로 뺀다. */
+  const dir = (h.chg == null) ? 'flat' : (h.chg > 0 ? 'up' : (h.chg < 0 ? 'down' : 'flat'));
   const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
   const curLabel = c.isAll ? '전체(USD·EUR·JPY)' : (h.name + '(' + h.label + ')');
+  const dDir = (!d || d.change == null) ? 'flat' : (d.change > 0 ? 'up' : (d.change < 0 ? 'down' : 'flat'));
+  const dArrow = dDir === 'up' ? '▲' : (dDir === 'down' ? '▼' : '—');
 
   const hero = '<div class="srr-hero">'
-    + '<div class="srr-hero__when">' + escapeHtml((d && d.cur ? FX_META[d.cur].name + '(' + d.cur + ')' : curLabel))
+    + '<div class="srr-hero__when">' + escapeHtml(h.name + '(' + h.label + ')')
     + (h.cur === 'JPY' ? ' · 100엔 기준' : '')
+    + (c.multi ? ' · 고른 ' + c.drawCurs.length + '개 통화 중 기준 통화' : '')
     + (fxAsOfDate() ? ' · 기준일 ' + escapeHtml(fxAsOfDate()) : '') + '</div>'
     + '<div class="srr-hero__row">'
-    + '<span class="srr-hero__v">' + escapeHtml(fxNum(d ? d.now : h.last.v)) + '</span>'
+    + '<span class="srr-hero__v">' + escapeHtml(fxNum(h.last.v)) + '</span>'
     + '<span class="srr-hero__unit">원</span>'
     + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
+    + escapeHtml(h.chg == null ? '—' : fxNum(Math.abs(h.chg)) + '원')
+    + (h.pct != null ? ' (' + escapeHtml(fxrPct(h.pct)) + ')' : '')
+    + '<span class="srr-hero__vs">조회 기간(' + c.months + '개월) 대비</span></span>'
+    + '</div>'
+    + '<div class="fxr-daily">참고 · 전일 대비 <b class="srr-' + dDir + '">' + dArrow + ' '
     + escapeHtml(d && d.change != null ? fxNum(Math.abs(d.change)) + '원' : '—')
-    + (dp != null ? ' (' + escapeHtml(fxrPct(dp)) + ')' : '')
-    + '<span class="srr-hero__vs">전일 대비</span></span>'
-    + '</div></div>';
+    + (dp != null ? ' (' + escapeHtml(fxrPct(dp)) + ')' : '') + '</b>'
+    + ' <span class="fxr-daily__s">— 하루 기준이라 위 수치와 기간이 다릅니다</span></div>'
+    + '</div>';
 
   const subs = fxrSubs(c).map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
 
   return '<div class="srr">'
     + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
     + escapeHtml(curLabel + ' · ' + c.months + '개월 · ' + c.days + '일 관측') + '</span></div>'
-    + '<p class="srr-cond"><b>현재 조회 조건</b> · ' + escapeHtml(curLabel)
-    + ' · 최근 ' + c.months + '개월 · ' + escapeHtml(c.span) + '</p>'
+    + '<p class="srr-cond"><b>현재 조회 조건</b> · 통화 ' + escapeHtml(curLabel)
+    + ' · 기간 최근 ' + c.months + '개월(' + escapeHtml(c.span) + ')'
+    + ' · 서술 기준 조회 기간</p>'
     + '<p class="srr-def">' + escapeHtml(FXR_DEF) + '</p>'
     + hero + subs
-    + '<h4 class="srr-h">통화별 지표 (USD · EUR · JPY 동시 비교)</h4>'
+    + '<h4 class="srr-h">' + (c.multi
+      ? '통화별 지표 (' + escapeHtml(c.drawCurs.join(' · ')) + ' 비교)'
+      : escapeHtml(h.label) + ' 지표') + '</h4>'
     + fxrTable(c)
-    + '<h4 class="srr-h">기간 변동폭 순위 (원화 대비)</h4>'
-    + fxrRankHtml(c)
+    // 순위는 견줄 대상이 둘 이상일 때만 낸다
+    + (c.multi ? '<h4 class="srr-h">기간 변동폭 순위 (원화 대비)</h4>' + fxrRankHtml(c) : '')
     + '<h4 class="srr-h">추이</h4><div class="srr-chart">' + fxrChart(c) + '</div>'
     + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
     + fxrSummary(c).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
