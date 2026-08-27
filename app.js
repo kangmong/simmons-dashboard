@@ -4385,14 +4385,22 @@ function koimaDelta(val, pct) {
 
 /** KOIMA 카드 HTML — 유가 카드와 동일한 3단계 빈 상태 */
 function renderKoimaHtml() {
-  const head = `<div class="viz-head"><div>
-      <div class="viz-title">원자재 월간 부문별 지수 (KOIMA)</div>
-      <div class="viz-sub">8개 부문 월별 지수 · 2010.12 = 100 기준</div>
-    </div></div>`;
   const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaIndex);
   const ok = _koimaData && !_koimaData.error && _koimaData.categories.length;
   const cat = ok ? koimaCatOf(_koimaCat) : null;
   const dis = ok ? '' : ' disabled';
+
+  /* 소제목 아래 한 줄 — '지수'가 무슨 뜻인지 지금 고른 부문 이름으로 풀어 준다.
+     ★ 부문 이름을 코드에 적지 않는다. 탭에서 고른 부문(cat.label)을 그대로 쓰므로
+       유화원료를 고르면 문구도 '유화원료 가격이…'로 따라간다.
+     ★ 아직 못 고른 상태(로드 전)면 부문 이름 없이 일반 문장으로 둔다. */
+  const catName = (cat && cat.label) || (KOIMA_TAB_LABELS[_koimaCat] || '');
+  const exSubject = catName ? catName + ' 가격이' : '해당 부문 가격이';
+  const head = `<div class="viz-head"><div>
+      <div class="viz-title">원자재 월간 부문별 지수 (KOIMA)</div>
+      <div class="viz-sub">8개 부문 월별 지수 · 2010.12 = 100 기준</div>
+      <div class="viz-sub2">예) &ldquo;${escapeHtml(exSubject)} 기준 시점에 비해 얼마나 올랐거나 내렸는지&rdquo;를 보여주는 지수</div>
+    </div></div>`;
 
   // 1) 부문 탭 8개 — 데이터 없으면 비활성
   const tabList = ok ? koimaCatsOrdered()

@@ -539,6 +539,9 @@ body {
 .viz-title { font-size: 15px; font-weight: 600; color: var(--ink); }
 .viz-sub { font-size: 13px; font-weight: 500; color: var(--muted); }
 .viz-sub--warn { color: var(--amber); font-weight: 600; }
+/* 소제목 아래 참고 설명 한 줄 — 소제목보다 작고 더 흐리게 */
+.viz-sub2 { margin-top: 2px; font-size: 11.5px; font-weight: 500; color: var(--slate);
+  line-height: 1.5; word-break: keep-all; }
 /* ICIS 카드만 — 소제목이 길어져 줄바꿈될 수 있다. 크기·색은 그대로 두고
    줄간격과 한국어 줄바꿈만 손본다(다른 카드의 .viz-sub 는 건드리지 않는다). */
 .icis-figure .viz-sub { line-height: 1.5; word-break: keep-all; }
