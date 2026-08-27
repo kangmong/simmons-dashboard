@@ -2080,7 +2080,7 @@ function renderMaterial() {
   root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
     <div class="viz-head"><div>
       <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
-      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤)</div>
+      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료</div>
     </div></div>
     ${toolbar}
     ${body}
