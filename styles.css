@@ -1746,6 +1746,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .kw-alertnote:empty { display: none; }
 .kw-abox { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
 
+/* 그래프 툴팁 — 기존 .viz-tooltip 을 그대로 쓰고 자리만 잡아 준다 */
+.kw-figure { position: relative; }
+.kw-overlay { cursor: crosshair; }
+.kw-tip { max-width: 88%; z-index: 5; }
+
 /* 환율 리포트 — 헤드라인 아래 '참고 · 전일 대비' 줄.
    헤드라인은 조회 기간 기준이라, 하루 기준 수치는 확실히 갈라 놓는다. */
 .fxr-daily { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--line);

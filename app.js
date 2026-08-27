@@ -6837,6 +6837,8 @@ let _kwRange = 30;
 let _kwHist = {};      // { '도시|일수': {ts, days:[…]} }
 let _kwAlert = {};     // { '도시|일수': {ts, status, bands:[…]} }
 let _kwBusy = {};
+let _kwGeom = {};       // 그래프별 좌표·값 (툴팁이 쓴다)
+let _kwTipSeq = 0;      // 그래프마다 붙이는 일련번호
 
 /* 특보 종류별 음영 색. 어느 그래프가 어떤 특보를 받는지는 서버의 KIND_GROUP 과 같다. */
 const KW_ALERT_COLORS = {
@@ -7025,10 +7027,37 @@ function kwChart(cfg) {
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 14).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="var(--muted)">${escapeHtml(rows[i].day.slice(5).replace('-', '/'))}</text>`;
   }).join('');
 
+  /* ── 툴팁 재료 ────────────────────────────────────────────────────────
+     날짜별로 '무엇을 몇으로 보여줄지'를 지금 미리 만들어 둔다. 마우스가 움직일
+     때마다 다시 계산하지 않게 하고, 값의 출처를 이 자리 하나로 모으기 위해서다.
+     ★ 겹쳐 그린 선은 같은 날짜의 값을 한 번에 모아 보여 준다(기온 최고·평균·최저).
+     ★ 오른쪽 축 계열(일조시간)도 같은 줄에 함께 넣는다. */
+  const tipSeries = cfg.series.concat(
+    (hasRight && cfg.right.key) ? [Object.assign({}, cfg.right, { isRight: true })] : []);
+  const tipRows = rows.map((r, i) => ({
+    day: r.day,
+    x: X(i),
+    vals: tipSeries.map((s) => ({
+      label: s.label, color: s.color,
+      txt: (r[s.key] == null) ? '—'
+        : krNum(r[s.key], s.digits == null ? 1 : s.digits) + (s.unit ? ' ' + s.unit : ''),
+      y: (r[s.key] == null) ? null : (s.isRight ? RY(r[s.key]) : Y(r[s.key])),
+    })),
+  }));
+  const id = 'kw' + (_kwTipSeq += 1);
+  _kwGeom[id] = { W: W, padL: padL, plotW: plotW, padT: padT, plotH: plotH,
+    n: n, rows: tipRows };
+
   return `<svg class="kw-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
+    + ' data-kw-id="' + id + '"'
     + ' aria-label="' + escapeHtml(cfg.title || '추이') + '">'
     + bands + grid + rAxis + xlab + barsHtml + rLine + aStep + lines
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`;
+    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>`
+    // 아래 셋은 덧그리기 전용 — 위 그림에는 손대지 않는다
+    + `<line class="kw-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>`
+    + '<g class="kw-hi"></g>'
+    + `<rect class="kw-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>`
+    + '</svg>';
 }
 
 /** 그래프 한 칸(제목 + 범례 + 그래프 + 특보 안내) */
@@ -7065,7 +7094,9 @@ function kwCard(cfg, alert) {
   return '<div class="kw-card"><div class="kw-h">' + escapeHtml(cfg.title)
     + ' <span class="kw-h__u">(' + escapeHtml(cfg.unit) + ')</span></div>'
     + '<div class="kw-lgs">' + lg + aNote + '</div>'
-    + kwChart(Object.assign({}, cfg, { bands: bands }))
+    // .kw-figure 는 툴팁을 이 그래프 안쪽에 띄우기 위한 기준 상자다
+    + '<div class="kw-figure">' + kwChart(Object.assign({}, cfg, { bands: bands }))
+    + '<div class="viz-tooltip kw-tip"></div></div>'
     + '</div>';
 }
 
@@ -7087,30 +7118,30 @@ function kwSectionHtml(city) {
       + kwCard({
         title: '기온', unit: '℃', group: 'temp', days: D,
         series: [
-          { key: 'tmax', label: '최고', color: '#EF4444' },
-          { key: 'tmean', label: '평균', color: '#111827', w: 1.7 },
-          { key: 'tmin', label: '최저', color: '#3B82F6' },
+          { key: 'tmax', label: '최고', color: '#EF4444', unit: '℃', digits: 1 },
+          { key: 'tmean', label: '평균', color: '#111827', w: 1.7, unit: '℃', digits: 1 },
+          { key: 'tmin', label: '최저', color: '#3B82F6', unit: '℃', digits: 1 },
         ],
         right: { label: '특보', color: '#9CA3AF' },   // key 없음 → 특보 0/1 보조축
       }, a)
       + kwCard({
         title: '풍속', unit: 'km/h', group: 'wind', days: D, zeroBase: true,
-        series: [{ key: 'wmean', label: '평균풍속', color: '#7C3AED', w: 1.7 }],
+        series: [{ key: 'wmean', label: '평균풍속', color: '#7C3AED', w: 1.7, unit: 'km/h', digits: 1 }],
         right: { label: '특보', color: '#9CA3AF' },
       }, a)
       + kwCard({
         title: '습도', unit: '%', group: 'humid', days: D,
         series: [
-          { key: 'hmean', label: '평균습도', color: '#0EA5E9', w: 1.7 },
-          { key: 'hmin', label: '최저습도', color: '#F59E0B' },
+          { key: 'hmean', label: '평균습도', color: '#0EA5E9', w: 1.7, unit: '%', digits: 0 },
+          { key: 'hmin', label: '최저습도', color: '#F59E0B', unit: '%', digits: 0 },
         ],
         right: { label: '특보', color: '#9CA3AF' },
       }, a)
       + kwCard({
         title: '강수 · 일조', unit: 'mm · 시간', group: 'rain', days: D, zeroBase: true,
-        series: [{ key: 'rain', label: '강수량', color: '#0284C7', bar: true }],
+        series: [{ key: 'rain', label: '강수량', color: '#0284C7', bar: true, unit: 'mm', digits: 1 }],
         bars: [{ key: 'rain', color: '#0284C7' }],
-        right: { key: 'sun', label: '일조시간', color: '#F59E0B' },
+        right: { key: 'sun', label: '일조시간', color: '#F59E0B', unit: '시간', digits: 1 },
       }, a)
       + '</div>';
   }
@@ -7133,6 +7164,66 @@ function kwSectionHtml(city) {
     + '일조시간만 초→시간 변환) · 특보: 기상청 기상특보 조회서비스(공공데이터포털)</div>'
     + (aFoot ? '<div class="kr-note">' + escapeHtml(aFoot) + '</div>' : '')
     + '</div>';
+}
+
+/* ── 그래프 툴팁 ──────────────────────────────────────────────────────────
+   ★ 차트 라이브러리가 없다(SVG 를 직접 그린다). 그래서 KOIMA 일일가격·환율
+     카드가 쓰는 방식을 그대로 가져왔다 — 투명 overlay 위에서 x 좌표를 날짜
+     번호로 바꾸고, 그 날짜의 값을 한 상자에 모아 보여 준다.
+   ★ 마우스(hover)와 손가락(탭) 모두 같은 함수를 탄다. */
+function kwTipAt(fig, clientX) {
+  const svg = fig.querySelector('.kw-svg');
+  const tip = fig.querySelector('.kw-tip');
+  const g = svg && _kwGeom[svg.dataset.kwId];
+  if (!svg || !tip || !g) return;
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width) return;
+  // 화면 픽셀 → viewBox 좌표 → 가장 가까운 날짜 번호
+  const sx = (clientX - rect.left) * (g.W / rect.width);
+  let i = (g.n === 1) ? 0
+    : Math.round(((sx - g.padL) / (g.plotW || 1)) * (g.n - 1));
+  i = Math.max(0, Math.min(g.n - 1, i));
+  const row = g.rows[i];
+  if (!row) return;
+
+  const cross = svg.querySelector('.kw-cross');
+  const hi = svg.querySelector('.kw-hi');
+  if (cross) {
+    cross.setAttribute('x1', row.x.toFixed(1));
+    cross.setAttribute('x2', row.x.toFixed(1));
+    cross.style.opacity = '1';
+  }
+  if (hi) {
+    hi.innerHTML = row.vals.filter((v) => v.y != null).map((v) =>
+      '<circle cx="' + row.x.toFixed(1) + '" cy="' + v.y.toFixed(1)
+      + '" r="3" fill="' + v.color + '" stroke="var(--card)" stroke-width="1.5"/>').join('');
+  }
+  tip.innerHTML = '<div class="viz-tooltip__date">' + escapeHtml(row.day) + '</div>'
+    + row.vals.map((v) => '<div class="viz-tt-row">'
+      + '<span class="viz-tt-swatch" style="background:' + v.color + '"></span>'
+      + '<span>' + escapeHtml(v.label) + '</span>'
+      + '<span class="viz-tt-val">' + escapeHtml(v.txt) + '</span></div>').join('');
+
+  // 그래프 안쪽에 띄운다 — 오른쪽 끝에서는 왼쪽으로 붙인다
+  const fr = fig.getBoundingClientRect();
+  let left = (row.x / g.W) * rect.width + (rect.left - fr.left) + 12;
+  if (left + tip.offsetWidth > fr.width) left = left - tip.offsetWidth - 24;
+  tip.style.left = Math.max(2, left).toFixed(0) + 'px';
+  tip.style.top = '6px';
+  tip.classList.add('is-visible');
+}
+
+/** 툴팁 감추기 */
+function kwTipHide(fig) {
+  const tip = fig.querySelector('.kw-tip');
+  const svg = fig.querySelector('.kw-svg');
+  if (tip) tip.classList.remove('is-visible');
+  if (svg) {
+    const cross = svg.querySelector('.kw-cross');
+    const hi = svg.querySelector('.kw-hi');
+    if (cross) cross.style.opacity = '0';
+    if (hi) hi.innerHTML = '';
+  }
 }
 
 /** 한국 상세 화면 전체 */
@@ -7198,7 +7289,31 @@ function krWire() {
   const root = document.getElementById('worldclockRoot');
   if (!root) return;
   _krWired = true;
+  /* 그래프 툴팁 — root 에 한 번만 건다(다시 그려도 overlay 가 새로 생기므로
+     각 그래프에 직접 걸면 리스너가 쌓인다).
+     ★ 손가락도 같은 함수를 탄다. touchmove 에서 preventDefault 를 하지 않아
+       페이지 스크롤은 그대로 된다. */
+  const figOf = (e) => e.target.closest && e.target.closest('.kw-figure');
+  root.addEventListener('mousemove', (e) => {
+    const fig = figOf(e); if (fig) kwTipAt(fig, e.clientX);
+  });
+  root.addEventListener('mouseleave', (e) => {
+    const fig = figOf(e); if (fig) kwTipHide(fig);
+  }, true);
+  root.addEventListener('mouseout', (e) => {
+    const fig = figOf(e);
+    if (fig && !fig.contains(e.relatedTarget)) kwTipHide(fig);
+  });
+  root.addEventListener('touchstart', (e) => {
+    const fig = figOf(e);
+    if (fig && e.touches && e.touches[0]) kwTipAt(fig, e.touches[0].clientX);
+  }, { passive: true });
+  root.addEventListener('touchmove', (e) => {
+    const fig = figOf(e);
+    if (fig && e.touches && e.touches[0]) kwTipAt(fig, e.touches[0].clientX);
+  }, { passive: true });
   root.addEventListener('click', (e) => {
+    const fig = figOf(e); if (fig) kwTipAt(fig, e.clientX);   // 클릭으로도 뜬다
     const back = e.target.closest && e.target.closest('[data-kr-back]');
     if (back) { krClose(); return; }
     const rf = e.target.closest && e.target.closest('[data-kr-refresh]');
