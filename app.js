@@ -4112,6 +4112,7 @@ function renderOilPricesHtml() {
   const head = `<div class="viz-head"><div>
       <div class="viz-title">국제유가 (PETRONET)</div>
       <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
+      <div class="viz-sub2">지역별 대표 원유(유종)의 가격을 비교하는 그래프</div>
     </div></div>`;
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
 
