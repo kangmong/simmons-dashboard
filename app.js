@@ -581,6 +581,80 @@ function renderSimmonsNews() {
 
 
 
+/* ── SIMMONS IG (Instagram @simmonskorea · Apify Instagram Scraper) ──────
+   ★ 토큰은 화면 코드에 없다. 서버(api/instagram.py)만 APIFY_TOKEN 을 안다.
+   ★ 평소에는 미리 수집해 커밋해 둔 public/data/instagram.json 을 읽는다(호출 0회).
+     파일이 없을 때만 /api/instagram 으로 폴백한다 — 국내·국외 정적 JSON 과 같은 방식. */
+const IG_DATA_URL = 'public/data/instagram.json';
+let _igData = null;   // { status, username, items:[{id,caption,image,link,date}] }
+
+/** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다(국외 로더와 같은 모양). */
+async function fetchInstagram() {
+  try {
+    const res = await fetch(IG_DATA_URL, { cache: 'no-store' });
+    if (res.ok) {
+      const d = await res.json();
+      if (d && Array.isArray(d.items) && d.items.length) {
+        _igData = Object.assign({ status: 'ok' }, d);
+        renderInstagram();
+        return;
+      }
+    } else if (res.status !== 404) {
+      console.warn('[instagram] 정적 파일 HTTP', res.status, '→ /api/instagram 으로 폴백');
+    }
+    // 파일이 없거나 비었으면 서버리스 함수에 물어본다(로컬 개발·첫 배포 직후)
+    const r2 = await fetch(API_BASE + '/api/instagram', { cache: 'no-store' });
+    if (!r2.ok) throw new Error('HTTP ' + r2.status);
+    _igData = await r2.json();
+  } catch (e) {
+    _igData = { status: 'error', items: [], reason: (e && e.message) || String(e) };
+    console.warn('[instagram] 로드 실패:', e);
+  }
+  renderInstagram();
+}
+
+/** 상태값 → 화면에 띄울 안내 문구. 지어내지 않고 이유를 그대로 말한다. */
+function igEmptyMsg(d) {
+  if (!d) return '업데이트를 누르면 최신 게시물을 불러옵니다';
+  if (d.status === 'no_key') return 'Instagram 연동 준비 중 (APIFY_TOKEN 필요)';
+  if (d.status === 'error') return '게시물을 불러오지 못했습니다' + (d.reason ? ' — ' + d.reason : '');
+  return '게시물이 없습니다';
+}
+
+/** SIMMONS IG — 이미지 + 캡션 요약 + '인스타그램에서 보기' 카드 그리드 */
+function renderInstagram() {
+  const el = document.getElementById('igGrid');
+  if (!el) return;
+  const items = (_igData && Array.isArray(_igData.items)) ? _igData.items : null;
+  if (!items || !items.length) {
+    el.innerHTML = emptyState(igEmptyMsg(_igData));
+    return;
+  }
+  el.innerHTML = items.map((it) => {
+    const url = safeUrl(it.link);
+    const img = safeUrl(it.image);
+    // 이미지가 없거나 로드에 실패하면 대체 블록(크림슨 그라데이션 + 안내 문구)을 보여준다.
+    // 인스타그램 CDN 주소는 서명이 만료되면 404 가 나므로 실패는 정상 경로로 다룬다.
+    const thumb = img
+      ? `<div class="ig-card__thumb"><img src="${escapeHtml(img)}" alt="${escapeHtml(it.caption || 'Instagram 게시물')}"
+           loading="lazy" referrerpolicy="no-referrer"
+           onerror="this.parentNode.classList.add('ig-card__thumb--ph');this.remove()"><span class="ig-card__alt">이미지를 불러올 수 없습니다</span></div>`
+      : `<div class="ig-card__thumb ig-card__thumb--ph"><span class="ig-card__alt">이미지 없음</span></div>`;
+    const cap = String(it.caption || '').trim();
+    return `<div class="ig-card">
+      ${thumb}
+      <div class="ig-card__body">
+        <p class="ig-card__cap">${cap ? escapeHtml(cap) : '<span class="ig-card__nocap">캡션 없음</span>'}</p>
+        <div class="ig-card__foot">
+          ${it.date ? `<span class="ig-card__date">${escapeHtml(it.date)}</span>` : ''}
+          ${url ? `<a class="ig-card__link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">인스타그램에서 보기 ›</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
 /* ============================================================
    3) 경쟁사 분석 섹션 — 국외(Global) / 국내(Korea) 두 그룹
    국외: SEC EDGAR 최근 분기(10-Q) 매출·순이익 + 전년 동기 대비(YoY).
@@ -7402,6 +7476,7 @@ function initWorldClock() {
 /** 데이터 변경 시 데이터 의존 섹션 재렌더 */
 function refreshSections() {
   renderSimmonsNews();
+  renderInstagram();      // 순수 추가: SIMMONS IG (소식 카드 바로 아래)
   renderCompetitor();
   renderBrands();
   renderMaterial();
@@ -7452,6 +7527,7 @@ function resetDashboard() {
   // 업데이트/기본값으로 채워졌던 모든 섹션 데이터 제거 → 각 섹션 "준비중" 빈 상태
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
+  _igData = null;       // SIMMONS IG 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; _srReport = false; // 해상 정시성 비우기
@@ -7557,6 +7633,9 @@ function initUpdate() {
     fetchSimmonsMarket();
     // 순수 추가: 국외 해외 슬립테크 시장·기업 정적 JSON (위와 같은 이유로 await 안 한다)
     fetchGlobalSleepTech();
+    // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
+    // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
+    fetchInstagram();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

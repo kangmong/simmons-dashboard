@@ -82,6 +82,17 @@ except Exception as _e:  # noqa: BLE001
     print("[weather_news] 로드 실패:", _e)
     fetch_region_news = None
 
+try:  # 순수 추가: SIMMONS IG(Apify). APIFY_TOKEN 이 없으면 no_key 만 돌려준다.
+    import importlib.util as _ilu3
+    _ig_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api", "instagram.py")
+    _ig_spec = _ilu3.spec_from_file_location("instagram", _ig_path)
+    _ig_mod = _ilu3.module_from_spec(_ig_spec)
+    _ig_spec.loader.exec_module(_ig_mod)
+    instagram_mod = _ig_mod
+except Exception as _e:  # noqa: BLE001
+    print("[instagram] 로드 실패:", _e)
+    instagram_mod = None
+
 # 순수 추가: KOIMA 일일 국제원자재가격은 서버가 요청 시점에 수집하지 않는다.
 # 수집에 약 167초가 걸려 업데이트 버튼이 멈추고 Vercel 함수 한도(최대 60초)도 넘기므로,
 # `python koima_price.py` 로 미리 수집해 public/data/koima-price.json 에 저장해 두고
@@ -2191,6 +2202,24 @@ def api_weather_news():
     if fetch_region_news is None:
         return jsonify({"status": "error", "reason": "뉴스 모듈을 불러오지 못했습니다", "items": []})
     return jsonify(fetch_region_news(region))
+
+
+@app.route("/api/instagram", methods=["GET", "POST"])
+def api_instagram():
+    """SIMMONS IG — Vercel 의 api/instagram.py 와 같은 응답.
+
+    평소에는 커밋해 둔 public/data/instagram.json 을 그대로 준다(Apify 호출 0회).
+    ?refresh=1 (또는 POST) 일 때만 Apify 를 부르고, 최신 게시물 id 가 같으면
+    캐시를 다시 쓰지 않는다."""
+    if instagram_mod is None:
+        return jsonify({"status": "error", "reason": "Instagram 모듈을 불러오지 못했습니다",
+                        "items": []})
+    want = (request.method == "POST"
+            or str(request.args.get("refresh", "")).lower() in ("1", "true", "yes"))
+    if want:
+        return jsonify(instagram_mod.refresh_cache(verbose=True))
+    cached = instagram_mod.load_cache()
+    return jsonify(cached if (cached and cached.get("items")) else instagram_mod.fetch_posts())
 
 
 @app.route("/")

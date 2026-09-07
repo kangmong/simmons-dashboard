@@ -20,6 +20,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/instagram.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -56,6 +60,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/instagram.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/logos/**",
       "use": "@vercel/static"
     },
@@ -88,11 +96,29 @@
       "dest": "/api/kma_alert.py"
     },
     {
+      "src": "/api/instagram",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "dest": "/api/instagram.py"
+    },
+    {
       "handle": "filesystem"
     },
     {
       "src": "/",
       "dest": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/instagram",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/instagram",
+      "schedule": "0 9 * * *"
     }
   ]
 }

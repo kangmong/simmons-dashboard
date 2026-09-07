@@ -393,3 +393,60 @@ node scripts/check-news-alert.js --dry-run
   **이건 실적 알림과 무관하다.** 예측 카드의 해설 문장(`icis_forecast.py` /
   `sr_forecast.py`)이 쓰는 것이고, 키가 없으면 통계 예측값만
   표시하는 폴백으로 동작한다. 그래서 지우지 않았다.
+
+
+---
+
+## SIMMONS IG (Instagram @simmonskorea)
+
+'시몬스 코리아 소식' 카드 바로 아래에 공식 인스타그램 최신 게시물 4개를 카드로 보여준다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `api/instagram.py` | Apify 호출 · 필드 매핑 · 캐시 갱신. 서버리스 진입점 + CLI 겸용 |
+| `.github/workflows/collect-instagram.yml` | 하루 2회(KST 09:00 / 18:00) 수집 → 커밋 |
+| `public/data/instagram.json` | 화면이 읽는 캐시. 워크플로가 만든다 |
+| `app.js` `renderInstagram()` / `styles.css` `.ig-*` | 카드 렌더 |
+
+### 환경변수 (토큰은 코드에 넣지 않는다)
+
+`.env.example` 에 **이름만** 적어 뒀다. 실제 값은 세 군데에 각각 넣는다.
+
+| 어디 | 무엇 |
+| --- | --- |
+| 로컬 | `.env.example` → `.env` 로 복사 후 값 입력 (`.env` 는 `.gitignore` 대상) |
+| Vercel | Project → Settings → Environment Variables |
+| GitHub Actions | Settings → Secrets and variables → Actions → `APIFY_TOKEN` (시크릿), `INSTAGRAM_USERNAME` (변수, 선택) |
+
+`APIFY_TOKEN` 은 https://console.apify.com/settings/integrations 에서 발급한다.
+**키가 없어도 빌드·실행은 깨지지 않는다** — `status='no_key'` 를 돌려주고 카드에
+"Instagram 연동 준비 중 (APIFY_TOKEN 필요)" 이라고 정직하게 띄운다.
+
+### 크레딧 절약 (Case 로직)
+
+`refresh_cache()` 는 **캐시의 첫 게시물 id 와 새로 받아온 첫 게시물 id 를 비교**한다.
+같으면 새 글이 없다는 뜻이므로 파일을 다시 쓰지 않고(`changed=False`), 워크플로의
+커밋 단계도 `git diff --quiet` 에서 걸려 건너뛴다. 수집이 실패하면 **기존 캐시를
+절대 덮어쓰지 않는다** — 멀쩡한 데이터를 잃지 않기 위해서다.
+
+### 왜 수집을 Vercel Cron 이 아니라 GitHub Actions 가 하나
+
+Vercel 서버리스는 파일시스템이 읽기 전용이다(`/tmp` 만 쓸 수 있고 인스턴스가 죽으면
+사라진다). 그래서 캐시 파일을 남길 수 없다. 저장소에 커밋해 두는 방식이 실제로 남는
+유일한 캐시이고, 이 저장소의 다른 수집기(`collect.yml`, `collect-koima-price.yml`)와도
+같은 구조다. `vercel.json` 의 `crons` 는 같은 시각에 `/api/instagram` 을 깨우는
+헬스 핑이며 **Apify 를 부르지 않는다**(크레딧 0).
+
+### 수동 실행
+
+```bash
+python api/instagram.py                 # 수집 → public/data/instagram.json 갱신
+curl localhost:5000/api/instagram       # 캐시 그대로 (Apify 호출 없음)
+curl "localhost:5000/api/instagram?refresh=1"   # 강제 재수집 (크레딧 소모)
+```
+
+### 이미지가 안 뜰 때
+
+`displayUrl` 은 인스타그램 CDN 의 **서명된 주소**라 시간이 지나면 만료된다(404/403).
+그래서 카드는 로드 실패를 정상 경로로 다뤄 "이미지를 불러올 수 없습니다" 대체 블록을
+보여주고, 캡션과 링크는 그대로 남긴다. 하루 2회 수집이 주소를 새로 받아 온다.
