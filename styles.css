@@ -420,14 +420,19 @@ body {
 @media (max-width: 1100px) { .sk-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .sk-grid { grid-template-columns: 1fr; } }
 
-/* ── SIMMONS IG — 소식 카드와 같은 카드 문법(라운드 14px · 그림자 · hover) ── */
-.ig-title { display: flex; align-items: center; gap: 9px; }
+/* ── SIMMONS IG — '시몬스 코리아 소식' 박스 안의 두 번째 블록 ──────────────
+   박스(.dash-card)를 새로 만들지 않는다. 위쪽 구분선으로만 뉴스 그리드와 나눠서
+   테두리·그림자가 이중으로 겹치지 않게 한다. 안쪽 카드는 뉴스 카드(.sk-card)와
+   같은 문법(라운드 14px · 그림자 · hover)을 쓴다. */
+.ig-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ig-sub { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.ig-sub__hint { font-size: 12px; font-weight: 500; color: var(--muted); }
 .ig-badge {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 9px; color: #fff;
+  width: 22px; height: 22px; border-radius: 7px; color: #fff;
   background: linear-gradient(135deg, #feda75 0%, #d62976 50%, #4f5bd5 100%);
 }
-.ig-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ig-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .ig-card {
   display: flex; flex-direction: column; overflow: hidden; color: inherit;
   background: #fff; border: 1px solid #ececf1; border-radius: 14px;
@@ -455,7 +460,6 @@ body {
 .ig-card__date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ig-card__link { font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: none; white-space: nowrap; }
 .ig-card__link:hover { text-decoration: underline; }
-@media (max-width: 1100px) { .ig-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .ig-grid { grid-template-columns: 1fr; } }
 
 /* 차트 위젯 */

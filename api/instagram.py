@@ -34,7 +34,7 @@ ENV_TOKEN = "APIFY_TOKEN"
 ENV_USER = "INSTAGRAM_USERNAME"
 DEFAULT_USER = "simmonskorea"
 
-POST_LIMIT = 4        # 화면에 띄울 게시물 수 (= Apify resultsLimit)
+POST_LIMIT = 2        # 화면에 띄울 게시물 수 (= Apify resultsLimit)
 CAPTION_MAX = 60      # 캡션은 앞부분만 저장한다
 CAPTION_TAIL = "..."
 TIMEOUT = 120         # run-sync 는 스크레이핑이 끝날 때까지 기다린다(수십 초)
@@ -77,9 +77,14 @@ def username():
     return (os.environ.get(ENV_USER) or "").strip() or DEFAULT_USER
 
 
+# 눈에 보이지 않는데 자리만 차지하는 문자들. 인스타그램 캡션은 줄 간격을 벌리려고
+# 점자 공백(U+2800)을 자주 쓴다 — 그대로 두면 카드 첫 글자가 밀려 보인다.
+INVISIBLE = "⠀​‌‍﻿ㅤ"
+
+
 def _clip(text, n=CAPTION_MAX):
-    """캡션 앞부분만. 줄바꿈은 공백으로 눌러서 카드 안에 가지런히 얹히게 한다."""
-    s = " ".join(str(text or "").split())
+    """캡션 앞부분만. 줄바꿈·보이지 않는 문자는 눌러서 카드 안에 가지런히 얹히게 한다."""
+    s = " ".join(str(text or "").split()).strip(INVISIBLE + " ")
     return s if len(s) <= n else s[:n].rstrip() + CAPTION_TAIL
 
 

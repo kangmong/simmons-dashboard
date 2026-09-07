@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260907a" />
+  <link rel="stylesheet" href="styles.css?v=20260907b" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -139,29 +139,27 @@
               <span class="comp-caption sk-src">출처: Google News</span>
             </div>
             <div class="sk-grid" id="simmonsNewsGrid"></div>
-          </div>
-        </section>
 
-        <section class="dash-card" data-section="instagram">
-          <div class="dash-card__head">
-            <h3 class="dash-card__title ig-title">
-              <span class="ig-badge" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="2" width="20" height="20" rx="5" />
-                  <circle cx="12" cy="12" r="4" />
-                  <circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none" />
-                </svg>
-              </span>
-              SIMMONS IG
-            </h3>
-          </div>
-          <div class="panel-body" id="body-instagram">
-            <div class="sk-subhead">
-              <span class="sk-sub">공식 인스타그램 @simmonskorea 최신 게시물</span>
-              <span class="comp-caption sk-src">출처: Instagram</span>
+            <!-- 같은 박스 안의 두 번째 블록. 카드를 새로 만들지 않고 구분선으로만 나눈다
+                 — 바깥 컨테이너가 하나뿐이라 테두리·그림자가 겹치지 않는다. -->
+            <div class="ig-block">
+              <div class="sk-subhead">
+                <span class="ig-sub">
+                  <span class="ig-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="2" width="20" height="20" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.5" cy="6.5" r="1.3" fill="currentColor" stroke="none" />
+                    </svg>
+                  </span>
+                  SIMMONS IG
+                  <span class="ig-sub__hint">공식 인스타그램 @simmonskorea 최신 게시물</span>
+                </span>
+                <span class="comp-caption sk-src">출처: Instagram</span>
+              </div>
+              <div class="ig-grid" id="igGrid"></div>
             </div>
-            <div class="ig-grid" id="igGrid"></div>
           </div>
         </section>
 
@@ -216,6 +214,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20260907a"></script>
+  <script src="app.js?v=20260907b"></script>
 </body>
 </html>
