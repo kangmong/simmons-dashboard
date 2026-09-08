@@ -2885,6 +2885,7 @@ function renderMaterial() {
   });
   if (_srData && !_srData.error) wireSrChart();
 
+  wireOilEraHover(root);     // 순수 추가: 국제유가 구간 카드 ↔ 차트 음영 연동
   wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
   wireProductControls(root); // 국제유가(석유제품): 같은 조회 UI
 
@@ -4272,6 +4273,44 @@ const XSII_TONE = {
   drop: 'var(--blue)', recover: 'var(--green)',
 };
 
+/* 국제유가 구간 색 — 다섯 구간이 서로 다른 색을 갖도록 별도로 둔다.
+   ★ 카드(.xsii-era)와 차트 음영이 반드시 같은 값을 써야 둘이 이어져 보인다.
+     그래서 색을 두 곳에 적지 않고 이 표 하나만 본다. */
+const OIL_TONE = {
+  low: 'var(--violet)', turn: 'var(--green)', surge: 'var(--accent)',
+  adjust: 'var(--blue)', rebound: 'var(--teal)',
+};
+
+/** 구간 색 — 유가 표에 없으면 운임지수 표로 떨어진다 */
+function oilToneOf(e) {
+  return (e && (OIL_TONE[e.tone] || XSII_TONE[e.tone])) || 'var(--slate)';
+}
+
+/** 행 하나를 '날짜'로 — 구간(from~to)과 비교하기 위한 키.
+ *  연도 기준(term='y')은 구간이 월 단위라 대응이 안 되므로 null 을 돌려
+ *  음영을 아예 그리지 않는다(억지로 칠하지 않는다). */
+function oilRowDay(period, term) {
+  const p = String(period || '');
+  if (term === 'y') return null;
+  if (term === 'd') return p.slice(0, 10);
+  return p.slice(0, 7) + '-15';   // 월·주 기준은 그 달의 가운데로 본다
+}
+
+/** 구간별로 차트에서 차지하는 인덱스 범위 [a,b]. 없으면 제외 */
+function oilBandRanges(rows, term) {
+  const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
+  if (!eras.length || !rows.length) return [];
+  const days = rows.map((r) => oilRowDay(r.period, term));
+  if (days.some((d) => d == null)) return [];     // 연도 기준이면 그리지 않는다
+  return eras.map((e, idx) => {
+    let a = -1, b = -1;
+    days.forEach((d, i) => {
+      if (d >= e.from && d <= e.to) { if (a < 0) a = i; b = i; }
+    });
+    return (a < 0) ? null : { idx: idx, a: a, b: b, era: e, color: oilToneOf(e) };
+  }).filter(Boolean);
+}
+
 /** 전망 방향 → 아이콘·색 */
 const XSII_DIR = {
   up: { icon: '▲', cls: 'up' },
@@ -5549,22 +5588,28 @@ function oilAutoBullet(pts) {
 }
 
 /* ── ① 구간 설명 (조회 창에 맞춰 강조/흐림) ────────────────────────────── */
-function oilEras(win, term) {
+function oilEras(bands) {
   const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
   if (!eras.length) return '';
-  const keys = (win || []).map((r) => ocYm(r.period, term)).filter(Boolean).sort();
-  const first = keys.length ? keys[0] : null, last = keys.length ? keys[keys.length - 1] : null;
-  const cards = eras.map((e) => {
-    const shown = first && !(e.to.slice(0, 7) < first || e.from.slice(0, 7) > last);
-    return `<div class="xsii-era${shown ? '' : ' is-off'}" style="--xe:${XSII_TONE[e.tone] || 'var(--slate)'}">
+  // 차트에 음영이 그려진 구간이 곧 '지금 보이는 구간'이다 — 같은 계산을 다시 하지 않는다.
+  const drawn = new Set((bands || []).map((b) => b.idx));
+  const cards = eras.map((e, i) => {
+    // 음영을 그릴 수 있으면 그 결과를 그대로 따르고(둘이 어긋나지 않게),
+    // 그릴 수 없으면(연도 기준) 어느 구간이 걸리는지 가릴 근거가 없으므로 흐리게 하지 않는다.
+    const shown = drawn.size ? drawn.has(i) : true;
+    return `<div class="xsii-era${shown ? '' : ' is-off'}" data-era="${i}"
+        style="--xe:${oilToneOf(e)}">
       <div class="xsii-era__span">${escapeHtml(e.span)}</div>
       <div class="xsii-era__title">${escapeHtml(e.title || '')}</div>
       <p class="xsii-era__detail">${escapeHtml(e.detail || '')}</p>
     </div>`;
   }).join('');
+  const note = (bands && bands.length)
+    ? '차트의 같은 색 음영이 이 구간입니다. 카드에 마우스를 올리면 차트에서 그 구간이 진해집니다.'
+    : '연도 기준으로 보면 구간(월 단위)을 차트에 표시할 수 없어 음영을 그리지 않습니다.';
   return `<div class="ii-panel">
     <h3 class="subhead ii-h">① 주요 원유 가격 추이 및 핵심 이벤트</h3>
-    <div class="ii-cap">조회한 기간에 걸치는 구간만 진하게 표시됩니다. 구간 구분과 설명은 참고용입니다.</div>
+    <div class="ii-cap">${escapeHtml(note)} 구간 구분과 설명은 참고용입니다.</div>
     <div class="xsii-eras oil-eras">${cards}</div>
   </div>`;
 }
@@ -5690,6 +5735,8 @@ function renderOilPricesHtml() {
     body = '<div class="icis-prompt">기준·기간·제품을 고르고 [조회]를 누르세요</div>';
   } else {
     const q = _ocQuery, win = ocWindow(q);
+    // 차트 음영과 카드가 같은 계산을 나눠 쓴다 — 둘이 어긋나지 않게 한 번만 구한다
+    const ocBands = oilBandRanges(win, q.term);
     const tools = '<div class="oc-result__head">'
       + '<div class="oc-span">' + escapeHtml(ocSpanText(q, win))
       + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span></div>'
@@ -5701,13 +5748,13 @@ function renderOilPricesHtml() {
       + '<button type="button" class="oc-tool" data-oc-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_ocView === 'chart')
-      ? vizUnitCap(unit, 'USD') + buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
+      ? vizUnitCap(unit, 'USD') + buildOilChart(win, ocOnSeries(q), q.term, ocBands) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
     // 인사이트 패널 — 조회한 창(win)과 기준 유종으로 계산한다
     const ocFc = oilForecast(ocPts);
     const ocBaseLabel = ((_ocData.series || []).find((x) => x.key === OIL_BASE_KEY) || {}).label || 'Dubai';
     body = tools + result + msFactorsHtml('oil_price')
-      + oilEras(win, q.term) + oilFactors()
+      + oilEras(ocBands) + oilFactors()
       + oilScenarios(ocFc, ocBaseLabel) + oilActions()
       + oilInsightBox(ocFc);
   }
@@ -5718,7 +5765,7 @@ function renderOilPricesHtml() {
 
 /** 선택한 유종만 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음).
     ★ 계열을 인자로 받는다 — 전역 상태를 읽지 않으므로 어느 기준(년·월·주·일)이든 그대로 쓴다. */
-function buildOilChart(rows, onSeries, term) {
+function buildOilChart(rows, onSeries, term, bands) {
   const n = rows.length;
   if (!n) { _oilChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const series = (onSeries || []).map((s) => ({
@@ -5744,6 +5791,25 @@ function buildOilChart(rows, onSeries, term) {
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>${vizKrwTick(padL - 6, y, val, _matUsdKrw)}`;
   }).join('');
 
+  // ── 구간 배경 음영 + 경계 점선 ──
+  // 칸의 '가운데'가 아니라 이웃 칸과의 중간까지 칠해야 카드가 말하는 기간과 맞는다.
+  const edgeL = (i) => (i <= 0 ? padL : (X(i - 1) + X(i)) / 2);
+  const edgeR = (i) => (i >= n - 1 ? padL + plotW : (X(i) + X(i + 1)) / 2);
+  const bandSvg = (bands || []).map((b) => {
+    const x0 = edgeL(b.a), x1 = edgeR(b.b), w = x1 - x0;
+    if (!(w > 0)) return '';
+    const last = (b.b >= n - 1);
+    return `<g class="oil-band" data-era="${b.idx}">
+      <rect x="${x0.toFixed(1)}" y="${padT}" width="${w.toFixed(1)}" height="${plotH.toFixed(1)}"
+        fill="${b.color}" opacity=".12"/>
+      ${last ? '' : `<line x1="${x1.toFixed(1)}" y1="${padT}" x2="${x1.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
+        stroke="${b.color}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`}
+      ${w > 46 ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${(padT + 8).toFixed(1)}" text-anchor="middle"
+        font-size="7.5" font-weight="700" fill="${b.color}" paint-order="stroke"
+        stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(b.era.title || '')}</text>` : ''}
+    </g>`;
+  }).join('');
+
   const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
@@ -5760,10 +5826,10 @@ function buildOilChart(rows, onSeries, term) {
     return d ? `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
-  _oilChart = { periods, series, geom: { X, Y, n, W, padL } };
+  _oilChart = { periods, series, bands: bands || [], geom: { X, Y, n, W, padL } };
 
   return `<svg class="viz-svg oil-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="국제유가 월별">
-      ${grid}${xticks}${lines}
+      ${grid}${bandSvg}${xticks}${lines}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="oil-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="oil-dots"></g>
@@ -5773,6 +5839,30 @@ function buildOilChart(rows, onSeries, term) {
 }
 
 /** 크로스헤어 + 툴팁 (연-월 · 유종 · $값) */
+/** 구간 하이라이트 — 차트 음영과 카드가 같은 data-era 를 공유한다.
+ *  ★ 차트 쪽은 오버레이(.oil-overlay)가 위를 덮고 있어 음영이 직접 hover 를 받지
+ *    못한다. 그래서 툴팁이 이미 계산하는 '지금 가리키는 인덱스'로 구간을 찾아 쓴다
+ *    — 추가 히트 영역을 만들지 않아 툴팁 동작을 방해하지 않는다. */
+function oilHiEra(fig, idx) {
+  if (!fig || fig._oilHi === idx) return;
+  fig._oilHi = idx;
+  fig.querySelectorAll('[data-era]').forEach((el) => {
+    el.classList.toggle('is-hi', idx != null && String(idx) === el.getAttribute('data-era'));
+  });
+}
+
+/** 카드에 마우스를 올리면 차트의 그 구간이 진해진다(반대 방향은 툴팁이 담당) */
+function wireOilEraHover(root) {
+  const fig = root.querySelector('.oil-figure');
+  if (!fig || fig._oilEraWired) return;
+  fig._oilEraWired = true;   // root 는 재렌더에도 살아남으므로 한 번만 건다
+  fig.addEventListener('mouseover', (e) => {
+    const card = e.target.closest && e.target.closest('.xsii-era[data-era]');
+    if (card) oilHiEra(fig, card.getAttribute('data-era'));
+  });
+  fig.addEventListener('mouseleave', () => oilHiEra(fig, null));
+}
+
 function wireOilChart() {
   const fig = document.querySelector('#materialRoot .oil-figure');
   const tip = document.getElementById('oilTooltip');
@@ -5800,7 +5890,12 @@ function wireOilChart() {
     });
     if (!rows) { clear(); return; }
     dots.innerHTML = dh;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
+    // 지금 가리키는 지점이 속한 구간을 카드·음영 양쪽에서 진하게
+    const band = (c.bands || []).find((b) => i >= b.a && i <= b.b);
+    oilHiEra(fig, band ? String(band.idx) : null);
+    const bandName = band
+      ? `<span class="oil-tt-era" style="color:${band.color}">${escapeHtml(band.era.title || '')}</span>` : '';
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}${bandName}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;

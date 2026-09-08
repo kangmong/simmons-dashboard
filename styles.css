@@ -12,6 +12,7 @@
   --accent: #C8102E;        /* SIMMONS 크림슨 - 포인트로만 */
   --accent-soft: #FDECEE;
   --blue: #3B82F6; --green: #12B981; --amber: #F59E0B; --violet: #8B5CF6; --slate: #64748B;
+  --teal: #0D9488;          /* 국제유가 '재상승' 구간 — 다섯 구간 색을 서로 다르게 */
   --radius: 16px;
   --shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06);
   --shadow-hover: 0 2px 4px rgba(16,24,40,.06), 0 12px 28px rgba(16,24,40,.10);
@@ -1398,6 +1399,15 @@ body {
 .oil-s__ul li { margin: 4px 0; font-size: 12px; line-height: 1.55; color: var(--text); }
 /* 구간 5개 · 요인 4개 */
 .oil-eras { grid-template-columns: repeat(5, 1fr); }
+/* 차트 음영 ↔ 카드 연동 — 한쪽에 마우스를 올리면 다른 쪽이 진해진다 */
+.oil-band rect { transition: opacity .14s ease; }
+.oil-band.is-hi rect { opacity: .26 !important; }
+.oil-tt-era { margin-left: 7px; font-size: 10.5px; font-weight: 800; }
+.oil-figure .xsii-era { cursor: default; transition: box-shadow .14s ease, transform .14s ease; }
+.oil-figure .xsii-era.is-hi {
+  box-shadow: 0 6px 18px rgba(17, 17, 26, .12); transform: translateY(-2px);
+  border-color: var(--xe, var(--line));
+}
 .oil-facs { grid-template-columns: repeat(4, 1fr); }
 
 @media (max-width: 1100px) {
