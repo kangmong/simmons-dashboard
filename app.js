@@ -3593,7 +3593,7 @@ function opPrint(q, win) {
 }
 
 /** 제품 선그래프 — 원유 차트와 같은 모양이지만 상태(_opChart)를 따로 둔다 */
-function buildProductChart(rows, onSeries, term) {
+function buildProductChart(rows, onSeries, term, hOpt) {
   const n = rows.length;
   if (!n) { _opChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const series = (onSeries || []).map((s) => ({
@@ -3607,7 +3607,12 @@ function buildProductChart(rows, onSeries, term) {
   let ymin = Math.min.apply(null, all), ymax = Math.max.apply(null, all);
   const yp = (ymax - ymin) * 0.1 || 5; ymin = Math.max(0, ymin - yp); ymax += yp;
 
-  const W = VIZ_W, H = VIZ_H, padL = 42, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
+  // ★ 뷰박스 높이만 이 차트에서 늘린다. 공용 VIZ_H(158)를 바꾸면 대시보드의
+  //   차트 전부가 같이 커진다 — 여기만 hOpt 로 받는다.
+  //   SVG 는 width:100% + preserveAspectRatio 라 실제 높이가 '폭 × H/W' 로 정해진다.
+  //   그래서 표(8개 제품, 약 290px)와 키를 맞추려면 이 비율을 키우는 수밖에 없다.
+  const W = VIZ_W, H = (hOpt && isFinite(hOpt)) ? hOpt : VIZ_H;
+  const padL = 42, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
@@ -3732,7 +3737,8 @@ function renderOilProductHtml() {
       + '<button type="button" class="oc-tool" data-op-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_opView === 'chart')
-      ? vizUnitCap(unit, 'USD') + buildProductChart(win, opOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilpTooltip"></div>'
+      ? vizUnitCap(unit, 'USD') + buildProductChart(win, opOnSeries(q), q.term, OILP_CHART_H)
+        + '<div class="viz-tooltip" id="oilpTooltip"></div>'
       : opTableHtml(q, win);
     // ① 차트(좌) + 제품별 현황 표(우). 표보기일 때는 표가 이미 넓으니 나란히 두지 않는다.
     const opRow = (_opView === 'chart')
@@ -3761,6 +3767,10 @@ const OILP_DATA_URL = 'public/data/oilp-insights.json';
 let _oilpIns = null;
 
 const OILP_BASE_KEY = 'gasoline95';   // 시나리오 기준 제품(대표 제품)
+// 차트 뷰박스 높이 — 옆에 붙는 '제품별 현황' 표(8개 제품 + 머리글 + 각주, 약 290px)와
+// 키가 비슷해지도록 잡았다. 폭 840px 기준 840×250/720 ≈ 292px.
+// 공용 VIZ_H(158)로는 840×158/720 ≈ 184px 밖에 안 돼 표 아래가 크게 비었다.
+const OILP_CHART_H = 250;
 
 async function fetchOilpInsights() {
   try {

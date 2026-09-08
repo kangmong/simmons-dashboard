@@ -1442,8 +1442,9 @@ body {
 .oilp-c__ul li { margin: 4px 0; font-size: 12px; line-height: 1.55; color: var(--text); }
 
 /* ① 차트(좌) + 제품별 현황 표(우) */
-.oilp-row { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
-.oilp-row__main { min-width: 0; }
+/* 차트와 표가 같은 높이로 끝나도록 늘린다 — 한쪽이 짧아 아래가 비는 것을 막는다 */
+.oilp-row { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
+.oilp-row__main { display: flex; flex-direction: column; min-width: 0; }
 .oilp-side {
   padding: 10px 12px 11px; background: var(--field);
   border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
@@ -1474,6 +1475,10 @@ body {
 @media (max-width: 1100px) {
   .oilp-cards { grid-template-columns: repeat(2, 1fr); }
   .oilp-row { grid-template-columns: 1fr; }
+  /* 표가 아래로 내려가 차트가 전체 폭을 쓰므로, 늘린 비율(720×250)만으로도
+     충분히 높아진다 — 1100px 에서 382px, 700px 에서 243px.
+     ★ min-height 를 걸면 preserveAspectRatio 때문에 SVG 안에 빈 띠(레터박스)가
+       생겨, 없애려던 빈 공간이 다시 생긴다. 그래서 비율에만 맡긴다. */
 }
 @media (max-width: 720px) { .oilp-cards { grid-template-columns: 1fr; } }
 
