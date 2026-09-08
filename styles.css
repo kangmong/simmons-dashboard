@@ -1144,10 +1144,13 @@ body {
 
 .xsi-figure .xsi-ranges { margin-top: 14px; }
 /* 차트 위 단위 캡션 — Y축 눈금과 자리를 다투지 않도록 SVG 밖에 둔다 */
-.xsi-unit {
+.viz-unit {
   margin: 8px 0 -2px; font-size: 11px; font-weight: 700; color: var(--muted);
   letter-spacing: 0;
 }
+.viz-unit__fx { font-weight: 500; }
+/* 최근값 아래 원화 환산 */
+.xsi-lead__krw { margin-top: 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .xsi-figure .viz-svg { margin-top: 4px; }
 
 @media (max-width: 1100px) { .xsi-stats { grid-template-columns: repeat(4, 1fr); } }
@@ -1207,25 +1210,26 @@ body {
 @media (max-width: 720px) {
   .xsii-eras, .xsii-ols { grid-template-columns: 1fr; }
 }
-/* ── 운임지수 대시보드 ────────────────────────────────────────────────────
-   위젯 안에서만 쓰는 머리(배너)·꼬리(인사이트) 톤. 다른 카드는 흰 바탕이라
-   이 두 블록만 남색으로 눌러 '대시보드'처럼 읽히게 한다. */
-.xsi-hero {
+/* ── 위젯 제목 배너 (진한 남색) ────────────────────────────────────────────
+   운임지수·ICIS·해상 정시성이 같은 컴포넌트를 쓴다(vizHero). 다른 카드는 흰
+   바탕이라 이 블록만 남색으로 눌러 '대시보드 머리'처럼 읽히게 한다. */
+.viz-hero {
   display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
-  margin: -11px -12px 14px; padding: 15px 17px 16px;
+  /* .viz-figure 의 padding(11px)을 상쇄해 위젯 맨 위·좌우 끝까지 채운다 */
+  margin: -11px -11px 14px; padding: 15px 17px 16px;
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
   border-radius: var(--radius) var(--radius) 0 0; color: #fff;
 }
-.xsi-hero__ico {
+.viz-hero__ico {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 38px; height: 38px; border-radius: 11px;
   background: rgba(255, 255, 255, .13); color: #fff;
 }
-.xsi-hero__body { flex: 1 1 320px; min-width: 0; }
-.xsi-hero__title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; line-height: 1.35; }
-.xsi-hero__title i { font-style: normal; font-weight: 600; font-size: 12.5px; color: var(--navy-ink); }
-.xsi-hero__sub { margin: 5px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--navy-ink); }
-.xsi-hero__badge {
+.viz-hero__body { flex: 1 1 320px; min-width: 0; }
+.viz-hero__title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; line-height: 1.35; }
+.viz-hero__title i { font-style: normal; font-weight: 600; font-size: 12.5px; color: var(--navy-ink); }
+.viz-hero__sub { margin: 5px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--navy-ink); }
+.viz-hero__badge {
   flex: none; align-self: center; padding: 5px 11px; border-radius: 999px;
   background: rgba(255, 255, 255, .15); color: #fff;
   font-size: 11.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;
@@ -1332,7 +1336,7 @@ body {
 }
 @media (max-width: 720px) {
   .xsii-facs { grid-template-columns: 1fr; }
-  .xsi-hero { margin: -11px -12px 12px; }
+  .viz-hero { margin: -11px -11px 12px; }
 }
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }

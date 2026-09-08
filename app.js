@@ -2836,7 +2836,7 @@ function renderMaterial() {
     const { periods, series } = icisViewData(_matYear);
     // 추세 연장은 화면이 데이터 끝까지 닿아 있을 때만 만든다(iiExtend 안에서 판단).
     const ext = iiExtend(periods);
-    body = buildIcisChart(periods, series, ext)
+    body = vizUnitCap('USD/톤', 'USD') + buildIcisChart(periods, series, ext)
       + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
         + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
         + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
@@ -2848,11 +2848,11 @@ function renderMaterial() {
   }
 
   // 순수 추가: KOIMA 요약 한 줄을 맨 앞에 덧붙인다(데이터 없으면 '' → 기존 출력과 동일).
+  // 배너의 '업데이트 기준'은 지수의 실제 최신 데이터 월(ICIS_DATA 마지막 period)
+  const icisDay = ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
   root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
-    <div class="viz-head"><div>
-      <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
-      <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료</div>
-    </div></div>
+    ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
+      'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay)}
     ${icisSum}
     ${toolbar}
     ${body}
@@ -3685,7 +3685,7 @@ function renderOilProductHtml() {
       + '<button type="button" class="oc-tool" data-op-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_opView === 'chart')
-      ? buildProductChart(win, opOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilpTooltip"></div>'
+      ? vizUnitCap(unit, 'USD') + buildProductChart(win, opOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilpTooltip"></div>'
       : opTableHtml(q, win);
     body = tools + result + msFactorsHtml('oil_price');
   }
@@ -4011,10 +4011,10 @@ function renderScheduleReliabilityHtml() {
   // ② 핵심요약 4박스 — 예전 전월비·전년비·국면 배지를 이 박스들로 옮겼다.
   const srExt = _srData.error ? null : sriExtend();
   const srBoxes = _srData.error ? '' : sriSummary(srExt);
-  const head = `<div class="viz-head"><div>
-      <div class="viz-title">해상 정시성 (Global Schedule Reliability)</div>
-      <div class="viz-sub">월별 정시 도착 비율(%) · 연도별</div>
-    </div></div>${srBoxes}`;
+  // 배너의 '업데이트 기준'은 관측치의 마지막 달
+  const srLast = _srData.error ? null : sriLast();
+  const head = vizHero('compass', '해상 정시성 (Global Schedule Reliability)',
+    '월별 정시 도착 비율(%) · 연도별', srLast ? srLast.ym : '') + srBoxes;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -4076,21 +4076,49 @@ function xsiHero() {
     const d = r.stats && r.stats.date;
     return (d && (!a || d > a)) ? d : a;
   }, null);
-  return `<div class="xsi-hero">
-    <span class="xsi-hero__ico" aria-hidden="true">
+  return vizHero('ship', '글로벌 컨테이너 운임지수', sub, day,
+    '(Xeneta Shipping Index by Compass)');
+}
+
+/* ── 위젯 제목 배너 (진한 남색) ────────────────────────────────────────────
+   운임지수·ICIS·해상 정시성이 같은 컴포넌트를 쓴다. 아이콘 path 만 다르다.
+   dateLabel 은 각 위젯의 '실제 최신 데이터 날짜'를 넣는다(수집 시각이 아니다). */
+const VIZ_HERO_ICONS = {
+  ship: '<path d="M3 17c1.2 1 2.3 1.4 3.5 1.4S9 18 10.2 17c1.2 1 2.3 1.4 3.5 1.4S16.3 18 17.5 17c1.2 1 2.3 1.4 3.5 1.4"/>'
+    + '<path d="M4.5 14 6 9.2l6-1.9 6 1.9L19.5 14"/><path d="M12 7.3V4.6M9.6 4.6h4.8"/>',
+  // 화학 원료 — 삼각 플라스크
+  flask: '<path d="M9.5 3h5"/><path d="M10.5 3v5.2L5.2 17.4A2 2 0 0 0 6.9 20.5h10.2a2 2 0 0 0 1.7-3.1L13.5 8.2V3"/>'
+    + '<path d="M7.6 14.5h8.8"/>',
+  // 항해 — 나침반
+  compass: '<circle cx="12" cy="12" r="9"/><path d="m15.2 8.8-1.9 4.5-4.5 1.9 1.9-4.5z"/>',
+};
+
+function vizHero(icon, title, sub, dateLabel, note) {
+  const d = VIZ_HERO_ICONS[icon] || VIZ_HERO_ICONS.ship;
+  return `<div class="viz-hero">
+    <span class="viz-hero__ico" aria-hidden="true">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 17c1.2 1 2.3 1.4 3.5 1.4S9 18 10.2 17c1.2 1 2.3 1.4 3.5 1.4S16.3 18 17.5 17c1.2 1 2.3 1.4 3.5 1.4"/>
-        <path d="M4.5 14 6 9.2l6-1.9 6 1.9L19.5 14"/>
-        <path d="M12 7.3V4.6M9.6 4.6h4.8"/>
-      </svg>
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>
     </span>
-    <div class="xsi-hero__body">
-      <div class="xsi-hero__title">글로벌 컨테이너 운임지수 <i>(Xeneta Shipping Index by Compass)</i></div>
-      ${sub ? `<p class="xsi-hero__sub">${escapeHtml(sub)}</p>` : ''}
+    <div class="viz-hero__body">
+      <div class="viz-hero__title">${escapeHtml(title)}${note
+        ? ` <i>${escapeHtml(note)}</i>` : ''}</div>
+      ${sub ? `<p class="viz-hero__sub">${escapeHtml(sub)}</p>` : ''}
     </div>
-    ${day ? `<span class="xsi-hero__badge">업데이트 기준 ${escapeHtml(day)}</span>` : ''}
+    ${dateLabel ? `<span class="viz-hero__badge">업데이트 기준 ${escapeHtml(dateLabel)}</span>` : ''}
   </div>`;
+}
+
+/** 통화 축 캡션 — 단위 + 적용 환율. 차트 위에 둔다(축 눈금과 자리를 다투지 않게). */
+function vizUnitCap(unit, cur) {
+  const r = krwRate(cur || 'USD');
+  const d = krwAsOf(cur || 'USD');
+  return '<div class="viz-unit">단위: ' + escapeHtml(unit)
+    + (r != null ? ' <span class="viz-unit__fx">· 원화 환산 적용 환율 1 '
+      + escapeHtml(String(cur || 'USD').toUpperCase()) + ' = '
+      + Math.round(r).toLocaleString('ko-KR') + '원'
+      + (d ? ' (' + escapeHtml(d) + ' 기준)' : '') + '</span>' : '')
+    + '</div>';
 }
 
 /** 지수 단위 — 수집 데이터의 Currency 를 그대로 쓴다(코드에 적지 않는다). */
@@ -4194,7 +4222,7 @@ function buildXsiChart(slice, color) {
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
-      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>${vizKrwTick(padL - 6, y, val, krwRate('USD'))}`;
   }).join('');
 
   const xticks = vizTickIdx(n, plotW, VIZ_TICK_GAP).map((i) => {
@@ -4284,8 +4312,11 @@ function xsiiIdx(dates, day) {
 
 /** ① 차트 안 구간 음영 + 라벨. 기준 항로일 때만 그린다. */
 function xsiiBandsSvg(slice, X, padT, plotH) {
+  // ★ 항로를 가리지 않고 그린다. 구간은 '언제였나'를 가리키는 시간 눈금이므로
+  //   어느 항로에서 봐도 같은 자리다. 다만 구간에 붙은 '설명'은 극동→북유럽을
+  //   보고 쓴 것이라, 그 사실은 아래 안내 문구로 계속 알린다.
   const eras = (_xsiiData && Array.isArray(_xsiiData.eras)) ? _xsiiData.eras : [];
-  if (!eras.length || !slice || !xsiiOnBase()) return '';
+  if (!eras.length || !slice) return '';
   const first = slice.dates[0], last = slice.dates[slice.dates.length - 1];
   return eras.map((e) => {
     if (e.to < first || e.from > last) return '';     // 화면 밖 구간은 그리지 않는다
@@ -4315,7 +4346,8 @@ function xsiiEras(slice) {
   const last = slice ? slice.dates[slice.dates.length - 1] : null;
   const onBase = xsiiOnBase();
   const cards = eras.map((e) => {
-    const shown = onBase && first && !(e.to < first || e.from > last);
+    // 화면에 걸치는 구간만 진하게 — 항로와는 무관하고 '고른 기간'으로만 판단한다
+    const shown = first && !(e.to < first || e.from > last);
     return `<div class="xsii-era${shown ? '' : ' is-off'}" style="--xe:${XSII_TONE[e.tone] || 'var(--slate)'}">
       <div class="xsii-era__span">${escapeHtml(e.span)}</div>
       <div class="xsii-era__title">${escapeHtml(e.title || '')}</div>
@@ -4324,10 +4356,11 @@ function xsiiEras(slice) {
   }).join('');
   // ★ 기준 항로가 아닐 때는 오해가 없도록 먼저 밝힌다.
   const base = (_xsiiData && _xsiiData.baseRouteName) || '극동→북유럽';
+  // 구간 자체는 모든 항로에 그리되, 설명이 어느 항로를 보고 쓴 것인지는 계속 밝힌다.
   const warn = onBase
     ? `<div class="ii-cap">구간 설명은 ${escapeHtml(base)} 항로를 기준으로 조사한 참고용 서술입니다.</div>`
-    : `<div class="xsii-note">이 구간 설명은 <b>${escapeHtml(base)}</b> 항로 기준 참고용입니다 —
-        지금 보고 있는 항로의 실제 흐름과 다를 수 있어 차트 음영은 표시하지 않았습니다.</div>`;
+    : `<div class="xsii-note">이 구간 설명은 <b>${escapeHtml(base)}</b> 항로 기준 참고용이며,
+        지금 보고 있는 항로의 실제 흐름과 다를 수 있습니다.</div>`;
   return `<div class="ii-panel">
     <h3 class="subhead ii-h">① 운임지수 추이 — 구간별 흐름</h3>
     ${warn}
@@ -4607,6 +4640,8 @@ function renderXsiHtml() {
     <div class="xsi-lead__box">
       <div class="xsi-lead__lbl">최근값${gcAbbr('ⓘ', xsiValueTip())}</div>
       <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}<span class="xsi-lead__unit">${escapeHtml(xsiUnit())}</span></div>
+      ${(st.last != null && krwRate('USD') != null)
+        ? `<div class="xsi-lead__krw">≈ ${escapeHtml(fmtKrwShort(st.last * krwRate('USD')) || '')}</div>` : ''}
       <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준 · ${escapeHtml(r.code || '')}${r.inception ? ' · 산출 개시 ' + escapeHtml(r.inception) : ''}</div>
     </div>
     <div class="xsi-lead__name">${escapeHtml(r.name || '')}
@@ -4620,7 +4655,7 @@ function renderXsiHtml() {
   // ★ 단위는 차트 위 캡션으로 뺀다. SVG 안 Y축 옆에 두면 맨 위 눈금 숫자와
   //   같은 줄을 써서 겹쳤고(8개 항로 전부), 오른쪽 정렬 탓에 뷰박스 왼쪽 밖으로도 나갔다.
   const chart = hasSeries
-    ? `<div class="xsi-unit">단위: ${escapeHtml(xsiUnit())}</div>`
+    ? vizUnitCap(xsiUnit(), (_xsiData && _xsiData.currency) || 'USD')
       + buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
       + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`
     : '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
@@ -4679,8 +4714,10 @@ function wireXsi(root) {
     const cx = gm.X(i), v = c.values[i];
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
     dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${gm.Y(v).toFixed(1)}" r="3.5" fill="${c.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+    const rate = krwRate('USD');
+    const krw = (rate != null) ? ` <span class="op-krw op-krw--tt">≈ ${escapeHtml(fmtKrwShort(v * rate) || '')}</span>` : '';
     tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>`
-      + `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>지수</span><span class="viz-tt-val">${v.toLocaleString('en-US')}</span></div>`;
+      + `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>운임</span><span class="viz-tt-val">${v.toLocaleString('en-US')} USD${krw}</span></div>`;
     const fr = fig.getBoundingClientRect();
     let left = clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = clientX - fr.left - tip.offsetWidth - 14;
@@ -5312,7 +5349,7 @@ function renderOilPricesHtml() {
       + '<button type="button" class="oc-tool" data-oc-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_ocView === 'chart')
-      ? buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
+      ? vizUnitCap(unit, 'USD') + buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
     body = tools + result + msFactorsHtml('oil_price');
   }
@@ -5994,6 +6031,8 @@ function renderKoimaPriceHtml() {
     const rows = kpSliceRows(item);
     // 배지는 고른 기간이 아니라 품목 전 구간으로 계산한다(전년비에 12개월이 필요하다).
     body = kpSummaryBar(item, rows)
+      + (krwFactor(item.unit) != null ? vizUnitCap(item.unit || '', 'USD')
+        : '<div class="viz-unit">단위: ' + escapeHtml(item.unit || '-') + '</div>')
       + buildKpChart(rows, item, cat)
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + msFactorsHtml('naphtha')
