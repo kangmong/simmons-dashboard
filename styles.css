@@ -2290,43 +2290,101 @@ body {
 .sm-grid2--mkt > .sm-card { display: flex; flex-direction: column; }
 
 /* 왼쪽 — 슬립테크 기술 분야 지도 */
-.stm-lead { margin: -2px 0 10px; font-size: 12px; line-height: 1.6; color: var(--text); }
-.stm-flow { display: flex; flex-direction: column; }
-.stm-arrow {
-  display: flex; justify-content: center; align-items: center;
-  height: 18px; color: var(--slate); opacity: .7;
+/* ── 슬립테크 기술 지도 — 헤더 → 3분기 → 카테고리 카드 ────────────────────
+   ★ 카드/제목/각주는 기존 .sm-card / .sm-h / .sm-foot 를 그대로 쓴다.
+   ★ 분기선은 가짜 요소(::before)로만 그린다 — SVG 를 쓰지 않아 폭이 바뀌어도
+     선이 어긋나지 않고, 1열로 접히면 미디어쿼리에서 선만 지운다. */
+
+/* 상단 헤더 박스 + 아래로 내려가는 줄기 */
+.stm2-root { display: flex; flex-direction: column; align-items: center; }
+.stm2-root__box {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  background: var(--navy, #1E293B); color: #fff;
+  font-size: 13px; font-weight: 800; letter-spacing: -.01em; text-align: center;
 }
-.stm-stage {
-  padding: 10px 12px 11px;
-  border: 1px solid var(--line); border-left: 3px solid var(--stm-c, var(--slate));
+.stm2-root__hint { font-size: 10.5px; font-weight: 500; opacity: .85; letter-spacing: 0; }
+.stm2-stem { width: 1px; height: 10px; background: var(--line); }
+
+/* 3분기 — 위쪽 가로 분기선 + 박스마다 세로 연결선 */
+.stm2-fork {
+  position: relative; padding-top: 11px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.stm2-fork::before {
+  content: ''; position: absolute; top: 0; height: 1px; background: var(--line);
+  left: calc(16.6% + 5px); right: calc(16.6% + 5px);
+}
+.stm2-box {
+  position: relative; padding: 9px 11px 10px; min-width: 0;
+  border: 1px solid var(--line); border-top: 2px solid var(--stm2-c, var(--slate));
   border-radius: var(--radius-sm); background: var(--field);
 }
-.stm-stage--measure { --stm-c: var(--blue); }
-.stm-stage--analyze { --stm-c: var(--violet); }
-.stm-stage--improve { --stm-c: var(--green, #12B981); }
-.stm-stage__top { display: flex; align-items: center; gap: 7px; }
-.stm-stage__no {
-  flex: none; width: 18px; height: 18px; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--stm-c, var(--slate)); color: #fff;
-  font-size: 11px; font-weight: 800; line-height: 1;
+.stm2-box::before {
+  content: ''; position: absolute; top: -11px; left: 50%;
+  width: 1px; height: 11px; background: var(--line);
 }
-.stm-stage__ttl { font-size: 13px; font-weight: 800; color: var(--ink); }
-.stm-stage__en {
-  margin-left: 5px; font-size: 10.5px; font-weight: 600; color: var(--stm-c, var(--slate));
-  letter-spacing: .01em;
+.stm2-box--blue { --stm2-c: var(--blue); }
+.stm2-box--violet { --stm2-c: var(--violet); }
+.stm2-box--green { --stm2-c: var(--green, #12B981); }
+.stm2-box__h { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.stm2-box__en {
+  margin-left: 4px; font-size: 10px; font-weight: 600;
+  color: var(--stm2-c, var(--slate)); letter-spacing: .01em;
 }
-.stm-stage__desc { margin-top: 3px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
-.stm-grps { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
-.stm-grp__h { font-size: 11.5px; font-weight: 700; color: var(--text); }
-.stm-grp__h i {
-  font-style: normal; margin-left: 3px; font-size: 10.5px; font-weight: 500; color: var(--muted);
+.stm2-box__d { margin-top: 2px; font-size: 10.5px; color: var(--muted); line-height: 1.45; }
+.stm2-tags { margin-top: 7px; display: flex; flex-direction: column; gap: 4px; }
+.stm2-tags--cat { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+
+/* 기업 태그 — 국내(파랑) / 해외(회색) */
+.stm2-tag {
+  display: block; padding: 4px 7px; border-radius: 5px;
+  border: 1px solid var(--stm2-tb, var(--line)); background: var(--stm2-tg, var(--card, #fff));
+  min-width: 0;
 }
-.stm-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
-.stm-tag {
-  display: inline-block; padding: 2px 7px;
-  background: var(--card, #fff); border: 1px solid var(--line); border-radius: 999px;
-  font-size: 10.5px; font-weight: 600; color: var(--text); white-space: nowrap;
+.stm2-tags--cat .stm2-tag { display: inline-block; border-radius: 999px; padding: 3px 9px; }
+.stm2-tag--kr { --stm2-tb: color-mix(in srgb, var(--blue) 28%, transparent); --stm2-tg: var(--blue-soft); }
+.stm2-tag--gl { --stm2-tb: var(--line); --stm2-tg: var(--card, #fff); }
+.stm2-tag__n { display: block; font-size: 11px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+.stm2-tag--kr .stm2-tag__n { color: var(--blue-ink); }
+.stm2-tag--gl .stm2-tag__n { color: var(--slate); }
+.stm2-tags--cat .stm2-tag__n { display: inline; font-size: 10.5px; }
+.stm2-tag__d { display: block; margin-top: 1px; font-size: 10px; color: var(--muted); line-height: 1.4; }
+
+/* 구분선 + '어느 분야에 어느 기업이 있나' */
+.stm2-sep { margin: 14px 0 11px; border-top: 1px dashed var(--line); }
+.stm2-maph {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+}
+.stm2-maph__t { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.stm2-legend { margin-left: auto; display: flex; gap: 10px; }
+.stm2-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); }
+.stm2-lg__sw { width: 9px; height: 9px; border-radius: 2px; border: 1px solid var(--line); }
+.stm2-lg__sw--kr { background: var(--blue-soft); border-color: color-mix(in srgb, var(--blue) 28%, transparent); }
+.stm2-lg__sw--gl { background: var(--card, #fff); }
+
+/* 카테고리 카드 3개 */
+.stm2-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stm2-cat {
+  padding: 9px 11px 10px; min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--field);
+}
+.stm2-cat__h { display: flex; align-items: flex-start; gap: 6px; }
+.stm2-cat__n { font-size: 12px; font-weight: 800; color: var(--ink); min-width: 0; }
+.stm2-cat__hint {
+  display: block; margin-top: 1px; font-size: 10px; font-weight: 500; color: var(--muted);
+}
+.stm2-cat__badge {
+  margin-left: auto; flex: none; padding: 1px 7px; border-radius: 999px;
+  background: var(--slate-soft, var(--field)); border: 1px solid var(--line);
+  font-size: 10px; font-weight: 800; color: var(--slate); white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .stm2-fork, .stm2-cats { grid-template-columns: 1fr; }
+  /* 1열로 접히면 가로 분기선과 세로 연결선을 지운다(어긋나 보이지 않게) */
+  .stm2-fork::before, .stm2-box::before { display: none; }
+  .stm2-fork { padding-top: 0; }
 }
 
 /* 오른쪽 — 시장 규모 막대그래프 */

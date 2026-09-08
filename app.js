@@ -1338,39 +1338,74 @@ function smStInvest(st) {
      넓은 폭이 남았고, 그 자리에 기술 분류를 넣어 공간을 쓴다.
    ★★ 컨테이너·카드·제목은 기존 .sm-grid2 / .sm-card / .sm-h 를 그대로 쓴다. */
 
-/** 왼쪽 — 기술 분야 & 기업 지도. 내용은 전부 JSON(techMap)에서 온다. */
+/** 왼쪽 — 슬립테크 기술 지도.
+ *  위: '슬립테크 기술' 헤더 → 3분기 박스(웨어러블/니어러블/에어러블)
+ *  아래: 구분선 + '어느 분야에 어느 기업이 있나' 카테고리 카드 3개
+ *  ★ 내용은 전부 JSON(techMap)에서 온다 — 기업명·기능·승인 문구를 코드에 적지 않는다.
+ *  ★★ 카드 배지는 '그 분야에 정리한 기업 수'만 센다. CES 수상 건수처럼
+ *    확인되지 않은 숫자는 만들지 않는다(JSON badgeNote 에 그 사실을 적어 둔다). */
 function smTechMap(d) {
   const t = d && d.techMap;
-  if (!t || !Array.isArray(t.stages) || !t.stages.length) return '';
-  const stages = t.stages.map((s, i) => {
-    const groups = (s.groups || []).map((g) => {
-      const tags = (g.tags || []).map((x) =>
-        '<span class="stm-tag">' + escapeHtml(x) + '</span>').join('');
-      return '<div class="stm-grp">'
-        + '<div class="stm-grp__h">' + escapeHtml(g.label || '')
-        + (g.hint ? ' <i>' + escapeHtml(g.hint) + '</i>' : '') + '</div>'
-        + (tags ? '<div class="stm-tags">' + tags + '</div>' : '')
-        + '</div>';
-    }).join('');
-    return '<div class="stm-stage stm-stage--' + escapeHtml(s.key || ('s' + i)) + '">'
-      + '<div class="stm-stage__top">'
-      + '<span class="stm-stage__no">' + escapeHtml(String(s.step || (i + 1))) + '</span>'
-      + '<span class="stm-stage__ttl">' + escapeHtml(s.title || '')
-      + (s.en ? '<span class="stm-stage__en">' + escapeHtml(s.en) + '</span>' : '') + '</span>'
+  if (!t) return '';
+  const brs = Array.isArray(t.branches) ? t.branches : [];
+  const cards = Array.isArray(t.cards) ? t.cards : [];
+  if (!brs.length && !cards.length) return '';
+
+  // 국내/해외 태그 — kr 은 파랑, 그 외는 회색
+  const tag = (name, note, origin) => '<span class="stm2-tag stm2-tag--'
+    + (origin === 'kr' ? 'kr' : 'gl') + '">'
+    + '<span class="stm2-tag__n">' + escapeHtml(name || '') + '</span>'
+    + (note ? '<span class="stm2-tag__d">' + escapeHtml(note) + '</span>' : '')
+    + '</span>';
+
+  const boxes = brs.map((b) => '<div class="stm2-box stm2-box--' + escapeHtml(b.tone || 'blue') + '">'
+    + '<div class="stm2-box__h">' + escapeHtml(b.name || '')
+    + (b.en ? '<span class="stm2-box__en">' + escapeHtml(b.en) + '</span>' : '') + '</div>'
+    + (b.desc ? '<div class="stm2-box__d">' + escapeHtml(b.desc) + '</div>' : '')
+    + '<div class="stm2-tags">'
+    + (b.items || []).map((x) => tag(x.tag, x.note, x.origin)).join('')
+    + '</div></div>').join('');
+
+  const fork = brs.length
+    ? '<div class="stm2-root">'
+      + '<div class="stm2-root__box">' + escapeHtml(t.rootLabel || '슬립테크 기술')
+      + (t.rootHint ? '<span class="stm2-root__hint">' + escapeHtml(t.rootHint) + '</span>' : '')
+      + '</div><div class="stm2-stem" aria-hidden="true"></div></div>'
+      + '<div class="stm2-fork">' + boxes + '</div>'
+    : '';
+
+  const legend = (Array.isArray(t.legend) && t.legend.length)
+    ? '<div class="stm2-legend">' + t.legend.map((l) =>
+      '<span class="stm2-lg"><i class="stm2-lg__sw stm2-lg__sw--'
+      + (l.origin === 'kr' ? 'kr' : 'gl') + '"></i>' + escapeHtml(l.label || '') + '</span>').join('')
       + '</div>'
-      + (s.desc ? '<div class="stm-stage__desc">' + escapeHtml(s.desc) + '</div>' : '')
-      + '<div class="stm-grps">' + groups + '</div>'
-      + '</div>';
-  });
-  // 단계 사이 화살표 — 세로로 쌓이는 구조라 아래로 향한다
-  const flow = stages.join('<div class="stm-arrow" aria-hidden="true">'
-    + '<svg viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor"'
-    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-    + '<path d="M12 1v9"/><path d="m6.5 7 5.5 5.5L17.5 7"/></svg></div>');
+    : '';
+
+  const unit = escapeHtml(t.badgeUnit || '곳');
+  const catCards = cards.map((c) => '<div class="stm2-cat">'
+    + '<div class="stm2-cat__h">'
+    + '<span class="stm2-cat__n">' + escapeHtml(c.name || '')
+    + (c.hint ? '<span class="stm2-cat__hint">' + escapeHtml(c.hint) + '</span>' : '') + '</span>'
+    + '<span class="stm2-cat__badge">' + (c.companies || []).length + unit + '</span>'
+    + '</div>'
+    + '<div class="stm2-tags stm2-tags--cat">'
+    + (c.companies || []).map((x) => tag(x.name, '', x.origin)).join('')
+    + '</div></div>').join('');
+
+  const mapSec = cards.length
+    ? '<div class="stm2-sep"></div>'
+      + '<div class="stm2-maph">'
+      + '<span class="stm2-maph__t">' + escapeHtml(t.mapTitle || '어느 분야에 어느 기업이 있나') + '</span>'
+      + legend + '</div>'
+      + '<div class="stm2-cats">' + catCards + '</div>'
+    : '';
+
   return '<div class="sm-card sm-techmap">'
     + '<div class="sm-h">' + escapeHtml(t.title || '슬립테크 기술 분야 및 주요 기업') + '</div>'
-    + (t.lead ? '<div class="stm-lead">' + escapeHtml(t.lead) + '</div>' : '')
-    + '<div class="stm-flow">' + flow + '</div>'
+    + fork
+    + mapSec
+    + (t.badgeNote ? '<div class="sm-foot">' + escapeHtml(t.badgeNote) + '</div>' : '')
+    + (t.source ? '<div class="sm-foot">' + escapeHtml(t.source) + '</div>' : '')
     + (t.foot ? '<div class="sm-foot">' + escapeHtml(t.foot) + '</div>' : '')
     + '</div>';
 }

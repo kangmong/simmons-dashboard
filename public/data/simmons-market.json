@@ -318,100 +318,152 @@
   },
   "techMap": {
     "title": "슬립테크 기술 분야 및 주요 기업",
-    "lead": "수면 데이터를 어떻게 모으고(측정), 어떻게 해석하고(분석), 실제 잠자리를 어떻게 바꾸는지(개선)의 3단계로 정리했습니다.",
-    "stages": [
+    "rootLabel": "슬립테크 기술",
+    "rootHint": "수면 데이터를 어떤 방식으로 얻는가",
+    "branches": [
       {
-        "step": 1,
-        "key": "measure",
-        "title": "측정",
-        "en": "Measure",
-        "desc": "어떻게 수면 데이터를 수집하는가",
-        "groups": [
+        "key": "wearable",
+        "name": "웨어러블",
+        "en": "Wearable",
+        "desc": "몸에 착용해서 측정",
+        "tone": "blue",
+        "items": [
           {
-            "label": "웨어러블",
-            "hint": "손목·손가락 착용",
-            "tags": [
-              "삼성 (갤럭시워치)",
-              "애플 (애플워치)",
-              "Oura (오라링)"
-            ]
+            "tag": "삼성 갤럭시워치",
+            "note": "수면무호흡 감지 · 2024 FDA 드노보 승인",
+            "origin": "kr"
           },
           {
-            "label": "니어러블",
-            "hint": "침대·매트리스 근처/내장 센서",
-            "tags": [
-              "코웨이 (비렉스)",
-              "세라젬",
-              "Withings"
-            ]
+            "tag": "애플 애플워치",
+            "note": "수면무호흡 감지 · 2024 FDA 510(k) 승인",
+            "origin": "gl"
           },
           {
-            "label": "에어러블",
-            "hint": "비접촉 공기중 분석",
-            "tags": [
-              "텐마인즈 (AI 슬립봇)"
-            ]
+            "tag": "Oura 오라링",
+            "note": "손가락 착용형 수면추적",
+            "origin": "gl"
           }
         ]
       },
       {
-        "step": 2,
-        "key": "analyze",
-        "title": "분석",
-        "en": "Analyze",
-        "desc": "수집된 데이터를 어떻게 해석하는가",
-        "groups": [
+        "key": "nearable",
+        "name": "니어러블",
+        "en": "Nearable",
+        "desc": "침대·매트리스 근처/내장 센서",
+        "tone": "violet",
+        "items": [
           {
-            "label": "AI 수면분석·코칭",
-            "hint": "수면 패턴 해석과 상담",
-            "tags": [
-              "ETRI (자율성장형 수면상담 AI)",
-              "각 웨어러블사 자체 알고리즘"
-            ]
+            "tag": "코웨이 비렉스",
+            "note": "매트리스 내장 비접촉 생체센싱",
+            "origin": "kr"
           },
           {
-            "label": "수면점수 산출",
-            "hint": "Sleep Score",
-            "tags": [
-              "대부분의 플랫폼 공통 기능"
-            ]
+            "tag": "에이트슬립 Pod 5 Ultra",
+            "note": "매트리스 커버 센서 + 자동 온도조절",
+            "origin": "gl"
+          },
+          {
+            "tag": "세라젬",
+            "note": "헤드보드 통합 컨트롤타워",
+            "origin": "kr"
           }
         ]
       },
       {
-        "step": 3,
-        "key": "improve",
-        "title": "개선",
-        "en": "Improve",
-        "desc": "실제로 수면 환경을 어떻게 바꾸는가",
-        "groups": [
+        "key": "airable",
+        "name": "에어러블",
+        "en": "Airable",
+        "desc": "비접촉 공기 신호 분석",
+        "tone": "green",
+        "items": [
           {
-            "label": "스마트 매트리스·프레임",
-            "hint": "경도·자세 조절",
-            "tags": [
-              "코웨이 (비렉스 루나)",
-              "세라젬",
-              "시몬스 (자사)"
-            ]
-          },
-          {
-            "label": "환경 제어",
-            "hint": "조명·온도·소리",
-            "tags": [
-              "세라젬 (헤드보드 컨트롤타워)",
-              "Withings"
-            ]
-          },
-          {
-            "label": "명상·사운드 앱",
-            "hint": "입면 보조",
-            "tags": [
-              "Calm"
-            ]
+            "tag": "텐마인즈 AI 슬립봇",
+            "note": "공기압 기반 비접촉 모니터링 · CES 2026",
+            "origin": "kr"
           }
         ]
       }
     ],
-    "foot": "※ 공개된 언론보도·기업 발표 기준으로 정리한 참고 자료입니다"
+    "mapTitle": "어느 분야에 어느 기업이 있나",
+    "legend": [
+      {
+        "label": "국내기업",
+        "origin": "kr"
+      },
+      {
+        "label": "해외기업",
+        "origin": "gl"
+      }
+    ],
+    "cards": [
+      {
+        "key": "health",
+        "name": "디지털 헬스",
+        "hint": "수면분석·생체신호",
+        "companies": [
+          {
+            "name": "삼성",
+            "origin": "kr"
+          },
+          {
+            "name": "애플",
+            "origin": "gl"
+          },
+          {
+            "name": "Oura",
+            "origin": "gl"
+          },
+          {
+            "name": "레즈메드",
+            "origin": "gl"
+          },
+          {
+            "name": "텐마인즈",
+            "origin": "kr"
+          }
+        ]
+      },
+      {
+        "key": "bed",
+        "name": "스마트 베드·매트리스",
+        "hint": "침구 자체가 기기",
+        "companies": [
+          {
+            "name": "코웨이 (비렉스)",
+            "origin": "kr"
+          },
+          {
+            "name": "세라젬",
+            "origin": "kr"
+          },
+          {
+            "name": "에이트슬립",
+            "origin": "gl"
+          },
+          {
+            "name": "시몬스 (자사)",
+            "origin": "kr"
+          }
+        ]
+      },
+      {
+        "key": "coach",
+        "name": "AI 수면코칭·상담",
+        "hint": "데이터 해석과 처방",
+        "companies": [
+          {
+            "name": "레즈메드 (ResMed)",
+            "origin": "gl"
+          },
+          {
+            "name": "ETRI (자율성장형 수면상담 AI)",
+            "origin": "kr"
+          }
+        ]
+      }
+    ],
+    "badgeUnit": "곳",
+    "badgeNote": "카드 우측 배지는 그 분야에 정리한 기업 수입니다. CES 수상·인증 건수처럼 확인되지 않은 숫자는 넣지 않았습니다.",
+    "source": "출처: 비즈한국(2026.01), 서울경제(2026.01), ZDNet Korea(2026.05), KB의생각(2025.05) 등 언론보도 종합"
   }
 }
