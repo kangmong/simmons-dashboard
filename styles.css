@@ -1014,6 +1014,8 @@ body {
   background: var(--ii-tint, var(--field));
   border: 1px solid transparent; border-radius: var(--radius-sm);
 }
+/* 단기 대응 — 빨강(브랜드 accent). KOIMA 시사점 3카드가 쓴다 */
+.ii-imp--risk { --ii-tint: var(--accent-soft); --ii-ink: var(--accent); }
 .ii-imp--warn { --ii-tint: var(--amber-soft); --ii-ink: var(--amber-ink); }
 .ii-imp--info { --ii-tint: var(--blue-soft); --ii-ink: var(--blue-ink); }
 .ii-imp--act { --ii-tint: var(--green-soft); --ii-ink: var(--green-ink); }
@@ -1839,6 +1841,86 @@ body {
 @media (max-width: 640px) {
   .koima-controls { gap: 8px; }
   .koima-t { font-size: 11.5px; }
+}
+
+/* ── KOIMA 부문별 지수 — 인사이트 대시보드 배치 ────────────────────────────
+   ★ 새 카드 디자인을 만들지 않는다. 다른 위젯이 쓰는 .sr-sum(요약박스) ·
+     .sr-fac(변동요인) · .ii-imp(시사점) · .xsi-ins(하단 요약)를 재사용하고,
+     이 블록은 '몇 열로 놓을지'와 KOIMA 고유 요소(변동률표·전망차트)만 담는다. */
+
+/* 요약 4번째 칸 — 자동 요약 3줄. 앞 3칸과 같은 .sr-sum__box 를 쓴다 */
+.koima-insbox__ul { margin: 5px 0 0; padding-left: 15px; }
+.koima-insbox__ul li { margin: 3px 0; font-size: 11.5px; line-height: 1.55; color: var(--text); }
+.koima-insbox__ul li .ii-k { font-weight: 800; color: var(--ink); }
+
+/* 패널 제목 뒤 부문 이름 — 8개 부문 어디를 눌러도 무슨 부문인지 보이게 한다 */
+.koima-h__cat {
+  margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--muted);
+  letter-spacing: 0;
+}
+/* ① 은 배너·요약 바로 아래라 위 구분선을 지운다 */
+.koima-panel--first { margin-top: 12px; padding-top: 0; border-top: 0; }
+
+/* ① 차트(좌) + 기간별 변동률(우) — 석유제품 위젯과 같은 2열 구조 */
+.koima-row { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: stretch; }
+.koima-row__main { display: flex; flex-direction: column; min-width: 0; }
+.koima-side { display: flex; flex-direction: column; min-width: 0; }
+.koima-side__h { margin-bottom: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.koima-side__h i { font-style: normal; font-weight: 600; font-size: 11px; color: var(--muted); }
+.koima-chgt-wrap { overflow-x: auto; }
+.koima-chgt { width: 100%; border-collapse: collapse; font-size: 12px; }
+.koima-chgt th {
+  padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.koima-chgt th:first-child { text-align: left; }
+.koima-chgt td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.koima-chgt tbody th {
+  padding: 7px 8px; text-align: left; background: transparent; font-weight: 600; color: var(--text);
+}
+.koima-chgt tbody tr:last-child th, .koima-chgt tbody tr:last-child td { border-bottom: 0; }
+.koima-chgt tbody tr:hover { background: var(--row-hover); }
+.koima-chgt__v { font-variant-numeric: tabular-nums; }
+.koima-chgt__b { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ② 변동요인 5카드 — .sr-fac 를 그대로 쓰고 열 수만 5로 바꾼다 */
+.koima-facs { grid-template-columns: repeat(5, 1fr); }
+
+/* ③ 최근 12개월 표 — 기존 표 그대로. 패널 안이라 제목 위 여백만 줄인다 */
+.koima-recent .koima-t__head { margin-top: 0; }
+
+/* ④ 향후 전망 */
+.koima-fc { display: flex; flex-direction: column; gap: 8px; }
+.koima-fc__boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.koima-fc__box {
+  padding: 9px 11px; background: var(--field); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.koima-fc__box--now { background: var(--surface-1); }
+.koima-fc__lbl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.koima-fc__lbl i { font-style: normal; font-weight: 600; margin-left: 3px; opacity: .85; }
+.koima-fc__val {
+  margin-top: 3px; font-size: 19px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.koima-fc__pc { margin-left: 6px; font-size: 12px; font-weight: 800; }
+.koima-fc__pc.up { color: var(--accent); }
+.koima-fc__pc.down { color: var(--blue); }
+.koima-fc__pc.flat { color: var(--muted); }
+.koima-fc__rng { margin-top: 3px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.koima-fc__sd { margin-left: 3px; opacity: .8; }
+.koima-fc-svg { width: 100%; height: auto; display: block; }
+
+@media (max-width: 1100px) {
+  .koima-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .koima-facs { grid-template-columns: repeat(3, 1fr); }
+  .koima-fc__boxes { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 620px) {
+  .koima-facs { grid-template-columns: repeat(2, 1fr); }
+  .koima-fc__boxes { grid-template-columns: 1fr; }
 }
 
 /* ── 일일 국제원자재가격 (KOIMA) — 순수 추가 카드 전용 스타일 ────────────────

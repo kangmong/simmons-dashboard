@@ -2300,7 +2300,15 @@ function msFracIndex(keys, date) {
 /** 차트 안에 넣을 변곡점 마커 SVG. 이벤트가 없거나 축 밖이면 ''. */
 function msEventsSvg(key, keys, X, padT, plotH, W) {
   const info = msFor(key);
-  const evs = (info && Array.isArray(info.events)) ? info.events : [];
+  return vizEventsSvg((info && Array.isArray(info.events)) ? info.events : [],
+    keys, X, padT, plotH, W);
+}
+
+/** 변곡점 마커 — 이벤트 배열을 직접 받는다.
+ *  ★ 부문마다 이벤트 목록이 달라지는 KOIMA 가 이 형태로 쓴다.
+ *  ★ e.ref === true 면 '참고용'이라 옅은 빈 원으로 그려 눈으로도 구분되게 한다.
+ *    (ref 가 없는 기존 위젯의 출력은 예전과 한 글자도 다르지 않다) */
+function vizEventsSvg(evs, keys, X, padT, plotH, W) {
   if (!evs.length || !keys || keys.length < 2) return '';
   const FS = 7.5, GAP = 5, ROWS = [13, 22];   // 라벨을 얹을 줄(마커 점 기준 아래로)
 
@@ -2342,8 +2350,10 @@ function msEventsSvg(key, keys, X, padT, plotH, W) {
       + ' data-detail="' + escapeHtml(it.e.detail || '') + '"'
       + ' data-date="' + escapeHtml(it.e.date || '') + '">'
       + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + y0 + '" x2="' + it.x.toFixed(1) + '" y2="' + y1.toFixed(1) + '"'
-      + ' stroke="var(--amber)" stroke-width="1" stroke-dasharray="2 2" opacity=".6"/>'
-      + '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>'
+      + ' stroke="var(--amber)" stroke-width="1" stroke-dasharray="2 2" opacity="' + (it.e.ref ? '.3' : '.6') + '"/>'
+      + (it.e.ref
+        ? '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.4" fill="var(--surface-1)" stroke="var(--amber)" stroke-width="1.2"/>'
+        : '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>')
       + label
       + '<rect class="ms-ev__hit" x="' + (it.x - 7).toFixed(1) + '" y="' + y0 + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
       + '</g>';
@@ -2434,12 +2444,6 @@ function msFactorsHtml(key) {
 function msPtsPetro(data, key) {
   const rows = (data && data.terms && data.terms.m && data.terms.m.rows) || [];
   return rows.map((r) => ({ k: r.period, v: r[key] })).filter((x) => x.v != null);
-}
-
-/** KOIMA 월간 부문별 지수 — 선택된 부문. */
-function msPtsKoima(cat) {
-  return ((cat && cat.rows) || [])
-    .map((r) => ({ k: r.period, v: r.index })).filter((x) => x.v != null);
 }
 
 /** KOIMA 일일 국제원자재가격 — 선택된 품목. */
@@ -2745,6 +2749,8 @@ function iiEmph(text) {
 
 /* 카드 톤 — 주의(주황) · 검토(파랑) · 실행(녹색). 아이콘도 같은 색을 쓴다. */
 const II_TONES = {
+  // 단기 대응 — 빨강(브랜드 accent). 시계 아이콘으로 '시간이 촉박함'을 나타낸다.
+  risk: { cls: 'risk', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.4 2.1"/>' },
   warn: { cls: 'warn', icon: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4"/><path d="M12 17.4v.2"/>' },
   info: { cls: 'info', icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>' },
   act: { cls: 'act', icon: '<circle cx="12" cy="12" r="9"/><path d="m8.2 12.3 2.6 2.6 5-5.2"/>' },
@@ -4339,6 +4345,10 @@ const VIZ_HERO_ICONS = {
   fuel: '<path d="M4.5 20.5V5.4A1.9 1.9 0 0 1 6.4 3.5h4.7a1.9 1.9 0 0 1 1.9 1.9v15.1"/>'
     + '<path d="M3 20.5h11.5"/><path d="M6.6 7.2h4.3v3.4H6.6z"/>'
     + '<path d="M12.9 8.6h3.4a1.8 1.8 0 0 1 1.8 1.8v5.1a1.6 1.6 0 0 0 3.2 0V9.1l-2.1-2.6"/>',
+  // 원자재·광물 — 광석 더미(야적장) + 곡괭이
+  mine: '<path d="M2.5 20.5h19"/><path d="m5.5 20.5 4.2-6.6 4.2 6.6"/>'
+    + '<path d="m12.6 20.5 3.3-5 3.3 5"/><path d="M8.2 15.4h3"/>'
+    + '<path d="M14.4 8.6 19 4"/><path d="M12.6 3.5c1.9-.6 3.9-.1 5.3 1.3s1.9 3.4 1.3 5.3"/>',
   // 원유 — 유정 탑(데릭) + 기름방울
   oil: '<path d="M4 20h16"/><path d="m7 20 3.2-11M13.4 20 10.2 9"/><path d="M7.6 14.2h5.2"/>'
     + '<path d="M10.2 9V4.8h5.6"/><path d="M18 12.4c1 1.2 1.6 2.1 1.6 2.9a1.6 1.6 0 1 1-3.2 0c0-.8.6-1.7 1.6-2.9Z"/>',
@@ -4362,6 +4372,8 @@ function vizHero(icon, title, sub, dateLabel, note, badgePrefix) {
 
 /** 통화 축 캡션 — 단위 + 적용 환율. 차트 위에 둔다(축 눈금과 자리를 다투지 않게). */
 function vizUnitCap(unit, cur) {
+  // cur === false → 통화가 없는 지표(지수 등). 원화 환산 문구를 붙이지 않는다.
+  if (cur === false) return '<div class="viz-unit">단위: ' + escapeHtml(unit) + '</div>';
   const r = krwRate(cur || 'USD');
   const d = krwAsOf(cur || 'USD');
   return '<div class="viz-unit">단위: ' + escapeHtml(unit)
@@ -6300,6 +6312,405 @@ function koimaDelta(val, pct) {
   return `<span class="koima-chg ${cls}">${av} (${arrow}${ap}%)</span>`;
 }
 
+/* ══ KOIMA 부문별 지수 인사이트 대시보드 ═══════════════════════════════════
+   배너 → 요약 4박스 → ① 추이+기간별 변동률 → ② 변동요인 5카드
+   → ③ 최근 12개월 표 → ④ 향후 전망(그래프) → 시사점 3카드 → 하단 요약
+   ★ 기존 조작부(부문 8버튼 · 기준 년월 · 기간칩)는 건드리지 않는다.
+   ★★ 화면의 숫자는 전부 그 부문의 실제 rows 에서 계산한다.
+     JSON(koima-insights.json)에는 해설 문장만 있고 수치는 없다 —
+     그래야 부문을 바꿔도 문구와 그래프가 어긋나지 않는다. */
+const KOIMA_INS_URL = 'public/data/koima-insights.json';
+let _koimaIns = null;
+
+// ① 차트 뷰박스 높이 — 옆에 붙는 '기간별 변동률' 패널(5행, 약 290px)과 키를 맞춘다.
+// 공용 VIZ_H(158)로는 너무 납작해 오른쪽 패널 아래가 크게 빈다.
+const KOIMA_CHART_H = 250;
+const KOIMA_FC_H = 168;        // ④ 전망 미니차트 높이
+const KOIMA_FC_MONTHS = 6;     // 전망 지평(개월) — 3개월·6개월 두 지점을 읽는다
+const KOIMA_TREND_WIN = 12;    // 추세를 재는 창(개월)
+const KOIMA_VOL_WIN = 12;      // 변동성을 재는 창(개월)
+const KOIMA_EV_WIN = 6;        // 이벤트 영향도를 재는 창(개월)
+
+async function fetchKoimaInsights() {
+  try {
+    const res = await fetch(KOIMA_INS_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _koimaIns = d;
+  } catch (e) {
+    _koimaIns = null;
+    console.warn('[koima-insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 지금 고른 부문의 해설 묶음. 없으면 null */
+function koimaInsOf(key) {
+  const cs = _koimaIns && _koimaIns.cats;
+  return (cs && cs[key]) || null;
+}
+
+/** 'YYYY-MM' + n개월 */
+function koimaAddMonth(p, n) {
+  const t = koimaMonthIdx(p) + n;
+  return String(Math.floor(t / 12)) + '-' + String((t % 12) + 1).padStart(2, '0');
+}
+
+/** 부문 전체 통계 — 요약·변동률·전망·요약문이 모두 이 값을 쓴다.
+ *  ★ '기준 년월'까지만 잘라서 계산한다. 기준월을 과거로 옮기면 요약도 그 시점 기준이 된다. */
+function koimaStatFull(cat) {
+  const all = ((cat && cat.rows) || []).filter((r) => r.index != null && isFinite(r.index));
+  if (all.length < 2) return null;
+  const end = koimaClampEnd(cat, _koimaEnd);
+  const upto = end ? all.filter((r) => r.period <= end) : all;
+  const rs = upto.length >= 2 ? upto : all;
+  const last = rs[rs.length - 1];
+  const at = (back) => {
+    const t = koimaMonthIdx(last.period) - back;
+    return rs.find((r) => koimaMonthIdx(r.period) === t) || null;
+  };
+  const chg = (back) => {
+    const r = at(back);
+    return (r && r.index) ? ((last.index - r.index) / r.index) * 100 : null;
+  };
+  const w = rs.slice(-12).map((r) => r.index);
+  const mx = rs.reduce((a, b) => (b.index > a.index ? b : a), rs[0]);
+  const mn = rs.reduce((a, b) => (b.index < a.index ? b : a), rs[0]);
+  return {
+    ym: last.period, v: last.index, mom: last.momPct, yoy: last.yoyPct,
+    momAt: at(1), yoyAt: at(12),
+    avg12: w.reduce((a, b) => a + b, 0) / w.length,
+    avgFrom: rs[Math.max(0, rs.length - 12)].period, avgTo: last.period, avgN: w.length,
+    c3: chg(3), c6: chg(6), c12: chg(12),
+    at3: at(3), at6: at(6), at12: at(12),
+    max: { v: mx.index, ym: mx.period }, min: { v: mn.index, ym: mn.period },
+    n: rs.length, from: rs[0].period, to: last.period, rows: rs,
+  };
+}
+
+/** ④ 전망 — 최근 12개월 추세 + 최근 12개월 변동성. 통계적 추정이고 예측모델이 아니다. */
+function koimaForecast(rows) {
+  const v = (rows || []).map((r) => r.index).filter((x) => x != null && isFinite(x));
+  if (v.length < 8) return null;
+  const xs = v.slice(-KOIMA_TREND_WIN), n = xs.length;
+  const xm = (n - 1) / 2, ym = xs.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  xs.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
+  if (!den) return null;
+  const slope = num / den, base = v[v.length - 1];
+  const w = v.slice(-(KOIMA_VOL_WIN + 1)), r = [];
+  for (let i = 1; i < w.length; i += 1) if (w[i - 1] > 0 && w[i] > 0) r.push(Math.log(w[i] / w[i - 1]));
+  if (r.length < 3) return null;
+  const rm = r.reduce((a, b) => a + b, 0) / r.length;
+  const sd = Math.sqrt(r.reduce((a, b) => a + (b - rm) * (b - rm), 0) / (r.length - 1));
+  const baseYm = rows[rows.length - 1].period;
+  const path = [];
+  for (let m = 1; m <= KOIMA_FC_MONTHS; m += 1) {
+    const med = Math.max(0, base + slope * m), band = sd * Math.sqrt(m);
+    path.push({
+      m: m, ym: koimaAddMonth(baseYm, m), med: med,
+      lo: med * Math.exp(-band), hi: med * Math.exp(band),
+    });
+  }
+  const pc = (p) => (base ? ((p.med - base) / base) * 100 : 0);
+  const p3 = path[2], p6 = path[KOIMA_FC_MONTHS - 1];
+  return {
+    base: base, baseYm: baseYm, path: path, m3: p3, m6: p6,
+    sd: sd * 100, sd3: sd * Math.sqrt(3) * 100, sd6: sd * Math.sqrt(6) * 100,
+    chg3: pc(p3), chg6: pc(p6),
+    dir: (pc(p6) > 3 ? 'up' : (pc(p6) < -3 ? 'down' : 'flat')),
+    from: rows[Math.max(0, rows.length - KOIMA_TREND_WIN)].period, to: baseYm,
+  };
+}
+
+/** 부문 공통 이벤트 목록을 '이 부문 데이터'로 검증해 마커용으로 만든다.
+ *  ★ 수집 범위를 벗어난 이벤트는 아예 빼고(희소금속의 1998·2008),
+ *    이벤트 후 KOIMA_EV_WIN 개월 최대변동이 기준치 미만이면 ref(참고용)로 표시한다.
+ *    → "부문별로 실제 흐름과 맞지 않는 이벤트"를 눈속임 없이 가려낸다. */
+function koimaEventItems(cat) {
+  const evs = (_koimaIns && Array.isArray(_koimaIns.events)) ? _koimaIns.events : [];
+  const rows = ((cat && cat.rows) || []).filter((r) => r.index != null && isFinite(r.index));
+  if (!evs.length || rows.length < 2) return [];
+  const refPct = (_koimaIns && isFinite(_koimaIns.eventRefPct)) ? _koimaIns.eventRefPct : 12;
+  const by = {};
+  rows.forEach((r) => { by[r.period] = r.index; });
+  const out = [];
+  evs.forEach((e) => {
+    const b = by[e.date];
+    if (b == null || !b) return;                       // 수집 범위 밖 → 표시하지 않는다
+    const t0 = koimaMonthIdx(e.date);
+    let ext = b;
+    rows.forEach((r) => {
+      const dm = koimaMonthIdx(r.period) - t0;
+      if (dm >= 0 && dm <= KOIMA_EV_WIN && Math.abs(r.index - b) > Math.abs(ext - b)) ext = r.index;
+    });
+    const imp = ((ext - b) / b) * 100;
+    const ref = Math.abs(imp) < refPct;
+    out.push({
+      date: e.date, ref: ref,
+      label: String(e.label || '') + (ref ? ' *' : ''),
+      detail: String(e.detail || '') + ' 이 부문에서는 이후 ' + KOIMA_EV_WIN + '개월간 최대 '
+        + (imp > 0 ? '+' : '') + imp.toFixed(1) + '% 움직였습니다.'
+        + (ref ? ' 변동이 뚜렷하지 않아 참고용으로만 표시합니다.' : ''),
+    });
+  });
+  return out;
+}
+
+/** 요약 4박스 — 앞 3칸은 수치, 4칸은 부문 실데이터로 자동 요약한 3줄 */
+function koimaSum4(cat, st, fc) {
+  if (!cat || !st) return '';
+  const n2 = (v) => (v == null || !isFinite(v) ? '—' : v.toFixed(2));
+  const boxes = matSum([
+    {
+      label: cat.label + ' 지수', val: matVal(st.v, '', 2),
+      sub: escapeHtml(st.ym) + ' 기준 · 전월비 ' + matBadge(st.mom, 2),
+    },
+    {
+      label: '전년 동월 대비', val: matBadge(st.yoy, 2),
+      sub: st.yoyAt ? escapeHtml(st.yoyAt.period) + ' ' + n2(st.yoyAt.index) + ' 대비' : '자료 제공값',
+    },
+    {
+      label: '최근 12개월 평균', val: matVal(st.avg12, '', 1),
+      sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
+    },
+  ]);
+  const bullets = koimaAutoBullets(cat, st, fc)
+    .map((t) => '<li>' + iiEmph(t) + '</li>').join('');
+  const ins = bullets
+    ? '<div class="sr-sum__box koima-insbox"><div class="sr-sum__lbl">주요 인사이트 요약</div>'
+      + '<ul class="koima-insbox__ul">' + bullets + '</ul></div>'
+    : '';
+  // matSum 이 만든 .sr-sum 그리드의 '맨 끝'에 4번째 칸으로 끼워 넣는다(칸 폭·테두리 재사용).
+  // ★ 문자열 치환으로 찾으면 1번 박스 끝의 '</div></div>' 에 먼저 걸려 순서가 뒤바뀐다 —
+  //   마지막 </div>(= .sr-sum 을 닫는 것) 앞에 위치로 넣는다.
+  if (!ins) return boxes;
+  const k = boxes.lastIndexOf('</div>');
+  return k < 0 ? boxes + ins : boxes.slice(0, k) + ins + boxes.slice(k);
+}
+
+/** 요약 3줄 — 전부 그 부문 실측값에서 만든다(부문마다 문장이 달라진다) */
+function koimaAutoBullets(cat, st, fc) {
+  if (!cat || !st) return [];
+  const n2 = (v) => (v == null || !isFinite(v) ? '—' : v.toFixed(2));
+  const pc = (v, d) => (v == null || !isFinite(v) ? '—'
+    : (v > 0 ? '+' : '') + v.toFixed(d == null ? 1 : d) + '%');
+  const dirWord = (v) => (v == null || !isFinite(v) ? '보합'
+    : (v > 3 ? '상승' : (v < -3 ? '하락' : '보합')));
+  const out = [];
+  out.push(cat.label + ' 지수는 ' + st.ym + ' 기준 **' + n2(st.v) + '**로 전월대비 '
+    + pc(st.mom, 2) + ', 전년동월대비 ' + pc(st.yoy, 2) + '입니다.');
+  const vsAvg = st.avg12 ? ((st.v - st.avg12) / st.avg12) * 100 : null;
+  out.push('최근 6개월 ' + pc(st.c6) + ' · 12개월 ' + pc(st.c12) + '로 '
+    + dirWord(st.c6) + ' 흐름이며, 최근 12개월 평균(' + n2(st.avg12) + ') 대비 '
+    + pc(vsAvg) + ' 수준입니다.');
+  const fromMax = st.max.v ? ((st.v - st.max.v) / st.max.v) * 100 : null;
+  const fromMin = st.min.v ? ((st.v - st.min.v) / st.min.v) * 100 : null;
+  out.push('수집 구간(' + st.from + '~' + st.to + ') 최고 ' + n2(st.max.v) + '(' + st.max.ym
+    + ') 대비 ' + pc(fromMax) + ', 최저 ' + n2(st.min.v) + '(' + st.min.ym + ') 대비 '
+    + pc(fromMin) + ' 위치입니다.');
+  if (fc) {
+    out.push('추세를 그대로 연장하면 3개월 후 ' + pc(fc.chg3) + ' 부근이나, 이는 통계적 추정입니다.');
+  }
+  return out.slice(0, 3);
+}
+
+/** ① 우측 '기간별 변동률' 패널 */
+function koimaChangePanel(cat, st) {
+  if (!cat || !st) return '';
+  const n2 = (v) => (v == null || !isFinite(v) ? '—' : v.toFixed(2));
+  const row = (lbl, pct, ref) => '<tr><th scope="row">' + escapeHtml(lbl) + '</th>'
+    + '<td class="koima-chgt__v">' + matBadge(pct, 2) + '</td>'
+    + '<td class="koima-chgt__b">' + (ref ? escapeHtml(ref.period) + ' ' + n2(ref.index) : '—') + '</td></tr>';
+  return '<div class="koima-side">'
+    + '<div class="koima-side__h">기간별 변동률 <i>' + escapeHtml(st.ym) + ' 기준</i></div>'
+    + '<div class="koima-chgt-wrap"><table class="koima-chgt">'
+    + '<thead><tr><th>구간</th><th>변동률</th><th>비교 시점</th></tr></thead><tbody>'
+    + row('전월 대비', st.mom, st.momAt)
+    + row('전년 동월 대비', st.yoy, st.yoyAt)
+    + row('최근 3개월', st.c3, st.at3)
+    + row('최근 6개월', st.c6, st.at6)
+    + row('최근 12개월', st.c12, st.at12)
+    + '</tbody></table></div>'
+    + '<div class="ii-cap">전월·전년 대비는 자료 제공값, 3·6·12개월은 기준월과 해당 시점 '
+    + '지수로 직접 계산한 값입니다. 비교 시점에 자료가 없으면 &mdash;로 둡니다.</div>'
+    + '</div>';
+}
+
+/** ② 주요 변동요인 5카드 — 부문마다 다른 목록을 JSON 에서 가져온다 */
+function koimaFactors(cat) {
+  const ins = koimaInsOf(cat && cat.key);
+  const list = (ins && Array.isArray(ins.factors)) ? ins.factors : [];
+  if (!list.length) return '';
+  const tone = { up: 'hi', down: 'bal', both: 'neu' };
+  const cards = list.map((f) => '<div class="sr-fac sr-fac--' + escapeHtml(tone[f.dir] || 'neu') + '">'
+    + '<div class="sr-fac__top">'
+    + '<span class="sr-fac__ico" aria-hidden="true">' + escapeHtml(f.icon || '•') + '</span>'
+    + '<span class="sr-fac__title">' + escapeHtml(f.title || '') + '</span>'
+    + '</div>'
+    + '<div class="xsii-fac__tags">'
+    + (f.dirLabel ? '<span class="xsii-dir xsii-dir--' + escapeHtml(f.dir || 'both') + '">'
+      + escapeHtml(f.dirLabel) + '</span>' : '')
+    + '</div>'
+    + '<p class="sr-fac__desc">' + escapeHtml(f.desc || '') + '</p>'
+    + '</div>').join('');
+  return '<div class="ii-panel"><h3 class="subhead ii-h">② 주요 변동요인 분석 '
+    + '<span class="koima-h__cat">' + escapeHtml(cat.label) + '</span></h3>'
+    + '<div class="sr-facs koima-facs">' + cards + '</div>'
+    + '<div class="ii-cap">판정 배지는 해당 요인이 지수를 끌어올리는 쪽(상승요인)인지 '
+    + '끌어내리는 쪽(하락요인)인지에 대한 정성 판단이며, 계산값이 아닙니다.</div></div>';
+}
+
+/** ④ 향후 전망 미니차트 — 실측 12개월 + 추정 6개월(중앙선 점선 + 음영대) */
+function koimaFcChart(cat, st, fc) {
+  if (!cat || !st || !fc) return '';
+  const color = KOIMA_COLORS[cat.key] || 'var(--accent)';
+  const hist = st.rows.slice(-12);
+  const pts = hist.map((r) => ({ ym: r.period, v: r.index }));
+  const n = pts.length + fc.path.length;
+  const W = VIZ_W, H = KOIMA_FC_H;
+  const padL = 44, padR = 54, padT = VIZ_PAD_T + 4, padB = VIZ_PAD_B;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const lo = Math.min(...pts.map((p) => p.v), ...fc.path.map((p) => p.lo));
+  const hi = Math.max(...pts.map((p) => p.v), ...fc.path.map((p) => p.hi));
+  const pad = (hi - lo) * 0.1 || Math.max(1, hi * 0.05);
+  const ymin = lo - pad, ymax = hi + pad;
+  const X = (i) => padL + (i / (n - 1)) * plotW;
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW)
+      + '" y2="' + y.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
+      + VIZ_FS_AXIS + '" fill="var(--muted)">' + val.toFixed(val >= 100 ? 0 : 1) + '</text>';
+  }).join('');
+
+  let dh = '';
+  pts.forEach((p, i) => { dh += (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.v).toFixed(1) + ' '; });
+  const iBase = pts.length - 1;
+  let df = 'M' + X(iBase).toFixed(1) + ' ' + Y(fc.base).toFixed(1) + ' ';
+  fc.path.forEach((p, j) => { df += 'L' + X(iBase + 1 + j).toFixed(1) + ' ' + Y(p.med).toFixed(1) + ' '; });
+  let up = 'M' + X(iBase).toFixed(1) + ' ' + Y(fc.base).toFixed(1) + ' ';
+  fc.path.forEach((p, j) => { up += 'L' + X(iBase + 1 + j).toFixed(1) + ' ' + Y(p.hi).toFixed(1) + ' '; });
+  for (let j = fc.path.length - 1; j >= 0; j -= 1) {
+    up += 'L' + X(iBase + 1 + j).toFixed(1) + ' ' + Y(fc.path[j].lo).toFixed(1) + ' ';
+  }
+  up += 'Z';
+
+  // x축 라벨 — 실측 첫 달, 기준월, 3개월 후, 6개월 후만 찍어 겹칠 일이 없게 한다
+  const marks = [[0, pts[0].ym, 'start'], [iBase, fc.baseYm, 'middle'],
+    [iBase + 3, fc.m3.ym, 'middle'], [n - 1, fc.m6.ym, 'end']];
+  const xlab = marks.map(([i, t, a]) => '<text x="' + X(i).toFixed(1) + '" y="'
+    + (padT + plotH + 15).toFixed(1) + '" text-anchor="' + a + '" font-size="' + VIZ_FS_AXIS
+    + '" fill="var(--muted)">' + escapeHtml(t) + '</text>').join('');
+
+  const n1 = (v) => v.toFixed(1);
+  const tag = (i, p, lbl) => '<g><circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.med).toFixed(1)
+    + '" r="2.6" fill="' + color + '" stroke="var(--surface-1)" stroke-width="1.4"/>'
+    + '<text x="' + (X(i) + 5).toFixed(1) + '" y="' + (Y(p.med) - 4).toFixed(1)
+    + '" text-anchor="start" font-size="7.5" font-weight="700" paint-order="stroke"'
+    + ' stroke="var(--surface-1)" stroke-width="2.5" fill="var(--ink)">' + escapeHtml(lbl)
+    + ' ' + n1(p.med) + '</text></g>';
+
+  return '<svg class="viz-svg koima-fc-svg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+    + escapeHtml(cat.label) + ' 향후 ' + KOIMA_FC_MONTHS + '개월 지수 추정 범위">'
+    + grid
+    + '<text x="2" y="7.5" font-size="7.5" fill="var(--muted)">지수 (2010.12=100 기준)</text>'
+    + '<path d="' + up + '" fill="' + color + '" opacity=".14"/>'
+    + '<path d="' + dh.trim() + '" fill="none" stroke="' + color + '" stroke-width="1.9"'
+    + ' stroke-linejoin="round" stroke-linecap="round"/>'
+    + '<path d="' + df.trim() + '" fill="none" stroke="' + color + '" stroke-width="1.7"'
+    + ' stroke-dasharray="4 3" stroke-linecap="round"/>'
+    + '<line x1="' + X(iBase).toFixed(1) + '" y1="' + padT + '" x2="' + X(iBase).toFixed(1)
+    + '" y2="' + (padT + plotH).toFixed(1) + '" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3"/>'
+    + '<text x="' + (X(iBase) - 3).toFixed(1) + '" y="' + (padT + 8).toFixed(1)
+    + '" text-anchor="end" font-size="7.5" font-weight="700" fill="var(--muted)">실측</text>'
+    + '<text x="' + (X(iBase) + 3).toFixed(1) + '" y="' + (padT + 8).toFixed(1)
+    + '" text-anchor="start" font-size="7.5" font-weight="700" fill="var(--muted)">추정</text>'
+    + tag(iBase + 3, fc.m3, '3개월')
+    + tag(n - 1, fc.m6, '6개월')
+    + xlab
+    + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW)
+    + '" y2="' + (padT + plotH) + '" stroke="var(--axis)" stroke-width="1"/>'
+    + '</svg>';
+}
+
+/** ④ 향후 전망 패널 */
+function koimaOutlook(cat, st, fc) {
+  if (!cat || !st) return '';
+  if (!fc) {
+    return '<div class="ii-panel"><h3 class="subhead ii-h">④ 향후 전망 '
+      + '<span class="xsi-fc__tag">추정치</span></h3>'
+      + '<div class="ii-cap">추세와 변동성을 잴 만큼의 월별 관측치가 없어 전망을 내지 않았습니다.</div></div>';
+  }
+  const n1 = (v) => v.toFixed(1);
+  const pc = (v) => (v > 0 ? '+' : '') + v.toFixed(1) + '%';
+  const cell = (lbl, p, ch, sd) => '<div class="koima-fc__box">'
+    + '<div class="koima-fc__lbl">' + escapeHtml(lbl) + ' <i>' + escapeHtml(p.ym) + '</i></div>'
+    + '<div class="koima-fc__val">' + n1(p.med) + '<span class="koima-fc__pc '
+    + iiCls(ch) + '">' + pc(ch) + '</span></div>'
+    + '<div class="koima-fc__rng">추정 범위 ' + n1(p.lo) + ' ~ ' + n1(p.hi)
+    + ' <span class="koima-fc__sd">±' + sd.toFixed(1) + '%</span></div></div>';
+  return '<div class="ii-panel"><h3 class="subhead ii-h">④ 향후 전망 '
+    + '<span class="xsi-fc__tag">추정치</span></h3>'
+    + '<div class="koima-fc">'
+    + '<div class="koima-fc__boxes">'
+    + '<div class="koima-fc__box koima-fc__box--now">'
+    + '<div class="koima-fc__lbl">현재 지수 <i>' + escapeHtml(fc.baseYm) + '</i></div>'
+    + '<div class="koima-fc__val">' + n1(fc.base) + '</div>'
+    + '<div class="koima-fc__rng">실측값</div></div>'
+    + cell('3개월 후', fc.m3, fc.chg3, fc.sd3)
+    + cell('6개월 후', fc.m6, fc.chg6, fc.sd6)
+    + '</div>'
+    + koimaFcChart(cat, st, fc)
+    + '</div>'
+    + '<div class="ii-cap">※ 참고용 추정치이며 실제 예측이 아닙니다. 최근 '
+    + KOIMA_TREND_WIN + '개월(' + escapeHtml(fc.from) + '~' + escapeHtml(fc.to)
+    + ') 지수의 １차 추세를 그대로 연장한 중앙선에, 최근 ' + KOIMA_VOL_WIN
+    + '개월 월별 등락의 표준편차(월 ±' + fc.sd.toFixed(1) + '%)를 기간의 제곱근으로 넓힌 '
+    + '범위를 음영으로 얹은 것입니다. 시장 전망이나 공급사 제시가와는 무관합니다.</div></div>';
+}
+
+/** 시사점 및 대응 방안 3카드 — 단기(빨강)·중장기(파랑)·추가고려(녹색) */
+function koimaActions(cat) {
+  const ins = koimaInsOf(cat && cat.key);
+  const list = (ins && Array.isArray(ins.actions)) ? ins.actions : [];
+  if (!list.length) return '';
+  const cols = list.map((a) => '<div class="ii-imp ii-imp--' + escapeHtml(a.tone || 'info') + '">'
+    + '<div class="ii-imp__h">' + iiImpIcon(a.tone || 'info') + escapeHtml(a.title || '') + '</div>'
+    + '<ul class="xsi-act">' + (a.items || []).map((t) => '<li>' + iiEmph(t) + '</li>').join('')
+    + '</ul></div>').join('');
+  const upd = (_koimaIns && _koimaIns.updated) ? String(_koimaIns.updated) : null;
+  return '<div class="ii-panel"><h3 class="subhead ii-h">시사점 및 대응 방안 '
+    + '<span class="koima-h__cat">' + escapeHtml(cat.label) + '</span></h3>'
+    + '<div class="ii-imps">' + cols + '</div>'
+    + '<div class="ii-cap">시황 해설은 주기적으로 갱신됩니다'
+    + (upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : '') + '</div></div>';
+}
+
+/** 하단 핵심 인사이트 박스 (전체 폭 남색) — 부문 실데이터 방향에 맞는 문구를 고른다 */
+function koimaInsightBox(cat, st, fc) {
+  const ins = koimaInsOf(cat && cat.key);
+  const box = (ins && ins.insight) || null;
+  if (!box || !st) return '';
+  const dir = fc ? fc.dir : ((st.c6 != null && st.c6 > 3) ? 'up'
+    : ((st.c6 != null && st.c6 < -3) ? 'down' : 'flat'));
+  const lead = box[dir] || box.flat;
+  if (!lead) return '';
+  const trend = fc
+    ? '<span class="xsi-ins__trend">최근 ' + KOIMA_TREND_WIN + '개월 추세 연장 기준 3개월 후 '
+      + (fc.chg3 > 0 ? '+' : '') + fc.chg3.toFixed(1) + '% <i>추정</i></span>'
+    : '';
+  return '<div class="xsi-ins">'
+    + '<div class="xsi-ins__h">핵심 인사이트' + trend + '</div>'
+    + '<p class="xsi-ins__lead">' + escapeHtml(lead) + '</p>'
+    + (box.action ? '<p class="xsi-ins__act">→ ' + escapeHtml(box.action) + '</p>' : '')
+    + '</div>';
+}
+
 /** KOIMA 카드 HTML — 유가 카드와 동일한 3단계 빈 상태 */
 function renderKoimaHtml() {
   const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaIndex);
@@ -6312,12 +6723,15 @@ function renderKoimaHtml() {
        유화원료를 고르면 문구도 '유화원료 가격이…'로 따라간다.
      ★ 아직 못 고른 상태(로드 전)면 부문 이름 없이 일반 문장으로 둔다. */
   const catName = (cat && cat.label) || (KOIMA_TAB_LABELS[_koimaCat] || '');
-  const exSubject = catName ? catName + ' 가격이' : '해당 부문 가격이';
-  const head = `<div class="viz-head"><div>
-      <div class="viz-title">원자재 월간 부문별 지수 (KOIMA)</div>
-      <div class="viz-sub">8개 부문 월별 지수 · 2010.12 = 100 기준</div>
-      <div class="viz-sub2">예) &ldquo;${escapeHtml(exSubject)} 기준 시점에 비해 얼마나 올랐거나 내렸는지&rdquo;를 보여주는 지수</div>
-    </div></div>`;
+  /* 남색 배너 — 다른 위젯(ICIS·해상정시성·유가·운임지수)과 같은 vizHero 를 그대로 쓴다.
+     우측 배지는 '데이터 기준 {지금 고른 부문의 최신 년월}' 이다. */
+  const kHero = (_koimaIns && _koimaIns.hero) || {};
+  const kSt0 = (ok && cat) ? koimaStatFull(cat) : null;
+  const head = vizHero('mine', kHero.title || '원자재 원가 부문별 지수 (KOIMA)',
+    kHero.subtitle || '주요 원자재의 장기 추이와 변동 요인을 분석하여, 향후 방향성을 예측하고 '
+      + '구매 의사결정에 활용할 수 있는 인사이트를 제공합니다.',
+    kSt0 ? kSt0.ym : (_koimaData && _koimaData.latestPeriod) || '',
+    catName || null, kHero.badgePrefix || '데이터 기준');
 
   // 1) 부문 탭 8개 — 데이터 없으면 비활성
   const tabList = ok ? koimaCatsOrdered()
@@ -6349,35 +6763,72 @@ function renderKoimaHtml() {
   const chips = `<div class="icis-years koima-ranges">${KOIMA_RANGES.map((r) =>
     `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
 
+  /* ★ 8개 부문 모두 같은 틀로 나온다. 수치는 부문의 실제 rows 에서 계산하고,
+       해설만 koima-insights.json 의 해당 부문 항목에서 가져온다. */
+  const st = kSt0;
+  const fc = st ? koimaForecast(st.rows) : null;
+  const unitLbl = (_koimaIns && _koimaIns.unitLabel) || '지수 (2010.12=100 기준)';
+  const unitCap = (_koimaIns && _koimaIns.unitCaption)
+    || '이 지수는 2010년 12월을 100으로 기준 삼아, 해당 부문 원자재 가격이 기준시점 대비 '
+      + '얼마나 올랐거나 내렸는지를 보여주는 지수입니다.';
+
   let body;
   if (!_koimaData) {                                   // 1) 데이터 없음
     body = '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>';
   } else if (_koimaData.error) {
     body = `<div class="chart-empty">데이터를 불러오지 못했습니다 (${escapeHtml(_koimaData.error)})</div>`;
-  } else if (!_koimaRange) {                            // 2) 데이터 있음 · 기간 미선택
-    body = '<div class="icis-prompt">기간을 선택하세요</div>';
-  } else {                                              // 3) 선택됨 → 차트 + 표
+  } else {
+    // ① 추이 — 기간 미선택이면 차트 자리에만 기존 안내를 둔다(조작 흐름 유지)
     const rows = koimaSliceRows();
-    // 배지는 고른 기간이 아니라 부문 전 구간으로 계산한다(전년비에 12개월이 필요하다).
-    body = buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
-      + msFactorsHtml('koima_index')
-      + koimaRecentTable(rows, cat);
+    const evItems = koimaEventItems(cat);
+    const refN = evItems.filter((e) => e.ref).length;
+    const chartCell = _koimaRange
+      ? vizUnitCap(unitLbl, false) + buildKoimaChart(rows, cat, KOIMA_CHART_H, evItems)
+        + '<div class="viz-tooltip" id="koimaTooltip"></div>'
+        + '<div class="ii-cap ii-cap--chart">' + escapeHtml(unitCap)
+          + ' 표시 구간은 위 기간 버튼과 기준 년월을 따릅니다.'
+          + (evItems.length ? ' 주요 사건 마커는 이 부문 데이터로 검증한 것이며'
+            + (refN ? ', * 표시 ' + refN + '건은 이 부문에서 변동이 뚜렷하지 않아 참고용입니다'
+              : '') + '.' : '')
+        + '</div>'
+      : '<div class="icis-prompt">기간을 선택하세요</div>';
+    // 제목 뒤에는 '지금 그려진 구간'을 적는다 — 수집 전 구간과 헷갈리지 않게,
+    // 기간 버튼을 안 골랐을 때만 수집 범위를 보여준다.
+    const allRows = ((cat && cat.rows) || []).filter((r) => r.index != null);
+    const span = (_koimaRange && rows.length)
+      ? '표시 ' + rows[0].period + '~' + rows[rows.length - 1].period
+        + ' (' + rows.length + '개월)'
+      : (allRows.length ? '수집 ' + allRows[0].period + '~'
+        + allRows[allRows.length - 1].period : '');
+    const trend = '<div class="ii-panel koima-panel--first">'
+      + '<h3 class="subhead ii-h">① 지수 추이'
+      + (cat ? ' <span class="koima-h__cat">' + escapeHtml(cat.label)
+        + (span ? ' · ' + escapeHtml(span) : '') + '</span>' : '') + '</h3>'
+      + '<div class="koima-row"><div class="koima-row__main">' + chartCell + '</div>'
+      + koimaChangePanel(cat, st) + '</div></div>';
+    body = trend
+      + koimaFactors(cat)
+      + koimaRecentPanel(cat, st)
+      + koimaOutlook(cat, st, fc)
+      + koimaActions(cat)
+      + koimaInsightBox(cat, st, fc);
   }
-  // 요약 4박스 — 부문이 하나뿐인 단일 지표라 최근값·전월비·전년비·12개월 평균으로 채운다.
-  // 전월비·전년비는 KOIMA 가 직접 계산해 준 값을 그대로 쓴다.
-  const kRow = (ok && cat && cat.rows.length) ? cat.rows[cat.rows.length - 1] : null;
-  const kSt = (ok && cat) ? matStat(msPtsKoima(cat)) : null;
-  const koimaSum = (kSt && kRow) ? matSum([
-    { label: cat.label + ' 지수', val: matVal(kSt.v, '', 2), sub: escapeHtml(kRow.period) + ' 기준' },
-    { label: '전월비', val: matBadge(kRow.momPct, 2), sub: '자료 제공값' },
-    { label: '전년비', val: matBadge(kRow.yoyPct, 2), sub: '자료 제공값' },
-    { label: '최근 12개월 평균', val: matVal(kSt.avg, '', 1), sub: '실측 평균' },
-  ]) : '';
+  const koimaSum = (ok && cat && st) ? koimaSum4(cat, st, fc) : '';
   return `<div class="viz-root viz-figure koima-figure">${head}${koimaSum}${tabs}${controls}${chips}${body}${cap}</div>`;
 }
 
+/** ③ 최근 12개월 지수 현황 — 기존 2열 표를 그대로 쓰고 패널로만 감싼다.
+ *  ★ 기간칩과 무관하게 '기준 년월에서 12개월'을 보여준다(표 제목에 구간을 적는다). */
+function koimaRecentPanel(cat, st) {
+  if (!cat || !st) return '';
+  const rows = st.rows.slice(-12);
+  if (!rows.length) return '';
+  return '<div class="ii-panel"><h3 class="subhead ii-h">③ 최근 12개월 지수 현황</h3>'
+    + '<div class="koima-recent">' + koimaRecentTable(rows, cat) + '</div></div>';
+}
+
 /** 단일 시리즈 월별 선그래프 (dot 없음, Y축 auto — 0에서 시작하지 않음) */
-function buildKoimaChart(rows, cat) {
+function buildKoimaChart(rows, cat, hOpt, evItems) {
   const n = rows.length;
   if (!n || !cat) { _koimaChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const color = KOIMA_COLORS[cat.key] || 'var(--accent)';
@@ -6391,7 +6842,10 @@ function buildKoimaChart(rows, cat) {
   const yp = (ymax - ymin) * 0.08 || Math.max(1, ymax * 0.05);
   ymin -= yp; ymax += yp;
 
-  const W = VIZ_W, H = VIZ_H, padL = 42, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
+  // ★ 뷰박스 높이만 이 차트에서 늘린다(공용 VIZ_H 를 바꾸면 대시보드 차트가 전부 커진다).
+  //   padT 는 Y축 단위 라벨 한 줄을 얹을 만큼만 더 띄운다 — 눈금값과 겹치지 않게.
+  const W = VIZ_W, H = (hOpt && isFinite(hOpt)) ? hOpt : VIZ_H;
+  const padL = 42, padR = 16, padT = VIZ_PAD_T + 9, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
@@ -6420,12 +6874,13 @@ function buildKoimaChart(rows, cat) {
   return `<div class="viz-legend koima-legend"><span class="viz-legend__item">
       <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(cat.label)} 지수</span></div>
     <svg class="viz-svg koima-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(cat.label)} 월간 지수">
+      <text x="2" y="7.5" font-size="7.5" fill="var(--muted)">${escapeHtml((_koimaIns && _koimaIns.unitLabel) || '지수 (2010.12=100 기준)')}</text>
       ${grid}${xticks}${line}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="koima-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="koima-dots"></g>
       <rect class="koima-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${msEventsSvg('koima_index', rows.map((r) => r.period), X, padT, plotH, W)}
+      ${vizEventsSvg(evItems || [], rows.map((r) => r.period), X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -9242,6 +9697,8 @@ function initUpdate() {
     fetchOilInsights();
     // 순수 추가: 석유제품 인사이트. 위와 같은 이유로 await 안 한다.
     fetchOilpInsights();
+    // 순수 추가: KOIMA 부문별 지수 해설(부문별 변동요인·시사점). 위와 같은 이유로 await 안 한다.
+    fetchKoimaInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

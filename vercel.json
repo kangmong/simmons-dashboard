@@ -92,6 +92,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/koima-insights.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/logos/**",
       "use": "@vercel/static"
     },
