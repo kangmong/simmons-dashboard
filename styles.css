@@ -2282,6 +2282,79 @@ body {
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
 /* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
 /* 한줄 요약 — 다른 리포트 헤드라인과 같은 결(크고 굵게, 핵심 배수만 강조색) */
+/* ── 슬립테크 기업카드: 대표 제품 + 핵심 작동방식 ─────────────────────────
+   기업카드(.sm-st) 안에 얹는 블록이라 바깥 박스를 새로 만들지 않는다. */
+
+/* 대표 제품 카드 */
+.stp {
+  position: relative; margin: 8px 0 9px; padding: 12px 12px 10px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--field); text-align: center;
+}
+.stp-badge {
+  position: absolute; top: 8px; left: 8px;
+  padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 800; letter-spacing: -.01em;
+}
+.stp-badge--kr {
+  background: var(--blue-soft); color: var(--blue-ink);
+  border: 1px solid color-mix(in srgb, var(--blue) 28%, transparent);
+}
+.stp-badge--gl { background: var(--slate-soft); color: var(--slate); border: 1px solid var(--line); }
+.stp-fig {
+  display: flex; align-items: center; justify-content: center;
+  height: 64px; margin-bottom: 7px;
+}
+.stp-img { max-height: 64px; max-width: 100%; object-fit: contain; }
+.stp-iconwrap {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--card, #fff); border: 1px solid var(--line); color: var(--slate);
+}
+.stp-name { font-size: 13px; font-weight: 800; color: var(--ink); line-height: 1.35; }
+.stp-desc { margin-top: 2px; font-size: 11.5px; color: var(--text); line-height: 1.5; }
+.stp-src { margin-top: 5px; font-size: 10px; color: var(--muted); }
+
+/* 핵심 작동방식 — 가로 화살표 순서도 */
+.stm3 {
+  margin: 0 0 10px; padding: 9px 10px 10px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card, #fff);
+}
+.stm3__h {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
+  font-size: 11.5px; font-weight: 800; color: var(--ink);
+}
+.stm3__n {
+  padding: 0 6px; border-radius: 999px; background: var(--field);
+  border: 1px solid var(--line); font-size: 10px; font-weight: 700; color: var(--muted);
+}
+.stm3-flow { display: flex; align-items: stretch; flex-wrap: wrap; gap: 4px; }
+.stm3-step {
+  flex: 1 1 0; min-width: 96px;
+  display: flex; align-items: flex-start; gap: 5px;
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  background: var(--blue-soft);
+  border: 1px solid color-mix(in srgb, var(--blue) 18%, transparent);
+}
+.stm3-step__no {
+  flex: none; width: 15px; height: 15px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--blue); color: #fff; font-size: 9.5px; font-weight: 800; line-height: 1;
+}
+.stm3-step__t { font-size: 10.5px; font-weight: 600; color: var(--blue-ink); line-height: 1.4; }
+.stm3-ar {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  color: var(--slate); opacity: .65; width: 11px;
+}
+
+/* 카드가 좁아지면 단계를 세로로 쌓고, 화살표를 아래로 돌린다 */
+@media (max-width: 1240px) {
+  .stm3-flow { flex-direction: column; }
+  .stm3-step { flex: 0 0 auto; min-width: 0; }
+  .stm3-ar { width: auto; height: 9px; transform: rotate(90deg); }
+}
+
 /* ── 국내 수면시장 좌우 2분할 ──────────────────────────────────────────────
    컨테이너는 기존 .sm-grid2 / .sm-card / .sm-h / .sm-foot 를 그대로 쓰고,
    여기서는 순서도(stm-*)와 막대그래프 부속(smb-*)만 정의한다.

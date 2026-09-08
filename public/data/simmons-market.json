@@ -194,7 +194,23 @@
         "investEok": 180,
         "investBasis": "누적 (시드 2.5억 + 시리즈A 17.5억 + 시리즈B 160억)",
         "logo": "public/logos/asleep.png",
-        "logoSource": "asleep.ai 공식 사이트 브랜드 마크(apple-touch-icon 256px)"
+        "logoSource": "asleep.ai 공식 사이트 브랜드 마크(apple-touch-icon 256px)",
+        "product": {
+          "badge": "국내",
+          "name": "Asleep Track",
+          "desc": "비접촉 수면분석 솔루션",
+          "icon": "wave",
+          "image": "",
+          "source": "출처: 에이슬립 공식"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "비접촉 호흡·움직임 감지",
+            "AI로 수면단계 분석",
+            "수면 리포트 생성"
+          ]
+        }
       },
       {
         "name": "코웨이 (비렉스 BEREX)",
@@ -217,7 +233,23 @@
         "investEok": null,
         "investExcluded": "상장사(사업부문)",
         "logo": "public/logos/coway.png",
-        "logoSource": "coway.com 공식 정적 호스트 브랜드 마크(apple-touch-icon 180px)"
+        "logoSource": "coway.com 공식 정적 호스트 브랜드 마크(apple-touch-icon 180px)",
+        "product": {
+          "badge": "국내",
+          "name": "비렉스 스마트 매트리스",
+          "desc": "체압 감지 기반 경도 조절 매트리스",
+          "icon": "aircell",
+          "image": "",
+          "source": "출처: 코웨이 공식"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "체압 센서로 압력 감지",
+            "공기주머니 강도 9단계 조절",
+            "개인 맞춤 지지력 제공"
+          ]
+        }
       },
       {
         "name": "텐마인즈 (10minds)",
@@ -241,7 +273,24 @@
         "investEok": null,
         "investExcluded": "투자 유치 미확인",
         "logo": "public/logos/10minds.png",
-        "logoSource": "10minds.com 공식 사이트 로고(logo_10minds_160px.png)"
+        "logoSource": "10minds.com 공식 사이트 로고(logo_10minds_160px.png)",
+        "product": {
+          "badge": "국내",
+          "name": "AI 모션필로우",
+          "desc": "코골이 완화 스마트 베개",
+          "icon": "pillow",
+          "image": "",
+          "source": "출처: 텐마인즈 공식"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "코골이 소리 감지",
+            "베개 속 에어백 팽창",
+            "고개 각도 자동 조절",
+            "코골이 완화"
+          ]
+        }
       },
       {
         "name": "삼분의일",
@@ -262,7 +311,23 @@
         ],
         "color": "#F59E0B",
         "investEok": 160,
-        "investBasis": "누적 (2021년 시리즈A 120억 포함)"
+        "investBasis": "누적 (2021년 시리즈A 120억 포함)",
+        "product": {
+          "badge": "국내",
+          "name": "슬립큐브",
+          "desc": "온도조절 스마트 매트리스",
+          "icon": "thermo",
+          "image": "",
+          "source": "출처: 삼분의일 공식몰"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "호흡수로 수면단계 파악",
+            "표면온도 20~40도 자동조절",
+            "수면 효율 개선"
+          ]
+        }
       },
       {
         "name": "허니냅스 (HoneyNaps)",
@@ -286,7 +351,24 @@
           }
         ],
         "logo": "public/logos/honeynaps.png",
-        "logoSource": "honeynaps.com 공식 사이트 로고 시그니처"
+        "logoSource": "honeynaps.com 공식 사이트 로고 시그니처",
+        "product": {
+          "badge": "국내",
+          "name": "숨늠(SOMNUM)",
+          "desc": "수면다원검사 AI 판독 솔루션",
+          "icon": "report",
+          "image": "",
+          "source": "출처: 허니냅스 공식"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "수면다원검사(PSG) 원본 데이터 수집",
+            "AI 알고리즘 자동판독",
+            "전문의 판독시간 단축(3~4시간→단축)",
+            "진단 리포트 생성"
+          ]
+        }
       },
       {
         "name": "웰트 (Welt)",
@@ -310,11 +392,30 @@
           }
         ],
         "logo": "public/logos/welt-sleepq.svg",
-        "logoSource": "웰트 공식 제품 도메인 sleepq.ai 의 슬립큐 마크"
+        "logoSource": "웰트 공식 제품 도메인 sleepq.ai 의 슬립큐 마크",
+        "product": {
+          "badge": "국내",
+          "name": "슬립큐(SleepQ)",
+          "desc": "불면증 디지털 치료기기",
+          "icon": "app",
+          "image": "",
+          "source": "출처: 웰트 공식"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "수면일지·설문 입력",
+            "CBT-I(인지행동치료) 알고리즘 분석",
+            "맞춤 행동교정 처방",
+            "앱으로 코칭 제공"
+          ]
+        }
       }
     ],
     "investNote": "대부분 비상장 스타트업이라 매출액 대신 공개된 누적 투자 유치액을 기준으로 비교합니다.",
-    "logoNote": "로고는 각사 공식 사이트에서 받은 이미지입니다. 공식 로고 이미지를 찾지 못한 곳은 로고를 넣지 않았습니다(임의 아이콘으로 대체하지 않음)."
+    "logoNote": "로고는 각사 공식 사이트에서 받은 이미지입니다. 공식 로고 이미지를 찾지 못한 곳은 로고를 넣지 않았습니다(임의 아이콘으로 대체하지 않음).",
+    "productNote": "제품 이미지는 각 사 공식 사진의 사용 허락을 확인하지 못해 실물 사진 대신 아이콘으로 표시했습니다. 제품명·설명·작동방식은 각 사 공식 자료와 위 출처의 보도 내용을 따랐습니다.",
+    "mechNote": "작동방식은 각 사가 공개한 제품 설명을 단계로 나눈 것이며, 공개되지 않은 내부 처리 과정이나 효과 수치를 더하지 않았습니다."
   },
   "techMap": {
     "title": "슬립테크 기술 분야 및 주요 기업",

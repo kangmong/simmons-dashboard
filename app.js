@@ -1497,6 +1497,86 @@ function smMarketBars(d) {
 
 /** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'.
     ★ 국내·국외가 같은 함수를 쓴다. 넘기는 데이터 파일만 다르고 화면 구성은 똑같다. */
+/* 제품 아이콘 — 실물 사진 대신 쓰는 일러스트.
+   ★ 공식 제품 사진은 사용 허락을 확인할 수 없어 넣지 않는다. 라이선스가
+     확인된 사진이 생기면 JSON 의 product.image 에 경로만 넣으면 사진으로 바뀐다.
+   ★ 없는 사진을 만들어 붙이지 않는다 — 여기 있는 건 도형으로 그린 아이콘이다. */
+const ST_PROD_ICONS = {
+  // 비접촉 신호 — 사람 위로 지나가는 전파
+  wave: '<path d="M6 30h36"/><path d="M14 30a10 10 0 0 1 20 0"/>'
+    + '<path d="M9 20.5c2.6-3.4 6.2-5.4 10-5.4s7.4 2 10 5.4"/>'
+    + '<path d="M13.5 13.5c3.3-2.8 7-4.3 10.5-4.3s7.2 1.5 10.5 4.3"/>'
+    + '<circle cx="24" cy="30" r="1.6" fill="currentColor" stroke="none"/>',
+  // 공기주머니 매트리스 — 층층이 쌓인 셀
+  aircell: '<rect x="5" y="16" width="38" height="16" rx="4"/>'
+    + '<path d="M5 24h38"/><path d="M14 16v16M24 16v16M34 16v16"/>'
+    + '<path d="M8 13c0-1.7 1.4-3 3-3h26c1.7 0 3 1.3 3 3"/>',
+  // 스마트 베개 — 가운데가 부푼 베개 + 신호
+  pillow: '<path d="M8 18c0-3.3 3.6-5.5 16-5.5S40 14.7 40 18v8c0 3.3-3.6 5.5-16 5.5S8 29.3 8 26Z"/>'
+    + '<path d="M18 22h12"/><path d="M24 18v8"/>'
+    + '<path d="M13 36c3.5-2 7.2-3 11-3s7.5 1 11 3"/>',
+  // 온도조절 매트리스 — 매트리스 + 온도계
+  thermo: '<rect x="5" y="20" width="30" height="13" rx="4"/>'
+    + '<path d="M5 26.5h30"/>'
+    + '<path d="M41 24V13.5a2.5 2.5 0 0 0-5 0V24a4 4 0 1 0 5 0Z"/>'
+    + '<circle cx="38.5" cy="27.5" r="1.5" fill="currentColor" stroke="none"/>',
+  // AI 판독 리포트 — 문서 + 파형
+  report: '<path d="M12 6h16l8 8v24a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2Z"/>'
+    + '<path d="M28 6v8h8"/>'
+    + '<path d="M17 30l3-5 3 8 3-11 3 8 2-3h3"/>',
+  // 앱 코칭 — 스마트폰 + 체크
+  app: '<rect x="15" y="5" width="18" height="38" rx="3"/>'
+    + '<path d="M21 9h6"/><path d="M19.5 26.5l3.5 3.5 6-7"/>'
+    + '<path d="M20 36h8"/>',
+};
+
+/** 제품 아이콘 SVG. 없는 키면 첫 아이콘으로 떨어뜨리지 않고 빈 문자열을 준다. */
+function stProdIcon(key) {
+  const d = ST_PROD_ICONS[key];
+  if (!d) return '';
+  return '<svg class="stp-ico" viewBox="0 0 48 48" width="52" height="52" fill="none"'
+    + ' stroke="currentColor" stroke-width="1.7" stroke-linecap="round"'
+    + ' stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+}
+
+/** 대표 제품 카드 — 배지 / 이미지(또는 아이콘) / 제품명 / 한줄설명 / 출처 */
+function stProdCard(c) {
+  const p = c && c.product;
+  if (!p || !p.name) return '';
+  const img = safeUrl(p.image)
+    ? '<img class="stp-img" src="' + escapeHtml(safeUrl(p.image)) + '" alt="'
+      + escapeHtml(p.name) + '" loading="lazy">'
+    : '<span class="stp-iconwrap" aria-hidden="true">' + stProdIcon(p.icon) + '</span>';
+  return '<div class="stp">'
+    + (p.badge ? '<span class="stp-badge stp-badge--'
+      + (p.badge === '국내' ? 'kr' : 'gl') + '">' + escapeHtml(p.badge) + '</span>' : '')
+    + '<div class="stp-fig">' + img + '</div>'
+    + '<div class="stp-name">' + escapeHtml(p.name) + '</div>'
+    + (p.desc ? '<div class="stp-desc">' + escapeHtml(p.desc) + '</div>' : '')
+    + (p.source ? '<div class="stp-src">' + escapeHtml(p.source) + '</div>' : '')
+    + '</div>';
+}
+
+/** 핵심 작동방식 — 가로 화살표 순서도. 단계 수는 데이터가 가진 만큼만 그린다.
+ *  ★ 3단계인 회사에 억지로 4단째를 만들지 않는다. */
+function stMechFlow(c) {
+  const m = c && c.mechanism;
+  const steps = (m && Array.isArray(m.steps)) ? m.steps.filter(Boolean) : [];
+  if (!steps.length) return '';
+  const arrow = '<span class="stm3-ar" aria-hidden="true">'
+    + '<svg viewBox="0 0 14 24" width="9" height="15" fill="none" stroke="currentColor"'
+    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M1 12h11"/><path d="m7.5 7 5 5-5 5"/></svg></span>';
+  const cells = steps.map((s, i) => '<span class="stm3-step">'
+    + '<span class="stm3-step__no">' + (i + 1) + '</span>'
+    + '<span class="stm3-step__t">' + escapeHtml(s) + '</span></span>').join(arrow);
+  return '<div class="stm3">'
+    + '<div class="stm3__h">' + escapeHtml(m.title || '핵심 작동방식')
+    + '<span class="stm3__n">' + steps.length + '단계</span></div>'
+    + '<div class="stm3-flow">' + cells + '</div>'
+    + '</div>';
+}
+
 function stCardsHtml(st) {
   if (!st || !Array.isArray(st.companies) || !st.companies.length) return '';
   const row = (k, v) => (v ? '<div class="sm-st__row"><span class="sm-st__k">'
@@ -1512,6 +1592,9 @@ function stCardsHtml(st) {
     return '<div class="sm-st">'
       + '<div class="sm-st__hd">' + smStLogo(c)
       + '<span class="sm-st__h">' + escapeHtml(c.name) + '</span></div>'
+      // 순수 추가: 카드 상단 대표 제품 카드 + 핵심 작동방식 순서도
+      + stProdCard(c)
+      + stMechFlow(c)
       + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
       + row('설립', c.founded) + row('주요 제품·서비스', c.products)
       + row('투자 유치', c.funding) + row('매출·재무', c.revenue) + row('그 밖에', c.extra)
@@ -1523,6 +1606,9 @@ function stCardsHtml(st) {
     + '<div class="sm-st-grid">' + cards + '</div>'
     + smStInvest(st)
     + (st.note ? '<div class="sm-foot">' + escapeHtml(st.note) + '</div>' : '')
+    // 순수 추가: 제품 이미지를 아이콘으로 대체한 이유 · 작동방식 출처
+    + (st.productNote ? '<div class="sm-foot">' + escapeHtml(st.productNote) + '</div>' : '')
+    + (st.mechNote ? '<div class="sm-foot">' + escapeHtml(st.mechNote) + '</div>' : '')
     + (st.logoNote ? '<div class="sm-foot">' + escapeHtml(st.logoNote) + '</div>' : '')
     + '</div>';
 }
