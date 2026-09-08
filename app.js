@@ -4061,6 +4061,31 @@ const XSI_RANGES = [
   { key: '5', label: '5년' }, { key: 'all', label: '전체' },
 ];
 
+/** 헤더 배너 — 진한 남색. 아래 카드들과 구분되는 '대시보드 머리' 역할. */
+function xsiHero() {
+  const sub = (_xsiiData && _xsiiData.hero && _xsiiData.hero.subtitle) || '';
+  // '업데이트 기준'은 수집 시각이 아니라 지수의 최신 데이터 날짜를 쓴다.
+  const day = (_xsiData && _xsiData.routes || []).reduce((a, r) => {
+    const d = r.stats && r.stats.date;
+    return (d && (!a || d > a)) ? d : a;
+  }, null);
+  return `<div class="xsi-hero">
+    <span class="xsi-hero__ico" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 17c1.2 1 2.3 1.4 3.5 1.4S9 18 10.2 17c1.2 1 2.3 1.4 3.5 1.4S16.3 18 17.5 17c1.2 1 2.3 1.4 3.5 1.4"/>
+        <path d="M4.5 14 6 9.2l6-1.9 6 1.9L19.5 14"/>
+        <path d="M12 7.3V4.6M9.6 4.6h4.8"/>
+      </svg>
+    </span>
+    <div class="xsi-hero__body">
+      <div class="xsi-hero__title">글로벌 컨테이너 운임지수 <i>(Xeneta Shipping Index by Compass)</i></div>
+      ${sub ? `<p class="xsi-hero__sub">${escapeHtml(sub)}</p>` : ''}
+    </div>
+    ${day ? `<span class="xsi-hero__badge">업데이트 기준 ${escapeHtml(day)}</span>` : ''}
+  </div>`;
+}
+
 /** 지수 단위 — 수집 데이터의 Currency 를 그대로 쓴다(코드에 적지 않는다). */
 function xsiUnit() {
   const cur = _xsiData && _xsiData.currency;
@@ -4077,22 +4102,22 @@ function xsiValueTip() {
 
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
 const XSI_STATS = [
-  { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return',
+  { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return', icon: '📈',
     // ★ 산술로 확인했다 — 8개 항로 모두 '산출 이래 누적 수익률의 연환산'과 일치한다.
     def: '산출을 시작한 날 이후의 누적 등락률을 1년 단위로 환산한 값입니다.' },
   // 변동성은 '얼마나 흔들렸나'를 재는 크기 지표라 부호가 없다.
   // 수익률과 같은 ▲빨강/▼파랑을 붙이면 '올랐다'는 뜻으로 잘못 읽힌다.
-  { key: 'annVol', label: '연간 변동성', tip: 'Annualised Volatility', plain: true,
+  { key: 'annVol', icon: '〰️', label: '연간 변동성', tip: 'Annualised Volatility', plain: true,
     // ★ 창(1년·3년·전체)을 바꿔 맞춰 봤으나 8개 항로에서 일관되게 재현되지 않았다.
     //   그래서 '무엇을 재는 값인지'만 적고 산출식은 단정하지 않는다.
     def: '운임이 얼마나 크게 출렁였는지를 1년 단위로 환산한 값입니다. 숫자가 클수록 '
       + '등락이 심했다는 뜻이며, 오르거나 내린 방향과는 관계가 없습니다. '
       + '산출 구간과 방식은 Compass 공표 기준을 그대로 따릅니다.' },
-  { key: 'd1', label: '1일', tip: '1 Day Return', def: '직전 영업일 대비 등락률입니다.' },
-  { key: 'mtd', label: '월초 이후', tip: 'MTD Return', def: '이번 달 첫 영업일 대비 등락률입니다.' },
-  { key: 'qtd', label: '분기초 이후', tip: 'QTD Return', def: '이번 분기 첫 영업일 대비 등락률입니다.' },
-  { key: 'ytd', label: '연초 이후', tip: 'YTD Return', def: '올해 첫 영업일 대비 등락률입니다.' },
-  { key: 'inception', label: '산출 이래', tip: 'Since Inception',
+  { key: 'd1', icon: '🕐', label: '1일', tip: '1 Day Return', def: '직전 영업일 대비 등락률입니다.' },
+  { key: 'mtd', icon: '📅', label: '월초 이후', tip: 'MTD Return', def: '이번 달 첫 영업일 대비 등락률입니다.' },
+  { key: 'qtd', icon: '🗓️', label: '분기초 이후', tip: 'QTD Return', def: '이번 분기 첫 영업일 대비 등락률입니다.' },
+  { key: 'ytd', icon: '📊', label: '연초 이후', tip: 'YTD Return', def: '올해 첫 영업일 대비 등락률입니다.' },
+  { key: 'inception', icon: '🏁', label: '산출 이래', tip: 'Since Inception',
     def: '산출을 시작한 날 이후의 누적 등락률입니다(연 단위로 환산하지 않은 값).' },
 ];
 
@@ -4314,13 +4339,16 @@ function xsiiFactors() {
       <div class="sr-fac__top">
         <span class="sr-fac__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
         <span class="sr-fac__title">${escapeHtml(f.title || '')}</span>
+      </div>
+      <div class="xsii-fac__tags">
+        ${f.dirLabel ? `<span class="xsii-dir xsii-dir--${escapeHtml(f.dir || 'both')}">${escapeHtml(f.dirLabel)}</span>` : ''}
         ${f.impact ? `<span class="sr-fac__tag">영향도 ${escapeHtml(f.impact)}</span>` : ''}
       </div>
       <p class="sr-fac__desc">${escapeHtml(f.desc || '')}</p>
     </div>`).join('');
   return `<div class="ii-panel">
     <h3 class="subhead ii-h">② 주요 변동요인</h3>
-    <div class="sr-facs">${cards}</div>
+    <div class="sr-facs xsii-facs">${cards}</div>
   </div>`;
 }
 
@@ -4337,35 +4365,199 @@ function xsiiOutlook() {
     </div>`;
   }).join('');
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">③ 향후 전망</h3>
+    <h3 class="subhead ii-h">향후 전망 (정성)</h3>
     <div class="xsii-ols">${rows}</div>
     <div class="ii-cap">참고용 정성적 전망입니다. 데이터로 계산한 수치 예측이 아니며 확정된 예측도 아닙니다.</div>
   </div>`;
 }
 
-/** ④ 시사점 및 대응 전략 — ICIS·해상 정시성 ⑥ 과 같은 주황/파랑/녹색 체계 */
-function xsiiStrategy() {
-  const s = (_xsiiData && _xsiiData.strategy) || null;
-  if (!s) return '';
-  const col = (h, t, tone) => (t ? `<div class="ii-imp ii-imp--${tone}">
-      <div class="ii-imp__h">${iiImpIcon(tone)}${escapeHtml(h)}</div>
-      <p class="ii-imp__b">${iiEmph(t)}</p></div>` : '');
-  const cols = col('비용 관리', s.cost, 'warn')
-    + col('공급망 다변화', s.supply, 'info')
-    + col('시장 모니터링 강화', s.watch, 'act');
-  if (!cols) return '';
+/* ══ 3개월 전망 엔진 ══════════════════════════════════════════════════════
+   ★★ 통계 모델이 아니다. 최근 12개월 값에 직선 하나를 맞춰 3개월 늘리고,
+     같은 기간 일간 등락의 표준편차로 위아래 폭을 잡은 것이 전부다.
+     화면 어디에도 '예측'이라 적지 않고 '추정치·참고용'이라고만 적는다.
+   ★ 확률(30/50/20)은 계산한 값이 아니라 시나리오 구분을 위한 가정치다 —
+     표 아래에 그렇게 밝힌다. */
+const XSI_FC_DAYS = 63;      // 3개월 ≈ 거래일 63일
+const XSI_FC_MONTHS = 12;    // 추세·변동성을 재는 창
+
+/** 최근 XSI_FC_MONTHS 개월 구간만 잘라낸다. 관측이 모자라면 null */
+function xsiRecent(series) {
+  if (!series || !series.dates || series.dates.length < 60) return null;
+  const dts = series.dates, last = dts[dts.length - 1];
+  const cut = String(Number(last.slice(0, 4)) - 1) + last.slice(4);
+  let i = 0;
+  while (i < dts.length && dts[i] < cut) i += 1;
+  const v = series.values.slice(i);
+  return (v.length >= 60) ? { dates: dts.slice(i), values: v } : null;
+}
+
+/** 3개월 전망. { base, med, up, dn, sd3, slope, chgPct, dir } · 못 내면 null */
+function xsiForecast(series) {
+  const w = xsiRecent(series);
+  if (!w) return null;
+  const v = w.values, n = v.length;
+  // ① 추세 — 최근 12개월에 최소제곱 직선
+  const xm = (n - 1) / 2, ym = v.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  v.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
+  if (!den) return null;
+  const slope = num / den;
+  const base = v[n - 1];
+  const med = Math.max(0, base + slope * XSI_FC_DAYS);
+  // ② 변동폭 — 같은 기간 일간 등락(로그)의 표준편차를 3개월 지평으로 늘린다
+  const r = [];
+  for (let i = 1; i < n; i += 1) if (v[i - 1] > 0 && v[i] > 0) r.push(Math.log(v[i] / v[i - 1]));
+  if (r.length < 30) return null;
+  const rm = r.reduce((a, b) => a + b, 0) / r.length;
+  const sd = Math.sqrt(r.reduce((a, b) => a + (b - rm) * (b - rm), 0) / (r.length - 1));
+  const sd3 = sd * Math.sqrt(XSI_FC_DAYS);
+  const chgPct = base ? ((med - base) / base) * 100 : 0;
+  return {
+    base: base, med: med,
+    up: base * Math.exp(sd3), dn: base * Math.exp(-sd3),
+    sd3: sd3 * 100, slope: slope, chgPct: chgPct,
+    dir: (chgPct > 3 ? 'up' : (chgPct < -3 ? 'down' : 'flat')),
+    from: w.dates[0], to: w.dates[w.dates.length - 1],
+  };
+}
+
+/** 지수값 표기(정수 + 천단위) */
+function xsiNum(v) {
+  return (v == null || !isFinite(v)) ? '—' : Math.round(v).toLocaleString('en-US');
+}
+
+/** 3개월 뒤가 몇 월인지 — 'YYYY-MM' */
+function xsiPlus3(day) {
+  const y = Number(String(day).slice(0, 4)), m = Number(String(day).slice(5, 7));
+  const t = y * 12 + (m - 1) + 3;
+  return String(Math.floor(t / 12)) + '-' + String((t % 12) + 1).padStart(2, '0');
+}
+
+/* ── ① 우측 '향후 3개월 전망' 미니 차트 ────────────────────────────────── */
+function xsiFcMini(fc) {
+  if (!fc) return '';
+  const W = 240, H = 92, padL = 8, padR = 44, padT = 12, padB = 16;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const lo = Math.min(fc.dn, fc.base, fc.med), hi = Math.max(fc.up, fc.base, fc.med);
+  const pad = (hi - lo) * 0.15 || 1;
+  const y0 = lo - pad, y1 = hi + pad;
+  const Y = (v) => padT + (1 - (v - y0) / ((y1 - y0) || 1)) * plotH;
+  const xA = padL + 6, xB = padL + plotW;
+  return `<svg class="xsi-fc__svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+      role="img" aria-label="향후 3개월 추정 범위">
+    <path d="M${xA} ${Y(fc.base).toFixed(1)} L${xB} ${Y(fc.up).toFixed(1)}
+      L${xB} ${Y(fc.dn).toFixed(1)} Z" fill="var(--blue)" opacity=".13"/>
+    <line x1="${xA}" y1="${Y(fc.base).toFixed(1)}" x2="${xB}" y2="${Y(fc.med).toFixed(1)}"
+      stroke="var(--blue)" stroke-width="1.8" stroke-dasharray="4 3"/>
+    <circle cx="${xA}" cy="${Y(fc.base).toFixed(1)}" r="3" fill="var(--ink)"/>
+    <text x="${xA - 2}" y="${(Y(fc.base) - 6).toFixed(1)}" font-size="8.5" font-weight="700"
+      fill="var(--ink)">현재</text>
+    <text x="${xB + 4}" y="${(Y(fc.up) + 3).toFixed(1)}" font-size="8.5" font-weight="700"
+      fill="var(--accent)">${escapeHtml(xsiNum(fc.up))}</text>
+    <text x="${xB + 4}" y="${(Y(fc.med) + 3).toFixed(1)}" font-size="8.5" font-weight="800"
+      fill="var(--blue)">${escapeHtml(xsiNum(fc.med))}</text>
+    <text x="${xB + 4}" y="${(Y(fc.dn) + 3).toFixed(1)}" font-size="8.5" font-weight="700"
+      fill="var(--blue)">${escapeHtml(xsiNum(fc.dn))}</text>
+  </svg>`;
+}
+
+/** ① 우측 전망 박스 */
+function xsiFcBox(fc, st) {
+  if (!fc) {
+    return `<div class="xsi-fc">
+      <div class="xsi-fc__h">향후 3개월 전망 <span class="xsi-fc__tag">추정치</span></div>
+      <div class="ii-cap">추세를 잴 만큼의 최근 관측치가 없어 전망을 내지 않았습니다.</div>
+    </div>`;
+  }
+  const upTo = xsiPlus3(st.date || fc.to);
+  return `<div class="xsi-fc">
+    <div class="xsi-fc__h">향후 3개월 전망 <span class="xsi-fc__tag">추정치</span></div>
+    <div class="xsi-fc__sub">${escapeHtml(st.date || '')} → ${escapeHtml(upTo)} · 최근 12개월 기준</div>
+    ${xsiFcMini(fc)}
+    <div class="xsi-fc__rows">
+      <div class="xsi-fc__row"><span>상단</span><b class="ms-badge__val up">${escapeHtml(xsiNum(fc.up))}</b></div>
+      <div class="xsi-fc__row"><span>중앙값<i>추세 연장</i></span><b>${escapeHtml(xsiNum(fc.med))}</b></div>
+      <div class="xsi-fc__row"><span>하단</span><b class="ms-badge__val down">${escapeHtml(xsiNum(fc.dn))}</b></div>
+    </div>
+    <div class="ii-cap">※ 상기 전망치는 과거 데이터 기반의 통계적 추정이며 실제 시장 예측이 아닙니다</div>
+  </div>`;
+}
+
+/* ── ③ 시나리오별 전망 표 ──────────────────────────────────────────────── */
+function xsiScenarios(fc, st) {
+  const list = (_xsiiData && Array.isArray(_xsiiData.scenarios)) ? _xsiiData.scenarios : [];
+  if (!list.length) return '';
+  if (!fc) {
+    return `<div class="ii-panel">
+      <h3 class="subhead ii-h">③ 향후 시나리오별 전망 <span class="xsi-fc__tag">추정치</span></h3>
+      <div class="ii-cap">추세를 잴 만큼의 최근 관측치가 없어 시나리오를 내지 않았습니다.</div>
+    </div>`;
+  }
+  const val = { up: fc.up, base: fc.med, down: fc.dn };
+  const unit = xsiUnit();
+  const rows = list.map((s) => {
+    const v = val[s.key];
+    const chg = fc.base ? ((v - fc.base) / fc.base) * 100 : null;
+    return `<tr class="xsi-sc--${escapeHtml(s.tone)}">
+      <th scope="row"><span class="xsi-sc__dot"></span>${escapeHtml(s.name)}
+        <span class="xsi-sc__prob">약 ${Number(s.prob)}%</span></th>
+      <td class="xsi-sc__val">${escapeHtml(xsiNum(v))}<span class="xsi-sc__u">${escapeHtml(unit)}</span></td>
+      <td class="xsi-sc__chg">${xsiPct(chg)}</td>
+      <td class="xsi-sc__basis">${escapeHtml(s.basis || '')}</td>
+      <td><ul class="xsi-sc__as">${(s.assumptions || []).map((a) =>
+        `<li>${escapeHtml(a)}</li>`).join('')}</ul></td>
+    </tr>`;
+  }).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">③ 향후 시나리오별 전망 <span class="xsi-fc__tag">추정치</span></h3>
+    <div class="xsi-sc-wrap"><table class="xsi-sc">
+      <thead><tr><th>시나리오</th><th>3개월 후 수준</th><th>최근값 대비</th><th>산출 기준</th><th>주요 가정</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="ii-cap">※ 확률(%)과 시나리오 구분은 통계 모델로 계산한 값이 아니라 참고용 가정치입니다.
+      수준 값은 최근 ${XSI_FC_MONTHS}개월(${escapeHtml(fc.from)}~${escapeHtml(fc.to)})의 추세와
+      일간 등락 표준편차(3개월 지평 ±${fc.sd3.toFixed(1)}%)로 계산한 통계적 추정이며 실제 시장 예측이 아닙니다.</div>
+  </div>`;
+}
+
+/* ── ④ 시사점 및 의사결정 활용 방안 (시간대별) ─────────────────────────── */
+function xsiActions() {
+  const list = (_xsiiData && Array.isArray(_xsiiData.actions)) ? _xsiiData.actions : [];
+  if (!list.length) return '';
+  const cols = list.map((a) => `<div class="ii-imp ii-imp--${escapeHtml(a.tone || 'info')}">
+      <div class="ii-imp__h">${iiImpIcon(a.tone || 'info')}${escapeHtml(a.title || '')}</div>
+      <ul class="xsi-act">${(a.items || []).map((t) => `<li>${iiEmph(t)}</li>`).join('')}</ul>
+    </div>`).join('');
   const upd = (_xsiiData && _xsiiData.updated) ? String(_xsiiData.updated) : null;
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">④ 시사점 및 대응 전략</h3>
+    <h3 class="subhead ii-h">④ 시사점 및 의사결정 활용 방안</h3>
     <div class="ii-imps">${cols}</div>
     <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
   </div>`;
 }
 
+/* ── 하단 핵심 인사이트 ────────────────────────────────────────────────
+   ★ 항로마다 최근 흐름이 다르므로, 3개월 추세 방향(상승·보합·하락)에 맞는
+     문장을 고른다. 문장 자체는 JSON 에 있고 코드가 지어내지 않는다. */
+function xsiInsightBox(fc) {
+  const ins = (_xsiiData && _xsiiData.insight) || null;
+  if (!ins) return '';
+  const key = fc ? fc.dir : 'flat';
+  const lead = ins[key] || ins.flat;
+  if (!lead) return '';
+  const trend = fc
+    ? `<span class="xsi-ins__trend">최근 12개월 추세 연장 기준 ${(fc.chgPct > 0 ? '+' : '')
+      + fc.chgPct.toFixed(1)}% <i>추정</i></span>` : '';
+  return `<div class="xsi-ins">
+    <div class="xsi-ins__h">핵심 인사이트${trend}</div>
+    <p class="xsi-ins__lead">${escapeHtml(lead)}</p>
+    ${ins.action ? `<p class="xsi-ins__act">→ ${escapeHtml(ins.action)}</p>` : ''}
+  </div>`;
+}
+
 /** 위젯 전체 HTML. 데이터가 없으면 안내만 내고 레이아웃을 흔들지 않는다. */
 function renderXsiHtml() {
-  const head = `<div class="viz-head"><div>
-      <div class="viz-title">글로벌 컨테이너 운임지수 (Xeneta Shipping Index by Compass)</div>
+  const head = xsiHero() + `<div class="viz-head"><div>
       <div class="viz-sub">주요 8개 항로 컨테이너 스팟 운임지수 · 일별</div>
       <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다${_xsiData
         && _xsiData.unitNote ? ' · ' + escapeHtml(_xsiData.unitNote) : ''}</div>
@@ -4399,9 +4591,12 @@ function renderXsiHtml() {
   const st = r.stats || {};
   const color = 'var(--blue)';
   const cards = XSI_STATS.map((f) => `<div class="xsi-stat">
-      <div class="xsi-stat__lbl"><span class="xsi-stat__ko">${escapeHtml(f.label)}${f.def
-        ? gcAbbr('ⓘ', f.tip + ' — ' + f.def) : ''}</span><span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
-      <div class="xsi-stat__val">${xsiPct(st[f.key], f.plain)}</div>
+      <span class="xsi-stat__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
+      <div class="xsi-stat__body">
+        <div class="xsi-stat__lbl"><span class="xsi-stat__ko">${escapeHtml(f.label)}${f.def
+          ? gcAbbr('ⓘ', f.tip + ' — ' + f.def) : ''}</span><span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
+        <div class="xsi-stat__val">${xsiPct(st[f.key], f.plain)}</div>
+      </div>
     </div>`).join('');
 
   const lead = `<div class="xsi-lead">
@@ -4426,17 +4621,26 @@ function renderXsiHtml() {
   const note = _xsiData.statsNote
     ? `<div class="ii-cap">${escapeHtml(_xsiData.statsNote)}${_xsiData.updatedAt ? ' · 수집 ' + escapeHtml(_xsiData.updatedAt) : ''}</div>` : '';
 
-  // 4단 패널 — 항로를 고른 뒤에만 붙는다(고르기 전 화면은 안내만 그대로 둔다)
-  const panels = xsiiEras(slice) + xsiiFactors() + xsiiOutlook() + xsiiStrategy();
+  // 3개월 전망 — ① 우측 박스와 ③ 시나리오 표가 같은 계산을 나눠 쓴다
+  const fc = hasSeries ? xsiForecast(r.series) : null;
+
+  // ① 차트(좌) + 향후 3개월 전망(우)
+  const chartRow = `<div class="xsi-row">
+    <div class="xsi-row__main">${chips}${chart}</div>
+    ${xsiFcBox(fc, st)}
+  </div>`;
+
+  const panels = xsiiEras(slice) + xsiiFactors() + xsiiOutlook()
+    + xsiScenarios(fc, st) + xsiActions();
 
   return `<div class="viz-root viz-figure xsi-figure">${head}
     ${tabs}
     ${lead}
     <div class="xsi-stats">${cards}</div>
-    ${chips}
-    ${chart}
+    ${chartRow}
     ${note}
     ${panels}
+    ${xsiInsightBox(fc)}
     ${cap}
   </div>`;
 }
