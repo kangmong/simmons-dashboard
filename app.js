@@ -4156,8 +4156,11 @@ function buildXsiChart(slice, color) {
 
   _xsiChart = { dates: slice.dates, values: vals, color: color, geom: { X, Y, n, W, padL } };
 
+  // 구간 음영은 격자 바로 뒤에 깐다 — 데이터 선이 그 위에 얹히도록.
+  const bands = xsiiBandsSvg(slice, X, padT, plotH);
+
   return `<svg class="viz-svg xsi-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="컨테이너 운임지수 추이">
-      ${grid}${xticks}
+      ${grid}${bands}${xticks}
       <path d="${area}" fill="${color}" opacity=".08"/>
       <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
@@ -4165,6 +4168,172 @@ function buildXsiChart(slice, color) {
       <g class="xsi-dots"></g>
       <rect class="xsi-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
     </svg>`;
+}
+
+/* ══ 운임지수 4단 패널 ═══════════════════════════════════════════════════
+   ① 구간 설명(장기 흐름)  ② 주요 변동요인  ③ 향후 전망  ④ 시사점·대응 전략
+   문구는 public/data/xsi-insights.json 한 곳에서만 온다.
+
+   ★★ ① 구간 설명은 '극동→북유럽' 항로를 보고 조사한 서술이다. 다른 항로를
+     고르면 그 항로의 실제 곡선과 어긋날 수 있으므로, 차트 위 음영을 빼고
+     '어느 항로 기준인지'를 눈에 띄게 적는다 — 숨기지 않고 밝힌다. */
+const XSII_DATA_URL = 'public/data/xsi-insights.json';
+let _xsiiData = null;
+
+/** 구간 성격 → 색. 급등=빨강 · 하락=파랑 (다른 카드의 등락 표기와 같은 규칙) */
+const XSII_TONE = {
+  calm: 'var(--slate)', surge: 'var(--accent)',
+  drop: 'var(--blue)', recover: 'var(--green)',
+};
+
+/** 전망 방향 → 아이콘·색 */
+const XSII_DIR = {
+  up: { icon: '▲', cls: 'up' },
+  flat: { icon: '▬', cls: 'flat' },
+  unsure: { icon: '?', cls: 'na' },
+};
+
+/** 해설 데이터 로드. 실패해도 차트·통계는 그대로 나온다. */
+async function fetchXsiInsights() {
+  try {
+    const res = await fetch(XSII_DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _xsiiData = d;
+  } catch (e) {
+    _xsiiData = null;
+    console.warn('[xsi-insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 지금 고른 항로가 구간 설명의 기준 항로인가 */
+function xsiiOnBase() {
+  const d = _xsiiData;
+  return !!(d && d.baseRoute && _xsiRoute === d.baseRoute);
+}
+
+/** 날짜를 차트의 소수 인덱스로. 축 밖이면 null */
+function xsiiIdx(dates, day) {
+  if (!dates || dates.length < 2 || !day) return null;
+  if (day <= dates[0]) return 0;
+  if (day >= dates[dates.length - 1]) return dates.length - 1;
+  let lo = 0, hi = dates.length - 1;
+  while (lo < hi) {                       // 날짜가 오름차순이라 이분 탐색이면 충분하다
+    const mid = (lo + hi) >> 1;
+    if (dates[mid] < day) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+/** ① 차트 안 구간 음영 + 라벨. 기준 항로일 때만 그린다. */
+function xsiiBandsSvg(slice, X, padT, plotH) {
+  const eras = (_xsiiData && Array.isArray(_xsiiData.eras)) ? _xsiiData.eras : [];
+  if (!eras.length || !slice || !xsiiOnBase()) return '';
+  const first = slice.dates[0], last = slice.dates[slice.dates.length - 1];
+  return eras.map((e) => {
+    if (e.to < first || e.from > last) return '';     // 화면 밖 구간은 그리지 않는다
+    const a = xsiiIdx(slice.dates, e.from < first ? first : e.from);
+    const b = xsiiIdx(slice.dates, e.to > last ? last : e.to);
+    if (a == null || b == null || b <= a) return '';
+    const x0 = X(a), x1 = X(b), w = x1 - x0;
+    if (w < 6) return '';                             // 너무 좁으면 라벨이 겹친다
+    const c = XSII_TONE[e.tone] || 'var(--slate)';
+    return `<g class="xsii-band">
+      <rect x="${x0.toFixed(1)}" y="${padT}" width="${w.toFixed(1)}" height="${plotH.toFixed(1)}"
+        fill="${c}" opacity=".06"/>
+      <line x1="${x1.toFixed(1)}" y1="${padT}" x2="${x1.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
+        stroke="${c}" stroke-width="1" stroke-dasharray="2 3" opacity=".45"/>
+      ${w > 44 ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${(padT + 8).toFixed(1)}" text-anchor="middle"
+        font-size="7.5" font-weight="700" fill="${c}" paint-order="stroke"
+        stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(e.span)}</text>` : ''}
+    </g>`;
+  }).join('');
+}
+
+/** ① 구간 설명 말풍선 4개 (차트 아래). 화면 밖 구간은 흐리게 둔다. */
+function xsiiEras(slice) {
+  const eras = (_xsiiData && Array.isArray(_xsiiData.eras)) ? _xsiiData.eras : [];
+  if (!eras.length) return '';
+  const first = slice ? slice.dates[0] : null;
+  const last = slice ? slice.dates[slice.dates.length - 1] : null;
+  const onBase = xsiiOnBase();
+  const cards = eras.map((e) => {
+    const shown = onBase && first && !(e.to < first || e.from > last);
+    return `<div class="xsii-era${shown ? '' : ' is-off'}" style="--xe:${XSII_TONE[e.tone] || 'var(--slate)'}">
+      <div class="xsii-era__span">${escapeHtml(e.span)}</div>
+      <div class="xsii-era__title">${escapeHtml(e.title || '')}</div>
+      <p class="xsii-era__detail">${escapeHtml(e.detail || '')}</p>
+    </div>`;
+  }).join('');
+  // ★ 기준 항로가 아닐 때는 오해가 없도록 먼저 밝힌다.
+  const base = (_xsiiData && _xsiiData.baseRouteName) || '극동→북유럽';
+  const warn = onBase
+    ? `<div class="ii-cap">구간 설명은 ${escapeHtml(base)} 항로를 기준으로 조사한 참고용 서술입니다.</div>`
+    : `<div class="xsii-note">이 구간 설명은 <b>${escapeHtml(base)}</b> 항로 기준 참고용입니다 —
+        지금 보고 있는 항로의 실제 흐름과 다를 수 있어 차트 음영은 표시하지 않았습니다.</div>`;
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">① 운임지수 추이 — 구간별 흐름</h3>
+    ${warn}
+    <div class="xsii-eras">${cards}</div>
+  </div>`;
+}
+
+/** ② 주요 변동요인 4장 — 해상 정시성의 .sr-fac 문법을 그대로 쓴다 */
+function xsiiFactors() {
+  const list = (_xsiiData && Array.isArray(_xsiiData.factors)) ? _xsiiData.factors : [];
+  if (!list.length) return '';
+  const cards = list.map((f) => `<div class="sr-fac sr-fac--${escapeHtml(f.level || 'mid')}">
+      <div class="sr-fac__top">
+        <span class="sr-fac__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
+        <span class="sr-fac__title">${escapeHtml(f.title || '')}</span>
+        ${f.impact ? `<span class="sr-fac__tag">영향도 ${escapeHtml(f.impact)}</span>` : ''}
+      </div>
+      <p class="sr-fac__desc">${escapeHtml(f.desc || '')}</p>
+    </div>`).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">② 주요 변동요인</h3>
+    <div class="sr-facs">${cards}</div>
+  </div>`;
+}
+
+/** ③ 향후 전망 — 단기·중기·장기 */
+function xsiiOutlook() {
+  const list = (_xsiiData && Array.isArray(_xsiiData.outlook)) ? _xsiiData.outlook : [];
+  if (!list.length) return '';
+  const rows = list.map((o) => {
+    const t = XSII_DIR[o.tone] || XSII_DIR.flat;
+    return `<div class="xsii-ol xsii-ol--${escapeHtml(o.tone || 'flat')}">
+      <div class="xsii-ol__term">${escapeHtml(o.term || '')}</div>
+      <div class="xsii-ol__dir"><span class="ms-badge__val ${t.cls}">${escapeHtml(t.icon)} ${escapeHtml(o.dir || '')}</span></div>
+      <p class="xsii-ol__detail">${escapeHtml(o.detail || '')}</p>
+    </div>`;
+  }).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">③ 향후 전망</h3>
+    <div class="xsii-ols">${rows}</div>
+    <div class="ii-cap">참고용 정성적 전망입니다. 데이터로 계산한 수치 예측이 아니며 확정된 예측도 아닙니다.</div>
+  </div>`;
+}
+
+/** ④ 시사점 및 대응 전략 — ICIS·해상 정시성 ⑥ 과 같은 주황/파랑/녹색 체계 */
+function xsiiStrategy() {
+  const s = (_xsiiData && _xsiiData.strategy) || null;
+  if (!s) return '';
+  const col = (h, t, tone) => (t ? `<div class="ii-imp ii-imp--${tone}">
+      <div class="ii-imp__h">${iiImpIcon(tone)}${escapeHtml(h)}</div>
+      <p class="ii-imp__b">${iiEmph(t)}</p></div>` : '');
+  const cols = col('비용 관리', s.cost, 'warn')
+    + col('공급망 다변화', s.supply, 'info')
+    + col('시장 모니터링 강화', s.watch, 'act');
+  if (!cols) return '';
+  const upd = (_xsiiData && _xsiiData.updated) ? String(_xsiiData.updated) : null;
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">④ 시사점 및 대응 전략</h3>
+    <div class="ii-imps">${cols}</div>
+    <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
+  </div>`;
 }
 
 /** 위젯 전체 HTML. 데이터가 없으면 안내만 내고 레이아웃을 흔들지 않는다. */
@@ -4229,6 +4398,9 @@ function renderXsiHtml() {
   const note = _xsiData.statsNote
     ? `<div class="ii-cap">${escapeHtml(_xsiData.statsNote)}${_xsiData.updatedAt ? ' · 수집 ' + escapeHtml(_xsiData.updatedAt) : ''}</div>` : '';
 
+  // 4단 패널 — 항로를 고른 뒤에만 붙는다(고르기 전 화면은 안내만 그대로 둔다)
+  const panels = xsiiEras(slice) + xsiiFactors() + xsiiOutlook() + xsiiStrategy();
+
   return `<div class="viz-root viz-figure xsi-figure">${head}
     ${tabs}
     ${lead}
@@ -4236,6 +4408,7 @@ function renderXsiHtml() {
     ${chips}
     ${chart}
     ${note}
+    ${panels}
     ${cap}
   </div>`;
 }
@@ -7936,6 +8109,7 @@ function resetDashboard() {
   _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
   _sriData = null;      // 해상 정시성 5단 패널 비우기
   _xsiData = null; _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;  // 운임지수 비우기
+  _xsiiData = null;     // 운임지수 4단 해설 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
@@ -8054,6 +8228,8 @@ function initUpdate() {
     //   떠 있는 일이 없도록 선택을 비우고 시작한다.
     _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;
     fetchXsi();
+    // 순수 추가: 운임지수 4단 해설(구간·요인·전망·전략). 위와 같은 이유로 await 안 한다.
+    fetchXsiInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

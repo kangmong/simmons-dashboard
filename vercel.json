@@ -80,6 +80,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/xsi-insights.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/logos/**",
       "use": "@vercel/static"
     },

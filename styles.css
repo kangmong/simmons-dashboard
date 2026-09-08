@@ -1070,6 +1070,11 @@ body {
 .sr-fac--neg { --sr-t: var(--accent); --sr-ti: var(--accent); --sr-tb: var(--accent-soft); }
 .sr-fac--bal { --sr-t: var(--blue); --sr-ti: var(--blue-ink); --sr-tb: var(--blue-soft); }
 .sr-fac--neu { --sr-t: var(--slate); --sr-ti: var(--slate); --sr-tb: var(--slate-soft); }
+/* 영향도(높음/중간/낮음) — 방향이 아니라 세기라서 진하기로만 구분한다.
+   운임지수 ② 변동요인 카드가 쓴다. */
+.sr-fac--hi { --sr-t: var(--accent); --sr-ti: var(--accent); --sr-tb: var(--accent-soft); }
+.sr-fac--mid { --sr-t: var(--amber); --sr-ti: var(--amber-ink); --sr-tb: var(--amber-soft); }
+.sr-fac--low { --sr-t: var(--slate); --sr-ti: var(--slate); --sr-tb: var(--slate-soft); }
 .sr-fac__top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .sr-fac__ico { font-size: 14px; }
 .sr-fac__title { font-size: 12.5px; font-weight: 800; color: var(--ink); }
@@ -1127,6 +1132,58 @@ body {
 @media (max-width: 720px) {
   .xsi-stats { grid-template-columns: repeat(2, 1fr); }
   .xsi-lead__name { text-align: left; }
+}
+/* ── 운임지수 4단 패널 (① 구간 설명 · ③ 향후 전망) ────────────────────────
+   ② 변동요인은 .sr-fac, ④ 대응 전략은 .ii-imp 를 그대로 쓴다 — 세 위젯이
+   같은 문법을 공유하도록 클래스를 새로 만들지 않았다. */
+
+/* ① 구간 설명 말풍선 — 차트 아래에서 위(차트)를 가리킨다 */
+.xsii-eras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.xsii-era {
+  position: relative; padding: 11px 12px 12px; background: var(--card);
+  border: 1px solid var(--line); border-top: 3px solid var(--xe, var(--slate));
+  border-radius: var(--radius-sm); min-width: 0;
+}
+/* 말풍선 꼬리 — 위쪽 테두리 색을 그대로 이어받는다 */
+.xsii-era::before {
+  content: ""; position: absolute; top: -7px; left: 16px;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-bottom: 7px solid var(--xe, var(--slate));
+}
+/* 지금 보고 있는 구간 밖이면 흐리게 — 지우지는 않는다(맥락은 남긴다) */
+.xsii-era.is-off { opacity: .5; }
+.xsii-era__span {
+  font-size: 11px; font-weight: 800; color: var(--xe, var(--slate));
+  font-variant-numeric: tabular-nums;
+}
+.xsii-era__title { margin-top: 2px; font-size: 13px; font-weight: 800; color: var(--ink); line-height: 1.4; }
+.xsii-era__detail { margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+
+/* 기준 항로가 아닐 때의 안내 — 눈에 띄어야 오해가 없다 */
+.xsii-note {
+  margin-bottom: 10px; padding: 9px 12px;
+  background: var(--hl-bg); color: var(--hl-ink);
+  border-radius: var(--radius-sm); font-size: 12px; line-height: 1.55;
+}
+.xsii-note b { font-weight: 800; }
+
+/* ③ 향후 전망 3열 */
+.xsii-ols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.xsii-ol {
+  padding: 10px 12px 11px; background: var(--field);
+  border: 1px solid var(--line); border-left: 3px solid var(--xo, var(--slate));
+  border-radius: var(--radius-sm); min-width: 0;
+}
+.xsii-ol--up { --xo: var(--accent); }
+.xsii-ol--flat { --xo: var(--amber); }
+.xsii-ol--unsure { --xo: var(--slate); }
+.xsii-ol__term { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.xsii-ol__dir { margin-top: 3px; font-size: 14px; }
+.xsii-ol__detail { margin: 7px 0 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+
+@media (max-width: 1100px) { .xsii-eras { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) {
+  .xsii-eras, .xsii-ols { grid-template-columns: 1fr; }
 }
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
