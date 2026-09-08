@@ -23,6 +23,11 @@
   --blue-soft: #E8F1FE;
   --field: #FBFCFD;         /* 드롭존/입력 배경 */
   --row-hover: #FAFBFC;     /* 테이블 행 hover */
+  /* 옅은 틴트(--*-soft)와 짝이 되는 진한 톤 — 그 틴트 위에 얹는 제목·강조어용.
+     ★ 셋 다 해당 --*-soft 배경에서 본문 대비 7:1 이상이 나오도록 골랐다. */
+  --amber-ink: #92400E;
+  --blue-ink: #1D4ED8;
+  --green-ink: #047857;
   --hl-bg: #FEF3C7;        /* 주의·강조 배경(노랑) — .sm-badge__prov 가 쓰던 값 */
   --hl-ink: #92400E;       /* 그 위에 얹는 글자색 */
   --radius-sm: 10px;
@@ -993,15 +998,30 @@ body {
 
 /* ⑥ 시사점 3열 */
 .ii-imps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+/* 카드마다 톤을 하나씩 — 배경 틴트 · 제목 · 아이콘 · 본문 강조어가 같은 색을 쓴다.
+   ★ ② 변동요인 · ④ 전망 카드와 헷갈리지 않게 구분한다: 그쪽은 '흰 바탕 + 원료별
+     왼쪽 색 테두리'(계열 색 = 파랑/초록/주황/보라)이고, 여기는 '채운 틴트 배경 +
+     테두리 없는 왼쪽선'이다. 같은 색이라도 칠하는 방식이 달라 역할이 갈린다.
+   ★ 색은 --ii-tint(배경) / --ii-ink(글자) 두 변수로만 받는다. 새 톤을 넣을 때
+     .ii-imp--<이름> 한 줄만 추가하면 된다. */
 .ii-imp {
-  padding: 11px 13px 12px; background: var(--field);
-  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 11px 13px 12px;
+  background: var(--ii-tint, var(--field));
+  border: 1px solid transparent; border-radius: var(--radius-sm);
 }
+.ii-imp--warn { --ii-tint: var(--amber-soft); --ii-ink: var(--amber-ink); }
+.ii-imp--info { --ii-tint: var(--blue-soft); --ii-ink: var(--blue-ink); }
+.ii-imp--act { --ii-tint: var(--green-soft); --ii-ink: var(--green-ink); }
 .ii-imp__h {
-  font-size: 11.5px; font-weight: 800; color: var(--ink);
-  padding-bottom: 6px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 800; color: var(--ii-ink, var(--ink));
+  padding-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ii-ink, var(--line)) 22%, transparent);
 }
+.ii-imp__ico { flex: none; }
 .ii-imp__b { margin: 8px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+/* 본문 강조어 — 카드 톤과 같은 색. 톤이 없으면 기본 잉크색으로 떨어진다. */
+.ii-imp__b .ii-k { font-weight: 800; color: var(--ii-ink, var(--ink)); }
 
 @media (max-width: 1100px) {
   .ii-mats { grid-template-columns: repeat(2, 1fr); }

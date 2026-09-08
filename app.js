@@ -2359,7 +2359,7 @@ function msEventsSvg(key, keys, X, padT, plotH, W) {
       + '<circle pointer-events="none" cx="' + x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>'
       + '<text pointer-events="none" x="' + x.toFixed(1) + '" y="' + (y0 + 13).toFixed(1) + '" text-anchor="' + anchor + '"'
       + ' font-size="7.5" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
-      + ' fill="var(--amber-ink, var(--ink))">' + escapeHtml(e.label || '') + '</text>'
+      + ' fill="var(--ink)">' + escapeHtml(e.label || '') + '</text>'
       + '<rect class="ms-ev__hit" x="' + (x - 7).toFixed(1) + '" y="' + y0 + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
       + '</g>';
   }).join('');
@@ -2743,15 +2743,56 @@ function iiOutlook(ext) {
 }
 
 /* ── ⑥ 시사점 및 의사결정 포인트 (3열) ────────────────────────────────── */
+/* ── ⑥ 카드 본문 강조 ────────────────────────────────────────────────────
+   세 가지를 굵게 칠한다.
+     · 원자재명(PPG·TDI·MDI·PO·폴리올 …) — 목록이 정해져 있어 자동으로 잡는다
+     · 수치·비율(%, USD/톤, 만 원/톤) — 나중에 실제 수치가 들어와도 자동으로 걸린다
+     · 판단 키워드 — 문장마다 다르므로 JSON 에서 **별표**로 지정한다
+   ★ escapeHtml 을 먼저 걸고, 그 뒤에는 '태그 밖의 글자'만 손댄다 —
+     방금 넣은 <b> 태그 안을 다시 치환해 태그가 깨지는 일이 없게. */
+const II_MATS = 'PPG|TDI|MDI|PO';
+const II_WORDS = ['폴리올', '이소시아네이트', '폴리우레탄 폼', '컴포트 레이어'];
+
+function iiEmph(text) {
+  // 1) JSON 이 지정한 **판단 키워드**
+  let html = escapeHtml(String(text || '')).replace(/\*\*([^*]+)\*\*/g, '<b class="ii-k">$1</b>');
+  // 2) 나머지는 태그 밖에서만
+  return html.split(/(<[^>]+>)/).map((seg) => {
+    if (seg.charAt(0) === '<') return seg;
+    let s = seg.replace(/([+-]?\d[\d,]*(?:\.\d+)?\s*(?:%p|%|USD\/톤|만\s*원\/톤))/g,
+      '<b class="ii-k">$1</b>');
+    // 영문 원자재 약어 — 앞뒤가 영문이면 잡지 않는다(단어 경계)
+    s = s.replace(new RegExp('(^|[^A-Za-z])(' + II_MATS + ')(?![A-Za-z])', 'g'),
+      '$1<b class="ii-k">$2</b>');
+    II_WORDS.forEach((w) => { s = s.split(w).join('<b class="ii-k">' + w + '</b>'); });
+    return s;
+  }).join('');
+}
+
+/* 카드 톤 — 주의(주황) · 검토(파랑) · 실행(녹색). 아이콘도 같은 색을 쓴다. */
+const II_TONES = {
+  warn: { cls: 'warn', icon: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4"/><path d="M12 17.4v.2"/>' },
+  info: { cls: 'info', icon: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>' },
+  act: { cls: 'act', icon: '<circle cx="12" cy="12" r="9"/><path d="m8.2 12.3 2.6 2.6 5-5.2"/>' },
+};
+
+function iiImpIcon(tone) {
+  const t = II_TONES[tone];
+  if (!t) return '';
+  return '<svg class="ii-imp__ico" viewBox="0 0 24 24" width="15" height="15" fill="none"'
+    + ' stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+    + ' aria-hidden="true">' + t.icon + '</svg>';
+}
+
 function iiImplications() {
   const im = (_iiData && _iiData.implications) || null;
   if (!im) return '';
-  const col = (h, t) => (t ? `<div class="ii-imp">
-      <div class="ii-imp__h">${escapeHtml(h)}</div>
-      <p class="ii-imp__b">${escapeHtml(t)}</p></div>` : '');
-  const cols = col('주요 시사점', im.key_takeaway)
-    + col('검토 필요 사항', im.review_needed)
-    + col('의사결정 활용 예시', im.decision_example);
+  const col = (h, t, tone) => (t ? `<div class="ii-imp ii-imp--${tone}">
+      <div class="ii-imp__h">${iiImpIcon(tone)}${escapeHtml(h)}</div>
+      <p class="ii-imp__b">${iiEmph(t)}</p></div>` : '');
+  const cols = col('주요 시사점', im.key_takeaway, 'warn')
+    + col('검토 필요 사항', im.review_needed, 'info')
+    + col('의사결정 활용 예시', im.decision_example, 'act');
   if (!cols) return '';
   const upd = (_iiData && _iiData.updated) ? String(_iiData.updated) : null;
   return `<div class="ii-panel">
