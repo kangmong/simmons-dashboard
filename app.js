@@ -2484,6 +2484,284 @@ function msPtsSr() {
   return srFlatten(ys).map((p) => ({ k: p.ym, v: p.v }));
 }
 
+/* ══ ICIS 6단 시황 패널 ═══════════════════════════════════════════════════
+   ① 가격 추이 + 추세 연장   ② 원자재별 변동요인   ③ 히스토리 타임라인
+   ④ 단기·중기 전망          ⑥ 시사점·의사결정 포인트
+   (⑤ 원가 시뮬레이션은 제품별 BOM 비중이 없어 이번에는 만들지 않는다)
+
+   ★★ 추세 연장은 '예측 모델'이 아니다. 최근 3개월 이동평균의 기울기를 그대로
+     3개월 늘려 그은 직선일 뿐이며, 화면에도 그렇게 적는다. 수요·공급이나 지정학
+     변수를 넣지 않았으므로 실제 시장 전망으로 읽히면 안 된다.
+   ★ 해설 문구·타임라인·시사점은 public/data/icis-insights.json 한 곳에서만 온다. */
+const II_DATA_URL = 'public/data/icis-insights.json';
+let _iiData = null;
+
+const II_EXT_MONTHS = 3;   // 몇 개월을 늘려 그을지
+const II_MA_WIN = 3;       // 이동평균 창(개월)
+const II_SLOPE_WIN = 6;    // 기울기를 잴 이동평균 구간(개월)
+
+/** 해설 데이터 로드. 실패해도 차트·배지는 그대로 나온다. */
+async function fetchIcisInsights() {
+  try {
+    const res = await fetch(II_DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _iiData = d;
+  } catch (e) {
+    _iiData = null;
+    console.warn('[icis-insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 'YYYY-MM' 에 n개월 더하기 */
+function iiAddMonth(ym, n) {
+  const y = Number(String(ym).slice(0, 4)), m = Number(String(ym).slice(5, 7));
+  const t = y * 12 + (m - 1) + n;
+  return String(Math.floor(t / 12)) + '-' + String((t % 12) + 1).padStart(2, '0');
+}
+
+/** 최근 II_SLOPE_WIN 개 이동평균에 최소제곱 직선을 맞춘다.
+ *  { slope: 월당 변화량, sd: 그 직선에서 벗어난 정도 } · 관측치가 모자라면 null
+ *  ★ sd 는 '원시 등락폭'이 아니라 '추세선이 얼마나 잘 맞았나(잔차)'다.
+ *    원시 등락폭을 쓰면 2026년 급등장의 변동성이 그대로 반영돼 띠가 실측값의
+ *    40% 가까이 벌어지고, 그만큼 y축이 늘어나 정작 실측 곡선이 눌려 보였다. */
+function iiFit(vals) {
+  const v = (vals || []).filter((x) => x != null && isFinite(x));
+  if (v.length < II_MA_WIN + II_SLOPE_WIN - 1) return null;
+  const ma = [];
+  for (let i = II_MA_WIN - 1; i < v.length; i += 1) {
+    let s = 0;
+    for (let k = 0; k < II_MA_WIN; k += 1) s += v[i - k];
+    ma.push(s / II_MA_WIN);
+  }
+  const w = ma.slice(-II_SLOPE_WIN);
+  if (w.length < II_SLOPE_WIN) return null;
+  const n = w.length, xm = (n - 1) / 2;
+  const ym = w.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  w.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
+  if (!den) return null;
+  const slope = num / den;
+  const b = ym - slope * xm;
+  let q = 0;
+  w.forEach((y, i) => { const r = y - (slope * i + b); q += r * r; });
+  return { slope: slope, sd: Math.sqrt(q / n) };
+}
+
+/** 추세 연장. { periods:[3개], byKey:{PPG:{values,band,base,slope}} } · 못 내면 null
+ *  ★ 화면에 보이는 구간이 데이터의 마지막까지 닿아 있을 때만 낸다 — 2023년만 보는
+ *    화면에 2027년을 그려 넣지 않기 위해서다. */
+function iiExtend(viewPeriods) {
+  const P = ICIS_DATA.periods;
+  if (!P.length || !viewPeriods.length) return null;
+  if (viewPeriods[viewPeriods.length - 1] !== P[P.length - 1]) return null;
+  const periods = [];
+  for (let k = 1; k <= II_EXT_MONTHS; k += 1) periods.push(iiAddMonth(P[P.length - 1], k));
+  const byKey = {};
+  ICIS_SERIES.forEach((s) => {
+    const vals = ICIS_DATA[s.key] || [];
+    const fit = iiFit(vals);
+    const live = vals.filter((x) => x != null && isFinite(x));
+    if (!fit || !live.length) return;
+    const base = live[live.length - 1], slope = fit.slope;
+    const sd = fit.sd || 0;
+    const values = [], band = [];
+    for (let k = 1; k <= II_EXT_MONTHS; k += 1) {
+      const v = Math.max(0, base + slope * k);
+      values.push(v);
+      const w = sd * Math.sqrt(k);        // 걸음이 쌓일수록 넓어지는 띠
+      band.push({ lo: Math.max(0, v - w), hi: v + w });
+    }
+    byKey[s.key] = { values: values, band: band, base: base, slope: slope };
+  });
+  return Object.keys(byKey).length ? { periods: periods, byKey: byKey } : null;
+}
+
+/** 추세 연장 기준 3개월 변화율(%) — 없으면 null */
+function iiExtPct(ext, key) {
+  const e = ext && ext.byKey[key];
+  if (!e || !e.base) return null;
+  return ((e.values[e.values.length - 1] - e.base) / Math.abs(e.base)) * 100;
+}
+
+/** 등락률 → 말로. 폭에 따라 표현만 달리한다(원인은 말하지 않는다). */
+function iiWord(p) {
+  if (p == null) return '판단 보류';
+  const a = Math.abs(p);
+  if (a < 2) return '보합권';
+  if (a < 6) return p > 0 ? '완만한 상승' : '완만한 하락';
+  return p > 0 ? '뚜렷한 상승' : '뚜렷한 하락';
+}
+
+/** 등락률 배지 색 — 오르면 빨강 · 내리면 파랑 (다른 카드와 같은 규칙) */
+function iiCls(p) {
+  if (p == null) return 'na';
+  return p > 0.05 ? 'up' : (p < -0.05 ? 'down' : 'flat');
+}
+
+function iiPct(p) {
+  if (p == null) return '—';
+  return (p > 0.05 ? '▲ +' : (p < -0.05 ? '▼ ' : '')) + p.toFixed(1) + '%';
+}
+
+/** 원료의 최근값·전월비·전년비. 값이 없으면 null 로 둔다(지어내지 않는다). */
+function iiStat(key) {
+  const P = ICIS_DATA.periods, V = ICIS_DATA[key] || [];
+  const idx = [];
+  V.forEach((v, i) => { if (v != null && isFinite(v)) idx.push(i); });
+  if (!idx.length) return null;
+  const i = idx[idx.length - 1];
+  const at = (back) => {
+    const j = i - back;
+    return (j >= 0 && V[j] != null && isFinite(V[j])) ? V[j] : null;
+  };
+  const chg = (prev) => (prev ? ((V[i] - prev) / Math.abs(prev)) * 100 : null);
+  return { period: P[i], value: V[i], mom: chg(at(1)), yoy: chg(at(12)) };
+}
+
+/* ── ② 원자재별 변동요인 카드 4개 ──────────────────────────────────────── */
+function iiMaterialCards() {
+  const info = (_iiData && _iiData.materials) || {};
+  const cards = ICIS_SERIES.map((s) => {
+    const st = iiStat(s.key);
+    if (!st) return '';
+    const m = info[s.key] || {};
+    const krw = (_matUsdKrw != null) ? fmtKrwShort(st.value * _matUsdKrw) + '/톤' : null;
+    return `<div class="ii-mat" style="--ii-c:${s.color}">
+      <div class="ii-mat__top">
+        <span class="ii-mat__icon" aria-hidden="true">${escapeHtml(m.icon || '•')}</span>
+        <span class="ii-mat__key">${escapeHtml(s.key)}</span>
+        ${m.role ? `<span class="ii-mat__role">${escapeHtml(m.role)}</span>` : ''}
+      </div>
+      <div class="ii-mat__val">${Math.round(st.value).toLocaleString('en-US')}<span class="ii-mat__unit">USD/톤</span></div>
+      ${krw ? `<div class="ii-mat__krw">≈ ${escapeHtml(krw)}</div>` : ''}
+      <div class="ii-mat__chg">
+        <span class="ii-mat__lbl">전월비</span>
+        <span class="ms-badge__val ${iiCls(st.mom)}">${iiPct(st.mom)}</span>
+        <span class="ii-mat__asof">${escapeHtml(st.period)}</span>
+      </div>
+      ${m.reason ? `<p class="ii-mat__why">${escapeHtml(m.reason)}</p>` : ''}
+    </div>`;
+  }).join('');
+  if (!cards) return '';
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">② 원자재별 변동요인</h3>
+    <div class="ii-mats">${cards}</div>
+  </div>`;
+}
+
+/* ── ③ 히스토리 이벤트 타임라인 ────────────────────────────────────────── */
+function iiTimeline() {
+  const list = (_iiData && Array.isArray(_iiData.timeline)) ? _iiData.timeline : [];
+  if (!list.length) return '';
+  const items = list.map((e) => `<li class="ii-tl__item">
+      <span class="ii-tl__dot" aria-hidden="true"></span>
+      <span class="ii-tl__date">${escapeHtml(e.date || '')}</span>
+      <span class="ii-tl__body">
+        <span class="ii-tl__event">${escapeHtml(e.event || '')}</span>
+        ${e.impact ? `<span class="ii-tl__impact">${escapeHtml(e.impact)}</span>` : ''}
+      </span>
+    </li>`).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">③ 히스토리 이벤트</h3>
+    <ol class="ii-tl">${items}</ol>
+  </div>`;
+}
+
+/* ── ④ 단기·중기 전망 ──────────────────────────────────────────────────
+   ★ 문장을 지어내지 않는다. 단기는 ①의 추세 연장 값을, 중기는 실측 12개월
+     변화와 5년 범위 안 위치를 그대로 말로 옮긴 것이다. */
+function iiSpark(key, color, ext) {
+  const V = ICIS_DATA[key] || [];
+  const hist = V.slice(-12).filter((v) => v != null && isFinite(v));
+  const e = ext && ext.byKey[key];
+  const proj = e ? e.values : [];
+  const all = hist.concat(proj);
+  if (all.length < 3) return '';
+  const W = 132, H = 34, pad = 2;
+  const mn = Math.min(...all), mx = Math.max(...all);
+  const X = (i) => pad + (i / (all.length - 1)) * (W - pad * 2);
+  const Y = (v) => pad + (1 - (v - mn) / ((mx - mn) || 1)) * (H - pad * 2);
+  const line = (arr, from) => arr.map((v, i) =>
+    `${i ? 'L' : 'M'}${X(from + i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+  const solid = line(hist, 0);
+  const dash = proj.length ? line([hist[hist.length - 1]].concat(proj), hist.length - 1) : '';
+  return `<svg class="ii-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+      aria-label="${escapeHtml(key)} 최근 12개월과 추세 연장">
+    <path d="${solid}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/>
+    ${dash ? `<path d="${dash}" fill="none" stroke="${color}" stroke-width="1.6"
+      stroke-dasharray="3 3" opacity=".75"/>` : ''}
+    ${proj.length ? `<circle cx="${X(all.length - 1).toFixed(1)}" cy="${Y(all[all.length - 1]).toFixed(1)}"
+      r="2" fill="var(--surface-1)" stroke="${color}" stroke-width="1.4"/>` : ''}
+  </svg>`;
+}
+
+/** 중기 = 실측 12개월 변화 + 최근 5년 범위 안에서의 위치 */
+function iiMidText(key) {
+  const st = iiStat(key);
+  if (!st) return null;
+  const V = (ICIS_DATA[key] || []).slice(-60).filter((v) => v != null && isFinite(v));
+  let pos = null;
+  if (V.length >= 12) {
+    const mn = Math.min(...V), mx = Math.max(...V);
+    if (mx > mn) pos = Math.round(((st.value - mn) / (mx - mn)) * 100);
+  }
+  const parts = [];
+  parts.push(st.yoy == null ? '전년 자료 없음'
+    : '최근 12개월 ' + (st.yoy > 0 ? '+' : '') + st.yoy.toFixed(1) + '%');
+  if (pos != null) parts.push('최근 5년 범위의 ' + pos + '% 지점');
+  return parts.join(' · ');
+}
+
+function iiOutlook(ext) {
+  const rows = ICIS_SERIES.map((s) => {
+    const st = iiStat(s.key);
+    if (!st) return '';
+    const p = iiExtPct(ext, s.key);
+    const mid = iiMidText(s.key);
+    return `<div class="ii-ol" style="--ii-c:${s.color}">
+      <div class="ii-ol__head">
+        <span class="ii-ol__key">${escapeHtml(s.key)}</span>
+        ${iiSpark(s.key, s.color, ext)}
+      </div>
+      <div class="ii-ol__line"><span class="ii-ol__lbl">단기</span>
+        <span class="ii-ol__txt">${p == null ? '추세를 잴 관측치가 모자랍니다'
+          : `3개월 추세 연장 <b class="ms-badge__val ${iiCls(p)}">${iiPct(p)}</b> — ${escapeHtml(iiWord(p))}`}</span></div>
+      <div class="ii-ol__line"><span class="ii-ol__lbl">중기</span>
+        <span class="ii-ol__txt">${mid ? escapeHtml(mid) : '판단할 관측치가 모자랍니다'}</span></div>
+    </div>`;
+  }).join('');
+  if (!rows) return '';
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">④ 단기 · 중기 전망</h3>
+    <div class="ii-ols">${rows}</div>
+    <div class="ii-cap">단기는 ①의 추세 연장값, 중기는 실측 12개월 변화와 최근 5년 범위 안 위치를
+      그대로 옮긴 것입니다. 시장 전망이 아닙니다.</div>
+  </div>`;
+}
+
+/* ── ⑥ 시사점 및 의사결정 포인트 (3열) ────────────────────────────────── */
+function iiImplications() {
+  const im = (_iiData && _iiData.implications) || null;
+  if (!im) return '';
+  const col = (h, t) => (t ? `<div class="ii-imp">
+      <div class="ii-imp__h">${escapeHtml(h)}</div>
+      <p class="ii-imp__b">${escapeHtml(t)}</p></div>` : '');
+  const cols = col('주요 시사점', im.key_takeaway)
+    + col('검토 필요 사항', im.review_needed)
+    + col('의사결정 활용 예시', im.decision_example);
+  if (!cols) return '';
+  const upd = (_iiData && _iiData.updated) ? String(_iiData.updated) : null;
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">⑥ 시사점 및 의사결정 포인트</h3>
+    <div class="ii-imps">${cols}</div>
+    ${im.note ? `<div class="ii-cap">${escapeHtml(im.note)}</div>` : ''}
+    <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
+  </div>`;
+}
+
 /** 섹션 5 전체 렌더: 업데이트 전 안내 → 업데이트 후 연도 툴바 → 연도 선택 시 그래프 */
 function renderMaterial() {
   const root = document.getElementById('materialRoot');
@@ -2507,10 +2785,18 @@ function renderMaterial() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { periods, series } = icisViewData(_matYear);
+    // 추세 연장은 화면이 데이터 끝까지 닿아 있을 때만 만든다(iiExtend 안에서 판단).
+    const ext = iiExtend(periods);
     // 배지는 고른 연도가 아니라 '전 구간'으로 계산한다 — 전년비를 재려면 12개월이 필요하다.
     body = msBadgesHtml(msPtsIcis(), 'PPG(폴리올) 기준 · 전체 수집구간')
-      + buildIcisChart(periods, series) + icisLatest()
-      + msFactorsHtml('icis_asia_pu') + icisTermsTable()
+      + buildIcisChart(periods, series, ext)
+      + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
+        + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
+        + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
+      + icisLatest()
+      + msFactorsHtml('icis_asia_pu')
+      + iiMaterialCards() + iiTimeline() + iiOutlook(ext) + iiImplications()
+      + icisTermsTable()
       + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
 
@@ -2559,12 +2845,25 @@ function renderMaterial() {
 }
 
 /** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
-function buildIcisChart(periods, series) {
-  const n = periods.length;
-  if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
-  const singleYear = periods.every((p) => p.slice(0, 4) === periods[0].slice(0, 4));
+function buildIcisChart(periods, series, ext) {
+  const n0 = periods.length;
+  if (!n0 || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
+  // ★ 추세 연장 구간을 축 뒤에 이어 붙인다. ext 가 없으면 예전과 똑같이 그려진다.
+  const exP = (ext && ext.periods) || [];
+  const allPeriods = periods.concat(exP);
+  const n = allPeriods.length;
+  const singleYear = allPeriods.every((p) => p.slice(0, 4) === allPeriods[0].slice(0, 4));
+  // 실측 뒤에 추정치를 이어 붙인 시리즈(툴팁도 이걸 본다)
+  const fullSeries = series.map((s) => {
+    const e = ext && ext.byKey[s.key];
+    return Object.assign({}, s, {
+      values: s.values.concat(e ? e.values : exP.map(() => null)),
+      band: e ? e.band : null,
+    });
+  });
 
-  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  const all = fullSeries.flatMap((s) => s.values).filter((v) => v != null)
+    .concat(fullSeries.flatMap((s) => (s.band || []).flatMap((b) => [b.lo, b.hi])));
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.08 || 100; ymin = Math.max(0, ymin - yp); ymax += yp;
 
@@ -2581,11 +2880,12 @@ function buildIcisChart(periods, series) {
 
   // 단일 연도는 'MM월'(짧음)이라 간격을 좁게, 전체 보기는 'YYYY-MM'이라 넓게
   const xticks = vizTickIdx(n, plotW, singleYear ? 44 : VIZ_TICK_GAP).map((i) => {
-    const p = periods[i];
+    const p = allPeriods[i];
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(singleYear ? p.slice(5) + '월' : p)}</text>`;
   }).join('');
 
+  // 실선은 실측 구간(0 ~ n0-1)만 긋는다
   const lines = series.map((s) => {
     let path = '', pen = false;
     s.values.forEach((v, i) => {
@@ -2596,7 +2896,38 @@ function buildIcisChart(periods, series) {
     return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
-  // 각 데이터 점 표시
+  // ── ① 추세 연장: 옅은 음영 띠 + 점선. 마지막 실측점에서 이어 그린다. ──
+  let extShapes = '';
+  if (ext && exP.length) {
+    extShapes = fullSeries.map((s) => {
+      const e = ext.byKey[s.key];
+      if (!e) return '';
+      const last = s.values[n0 - 1];
+      if (last == null) return '';
+      const up = [], dn = [];
+      up.push(`${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)}`);
+      dn.push(`${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)}`);
+      e.band.forEach((b, k) => {
+        up.push(`${X(n0 + k).toFixed(1)} ${Y(b.hi).toFixed(1)}`);
+        dn.push(`${X(n0 + k).toFixed(1)} ${Y(b.lo).toFixed(1)}`);
+      });
+      const poly = up.concat(dn.reverse()).join(' L');
+      let d = `M${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)} `;
+      e.values.forEach((v, k) => { d += `L${X(n0 + k).toFixed(1)} ${Y(v).toFixed(1)} `; });
+      return `<path d="M${poly} Z" fill="${s.color}" opacity=".10"/>`
+        + `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.8"
+            stroke-dasharray="4 3" stroke-linejoin="round" opacity=".85"/>`;
+    }).join('');
+    // 실측과 추정을 가르는 세로선
+    const bx = X(n0 - 1).toFixed(1);
+    extShapes += `<line x1="${bx}" y1="${padT}" x2="${bx}" y2="${(padT + plotH).toFixed(1)}"
+        stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity=".5"/>`
+      + `<text x="${(X(n0 - 1) + 4).toFixed(1)}" y="${(padT + 8).toFixed(1)}" font-size="7.5"
+          font-weight="700" fill="var(--muted)" paint-order="stroke" stroke="var(--surface-1)"
+          stroke-width="2.5">추세 연장</text>`;
+  }
+
+  // 각 데이터 점 표시(실측만 — 추정치에는 점을 찍지 않는다)
   const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
     `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
   // 값 라벨 방침: 차트가 낮아진 뒤 실측하니 4개 시리즈(PPG·TDI·MDI·PO)를 겹쳐 그리는
@@ -2611,12 +2942,15 @@ function buildIcisChart(periods, series) {
     return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_LABEL}" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${s.color}">${Math.round(v).toLocaleString('en-US')}</text>`;
   }).join('')).join('') : '';
 
-  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
-  _icisChart = { periods, series, geom: { X, Y, n, W, padL } };
+  // 범례 항목만 만들고 감싸는 것은 return 에서 한 번만 한다(예전엔 여기서 감쌌다)
+  const legend = series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')
+    + (ext && exP.length ? `<span class="viz-legend__item ii-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '');
+  // 툴팁은 늘어난 축 전체를 본다. extFrom 뒤는 추정치라고 밝힌다.
+  _icisChart = { periods: allPeriods, series: fullSeries, extFrom: n0, geom: { X, Y, n, W, padL } };
 
-  return `${legend}
+  return `<div class="viz-legend">${legend}</div>
     <svg class="viz-svg icis-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
-      ${grid}${xticks}${lines}${dots}${labels}
+      ${grid}${xticks}${extShapes}${lines}${dots}${labels}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
@@ -2764,7 +3098,10 @@ function wireIcisChart() {
       rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toLocaleString('en-US')} USD/톤${krw}</span></div>`;
     });
     dots.innerHTML = dh;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
+    // 추세 연장 구간에 올라가면 추정치라고 밝힌다
+    const isExt = (c.extFrom != null && i >= c.extFrom);
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}`
+      + (isExt ? '<span class="ii-tt-ext">추세 연장 추정치</span>' : '') + `</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -7021,6 +7358,7 @@ function resetDashboard() {
   _igData = null;       // SIMMONS IG 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
+  _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
@@ -7130,6 +7468,8 @@ function initUpdate() {
     fetchInstagram();
     // 순수 추가: 시황 해설(구조적·단기 요인 + 변곡점). 위와 같은 이유로 await 안 한다.
     fetchInsights();
+    // 순수 추가: ICIS 6단 패널(변동요인·타임라인·시사점). 위와 같은 이유로 await 안 한다.
+    fetchIcisInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를
