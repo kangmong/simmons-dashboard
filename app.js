@@ -4083,7 +4083,10 @@ async function fetchXsi() {
     const d = await res.json();
     if (!d || !Array.isArray(d.routes) || !d.routes.length) throw new Error('형식이 올바르지 않습니다');
     _xsiData = d;
-    if (!_xsiRoute || !d.routes.some((r) => r.key === _xsiRoute)) _xsiRoute = d.routes[0].key;
+    // ★ 항로를 대신 골라 주지 않는다. 사용자가 직접 눌러야 수치가 나온다.
+    //   (예전에는 여기서 d.routes[0] 을 집어넣어 화면이 열리자마자 값이 떠 있었다)
+    //   다만 이전에 고른 항로가 이번 데이터에 없으면 선택을 비운다.
+    if (_xsiRoute && !d.routes.some((r) => r.key === _xsiRoute)) _xsiRoute = null;
   } catch (e) {
     _xsiData = { status: 'error', routes: [], reason: (e && e.message) || String(e) };
     console.warn('[xsi] 로드 실패:', e);
@@ -4093,8 +4096,9 @@ async function fetchXsi() {
 
 /** 지금 고른 항로 객체. 없으면 null */
 function xsiRoute() {
+  if (!_xsiRoute) return null;      // 안 골랐으면 안 고른 것이다(첫 항로로 넘어가지 않는다)
   const rs = (_xsiData && _xsiData.routes) || [];
-  return rs.find((r) => r.key === _xsiRoute) || rs[0] || null;
+  return rs.find((r) => r.key === _xsiRoute) || null;
 }
 
 /** 기간에 맞춰 시계열을 자른다. 원본 사이트와 같은 규칙(오늘로부터 N년). */
@@ -4186,7 +4190,15 @@ function renderXsiHtml() {
   const r = xsiRoute();
   const tabs = `<div class="icis-years xsi-routes">${_xsiData.routes.map((x) =>
     `<button class="icis-year xsi-route${x.key === _xsiRoute ? ' is-active' : ''}" data-route="${escapeHtml(x.key)}">${escapeHtml(x.short || x.name)}</button>`).join('')}</div>`;
-  if (!r) return `<div class="viz-root viz-figure xsi-figure">${head}${tabs}${cap}</div>`;
+  if (!r) {
+    // 항로를 고르기 전 — 버튼만 두고 값은 하나도 내지 않는다(ICIS 연도 칩과 같은 규칙)
+    _xsiChart = null;
+    return `<div class="viz-root viz-figure xsi-figure">${head}
+      ${tabs}
+      <div class="icis-prompt">항로를 선택하세요</div>
+      ${cap}
+    </div>`;
+  }
 
   const st = r.stats || {};
   const color = 'var(--blue)';
@@ -8038,6 +8050,9 @@ function initUpdate() {
     // 순수 추가: 해상 정시성 5단 패널. 위와 같은 이유로 await 안 한다.
     fetchSrInsights();
     // 순수 추가: 컨테이너 운임지수(XSI-C). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
+    // ★ 갱신 뒤에도 항로는 다시 고르게 한다 — 새로 받은 값이 '고르지도 않았는데'
+    //   떠 있는 일이 없도록 선택을 비우고 시작한다.
+    _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;
     fetchXsi();
     try {
       const { data, source } = await fetchDashboardData();
