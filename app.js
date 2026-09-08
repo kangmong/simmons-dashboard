@@ -2869,8 +2869,10 @@ function renderMaterial() {
       `<button class="icis-year${y === _matYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`
     : '';
 
-  // 요약 4박스 — 원료마다 한 칸. 연도 선택과 무관하게 전 구간에서 계산한다
-  // (전년비를 재려면 12개월이 필요하다). 해상 정시성 위젯과 같은 .sr-sum 을 쓴다.
+  /* 요약 4박스 — 원료마다 한 칸. 값 자체는 연도와 무관하게 전 구간에서 계산한다
+     (전년비를 재려면 12개월이 필요하다). 해상 정시성 위젯과 같은 .sr-sum 을 쓴다.
+     ★ 다만 '보여주는' 것은 연도 버튼을 누른 뒤다 — 섹션 공통 규칙(1차 필터를
+       직접 고르기 전에는 요약박스까지 아무것도 내지 않는다). */
   const icisSum = matSeriesBoxes(ICIS_SERIES.map((s) => ({
     label: s.key,
     pts: ICIS_DATA.periods.map((p, i) => ({ k: p, v: ICIS_DATA[s.key][i] }))
@@ -2901,7 +2903,7 @@ function renderMaterial() {
   root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
     ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
       'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay)}
-    ${icisSum}
+    ${_matYear ? icisSum : ''}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
@@ -3707,7 +3709,9 @@ function renderOilProductHtml() {
     (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '', opDay, null, '데이터 기준')
     + `<div class="viz-head"><div>
       <div class="viz-sub">일일국제제품가격 · 휘발유·등유·경유·중유·나프타 (${escapeHtml(unit)})</div>
-    </div></div>` + oilpLead();
+    </div></div>`
+    // ★ 대표제품 4카드 + 인사이트 카드는 [조회] 뒤에만 낸다(섹션 공통 규칙)
+    + (_opQuery ? oilpLead() : '');
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제제품가격', SRC_LINKS.oilProduct);
   if (!_opData) {
     return `<div class="viz-root viz-figure oilp-figure">${head}`
@@ -4260,7 +4264,8 @@ function renderScheduleReliabilityHtml() {
   if (!_srData) return '';
   // ② 핵심요약 4박스 — 예전 전월비·전년비·국면 배지를 이 박스들로 옮겼다.
   const srExt = _srData.error ? null : sriExtend();
-  const srBoxes = _srData.error ? '' : sriSummary(srExt);
+  // ★ 연도 버튼을 누른 뒤에만 내보낸다(섹션 공통 규칙)
+  const srBoxes = (_srData.error || !_srYear) ? '' : sriSummary(srExt);
   // 배너의 '업데이트 기준'은 관측치의 마지막 달
   const srLast = _srData.error ? null : sriLast();
   const head = vizHero('compass', '해상 정시성 (Global Schedule Reliability)',
@@ -4310,7 +4315,8 @@ function renderScheduleReliabilityHtml() {
 const XSI_DATA_URL = 'public/data/xsi-freight-index.json';
 let _xsiData = null;
 let _xsiRoute = null;      // 고른 항로 key
-let _xsiRange = 'all';     // 차트 기간: '1' | '3' | '5' | 'all'
+let _xsiRange = null;      // 차트 기간: null(미선택) | '1' | '3' | '5' | 'all'
+                           // ★ null 이면 차트를 내지 않는다 — KOIMA 부문→기간과 같은 2단
 let _xsiChart = null;      // 툴팁이 쓸 좌표·값
 
 const XSI_RANGES = [
@@ -5055,14 +5061,23 @@ function renderXsiHtml() {
   const hasSeries = r.series && r.series.dates && r.series.dates.length;
   const chips = hasSeries ? `<div class="icis-years xsi-ranges">${XSI_RANGES.map((x) =>
     `<button class="icis-year xsi-range${x.key === _xsiRange ? ' is-active' : ''}" data-xrange="${x.key}">${x.label}</button>`).join('')}</div>` : '';
-  const slice = hasSeries ? xsiSlice(r.series, _xsiRange) : null;
+  const slice = (hasSeries && _xsiRange) ? xsiSlice(r.series, _xsiRange) : null;
   // ★ 단위는 차트 위 캡션으로 뺀다. SVG 안 Y축 옆에 두면 맨 위 눈금 숫자와
   //   같은 줄을 써서 겹쳤고(8개 항로 전부), 오른쪽 정렬 탓에 뷰박스 왼쪽 밖으로도 나갔다.
-  const chart = hasSeries
-    ? vizUnitCap(xsiUnit(), (_xsiData && _xsiData.currency) || 'USD')
+  /* 차트 — 기간 칩을 직접 누른 뒤에만 그린다(섹션 공통 규칙).
+     항로만 고른 상태에서는 안내 문구만 두고, 통계·전망·②③④는 그대로 낸다
+     (그 값들은 기간과 무관한 항로 단위 수치다). */
+  let chart;
+  if (!hasSeries) {
+    chart = '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
+  } else if (!slice) {
+    _xsiChart = null;
+    chart = '<div class="icis-prompt">기간을 선택하세요</div>';
+  } else {
+    chart = vizUnitCap(xsiUnit(), (_xsiData && _xsiData.currency) || 'USD')
       + buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
-      + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`
-    : '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
+      + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`;
+  }
 
   const note = _xsiData.statsNote
     ? `<div class="ii-cap">${escapeHtml(_xsiData.statsNote)}${_xsiData.updatedAt ? ' · 수집 ' + escapeHtml(_xsiData.updatedAt) : ''}</div>` : '';
@@ -5076,7 +5091,8 @@ function renderXsiHtml() {
     ${xsiFcBox(fc, st)}
   </div>`;
 
-  const panels = xsiiEras(slice) + xsiiFactors() + xsiiOutlook()
+  // 구간 주석은 차트 위 마커와 짝이므로 기간을 고른 뒤에만 낸다
+  const panels = (slice ? xsiiEras(slice) : '') + xsiiFactors() + xsiiOutlook()
     + xsiScenarios(fc, st) + xsiActions();
 
   return `<div class="viz-root viz-figure xsi-figure">${head}
@@ -5098,7 +5114,14 @@ function wireXsi(root) {
   if (!fig) return;
   fig.addEventListener('click', (e) => {
     const t = e.target.closest && e.target.closest('[data-route]');
-    if (t) { _xsiRoute = t.getAttribute('data-route'); renderMaterial(); return; }
+    if (t) {
+      // 항로를 바꾸면 기간 선택도 초기화한다 — 새 항로에서 기간을 다시 골라야
+      // 차트가 나온다(KOIMA 부문 전환과 같은 규칙).
+      _xsiRoute = t.getAttribute('data-route');
+      _xsiRange = null; _xsiChart = null;
+      renderMaterial();
+      return;
+    }
     const g = e.target.closest && e.target.closest('[data-xrange]');
     if (g) { _xsiRange = g.getAttribute('data-xrange'); renderMaterial(); }
   });
@@ -5983,10 +6006,13 @@ function renderOilPricesHtml() {
     + `<div class="viz-head"><div>
       <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
       <div class="viz-sub2">지역별 대표 원유(유종)의 가격을 비교하는 그래프</div>
-    </div></div>` + oilSummary3();
+    </div></div>`
+    // ★ 최근가·기간별 상승률·인사이트 3박스는 [조회] 뒤에만 낸다(섹션 공통 규칙)
+    + (_ocQuery ? oilSummary3() : '');
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
   // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
-  const ocSum = (_ocData && !_ocData.error)
+  // ★ [조회]를 누르기 전에는 내지 않는다(섹션 공통 규칙).
+  const ocSum = (_ocData && !_ocData.error && _ocQuery)
     ? matSeriesBoxes((_ocData.series || []).slice(0, 4).map((s) => ({
       label: s.label, pts: msPtsPetro(_ocData, s.key) })), '$/배럴', 2, '배럴') : '';
 
@@ -7052,7 +7078,6 @@ const KP_RANGES = [
   { key: '1m', label: '1개월', days: 30 }, { key: '6m', label: '6개월', days: 182 },
   { key: '1y', label: '1년', days: 365 }, { key: 'all', label: '전체', days: null },
 ];
-const KP_DEFAULT_CAT = 'petchem';
 
 let _kpData = null;    // {baseDate,categories:[...]} | {error} | null
 let _kpCat = null;     // 선택 부문 key
@@ -7119,9 +7144,10 @@ function applyKoimaPriceUpdate(data) {
   if (data && data.status === 'ok' && Array.isArray(data.categories) && data.categories.length) {
     _kpData = { baseDate: data.baseDate, days: data.days, categories: data.categories,
       failures: data.failures || [] };
-    if (!_kpCat) _kpCat = KP_DEFAULT_CAT;
-    let cat = kpCatOf(_kpCat) || kpCatsOrdered()[0] || null;
-    if (cat) { _kpCat = cat.key; if (_kpItem == null) _kpItem = kpFirstItemNo(cat); }
+    /* ★ 부문·품목을 기본 선택하지 않는다 — 섹션 공통 규칙(1차 필터를 직접
+         누르기 전에는 요약박스까지 아무것도 내지 않는다). 예전에는 여기서
+         유화원료를 자동으로 골라 버튼을 누르지 않아도 숫자가 떠 있었다. */
+    _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null;
     const counts = data.categories.map((c) => `${c.label} ${c.items.length}개`).join(' · ');
     console.log('[koima-price] 기준일 %s · 부문별 품목 수: %s', data.baseDate, counts);
     if (_kpData.failures.length) {
@@ -7215,6 +7241,18 @@ function renderKoimaPriceHtml() {
   // 3) 기간 칩
   const chips = `<div class="icis-years kp-ranges">${KP_RANGES.map((r) =>
     `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
+
+  /* ★ 부문을 고르기 전 — 탭만 두고 값은 하나도 내지 않는다.
+       품목 드롭다운·기간 칩은 고른 부문의 품목 목록으로 만들어지므로 함께 감춘다.
+       (KOIMA 부문별 지수 위젯과 같은 .icis-prompt 플레이스홀더) */
+  if (ok && !cat && !_kpBusy) {
+    _kpChart = null;
+    return `<div class="viz-root viz-figure kp-figure">${head}
+      ${tabs}
+      <div class="icis-prompt">부문을 선택하세요</div>
+      ${cap}
+    </div>`;
+  }
 
   let body;
   if (_kpBusy) {                                    // 로드 중
@@ -7370,8 +7408,11 @@ function wireKpControls(root) {
   if (tabsEl) tabsEl.addEventListener('click', (e) => {
     const b = e.target.closest('.kp-tab');
     if (!b || b.disabled) return;
+    // 부문을 바꾸면 품목은 첫 품목으로, 기간은 미선택으로 되돌린다 —
+    // 새 부문에서 기간을 다시 골라야 그래프가 나온다(섹션 공통 규칙).
     _kpCat = b.dataset.cat;
-    _kpItem = kpFirstItemNo(kpCatOf(_kpCat));   // 부문 변경 시 첫 품목으로 리셋
+    _kpItem = kpFirstItemNo(kpCatOf(_kpCat));
+    _kpRange = null; _kpChart = null;
     renderMaterial();
   });
   const selEl = fig.querySelector('.kp-item');
@@ -9600,7 +9641,7 @@ function resetDashboard() {
   _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
   _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
   _sriData = null;      // 해상 정시성 5단 패널 비우기
-  _xsiData = null; _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;  // 운임지수 비우기
+  _xsiData = null; _xsiRoute = null; _xsiRange = null; _xsiChart = null;  // 운임지수 비우기
   _xsiiData = null;     // 운임지수 4단 해설 비우기
   _oilIns = null;       // 국제유가 인사이트 비우기
   _oilpIns = null;      // 석유제품 인사이트 비우기
@@ -9720,7 +9761,7 @@ function initUpdate() {
     // 순수 추가: 컨테이너 운임지수(XSI-C). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
     // ★ 갱신 뒤에도 항로는 다시 고르게 한다 — 새로 받은 값이 '고르지도 않았는데'
     //   떠 있는 일이 없도록 선택을 비우고 시작한다.
-    _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;
+    _xsiRoute = null; _xsiRange = null; _xsiChart = null;
     fetchXsi();
     // ★ KOIMA 부문별 지수도 같은 규칙 — 갱신 뒤에도 부문을 다시 고르게 한다.
     //   (applyKoimaUpdate 에서도 비우지만, 응답이 늦거나 실패해도 이전 선택이
