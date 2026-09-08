@@ -2754,18 +2754,22 @@ const II_MATS = 'PPG|TDI|MDI|PO';
 const II_WORDS = ['폴리올', '이소시아네이트', '폴리우레탄 폼', '컴포트 레이어'];
 
 function iiEmph(text) {
-  // 1) JSON 이 지정한 **판단 키워드**
-  let html = escapeHtml(String(text || '')).replace(/\*\*([^*]+)\*\*/g, '<b class="ii-k">$1</b>');
-  // 2) 나머지는 태그 밖에서만
-  return html.split(/(<[^>]+>)/).map((seg) => {
-    if (seg.charAt(0) === '<') return seg;
-    let s = seg.replace(/([+-]?\d[\d,]*(?:\.\d+)?\s*(?:%p|%|USD\/톤|만\s*원\/톤))/g,
-      '<b class="ii-k">$1</b>');
-    // 영문 원자재 약어 — 앞뒤가 영문이면 잡지 않는다(단어 경계)
-    s = s.replace(new RegExp('(^|[^A-Za-z])(' + II_MATS + ')(?![A-Za-z])', 'g'),
-      '$1<b class="ii-k">$2</b>');
-    II_WORDS.forEach((w) => { s = s.split(w).join('<b class="ii-k">' + w + '</b>'); });
-    return s;
+  const esc = escapeHtml(String(text || ''));
+  // **판단 키워드** 를 기준으로 자른다. 홀수 조각이 지정된 키워드다.
+  // ★ 지정 키워드 '안'은 다시 훑지 않는다 — 이미 통째로 강조돼 있어서,
+  //   그 안의 숫자를 또 감싸면 <b> 가 겹친다(예: **56~59%**).
+  return esc.split(/\*\*([^*]+)\*\*/).map((seg, i) => {
+    if (i % 2) return '<b class="ii-k">' + seg + '</b>';
+    return seg.split(/(<[^>]+>)/).map((t) => {
+      if (t.charAt(0) === '<') return t;
+      let s = t.replace(/([+-]?\d[\d,]*(?:\.\d+)?\s*(?:%p|%|USD\/톤|만\s*원\/톤))/g,
+        '<b class="ii-k">$1</b>');
+      // 영문 원자재 약어 — 앞뒤가 영문이면 잡지 않는다(단어 경계)
+      s = s.replace(new RegExp('(^|[^A-Za-z])(' + II_MATS + ')(?![A-Za-z])', 'g'),
+        '$1<b class="ii-k">$2</b>');
+      II_WORDS.forEach((w) => { s = s.split(w).join('<b class="ii-k">' + w + '</b>'); });
+      return s;
+    }).join('');
   }).join('');
 }
 
@@ -3760,15 +3764,248 @@ function srViewData(year) {
   return { months, series };
 }
 
+/* ══ 해상 정시성 5단 시황 패널 ═══════════════════════════════════════════
+   ① 추이 + 향후 전망   ② 핵심요약 4박스   ③ 최근 변동요인
+   ④ 히스토리 이벤트    ⑥ 향후 전망·시사점
+   (⑤ 항로별 비교는 원자료에 항로 구분이 없어 만들지 않는다)
+
+   ★ 이 차트의 X축은 1~12월이고 연도마다 선이 하나씩 얹힌다. 그래서 '추세 연장'은
+     축을 늘리는 게 아니라, 마지막 관측월(예: 2026-07) 다음 칸부터 그 해의 선을
+     이어 그리는 방식이다.
+   ★★ 추세 연장은 예측 모델이 아니다. 최근 이동평균의 기울기를 그대로 늘린 직선이며
+     화면에도 그렇게 적는다.
+   ★ 해설 문구는 public/data/sr-insights.json 한 곳에서만 온다. */
+const SRI_DATA_URL = 'public/data/sr-insights.json';
+let _sriData = null;
+
+const SRI_EXT_MONTHS = 3;    // 몇 개월을 이어 그을지
+const SRI_AVG_YEARS = ['2021', '2022', '2023', '2024'];   // 비교 기준 4개년
+
+/** 해설 데이터 로드. 실패해도 차트는 그대로 나온다. */
+async function fetchSrInsights() {
+  try {
+    const res = await fetch(SRI_DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _sriData = d;
+  } catch (e) {
+    _sriData = null;
+    console.warn('[sr-insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 비교 기준 연도 목록(JSON 이 정하고, 없으면 기본값) */
+function sriAvgYears() {
+  const y = _sriData && _sriData.avgYears;
+  return (Array.isArray(y) && y.length) ? y.map(String) : SRI_AVG_YEARS;
+}
+
+/** 기준 4개년의 '월별 평균' 12칸. 관측이 없는 달은 null.
+ *  ★ X축이 1~12월이라 한 줄짜리 가로선보다 월별 평균이 계절성을 보여 준다. */
+function sriAvgProfile() {
+  if (!_srData || !_srData.years) return null;
+  const ys = sriAvgYears().filter((y) => _srData.years[y]);
+  if (!ys.length) return null;
+  const n = (_srData.months || []).length || 12;
+  const out = [];
+  for (let m = 0; m < n; m += 1) {
+    const vals = ys.map((y) => (_srData.years[y] || [])[m])
+      .filter((v) => v != null && isFinite(v));
+    out.push(vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+  }
+  return out.some((v) => v != null) ? out : null;
+}
+
+/** 기준 4개년 전체 평균(한 숫자). 없으면 null */
+function sriAvgAll() {
+  if (!_srData || !_srData.years) return null;
+  const vals = sriAvgYears().flatMap((y) => (_srData.years[y] || []))
+    .filter((v) => v != null && isFinite(v));
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+/** 마지막 관측 지점 {year, mi(0-based 월), v} · 없으면 null */
+function sriLast() {
+  const pts = msPtsSr();
+  if (!pts.length) return null;
+  const k = pts[pts.length - 1].k;
+  return { year: k.slice(0, 4), mi: Number(k.slice(5, 7)) - 1, v: pts[pts.length - 1].v, ym: k };
+}
+
+/** 마지막 관측월에서 n개월 전 값(같은 시계열 위에서). 없으면 null */
+function sriBack(n) {
+  const pts = msPtsSr();
+  if (pts.length <= n) return null;
+  const last = pts[pts.length - 1];
+  const want = msYmOfNo(msMonthNo(last.k) - n);
+  const hit = pts.find((p) => p.k === want);
+  return hit ? hit.v : null;
+}
+
+/** 'YYYY-MM' 로 되돌리기 (msMonthNo 의 짝) */
+function msYmOfNo(no) {
+  if (no == null) return null;
+  return String(Math.floor(no / 12)) + '-' + String((no % 12) + 1).padStart(2, '0');
+}
+
+/** 추세 연장 — 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다.
+ *  { year, from, values:[{mi,v}], band:[{mi,lo,hi}], slope } · 못 내면 null
+ *  ★ 이어 그릴 칸이 12월을 넘으면 그 부분은 그리지 않는다(축이 1~12월이라서). */
+function sriExtend() {
+  const last = sriLast();
+  if (!last) return null;
+  const fit = iiFit(msPtsSr().map((p) => p.v));   // ICIS 와 같은 계산(이동평균 기울기 + 잔차)
+  if (!fit) return null;
+  const nMon = (_srData.months || []).length || 12;
+  const values = [], band = [];
+  for (let k = 1; k <= SRI_EXT_MONTHS; k += 1) {
+    const mi = last.mi + k;
+    if (mi >= nMon) break;                        // 해를 넘기는 칸은 이 축에 없다
+    const v = Math.max(0, Math.min(100, last.v + fit.slope * k));
+    const w = (fit.sd || 0) * Math.sqrt(k);
+    values.push({ mi: mi, v: v });
+    band.push({ mi: mi, lo: Math.max(0, v - w), hi: Math.min(100, v + w) });
+  }
+  if (!values.length) return null;
+  return { year: last.year, from: last, values: values, band: band, slope: fit.slope };
+}
+
+/** 전망 범위(음영 띠 전체)를 'NN~NN%' 로. 없으면 null */
+function sriRangeText(ext) {
+  if (!ext || !ext.band.length) return null;
+  const lo = Math.min(...ext.band.map((b) => b.lo));
+  const hi = Math.max(...ext.band.map((b) => b.hi));
+  return Math.round(lo) + '~' + Math.round(hi) + '%';
+}
+
+/* ── ② 핵심요약 4박스 ──────────────────────────────────────────────────
+   지금까지 쓰던 전월비·전년비·국면 배지를 이 박스들로 옮긴다(정보는 그대로 둔다).
+   ★ 정시성은 '비율' 지표라 등락을 %가 아니라 %p 로 적는다. */
+function sriPp(v) {
+  if (v == null || !isFinite(v)) return '—';
+  return (v > 0.05 ? '▲ +' : (v < -0.05 ? '▼ ' : '')) + v.toFixed(1) + '%p';
+}
+
+function sriBox(label, val, cls, sub) {
+  return '<div class="sr-sum__box">'
+    + '<div class="sr-sum__lbl">' + escapeHtml(label) + '</div>'
+    + '<div class="sr-sum__val ' + (cls || '') + '">' + val + '</div>'
+    + (sub ? '<div class="sr-sum__sub">' + sub + '</div>' : '')
+    + '</div>';
+}
+
+function sriSummary(ext) {
+  const last = sriLast();
+  if (!last) return '';
+  const mom = sriBack(1) == null ? null : last.v - sriBack(1);
+  const yoy = sriBack(12) == null ? null : last.v - sriBack(12);
+  const avg = sriAvgAll();
+  const ph = msPhase(msMonthly(msPtsSr()));
+  const range = sriRangeText(ext);
+  const yrs = sriAvgYears();
+  const span = yrs.length ? yrs[0] + '~' + yrs[yrs.length - 1] : '';
+
+  return '<div class="sr-sum">'
+    + sriBox('최근 정시성', last.v.toFixed(1) + '<span class="sr-sum__u">%</span>', '',
+      escapeHtml(last.ym) + ' 기준 · 전월비 <b class="ms-badge__val '
+        + iiCls(mom) + '">' + sriPp(mom) + '</b>')
+    + sriBox('연간 추세 (전년 동월비)', '<span class="ms-badge__val ' + iiCls(yoy) + '">'
+      + sriPp(yoy) + '</span>', '',
+      ph ? '국면 ' + escapeHtml(ph.icon + ' ' + ph.text) : '국면 판정 보류')
+    + sriBox('과거 4개년 평균', avg == null ? '—' : avg.toFixed(1) + '<span class="sr-sum__u">%</span>', '',
+      escapeHtml(span) + ' 실측 평균')
+    + sriBox('향후 3개월 전망 범위', range ? escapeHtml(range) : '—', 'sr-sum__val--est',
+      '추세 연장 기준 · 예측 아님')
+    + '</div>';
+}
+
+/* ── ③ 최근 변동요인 ───────────────────────────────────────────────────
+   방향(부정적/균형적/중립적)은 JSON 의 tone 이 정한다. 코드가 판단하지 않는다. */
+function sriFactors() {
+  const list = (_sriData && Array.isArray(_sriData.factors)) ? _sriData.factors : [];
+  if (!list.length) return '';
+  const cards = list.map((f) => `<div class="sr-fac sr-fac--${escapeHtml(f.tone || 'neu')}">
+      <div class="sr-fac__top">
+        <span class="sr-fac__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
+        <span class="sr-fac__title">${escapeHtml(f.title || '')}</span>
+        ${f.toneLabel ? `<span class="sr-fac__tag">${escapeHtml(f.toneLabel)}</span>` : ''}
+      </div>
+      <p class="sr-fac__desc">${escapeHtml(f.desc || '')}</p>
+    </div>`).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">③ 최근 변동요인</h3>
+    <div class="sr-facs">${cards}</div>
+  </div>`;
+}
+
+/* ── ④ 히스토리 이벤트 (ICIS 와 같은 타임라인 문법을 그대로 쓴다) ─────── */
+function sriTimeline() {
+  const list = (_sriData && Array.isArray(_sriData.timeline)) ? _sriData.timeline : [];
+  if (!list.length) return '';
+  const items = list.map((e) => `<li class="ii-tl__item">
+      <span class="ii-tl__dot" aria-hidden="true"></span>
+      <span class="ii-tl__date">${escapeHtml(e.date || '')}</span>
+      <span class="ii-tl__body">
+        <span class="ii-tl__event">${escapeHtml(e.event || '')}</span>
+        ${e.impact ? `<span class="ii-tl__impact">${escapeHtml(e.impact)}</span>` : ''}
+      </span>
+    </li>`).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">④ 히스토리 이벤트와 정시성 변화</h3>
+    <ol class="ii-tl">${items}</ol>
+  </div>`;
+}
+
+/* ── ⑥ 향후 전망 및 시사점 (ICIS ⑥ 과 같은 주황·파랑·녹색 체계) ─────────
+   ★ 문장 속 {range}·{latest}·{mom}·{yoy}·{avg4} 는 실데이터로 바꿔 넣는다.
+     숫자를 JSON 에 적어 두면 다음 달 수집 때 화면과 어긋나기 때문이다. */
+function sriFill(text, ext) {
+  const last = sriLast();
+  const mom = (last && sriBack(1) != null) ? last.v - sriBack(1) : null;
+  const yoy = (last && sriBack(12) != null) ? last.v - sriBack(12) : null;
+  const avg = sriAvgAll();
+  const map = {
+    range: sriRangeText(ext) || '—',
+    latest: last ? last.v.toFixed(1) + '%' : '—',
+    mom: mom == null ? '—' : (mom > 0 ? '+' : '') + mom.toFixed(1) + '%p',
+    yoy: yoy == null ? '—' : (yoy > 0 ? '+' : '') + yoy.toFixed(1) + '%p',
+    avg4: avg == null ? '—' : avg.toFixed(1) + '%',
+  };
+  return String(text || '').replace(/\{(\w+)\}/g, (m, k) =>
+    (Object.prototype.hasOwnProperty.call(map, k) ? map[k] : m));
+}
+
+function sriImplications(ext) {
+  const im = (_sriData && _sriData.implications) || null;
+  if (!im) return '';
+  const col = (h, t, tone) => (t ? `<div class="ii-imp ii-imp--${tone}">
+      <div class="ii-imp__h">${iiImpIcon(tone)}${escapeHtml(h)}</div>
+      <p class="ii-imp__b">${iiEmph(sriFill(t, ext))}</p></div>` : '');
+  const cols = col('전망', im.outlook, 'warn')
+    + col('시사점', im.takeaway, 'info')
+    + col('의사결정 활용 방안', im.decision, 'act');
+  if (!cols) return '';
+  const upd = (_sriData && _sriData.updated) ? String(_sriData.updated) : null;
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">⑥ 향후 전망 및 시사점</h3>
+    <div class="ii-imps">${cols}</div>
+    ${im.note ? `<div class="ii-cap">${escapeHtml(im.note)}</div>` : ''}
+    <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
+  </div>`;
+}
+
 /** 해상 정시성 블록 HTML (ICIS와 동일 스타일: 연도 버튼 → 선그래프) */
 function renderScheduleReliabilityHtml() {
   if (!_srData) return '';
-  // 배지는 연도 선택과 무관하게 전 구간으로 계산한다(전년비에 12개월이 필요하다).
-  const srBadges = _srData.error ? '' : msBadgesHtml(msPtsSr(), '전체 선사 정시율 · 월별 전 구간');
+  // ② 핵심요약 4박스 — 예전 전월비·전년비·국면 배지를 이 박스들로 옮겼다.
+  const srExt = _srData.error ? null : sriExtend();
+  const srBoxes = _srData.error ? '' : sriSummary(srExt);
   const head = `<div class="viz-head"><div>
       <div class="viz-title">해상 정시성 (Global Schedule Reliability)</div>
       <div class="viz-sub">월별 정시 도착 비율(%) · 연도별</div>
-    </div></div>${srBadges}`;
+    </div></div>${srBoxes}`;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -3786,8 +4023,13 @@ function renderScheduleReliabilityHtml() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { months, series } = srViewData(_srYear);
-    body = buildSrChart(months, series);
-    extras = renderSrTermsHtml() + renderSrForecastHtml();
+    const avg = sriAvgProfile();
+    body = buildSrChart(months, series, avg, srExt)
+      + '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.'
+      + (srExt ? ' (최근 이동평균의 기울기를 ' + SRI_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서'
+        + ' 벗어난 정도로 잡은 참고 범위)' : '') + '</div>';
+    extras = sriFactors() + sriTimeline() + sriImplications(srExt)
+      + renderSrTermsHtml() + renderSrForecastHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
@@ -3887,12 +4129,17 @@ function renderSrForecastHtml() {
 }
 
 /** 연도별 정시성(%) 선그래프 SVG (null 구간 선 끊김, 단일 연도 시 값 라벨) */
-function buildSrChart(months, series) {
+function buildSrChart(months, series, avg, ext) {
   const n = months.length;
   if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
   const single = series.length === 1;
+  // 추세 연장은 그 해의 선이 화면에 있을 때만 그린다(2023년만 보는 화면에 2026년을 얹지 않는다)
+  const extOn = (ext && series.some((s) => s.key === ext.year)) ? ext : null;
+  const extColor = extOn ? (series.find((s) => s.key === extOn.year) || {}).color : null;
 
-  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  const all = series.flatMap((s) => s.values).filter((v) => v != null)
+    .concat((avg || []).filter((v) => v != null))
+    .concat(extOn ? extOn.band.flatMap((b) => [b.lo, b.hi]) : []);
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.12 || 5; ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
 
@@ -3921,6 +4168,41 @@ function buildSrChart(months, series) {
     return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
+  // ── ① 기준 4개년 월평균 점선 ──
+  let avgLine = '';
+  if (avg && avg.some((v) => v != null)) {
+    let p = '', pen = false;
+    avg.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      p += `${pen ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; pen = true;
+    });
+    if (p) {
+      avgLine = `<path d="${p.trim()}" fill="none" stroke="var(--slate)" stroke-width="1.6"
+        stroke-dasharray="5 3" stroke-linejoin="round" opacity=".85"/>`;
+    }
+  }
+
+  // ── ① 추세 연장: 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다 ──
+  let extShapes = '';
+  if (extOn) {
+    const c = extColor || 'var(--slate)';
+    const x0 = X(extOn.from.mi), y0 = Y(extOn.from.v);
+    const up = [`${x0.toFixed(1)} ${y0.toFixed(1)}`], dn = [`${x0.toFixed(1)} ${y0.toFixed(1)}`];
+    extOn.band.forEach((b) => {
+      up.push(`${X(b.mi).toFixed(1)} ${Y(b.hi).toFixed(1)}`);
+      dn.push(`${X(b.mi).toFixed(1)} ${Y(b.lo).toFixed(1)}`);
+    });
+    let d = `M${x0.toFixed(1)} ${y0.toFixed(1)} `;
+    extOn.values.forEach((p) => { d += `L${X(p.mi).toFixed(1)} ${Y(p.v).toFixed(1)} `; });
+    extShapes = `<path d="M${up.concat(dn.reverse()).join(' L')} Z" fill="${c}" opacity=".10"/>`
+      + `<path d="${d.trim()}" fill="none" stroke="${c}" stroke-width="1.8"
+          stroke-dasharray="4 3" stroke-linejoin="round" opacity=".85"/>`
+      + `<line x1="${x0.toFixed(1)}" y1="${padT}" x2="${x0.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
+          stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity=".5"/>`
+      + `<text x="${(x0 + 4).toFixed(1)}" y="${(padT + 8).toFixed(1)}" font-size="7.5" font-weight="700"
+          fill="var(--muted)" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5">추세 연장</text>`;
+  }
+
   const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
     `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
 
@@ -3932,12 +4214,16 @@ function buildSrChart(months, series) {
     return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_LABEL}" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${series[0].color}">${v.toFixed(1)}%</text>`;
   }).join('') : '';
 
-  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}</div>`;
+  const yrs = sriAvgYears();
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}`
+    + (avgLine ? `<span class="viz-legend__item sr-legend-avg"><span class="sr-legend-dash"></span>${escapeHtml(yrs[0] + '~' + yrs[yrs.length - 1])} 월평균</span>` : '')
+    + (extShapes ? `<span class="viz-legend__item sr-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '')
+    + `</div>`;
   _srChart = { months, series, geom: { X, Y, n, W, padL } };
 
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
-      ${grid}${xticks}${lines}${dots}${labels}
+      ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="sr-dots"></g>
@@ -7400,6 +7686,7 @@ function resetDashboard() {
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
   _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
+  _sriData = null;      // 해상 정시성 5단 패널 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
@@ -7511,6 +7798,8 @@ function initUpdate() {
     fetchInsights();
     // 순수 추가: ICIS 6단 패널(변동요인·타임라인·시사점). 위와 같은 이유로 await 안 한다.
     fetchIcisInsights();
+    // 순수 추가: 해상 정시성 5단 패널. 위와 같은 이유로 await 안 한다.
+    fetchSrInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

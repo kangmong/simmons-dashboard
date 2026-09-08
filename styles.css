@@ -1031,6 +1031,61 @@ body {
   .ii-mats, .ii-ols { grid-template-columns: 1fr; }
   .ii-tl__item { grid-template-columns: 1fr; gap: 2px; }
 }
+/* ── 해상 정시성 5단 (② 핵심요약 · ③ 변동요인) ────────────────────────────
+   ④ 타임라인과 ⑥ 시사점은 ICIS 위젯의 .ii-tl / .ii-imp 를 그대로 쓴다
+   — 두 위젯이 같은 문법을 쓰도록 클래스를 새로 만들지 않았다. */
+
+/* ② 핵심요약 4박스 — 차트 바로 위 가로 배치 */
+.sr-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 12px; }
+.sr-sum__box {
+  padding: 9px 12px 10px; background: var(--field);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
+}
+.sr-sum__lbl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.sr-sum__val {
+  margin-top: 3px; font-size: 21px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.15;
+}
+.sr-sum__val--est { font-size: 18px; color: var(--slate); }
+.sr-sum__u { margin-left: 1px; font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0; }
+.sr-sum__sub { margin-top: 4px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sr-sum__sub b { font-weight: 800; }
+
+/* 범례 — 4개년 평균 점선(회색)과 추세 연장 점선을 구분해 적는다 */
+.sr-legend-avg, .sr-legend-ext { color: var(--muted); }
+.sr-legend-dash {
+  display: inline-block; width: 15px; height: 0; margin-right: 5px; vertical-align: middle;
+  border-top: 2px dashed var(--slate);
+}
+
+/* ③ 최근 변동요인 — 방향(부정/균형/중립)에 따라 태그 색만 달라진다.
+   ★ 카드 배경은 모두 같은 연회색이다. ⑥ 시사점 카드(채운 틴트)와 역할이 달라
+     같은 색 체계를 쓰되 칠하는 방식을 나눴다. */
+.sr-facs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sr-fac {
+  padding: 10px 12px 11px; background: var(--field);
+  border: 1px solid var(--line); border-left: 3px solid var(--sr-t, var(--slate));
+  border-radius: var(--radius-sm); min-width: 0;
+}
+.sr-fac--neg { --sr-t: var(--accent); --sr-ti: var(--accent); --sr-tb: var(--accent-soft); }
+.sr-fac--bal { --sr-t: var(--blue); --sr-ti: var(--blue-ink); --sr-tb: var(--blue-soft); }
+.sr-fac--neu { --sr-t: var(--slate); --sr-ti: var(--slate); --sr-tb: var(--slate-soft); }
+.sr-fac__top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sr-fac__ico { font-size: 14px; }
+.sr-fac__title { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.sr-fac__tag {
+  margin-left: auto; padding: 1px 7px; border-radius: 999px;
+  background: var(--sr-tb, var(--field)); color: var(--sr-ti, var(--muted));
+  font-size: 10.5px; font-weight: 800; white-space: nowrap;
+}
+.sr-fac__desc { margin: 7px 0 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+
+@media (max-width: 1100px) {
+  .sr-sum, .sr-facs { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .sr-sum, .sr-facs { grid-template-columns: 1fr; }
+}
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
 .or-tbl .or-lo { display: block; color: var(--accent); font-weight: 700; }
