@@ -852,6 +852,61 @@ body {
 /* ── 국제유가 리포트 (원유·석유제품 공용) ─────────────────────────────── */
 /* 도구줄의 리포트 버튼 — 다른 도구와 같은 크기, 켜지면 강조 */
 .or-btn.is-on { background: var(--accent); border-color: var(--accent); color: var(--card); }
+/* ── 시황 인사이트 — 요약 배지 · 변곡점 마커 · 요인 해설 ────────────────────
+   '리포트 분석' 팝오버를 대신해 차트와 늘 함께 보이는 세 가지. 별도 카드를 만들지
+   않고 위젯(.viz-figure) 안에 얹어서, 박스 테두리가 이중으로 겹치지 않게 한다. */
+
+/* 1) 요약 배지 3개 — 차트 바로 위 가로 배치 */
+.ms-badges {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 10px 0 12px;
+}
+.ms-badge {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--field); white-space: nowrap;
+}
+.ms-badge__lbl { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.ms-badge__val {
+  font-size: 13.5px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+/* 오르면 빨강 · 내리면 파랑 — 국내 시세 표기 관행(경쟁사 카드 .stk-chg 와 같은 규칙) */
+.ms-badge__val.up { color: var(--accent); }
+.ms-badge__val.down { color: var(--blue); }
+.ms-badge__val.flat { color: var(--slate); }
+.ms-badge__val.na { color: var(--muted); font-weight: 700; }
+.ms-basis { font-size: 11.5px; color: var(--muted); }
+
+/* 2) 변곡점 마커 — 차트 안 SVG. 띠 위에서 손가락 커서로 바뀌어 눌러볼 수 있음을 알린다. */
+.ms-ev { cursor: help; outline: none; }
+.ms-ev .ms-ev__hit { cursor: help; }
+.ms-ev:focus-visible circle { stroke: var(--ink); stroke-width: 1.5; }
+.ms-evtip {
+  position: fixed; z-index: 60; max-width: 260px; padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); box-shadow: 0 10px 26px rgba(17, 17, 26, .14);
+  font-size: 12px; line-height: 1.5; color: var(--text);
+  opacity: 0; visibility: hidden; transition: opacity .12s ease; pointer-events: none;
+}
+.ms-evtip.is-on { opacity: 1; visibility: visible; }
+.ms-evtip__h { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.ms-evtip__d { margin-top: 1px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ms-evtip__b { margin-top: 6px; }
+
+/* 3) 요인 해설 2단 — 차트 아래 */
+.ms-factors {
+  margin: 12px 0 4px; padding: 11px 13px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--field);
+}
+.ms-factors__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+.ms-factor__h {
+  font-size: 11.5px; font-weight: 800; color: var(--ink);
+  padding-bottom: 5px; border-bottom: 1px solid var(--line);
+}
+.ms-factor__b { margin: 7px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+.ms-factors__cap { margin-top: 10px; font-size: 11px; color: var(--muted); }
+@media (max-width: 720px) { .ms-factors__cols { grid-template-columns: 1fr; } }
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
 .or-tbl .or-lo { display: block; color: var(--accent); font-weight: 700; }

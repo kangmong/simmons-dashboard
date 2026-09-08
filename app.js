@@ -2123,6 +2123,367 @@ function icisViewData(year) {
   return { periods, series };
 }
 
+/* ══ 시황 인사이트 — 요약 배지 · 변곡점 마커 · 요인 해설 ═══════════════════
+   '리포트 분석' 버튼(눌러야 보이는 팝오버)을 대신해, 차트와 늘 함께 보이는
+   세 가지를 붙인다.
+     ① 전월비 · 전년비 · 국면 배지   ② 차트 위 변곡점 마커   ③ 요인 해설 2단
+   ★ 배지는 전부 실데이터에서 계산한다. 비교할 과거 시점이 없으면 '—' 로 둔다
+     — 없는 숫자를 만들지 않는다.
+   ★ 해설 문구와 변곡점은 public/data/insights.json 한 곳에서만 온다.
+     코드에 문장을 적지 않으므로, 조사 내용이 바뀌면 JSON 만 고치면 된다. */
+const MS_DATA_URL = 'public/data/insights.json';
+let _msData = null;   // { updated, <위젯키>: {structural_factor, short_term_factor, events[]} }
+
+/** 해설 데이터 로드. 실패해도 배지·차트는 그대로 나온다(해설만 빠진다). */
+async function fetchInsights() {
+  try {
+    const res = await fetch(MS_DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _msData = d;
+  } catch (e) {
+    _msData = null;
+    console.warn('[insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 위젯 키로 해설 묶음을 꺼낸다. 없으면 null. */
+function msFor(key) {
+  const d = _msData && _msData[key];
+  return (d && typeof d === 'object') ? d : null;
+}
+
+/* ── 시계열 계산 ─────────────────────────────────────────────────────────
+   pts 는 [{k:'YYYY-MM' | 'YYYY-MM-DD' | 'YYYY', v:number}] 오름차순.
+   월 단위로 맞춰 놓고 계산한다 — 위젯마다 일·주·월·연이 섞여 있어서다. */
+
+/** 'YYYY-MM-DD' → 'YYYY-MM'. 연도만 있으면 'YYYY-12' 로 본다(그 해의 마지막). */
+function msYm(k) {
+  const s = String(k || '');
+  if (/^\d{4}$/.test(s)) return s + '-12';
+  return s.slice(0, 7);
+}
+
+/** 'YYYY-MM' 을 개월 수로 (비교·차감용) */
+function msMonthNo(ym) {
+  const y = Number(ym.slice(0, 4)), m = Number(ym.slice(5, 7));
+  return (!isFinite(y) || !isFinite(m)) ? null : y * 12 + (m - 1);
+}
+
+/** 월별 시계열로 접는다(같은 달은 마지막 값). [{ym, v}] */
+function msMonthly(pts) {
+  const map = new Map();
+  pts.forEach((p) => map.set(msYm(p.k), p.v));
+  return Array.from(map.keys()).sort().map((ym) => ({ ym: ym, v: map.get(ym) }));
+}
+
+/** n개월 전 대비 변화율(%). 그 시점 부근에 데이터가 없으면 null. */
+function msChangeAt(m, months) {
+  if (m.length < 2) return null;
+  const last = m[m.length - 1];
+  const lastNo = msMonthNo(last.ym);
+  if (lastNo == null) return null;
+  const wantNo = lastNo - months;
+  // 원하는 시점 이하에서 가장 가까운 점
+  let prev = null;
+  for (let i = m.length - 2; i >= 0; i -= 1) {
+    const no = msMonthNo(m[i].ym);
+    if (no != null && no <= wantNo) { prev = m[i]; break; }
+  }
+  if (!prev) return null;
+  // 너무 오래된 값과 비교하지 않는다(구멍 난 구간을 '전월비'라 부르지 않게)
+  const gap = wantNo - msMonthNo(prev.ym);
+  if (gap > (months >= 12 ? 2 : 1)) return null;
+  if (!prev.v) return null;
+  return { pct: ((last.v - prev.v) / Math.abs(prev.v)) * 100, from: prev, to: last };
+}
+
+/** 국면 판정 — 최근 월별 등락만 보고 규칙으로 정한다(해석을 지어내지 않는다). */
+function msPhase(m) {
+  if (m.length < 4) return null;
+  const tail = m.slice(-7);
+  const ch = [];
+  for (let i = 1; i < tail.length; i += 1) {
+    if (!tail[i - 1].v) return null;
+    ch.push(((tail[i].v - tail[i - 1].v) / Math.abs(tail[i - 1].v)) * 100);
+  }
+  if (!ch.length) return null;
+  const last = ch[ch.length - 1];
+  const FLAT = 0.5;          // 이 정도 변화는 '움직이지 않은 것'으로 본다
+
+  // 1) 같은 방향으로 이어진 개월 수
+  let run = 0;
+  if (Math.abs(last) >= FLAT) {
+    const up = last > 0;
+    for (let i = ch.length - 1; i >= 0; i -= 1) {
+      if (Math.abs(ch[i]) < FLAT || (ch[i] > 0) !== up) break;
+      run += 1;
+    }
+    if (run >= 2) {
+      return { kind: up ? 'up' : 'down', icon: up ? '▲' : '▼',
+        text: (up ? '상승' : '하락') + ' ' + run + '개월째' };
+    }
+  }
+
+  // 2) 큰 등락 직후 잦아든 국면
+  const recent = ch.slice(-4);
+  const big = recent.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), 0);
+  if (Math.abs(big) >= 8 && Math.abs(last) < 3) {
+    return big < 0
+      ? { kind: 'down', icon: '▽', text: '급락 진정중' }
+      : { kind: 'up', icon: '△', text: '급등 진정중' };
+  }
+
+  // 3) 좁은 폭에 머무는 구간
+  const win = m.slice(-6).map((x) => x.v).filter((v) => v != null && isFinite(v));
+  if (win.length >= 4) {
+    const mx = Math.max(...win), mn = Math.min(...win);
+    const avg = win.reduce((a, b) => a + b, 0) / win.length;
+    if (avg && ((mx - mn) / Math.abs(avg)) * 100 <= 6) {
+      return { kind: 'flat', icon: '▬', text: '박스권' };
+    }
+  }
+
+  // 4) 한 달만 방향이 바뀐 경우
+  if (run === 1) {
+    return last > 0
+      ? { kind: 'up', icon: '▲', text: '반등' }
+      : { kind: 'down', icon: '▼', text: '조정' };
+  }
+  return { kind: 'flat', icon: '▬', text: '혼조' };
+}
+
+/** 배지 한 칸 */
+function msBadge(label, val, cls, title) {
+  return '<div class="ms-badge"' + (title ? ' title="' + escapeHtml(title) + '"' : '') + '>'
+    + '<span class="ms-badge__lbl">' + escapeHtml(label) + '</span>'
+    + '<span class="ms-badge__val ' + cls + '">' + val + '</span></div>';
+}
+
+/** 등락률 배지 값 — 오르면 빨강 ▲ / 내리면 파랑 ▼ (국내 시세 표기 관행) */
+function msPctVal(c) {
+  if (!c || c.pct == null || !isFinite(c.pct)) {
+    return { html: '—', cls: 'na', tip: '비교할 과거 시점의 데이터가 없습니다' };
+  }
+  const p = c.pct;
+  const cls = p > 0.05 ? 'up' : (p < -0.05 ? 'down' : 'flat');
+  const icon = p > 0.05 ? '▲' : (p < -0.05 ? '▼' : '');
+  return {
+    html: (icon ? icon + ' ' : '') + (p > 0 ? '+' : '') + p.toFixed(1) + '%',
+    cls: cls,
+    tip: c.tip || (c.from.ym + ' ' + msNumTip(c.from.v) + ' → ' + c.to.ym + ' ' + msNumTip(c.to.v)),
+  };
+}
+
+/** 자료가 직접 계산해 준 등락률(%)이면 그대로 쓴다. 아니면 null. */
+function msGiven(v, what) {
+  return (typeof v === 'number' && isFinite(v))
+    ? { pct: v, tip: '자료 제공 ' + what + ' 값' } : null;
+}
+
+function msNumTip(v) {
+  return Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+}
+
+/** 요약 배지 3개 (전월비 · 전년비 · 국면) + 기준 표기.
+ *  pts 가 모자라면 배지 줄 자체를 내지 않는다(빈 껍데기를 남기지 않는다). */
+function msBadgesHtml(pts, basis, given) {
+  const p = (pts || []).filter((x) => x && x.v != null && isFinite(x.v));
+  if (p.length < 2) return '';
+  const m = msMonthly(p);
+  // ★ 자료가 이미 계산해 둔 값이 있으면 그쪽을 쓴다. 일별 자료를 월말끼리 비교하면
+  //   같은 값이 걸려 '전월비 0.0%' 처럼 오해를 부르는데, 자료 제공값은 같은 날짜
+  //   기준이라 정확하다.
+  const g = given || {};
+  const mom = msPctVal(msGiven(g.momPct, '전월 대비') || msChangeAt(m, 1));
+  const yoy = msPctVal(msGiven(g.yoyPct, '전년 대비') || msChangeAt(m, 12));
+  const ph = msPhase(m);
+  return '<div class="ms-badges">'
+    + msBadge('전월비', mom.html, mom.cls, mom.tip)
+    + msBadge('전년비', yoy.html, yoy.cls, yoy.tip)
+    + (ph ? msBadge('국면', escapeHtml(ph.icon + ' ' + ph.text), ph.kind, null)
+          : msBadge('국면', '—', 'na', '국면을 판정할 만큼의 월별 관측치가 없습니다'))
+    + (basis ? '<span class="ms-basis">' + escapeHtml(basis) + '</span>' : '')
+    + '</div>';
+}
+
+/* ── 변곡점 마커 ─────────────────────────────────────────────────────────
+   차트마다 X(i) 가 인덱스에 선형이라, 날짜를 '소수 인덱스'로 바꿔 그대로 넘긴다. */
+
+/** 축 눈금 하나를 숫자로. 일(日)까지 있는 축이면 일 단위로 재서 위치를 정확히 잡는다. */
+function msAxisNo(k, daily) {
+  const s = String(k || '');
+  if (daily && /^\d{4}-\d{2}-\d{2}/.test(s)) return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+  const mn = msMonthNo(msYm(s));
+  return mn == null ? null : mn * 30.4375;   // 월 축도 같은 '일' 자로 환산해 섞이지 않게
+}
+
+/** 이벤트 날짜가 x축 어디쯤인지 — 축 밖이면 null(억지로 끌어다 붙이지 않는다) */
+function msFracIndex(keys, date) {
+  if (!keys || keys.length < 2) return null;
+  const daily = keys.every((k) => /^\d{4}-\d{2}-\d{2}/.test(String(k || '')));
+  const t = msAxisNo(date, daily);
+  if (t == null) return null;
+  const ns = keys.map((k) => msAxisNo(k, daily));
+  if (t < ns[0] || t > ns[ns.length - 1]) return null;
+  for (let i = 1; i < ns.length; i += 1) {
+    if (t <= ns[i]) {
+      const span = ns[i] - ns[i - 1];
+      return span > 0 ? (i - 1) + (t - ns[i - 1]) / span : i;
+    }
+  }
+  return keys.length - 1;
+}
+
+/** 차트 안에 넣을 변곡점 마커 SVG. 이벤트가 없거나 축 밖이면 ''. */
+function msEventsSvg(key, keys, X, padT, plotH, W) {
+  const info = msFor(key);
+  const evs = (info && Array.isArray(info.events)) ? info.events : [];
+  if (!evs.length || !keys || keys.length < 2) return '';
+  const out = evs.map((e) => {
+    const fi = msFracIndex(keys, e.date);
+    if (fi == null) return '';
+    const x = X(fi);
+    if (!isFinite(x)) return '';
+    // 라벨이 그림 밖으로 나가지 않게 끝에서는 안쪽으로 붙인다
+    const anchor = (x < 60) ? 'start' : ((x > W - 60) ? 'end' : 'middle');
+    const y0 = padT, y1 = padT + plotH;
+    return '<g class="ms-ev" tabindex="0"'
+      + ' data-label="' + escapeHtml(e.label || '') + '"'
+      + ' data-detail="' + escapeHtml(e.detail || '') + '"'
+      + ' data-date="' + escapeHtml(e.date || '') + '">'
+      + '<line pointer-events="none" x1="' + x.toFixed(1) + '" y1="' + y0 + '" x2="' + x.toFixed(1) + '" y2="' + y1.toFixed(1) + '"'
+      + ' stroke="var(--amber)" stroke-width="1" stroke-dasharray="2 2" opacity=".6"/>'
+      + '<circle pointer-events="none" cx="' + x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>'
+      + '<text pointer-events="none" x="' + x.toFixed(1) + '" y="' + (y0 + 13).toFixed(1) + '" text-anchor="' + anchor + '"'
+      + ' font-size="7.5" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
+      + ' fill="var(--amber-ink, var(--ink))">' + escapeHtml(e.label || '') + '</text>'
+      + '<rect class="ms-ev__hit" x="' + (x - 7).toFixed(1) + '" y="' + y0 + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
+      + '</g>';
+  }).join('');
+  return out ? '<g class="ms-evs">' + out + '</g>' : '';
+}
+
+/* ── 변곡점 툴팁 — 화면에 하나만 두고 돌려 쓴다 ──────────────────────────
+   각 차트가 이미 쓰고 있는 .viz-tooltip 과 섞이지 않도록 별도 요소를 쓴다. */
+let _msTipEl = null;
+
+function msTip() {
+  if (_msTipEl && _msTipEl.isConnected) return _msTipEl;
+  const el = document.createElement('div');
+  el.className = 'ms-evtip';
+  el.setAttribute('role', 'tooltip');
+  document.body.appendChild(el);
+  _msTipEl = el;
+  return el;
+}
+
+function msTipShow(g) {
+  const el = msTip();
+  const label = g.getAttribute('data-label') || '';
+  const detail = g.getAttribute('data-detail') || '';
+  const date = g.getAttribute('data-date') || '';
+  el.innerHTML = '<div class="ms-evtip__h">' + escapeHtml(label) + '</div>'
+    + (date ? '<div class="ms-evtip__d">' + escapeHtml(date) + '</div>' : '')
+    + (detail ? '<div class="ms-evtip__b">' + escapeHtml(detail) + '</div>' : '');
+  el.classList.add('is-on');
+  const r = g.getBoundingClientRect();
+  // 화면 밖으로 나가지 않게 좌우를 물린다
+  const w = el.offsetWidth || 220;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  const top = r.top - el.offsetHeight - 8;
+  el.style.left = left + 'px';
+  el.style.top = (top < 8 ? r.bottom + 8 : top) + 'px';
+}
+
+function msTipHide() {
+  if (_msTipEl) _msTipEl.classList.remove('is-on');
+}
+
+/** 마커 후킹 — 마우스오버·포커스·탭(모바일) 모두 같은 툴팁을 쓴다.
+ *  재렌더로 SVG 가 새로 그려져도 되도록 위임(delegation)으로 한 번만 건다. */
+let _msWired = false;
+
+function msWireEvents(root) {
+  if (!root || _msWired) return;
+  _msWired = true;
+  const find = (e) => (e.target && e.target.closest ? e.target.closest('.ms-ev') : null);
+  root.addEventListener('mouseover', (e) => { const g = find(e); if (g) msTipShow(g); });
+  root.addEventListener('mouseout', (e) => { if (find(e)) msTipHide(); });
+  root.addEventListener('focusin', (e) => { const g = find(e); if (g) msTipShow(g); });
+  root.addEventListener('focusout', (e) => { if (find(e)) msTipHide(); });
+  root.addEventListener('click', (e) => {
+    const g = find(e);
+    if (g) msTipShow(g); else msTipHide();
+  });
+  window.addEventListener('scroll', msTipHide, { passive: true });
+}
+
+/* ── 요인 해설 2단 ───────────────────────────────────────────────────── */
+
+/** 구조적 요인 / 단기 요인 + 갱신 캡션. 해설이 없으면 ''(빈 칸을 만들지 않는다). */
+function msFactorsHtml(key) {
+  const d = msFor(key);
+  if (!d) return '';
+  const st = String(d.structural_factor || '').trim();
+  const sh = String(d.short_term_factor || '').trim();
+  if (!st && !sh) return '';
+  const upd = (_msData && _msData.updated) ? String(_msData.updated) : null;
+  const col = (h, t) => (t ? '<div class="ms-factor"><div class="ms-factor__h">' + escapeHtml(h)
+    + '</div><p class="ms-factor__b">' + escapeHtml(t) + '</p></div>' : '');
+  return '<div class="ms-factors">'
+    + '<div class="ms-factors__cols">' + col('구조적 요인', st) + col('단기 요인', sh) + '</div>'
+    + '<div class="ms-factors__cap">시황 해설은 주기적으로 갱신됩니다'
+    + (upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : '') + '</div>'
+    + '</div>';
+}
+
+/* ── 위젯별 '대표 계열' — 배지는 이 계열 하나로 계산한다 ──────────────────
+   ★ 여러 계열을 평균 내지 않는다. 없는 합성지수를 만드는 셈이 되기 때문이다.
+     대신 어느 계열로 쟀는지 배지 옆에 그대로 적는다. */
+
+/** 스폰지 주원료 — PPG(폴리올). 해설도 폴리올 계열을 다룬다. */
+function msPtsIcis() {
+  return ICIS_DATA.periods
+    .map((p, i) => ({ k: p, v: ICIS_DATA.PPG[i] }))
+    .filter((x) => x.v != null);
+}
+
+/** 국제유가(원유·제품) — 월별 전 구간에서 고른 유종/제품 하나. */
+function msPtsPetro(data, key) {
+  const rows = (data && data.terms && data.terms.m && data.terms.m.rows) || [];
+  return rows.map((r) => ({ k: r.period, v: r[key] })).filter((x) => x.v != null);
+}
+
+/** 지금 켜져 있는 계열 중 첫 번째 {key,label}. 없으면 null. */
+function msFirstOn(data, q) {
+  const list = (data && data.series) || [];
+  const on = (q && q.on) ? q.on : null;
+  const hit = on ? list.find((s) => on.has(s.key)) : null;
+  return hit || list[0] || null;
+}
+
+/** KOIMA 월간 부문별 지수 — 선택된 부문. */
+function msPtsKoima(cat) {
+  return ((cat && cat.rows) || [])
+    .map((r) => ({ k: r.period, v: r.index })).filter((x) => x.v != null);
+}
+
+/** KOIMA 일일 국제원자재가격 — 선택된 품목. */
+function msPtsKp(item) {
+  return ((item && item.rows) || [])
+    .map((r) => ({ k: r.date, v: r.price })).filter((x) => x.v != null);
+}
+
+/** 해상 정시성 — 전 연도를 이어 붙인 월별 정시율. */
+function msPtsSr() {
+  const ys = Object.keys((_srData && _srData.years) || {}).sort();
+  return srFlatten(ys).map((p) => ({ k: p.ym, v: p.v }));
+}
+
 /** 섹션 5 전체 렌더: 업데이트 전 안내 → 업데이트 후 연도 툴바 → 연도 선택 시 그래프 */
 function renderMaterial() {
   const root = document.getElementById('materialRoot');
@@ -2146,7 +2507,10 @@ function renderMaterial() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { periods, series } = icisViewData(_matYear);
-    body = buildIcisChart(periods, series) + icisLatest() + icisTermsTable()
+    // 배지는 고른 연도가 아니라 '전 구간'으로 계산한다 — 전년비를 재려면 12개월이 필요하다.
+    body = msBadgesHtml(msPtsIcis(), 'PPG(폴리올) 기준 · 전체 수집구간')
+      + buildIcisChart(periods, series) + icisLatest()
+      + msFactorsHtml('icis_asia_pu') + icisTermsTable()
       + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
 
@@ -2184,18 +2548,12 @@ function renderMaterial() {
     _srYear = b.dataset.year;
     renderMaterial();
   });
-  const srFig = root.querySelector('.sr-figure');
-  if (srFig) srFig.addEventListener('click', (e) => {
-    const b = e.target.closest && e.target.closest('[data-sr-report]');
-    if (!b) return;
-    _srReport = !_srReport;      // 펼치기/접기
-    renderMaterial();
-  });
   if (_srData && !_srData.error) wireSrChart();
 
   wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
   wireProductControls(root); // 국제유가(석유제품): 같은 조회 UI
 
+  msWireEvents(root);       // 순수 추가: 변곡점 마커 툴팁(hover·포커스·탭)
   wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
   wireKpControls(root);     // 순수 추가: KOIMA 일일 국제원자재가격 카드
 }
@@ -2263,6 +2621,7 @@ function buildIcisChart(periods, series) {
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
       <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${msEventsSvg('icis_asia_pu', periods, X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -2429,13 +2788,8 @@ function wireCrudeControls(root) {
     form.addEventListener('change', (e) => {
       const t = e.target;
       if (!t || !_ocForm) return;
-      // ★ 리포트가 열려 있는데 조건을 바꾸면, 화면의 폼과 리포트가 서로 다른 조건을
-      //   가리켜 리포트가 '고정된' 것처럼 보인다. 그래서 조건이 바뀌면 리포트를 닫는다.
-      //   ([조회]를 눌러야 새 조건이 확정된다는 이 카드의 규칙은 그대로다)
-      const wasOpen = _ocReport;
       if (t.name === 'ocTerm') {
         _ocForm = ocFormFor(t.value, new Set(_ocForm.on));
-        if (wasOpen) { _ocReport = false; renderMaterial(); return; }
         form.innerHTML = ocControlsHtml();
         return;
       }
@@ -2447,7 +2801,6 @@ function wireCrudeControls(root) {
         if (!p) return;
         if (t.checked) _ocForm.on.add(p); else _ocForm.on.delete(p);
       }
-      if (wasOpen) { _ocReport = false; renderMaterial(); }
     });
     form.addEventListener('click', (e) => {
       const go = e.target.closest && e.target.closest('.oc-go');
@@ -2459,8 +2812,6 @@ function wireCrudeControls(root) {
   }
 
   fig.addEventListener('click', (e) => {
-    const rb = e.target.closest && e.target.closest('[data-oc-report]');
-    if (rb) { _ocReport = !_ocReport; renderMaterial(); return; }
     const v = e.target.closest && e.target.closest('[data-oc-view]');
     if (v) { _ocView = v.getAttribute('data-oc-view'); renderMaterial(); return; }
     const x = e.target.closest && e.target.closest('[data-oc-exp]');
@@ -2852,6 +3203,7 @@ function buildProductChart(rows, onSeries, term) {
       <line class="oilp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="oilp-dots"></g>
       <rect class="oilp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${msEventsSvg('oil_price', rows.map((r) => r.period), X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -2895,188 +3247,8 @@ function wireProductChart() {
   overlay.addEventListener('mouseleave', clear);
 }
 
-/* ── 국제유가 리포트 분석 (원유 · 석유제품 공용) ───────────────────────────
-   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿, 숫자는 전부 '조회된 구간'에서 계산한다.
-     외부 호출이 없어 비용도 없다.
-   ★★ 원인(OPEC 감산·중동 정세 등)은 이 데이터에 없다 — 한 줄도 지어내지 않는다.
-     서술하는 것은 가격 자체의 움직임뿐이다: 등락률·순위·스프레드·최고/최저·평균.
-   ★ 두 카드는 구조가 같아 엔진을 하나만 둔다. 카드별로 다른 것(데이터·계열·기간
-     라벨·지표 정의)은 orCtx() 가 묶어서 넘긴다. 기존 oc·op 함수는 읽기만 한다. */
-let _ocReport = false;     // 원유 카드 리포트 펼침
-let _opReport = false;     // 제품 카드 리포트 펼침
-
-const OR_DEF = {
-  crude: '원유란 정제하기 전 상태의 기름으로, 여기 수치는 지역별 대표 유종의 '
-    + '배럴당 국제 거래 가격입니다. 각 유종은 그 지역 시장의 기준 가격 역할을 합니다.',
-  product: '석유제품이란 원유를 정제해 만든 휘발유·등유·경유·중유·나프타 등을 말하며, '
-    + '여기 수치는 싱가포르 현물 시장의 배럴당 거래 가격입니다.',
-};
-const OR_NOUN = { crude: '유종', product: '제품' };
-
-/** 카드별 맥락을 한 덩이로 묶는다. 조회 전이면 null. */
-function orCtx(kind) {
-  if (kind === 'crude') {
-    if (!_ocData || _ocData.error || !_ocQuery) return null;
-    return { kind: kind, unit: _ocData.unit, q: _ocQuery,
-      win: ocWindow(_ocQuery), ser: ocOnSeries(_ocQuery),
-      termLabel: (ocTerm(_ocQuery.term) || {}).label || '',
-      label: (p) => ocLabel(p, _ocQuery.term), span: ocSpanText(_ocQuery, ocWindow(_ocQuery)) };
-  }
-  if (!_opData || _opData.error || !_opQuery) return null;
-  return { kind: kind, unit: _opData.unit, q: _opQuery,
-    win: opWindow(_opQuery), ser: opOnSeries(_opQuery),
-    termLabel: (opTerm(_opQuery.term) || {}).label || '',
-    label: (p) => opLabel(p, _opQuery.term), span: opSpanText(_opQuery, opWindow(_opQuery)) };
-}
-
-function orNum(v) { return (v == null) ? '—' : '$' + Number(v).toFixed(2); }
-function orPct(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%'; }
-
-/** 계열별 지표. 값이 하나도 없는 계열은 n=0 으로 남겨 '데이터 없음'을 알린다. */
-function orStats(c) {
-  return c.ser.map((s) => {
-    const pts = c.win.filter((r) => r[s.key] != null).map((r) => ({ p: r.period, v: r[s.key] }));
-    const base = { key: s.key, label: s.label, color: s.color,
-      n: pts.length, missing: c.win.length - pts.length };
-    if (!pts.length) return base;
-    const first = pts[0], last = pts[pts.length - 1];
-    const vals = pts.map((x) => x.v);
-    const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
-    return Object.assign(base, {
-      first: first, last: last,
-      chg: Math.round((last.v - first.v) * 100) / 100,
-      pct: first.v ? Math.round(((last.v - first.v) / first.v) * 1000) / 10 : null,
-      hi: pts.filter((x) => x.v === mx)[0], lo: pts.filter((x) => x.v === mn)[0],
-      avg: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
-    });
-  });
-}
-
-/** 헤드라인으로 쓸 계열 — 원유는 국제 기준인 Brent 를 우선, 없으면 첫 체크 항목. */
-function orHeadStat(c, st) {
-  const live = st.filter((x) => x.n);
-  if (!live.length) return null;
-  if (c.kind === 'crude') {
-    const b = live.filter((x) => x.key === 'brent')[0];
-    if (b) return b;
-  }
-  return live[0];
-}
-
-/** 보조 문장들. 근거가 없는 문장은 만들지 않는다. */
-function orSubs(c, st, head) {
-  const out = [];
-  const live = st.filter((x) => x.n && x.pct != null);
-  const noun = OR_NOUN[c.kind];
-  if (live.length >= 2) {
-    const sorted = live.slice().sort((a, b) => b.pct - a.pct);
-    const top = sorted[0], bot = sorted[sorted.length - 1];
-    out.push('이번 기간 ' + top.label + '가 ' + orPct(top.pct) + ' '
-      + (top.pct > 0 ? '올라' : (top.pct < 0 ? '내려' : '움직여')) + ' '
-      + live.length + '개 ' + noun + ' 중 가장 많이 '
-      + (top.pct > 0 ? '상승했습니다.' : (top.pct < 0 ? '하락했습니다.' : '보합이었습니다.')));
-    if (bot.key !== top.key) {
-      out.push('가장 적게 움직인 것은 ' + bot.label + '로 ' + orPct(bot.pct) + '입니다.');
-    }
-  } else if (live.length === 1) {
-    out.push('이번 기간 ' + live[0].label + '는 ' + orPct(live[0].pct) + ' 움직였습니다.');
-  }
-  // Brent-WTI 스프레드 — 둘 다 체크됐을 때만
-  if (c.kind === 'crude') {
-    const b = st.filter((x) => x.key === 'brent' && x.n)[0];
-    const w = st.filter((x) => x.key === 'wti' && x.n)[0];
-    if (b && w) {
-      const now = Math.round((b.last.v - w.last.v) * 100) / 100;
-      const was = Math.round((b.first.v - w.first.v) * 100) / 100;
-      const wide = Math.abs(now) - Math.abs(was);
-      out.push('Brent 가 WTI 보다 배럴당 ' + orNum(Math.abs(now)) + ' '
-        + (now >= 0 ? '높은' : '낮은') + ' 상태이며, 이 격차는 조회 기간 시작('
-        + orNum(Math.abs(was)) + ') 대비 '
-        + (Math.abs(wide) < 0.005 ? '거의 같습니다.'
-          : (wide > 0 ? '확대되었습니다.' : '축소되었습니다.')));
-    }
-  }
-  // 결측 안내 — 지어내지 않고 '없다'고 밝힌다.
-  // ★ 한 항목에 두 문장이 겹치지 않게, 값이 통째로 없는 것(dead)은 gaps 에서 뺀다.
-  // ★ 조사(는/은)를 피해 쓴다 — 'Oman는' 처럼 어긋나지 않게 항목을 뒤로 뺀 형태로 적는다.
-  const dead = st.filter((x) => !x.n);
-  const gaps = st.filter((x) => x.n && x.missing > 0);
-  if (gaps.length) {
-    out.push('조회 기간 중 값이 비는 구간이 있습니다 — '
-      + gaps.map((g) => g.label + ' ' + g.missing + '개').join(', ') + '.');
-  }
-  if (dead.length) {
-    out.push('이 기간에 공표된 값이 없는 항목: ' + dead.map((d) => d.label).join(', ') + '.');
-  }
-  return out;
-}
-
-/** 총 내용 정리 — 이미 나온 값만 2~3문장으로 압축한다. */
-function orSummary(c, st, head) {
-  const out = [];
-  const noun = OR_NOUN[c.kind];
-  if (head) {
-    out.push(c.span + ' 기준 ' + head.label + '는 ' + orNum(head.last.v)
-      + '로 조회 기간 시작(' + orNum(head.first.v) + ') 대비 ' + orPct(head.pct)
-      + ' ' + (head.pct > 0 ? '상승' : (head.pct < 0 ? '하락' : '보합'))
-      + '했고, 기간 평균은 ' + orNum(head.avg) + '입니다.');
-  }
-  const live = st.filter((x) => x.n && x.pct != null);
-  if (live.length >= 2) {
-    const sorted = live.slice().sort((a, b) => b.pct - a.pct);
-    out.push('체크한 ' + live.length + '개 ' + noun + ' 가운데 ' + sorted[0].label + '가 '
-      + orPct(sorted[0].pct) + '로 가장 크게 올랐고, ' + sorted[sorted.length - 1].label
-      + '가 ' + orPct(sorted[sorted.length - 1].pct) + '로 가장 낮았습니다.');
-  }
-  if (head) {
-    out.push('기간 중 최고가는 ' + c.label(head.hi.p) + ' ' + orNum(head.hi.v)
-      + ', 최저가는 ' + c.label(head.lo.p) + ' ' + orNum(head.lo.v) + '입니다 ('
-      + head.label + ' 기준).');
-  }
-  return out;
-}
-
-/** 계열별 지표 표 — 카드 본문 표와 같은 클래스라 모양이 이어진다. */
-function orTable(c, st) {
-  const row = (x) => {
-    if (!x.n) {
-      return '<tr><td class="oc-td-p"><span class="oc-swatch" style="background:' + x.color
-        + '"></span>' + escapeHtml(x.label) + '</td>'
-        + '<td class="oc-num" colspan="5">이 기간 공표 값 없음</td></tr>';
-    }
-    const cls = x.pct == null ? '' : (x.pct > 0 ? ' oc-up' : (x.pct < 0 ? ' oc-down' : ''));
-    return '<tr><td class="oc-td-p"><span class="oc-swatch" style="background:' + x.color
-      + '"></span>' + escapeHtml(x.label) + '</td>'
-      + '<td class="oc-num">' + orNum(x.last.v) + '</td>'
-      + '<td class="oc-num' + cls + '">' + orPct(x.pct) + '</td>'
-      + '<td class="oc-num"><span class="or-hi">' + orNum(x.hi.v) + '</span>'
-      + '<span class="or-when">' + escapeHtml(c.label(x.hi.p)) + '</span></td>'
-      + '<td class="oc-num"><span class="or-lo">' + orNum(x.lo.v) + '</span>'
-      + '<span class="or-when">' + escapeHtml(c.label(x.lo.p)) + '</span></td>'
-      + '<td class="oc-num">' + orNum(x.avg) + '</td></tr>';
-  };
-  return '<div class="oc-tablewrap"><table class="oc-table or-tbl"><thead><tr>'
-    + '<th class="oc-th-p">' + escapeHtml(OR_NOUN[c.kind]) + '</th>'
-    + '<th>최근값</th><th>기간 등락</th><th>최고</th><th>최저</th><th>평균</th>'
-    + '</tr></thead><tbody>' + st.map(row).join('') + '</tbody></table></div>';
-}
-
-/* 리포트 강조 색 — 표와 그래프가 같은 규칙을 쓴다(정시성 리포트와 동일). */
-const OR_HI = 'var(--blue)';
-const OR_LO = 'var(--accent)';
-const OR_NOW = 'var(--ink)';
-
-/** X축용 짧은 라벨 — '2026년 08월 03일'(11자)을 그대로 쓰면 축에서 겹친다.
-    ★ 표시 전용이다. 표·문장은 계속 긴 라벨(c.label)을 쓴다. */
-function orShortLabel(period, term) {
-  const p = String(period);
-  if (term === 'y') return p.slice(0, 4);
-  if (term === 'm') return p.slice(2, 4) + '.' + p.slice(5, 7);
-  if (term === 'w') return p.slice(2, 4) + '.' + p.slice(5, 7) + ' ' + p.split('W')[1] + '주';
-  return p.slice(2, 4) + '.' + p.slice(5, 7) + '.' + p.slice(8, 10);
-}
-
-/** 균등 간격으로 최대 max 개만 고른다(양 끝은 항상 포함). */
+/** 균등 간격으로 최대 max 개만 고른다(양 끝은 항상 포함).
+    ★ 원유·석유제품 차트가 X축 눈금을 솎아낼 때 쓴다. */
 function orTickIdx(n, max) {
   if (n <= max) return Array.from({ length: n }, (_, i) => i);
   const out = [];
@@ -3086,123 +3258,6 @@ function orTickIdx(n, max) {
 
 /** 리포트 전용 그래프. 라벨은 대표 계열의 최고·최저·최근 3곳에만 단다.
     ★ 카드 본문의 buildOilChart / buildProductChart 는 건드리지 않는다. */
-function orChart(c, st, head) {
-  const n = c.win.length;
-  const live = st.filter((x) => x.n);
-  if (n < 2 || !live.length) return '<div class="chart-empty">추이를 그릴 값이 부족합니다.</div>';
-  const all = [];
-  live.forEach((x) => c.win.forEach((r) => { if (r[x.key] != null) all.push(r[x.key]); }));
-  let ymin = Math.min.apply(null, all), ymax = Math.max.apply(null, all);
-  const yp = (ymax - ymin) * 0.18 || 5;
-  ymin = Math.max(0, ymin - yp); ymax += yp;
-
-  const W = VIZ_W, H = 176, padL = 44, padR = 16, padT = 18, padB = 26;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (i) => padL + (i / (n - 1)) * plotW;
-  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
-
-  const grid = vizYFractions().map((t) => {
-    const val = ymin + (ymax - ymin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>`
-      + vizKrwTick(padL - 6, y, val, krwRate('USD'));   // 달러 아래 작은 원화(다른 카드와 같은 헬퍼)
-  }).join('');
-  // ★ 라벨은 짧은 형태로, 개수는 최대 6개만. 좁은 화면에서는 CSS 가 홀수 번째를 숨겨 3개로 준다.
-  const ticks = orTickIdx(n, 6);
-  const xlab = ticks.map((i, k) =>
-    `<text class="or-xlab${k % 2 ? ' or-xlab--alt' : ''}" x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(orShortLabel(c.win[i].period, c.q.term))}</text>`).join('');
-
-  // 대표 계열은 진하게, 나머지는 옅게 — 라벨이 붙는 선이 어느 것인지 드러난다
-  const lines = live.map((x) => {
-    let d = '', pen = false;
-    c.win.forEach((r, i) => {
-      const v = r[x.key];
-      if (v == null) return;
-      d += `${pen ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; pen = true;
-    });
-    const me = head && x.key === head.key;
-    return d ? `<path d="${d.trim()}" fill="none" stroke="${x.color}" stroke-width="${me ? 2.4 : 1.4}"`
-      + ` opacity="${me ? 1 : 0.42}" stroke-linejoin="round" stroke-linecap="round"/>` : '';
-  }).join('');
-
-  let marks = '';
-  if (head) {
-    const idxOf = (p) => c.win.map((r) => r.period).indexOf(p);
-    const put = (i, v, color, tag) => {
-      if (i < 0) return '';
-      const kw = opKrw(v);   // 배럴당 원화 — 제품 카드가 쓰는 것과 같은 함수(환율은 usd_krw)
-      const x = X(i), y = Y(v), up = y > padT + 26;
-      const ly = up ? y - 13 : y + 20;
-      return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
-        + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
-        + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">$${v.toFixed(2)}</text>`
-        + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
-        + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">`
-        + `${tag}${kw ? ' · 약 ' + escapeHtml(kw) : ''}</text></g>`;
-    };
-    const hiI = idxOf(head.hi.p), loI = idxOf(head.lo.p), nowI = idxOf(head.last.p);
-    marks += put(hiI, head.hi.v, OR_HI, '최고');
-    marks += put(loI, head.lo.v, OR_LO, '최저');
-    if (nowI !== hiI && nowI !== loI) marks += put(nowI, head.last.v, OR_NOW, '최근');
-  }
-
-  const legend = '<div class="srr-legend">'
-    + live.map((x) => '<span class="srr-lg"><i style="background:' + x.color + '"></i>'
-      + escapeHtml(x.label) + (head && x.key === head.key ? ' (라벨 기준)' : '') + '</span>').join('')
-    + '</div>';
-
-  return legend
-    + `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
-    + ` aria-label="가격 추이 · 최고 최저 최근 강조">`
-    + grid + xlab + lines + marks
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>`
-    + `</svg>`;
-}
-
-/** 리포트 본문(두 카드 공용). 버튼을 누르기 전에는 호출되지 않는다. */
-function orReportHtml(kind) {
-  const c = orCtx(kind);
-  if (!c) return '';
-  if (!c.ser.length || !c.win.length) {
-    return '<div class="srr"><div class="chart-empty">리포트를 만들 조회 결과가 없습니다.</div></div>';
-  }
-  const st = orStats(c);
-  const head = orHeadStat(c, st);
-  if (!head) {
-    return '<div class="srr"><div class="chart-empty">선택한 기간에 공표된 값이 없습니다.</div></div>';
-  }
-  const dir = head.pct == null ? 'flat' : (head.pct > 0 ? 'up' : (head.pct < 0 ? 'down' : 'flat'));
-  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-
-  const hero = '<div class="srr-hero">'
-    + '<div class="srr-hero__when">' + escapeHtml(c.label(head.last.p)) + ' · '
-    + escapeHtml(head.label) + '</div>'
-    + '<div class="srr-hero__row">'
-    + '<span class="srr-hero__v">' + orNum(head.last.v) + '</span>'
-    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
-    + escapeHtml(orPct(head.pct == null ? null : Math.abs(head.pct)).replace('+', ''))
-    + '<span class="srr-hero__vs">조회 기간 시작 대비</span></span>'
-    + '</div></div>';
-
-  const subs = orSubs(c, st, head).map((t) =>
-    '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
-
-  return '<div class="srr">'
-    + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(c.span)
-    + ' · ' + escapeHtml(c.termLabel + ' 기준 ' + c.win.length + '개 구간')
-    + ' · ' + escapeHtml(c.unit) + '</span></div>'
-    + '<p class="srr-cond"><b>현재 조회 조건</b> · ' + escapeHtml(c.termLabel) + ' 기준 · '
-    + escapeHtml(c.span) + ' · ' + escapeHtml(c.ser.map((x) => x.label).join(', ')) + '</p>'
-    + '<p class="srr-def">' + escapeHtml(OR_DEF[kind]) + '</p>'
-    + hero + subs
-    + '<h4 class="srr-h">' + escapeHtml(OR_NOUN[kind]) + '별 지표</h4>'
-    + orTable(c, st)
-    + '<div class="srr-chart">' + orChart(c, st, head) + krwNote('USD') + '</div>'
-    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
-    + orSummary(c, st, head).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
-    + '</div></div>';
-}
-
 function renderOilProductHtml() {
   const unit = (_opData && !_opData.error && _opData.unit) || '$/배럴';
   const head = `<div class="viz-head"><div>
@@ -3234,14 +3289,14 @@ function renderOilProductHtml() {
       + '<button type="button" class="oc-tool" data-op-exp="csv">csv 저장</button>'
       + '<button type="button" class="oc-tool" data-op-exp="xls">엑셀저장</button>'
       + '<button type="button" class="oc-tool" data-op-exp="print">인쇄하기</button>'
-      + '<button type="button" class="oc-tool or-btn' + (_opReport ? ' is-on' : '')
-      + '" data-op-report="1" aria-expanded="' + (_opReport ? 'true' : 'false')
-      + '">📊 리포트 분석</button>'
       + '</div></div>';
     const result = (_opView === 'chart')
       ? buildProductChart(win, opOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilpTooltip"></div>'
       : opTableHtml(q, win);
-    body = tools + result + (_opReport ? orReportHtml('product') : '');
+    const opOn = msFirstOn(_opData, q);
+    body = tools
+      + (opOn ? msBadgesHtml(msPtsPetro(_opData, opOn.key), opOn.label + ' 기준 · 월별 전 구간') : '')
+      + result + msFactorsHtml('oil_price');
   }
   const note = (_opData.note ? '<div class="g-note">' + escapeHtml(_opData.note) + '</div>' : '');
   // 적용 환율·기준일 — 이미 있는 krwNote()(usd_krw 섹션 기반)를 그대로 쓴다
@@ -3258,11 +3313,8 @@ function wireProductControls(root) {
     form.addEventListener('change', (e) => {
       const t = e.target;
       if (!t || !_opForm) return;
-      // ★ 원유 카드와 같은 이유로, 조건이 바뀌면 열려 있던 리포트를 닫는다.
-      const wasOpen = _opReport;
       if (t.name === 'opTerm') {
         _opForm = opFormFor(t.value, new Set(_opForm.on));
-        if (wasOpen) { _opReport = false; renderMaterial(); return; }
         form.innerHTML = opControlsHtml();
         return;
       }
@@ -3274,7 +3326,6 @@ function wireProductControls(root) {
         if (!p) return;
         if (t.checked) _opForm.on.add(p); else _opForm.on.delete(p);
       }
-      if (wasOpen) { _opReport = false; renderMaterial(); }
     });
     form.addEventListener('click', (e) => {
       const go = e.target.closest && e.target.closest('.op-go');
@@ -3285,8 +3336,6 @@ function wireProductControls(root) {
     });
   }
   fig.addEventListener('click', (e) => {
-    const rb = e.target.closest && e.target.closest('[data-op-report]');
-    if (rb) { _opReport = !_opReport; renderMaterial(); return; }
     const v = e.target.closest && e.target.closest('[data-op-view]');
     if (v) { _opView = v.getAttribute('data-op-view'); renderMaterial(); return; }
     const x = e.target.closest && e.target.closest('[data-op-exp]');
@@ -3303,26 +3352,11 @@ function wireProductControls(root) {
 /* ── 해상 정시성 (Sea-Intelligence Global Schedule Reliability) ── */
 
 /** 선택 연도에 맞춰 표시할 연도(선) 목록 구성 */
-/* ── 해상 정시성 · 리포트 분석 ─────────────────────────────────────────────
-   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿이고 숫자는 전부 받아둔 관측치에서 계산한다.
-     외부 호출이 없으므로 비용도 없다.
+/* ── 해상 정시성 ──────────────────────────────────────────────────────────
    ★★ 없는 것을 지어내지 않는다. Sea-Intelligence 가 주는 것은 '월별 전세계 정시성
      한 줄'뿐이다 — payload 실측 결과 years={연도: 월 12개 값} 이 전부이고
-     지역·항로·선사 구분이 아예 없다. 그래서 '지역/항로별 동향' 절은 만들지 않고,
-     왜 없는지만 밝힌다.
-   ★★ 원인(춘절·홍해 등)은 이 데이터에 없다. 추정해서 채우지 않고 '준비 중'으로 둔다.
-     서술하는 것은 오직 숫자 자체의 변화뿐이다 — 증감 · 최고/최저 · 평균 · 연속 추세. */
-let _srReport = false;      // 리포트 펼침 상태
-
-const SR_FLAT_BAND = 1.0;   // 6개월 변화가 이 %p 미만이면 '보합'으로 본다
-const SR_STREAK_MIN = 2;    // 연속 개월이 이 수 이상일 때만 '연속' 문장을 낸다
-// ★ 3 으로 뒀더니 실데이터(2021~2026)에서 한 번도 뜨지 않았다 — 이 지표는 등락이
-//   잦아 최대 연속이 2개월이다. '연속이 아니면 생략'이 원칙이므로 2 로 둔다.
-
-function srR1(v) { return Math.round(v * 10) / 10; }
-function srPct(v) { return (v == null) ? '—' : srR1(v).toFixed(1) + '%'; }
-function srPp(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + srR1(v).toFixed(1) + '%p'; }
-function srYmLabel(ym) { return ym.slice(0, 4) + '년 ' + ym.slice(5, 7) + '월'; }
+     지역·항로·선사 구분이 아예 없다. 그래서 이 카드에는 요약 배지만 붙이고,
+     구조적·단기 요인 해설은 넣지 않는다(조사된 문구가 없으면 비워 둔다). */
 
 /** 연도 목록의 관측치를 시간순으로 편다. [{ym:'2026-06', v:62.6}] (결측은 뺀다) */
 function srFlatten(years) {
@@ -3334,269 +3368,6 @@ function srFlatten(years) {
     });
   });
   return out.sort((a, b) => (a.ym < b.ym ? -1 : 1));
-}
-
-/** 마지막 지점에서 거슬러 올라간 '같은 방향 연속' 개월 수. 없으면 null */
-function srStreak(pts) {
-  const mv = [];
-  for (let i = 1; i < pts.length; i += 1) mv.push(srR1(pts[i].v - pts[i - 1].v));
-  if (!mv.length) return null;
-  const last = mv[mv.length - 1];
-  if (last === 0) return null;
-  const up = last > 0;
-  let n = 0;
-  for (let i = mv.length - 1; i >= 0; i -= 1) {
-    if (mv[i] === 0 || (mv[i] > 0) !== up) break;
-    n += 1;
-  }
-  return { up: up, n: n };
-}
-
-/** 리포트에 쓸 수치 묶음. 관측치가 없으면 null */
-function srReportData(year) {
-  if (!_srData || _srData.error || !_srData.years) return null;
-  const all = Object.keys(_srData.years).sort();
-  const pick = (year === 'all') ? all : all.filter((y) => y === year);
-  const pts = srFlatten(pick);
-  if (!pts.length) return null;
-  const whole = srFlatten(all);          // 전월·전년동월은 조회 창 밖도 봐야 한다
-  const last = pts[pts.length - 1];
-  const wi = whole.map((p) => p.ym).indexOf(last.ym);
-  const prev = wi > 0 ? whole[wi - 1] : null;
-  const yoyYm = (Number(last.ym.slice(0, 4)) - 1) + '-' + last.ym.slice(5, 7);
-  const yoy = whole.filter((p) => p.ym === yoyYm)[0] || null;
-  const vals = pts.map((p) => p.v);
-  const hi = pts.filter((p) => p.v === Math.max.apply(null, vals))[0];
-  const lo = pts.filter((p) => p.v === Math.min.apply(null, vals))[0];
-  const win = pts.slice(-6);
-  const wDiff = win.length >= 2 ? srR1(win[win.length - 1].v - win[0].v) : null;
-  return {
-    pts: pts, last: last, prev: prev, yoy: yoy,
-    mom: prev ? srR1(last.v - prev.v) : null,
-    yoyDiff: yoy ? srR1(last.v - yoy.v) : null,
-    hi: hi, lo: lo,
-    avg: srR1(vals.reduce((a, b) => a + b, 0) / vals.length),
-    streak: srStreak(pts),
-    win: win, wDiff: wDiff,
-    wWord: (wDiff == null) ? null
-      : (Math.abs(wDiff) < SR_FLAT_BAND ? '보합' : (wDiff > 0 ? '상승' : '하락')),
-  };
-}
-
-/** 헤드라인용 — 최신값과 전월 대비. 숫자는 srReportData 가 계산한 것을 그대로 쓴다. */
-function srHeadline(d) {
-  const dir = (d.mom == null) ? 'flat' : (d.mom > 0 ? 'up' : (d.mom < 0 ? 'down' : 'flat'));
-  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-  return {
-    ym: d.last.ym, value: srPct(d.last.v), dir: dir, arrow: arrow,
-    delta: (d.mom == null) ? null : srR1(Math.abs(d.mom)).toFixed(1) + '%p',
-  };
-}
-
-/** 헤드라인 아래 보조 문장들. 근거가 없는 문장은 넣지 않는다(기존 규칙 그대로). */
-function srReportSubs(d) {
-  const out = [];
-  if (d.yoyDiff != null) {
-    const gap = srR1(Math.abs(d.yoyDiff)).toFixed(1);
-    out.push('1년 전 같은 달(' + srYmLabel(d.yoy.ym) + ' ' + srPct(d.yoy.v) + ')보다 '
-      + (d.yoyDiff === 0 ? '변화가 없습니다.' : gap + '%p ' + (d.yoyDiff > 0 ? '높습니다.' : '낮습니다.')));
-  }
-  if (d.streak && d.streak.n >= SR_STREAK_MIN) {
-    out.push(d.streak.n + '개월 연속 ' + (d.streak.up ? '오름세' : '내림세') + '입니다.');
-  }
-  if (d.wWord) {
-    const a = srPct(d.win[0].v), b = srPct(d.last.v), gap = srPp(d.wDiff);
-    if (d.wWord === '보합') {
-      out.push('최근 ' + d.win.length + '개월은 큰 변화 없이 ' + Math.floor(d.last.v)
-        + '%대를 유지하고 있습니다 (' + a + ' → ' + b + ', ' + gap + ').');
-    } else {
-      out.push('최근 ' + d.win.length + '개월 동안 ' + a + '에서 ' + b + '로 '
-        + gap + ' ' + (d.wWord === '상승' ? '올랐습니다' : '내렸습니다') + '.');
-    }
-  }
-  return out;
-}
-
-/** 가장 낙폭이 큰 '연속 하락 구간'. [시작 index, 끝 index] · 없으면 null.
-    ★ 표시 전용이다 — srReportData 의 수치 계산에는 관여하지 않는다. */
-function srDropRun(pts) {
-  let best = null, i = 0;
-  while (i < pts.length - 1) {
-    if (pts[i + 1].v >= pts[i].v) { i += 1; continue; }
-    let j = i;
-    while (j < pts.length - 1 && pts[j + 1].v < pts[j].v) j += 1;
-    const drop = pts[i].v - pts[j].v;
-    if (!best || drop > best.drop) best = { from: i, to: j, drop: drop };
-    i = j;
-  }
-  return best;
-}
-
-/* 리포트 강조 색 — 참고 지표 카드와 그래프가 같은 규칙을 쓴다.
-   ★ 최고=파랑 · 최저=빨강. 이 카드의 지표는 '높을수록 좋은' 정시성이라
-     주가 카드(오르면 빨강)와 반대다 — 리포트 안에서만 이 규칙을 쓴다. */
-const SRR_HI = 'var(--blue)';
-const SRR_LO = 'var(--accent)';
-const SRR_NOW = 'var(--ink)';
-
-/** 리포트 전용 그래프 — 의미 있는 지점(최고·최저·최신·최대 낙폭)만 라벨을 단다.
-    ★ 카드 본문의 buildSrChart 는 건드리지 않는다. 전역 _srChart 도 쓰지 않아
-      본문 차트의 툴팁 동작에 영향이 없다. */
-function srReportChart(pts, hiYm, loYm) {
-  const n = pts.length;
-  if (n < 2) return '<div class="chart-empty">추이를 그릴 관측치가 부족합니다.</div>';
-  const vals = pts.map((p) => p.v);
-  let ymin = Math.min.apply(null, vals), ymax = Math.max.apply(null, vals);
-  const yp = (ymax - ymin) * 0.18 || 5;
-  ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
-
-  const W = VIZ_W, H = 176, padL = 40, padR = 16, padT = 18, padB = 26;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (i) => padL + (i / (n - 1)) * plotW;
-  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
-
-  const grid = vizYFractions().map((t) => {
-    const val = ymin + (ymax - ymin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val)}%</text>`;
-  }).join('');
-
-  const xlab = vizTickIdx(n, plotW, 46).map((i) =>
-    `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(pts[i].ym.slice(2).replace('-', '.'))}</text>`).join('');
-
-  // 최대 낙폭 구간 — 음영 + 그 구간만 색을 달리한 선
-  const run = srDropRun(pts);
-  let band = '', dropLine = '';
-  if (run && run.to > run.from) {
-    const x0 = X(run.from), x1 = X(run.to);
-    band = `<rect x="${x0.toFixed(1)}" y="${padT}" width="${(x1 - x0).toFixed(1)}" height="${plotH}"`
-      + ` fill="${SRR_LO}" opacity=".07"/>`;
-    let dp = '';
-    for (let i = run.from; i <= run.to; i += 1) {
-      dp += `${i === run.from ? 'M' : 'L'}${X(i).toFixed(1)} ${Y(pts[i].v).toFixed(1)} `;
-    }
-    dropLine = `<path d="${dp.trim()}" fill="none" stroke="${SRR_LO}" stroke-width="3"`
-      + ` stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`;
-  }
-
-  let path = '';
-  pts.forEach((p, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.v).toFixed(1)} `; });
-  const line = `<path d="${path.trim()}" fill="none" stroke="var(--slate)" stroke-width="2"`
-    + ` stroke-linejoin="round" stroke-linecap="round" opacity=".55"/>`;
-
-  // 평범한 지점은 점만 남기고 숫자는 생략한다
-  const plain = pts.map((p, i) =>
-    `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="2" fill="var(--slate)" opacity=".5"/>`).join('');
-
-  // 강조 지점 — 최고 / 최저 / 최신. 겹치면 최고·최저를 우선한다.
-  const marks = [];
-  const add = (i, color, tag, cls) => {
-    const x = X(i), y = Y(pts[i].v);
-    const up = y > padT + 26;                       // 위쪽 공간이 없으면 라벨을 아래로
-    const ly = up ? y - 13 : y + 20;
-    marks.push(`<g class="srr-mark ${cls}">`
-      + `<circle class="srr-ring" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="none" stroke="${color}" stroke-width="2" opacity="0"/>`
-      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
-      + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
-      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">${pts[i].v.toFixed(1)}%</text>`
-      + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
-      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">${escapeHtml(tag)}</text>`
-      + `</g>`);
-  };
-  const hiI = pts.map((p) => p.ym).indexOf(hiYm);
-  const loI = pts.map((p) => p.ym).indexOf(loYm);
-  const nowI = n - 1;
-  if (hiI >= 0) add(hiI, SRR_HI, '최고', 'srr-mark--hi');
-  if (loI >= 0) add(loI, SRR_LO, '최저', 'srr-mark--lo');
-  if (nowI !== hiI && nowI !== loI) add(nowI, SRR_NOW, '최근', 'srr-mark--now');
-
-  const legend = '<div class="srr-legend">'
-    + '<span class="srr-lg"><i style="background:' + SRR_HI + '"></i>최고</span>'
-    + '<span class="srr-lg"><i style="background:' + SRR_LO + '"></i>최저</span>'
-    + '<span class="srr-lg"><i style="background:' + SRR_NOW + '"></i>최근</span>'
-    + (run && run.to > run.from
-      ? '<span class="srr-lg srr-lg--band"><i></i>최대 낙폭 구간 (−'
-        + srR1(run.drop).toFixed(1) + '%p)</span>' : '')
-    + '</div>';
-
-  return legend
-    + `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
-    + ` aria-label="정시성 추이 · 최고 최저 최근 지점 강조">`
-    + band + grid + xlab + line + dropLine + plain + marks.join('')
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>`
-    + `</svg>`;
-}
-
-/** '총 내용 정리' 문장 — 리포트에 이미 나온 값만 압축한다.
-    ★ 새 숫자도, 원인 추정도 만들지 않는다. 근거가 없는 조각은 문장에서 빠진다
-      (전월 비교가 없으면 그 절을, 전년 자료가 없으면 그 절을 통째로 뺀다). */
-function srSummaryText(d) {
-  const out = [];
-  const head = srYmLabel(d.last.ym) + ' 해상 정시성은 ' + srPct(d.last.v);
-  const mom = (d.mom == null) ? null
-    : '전월 대비 ' + srR1(Math.abs(d.mom)).toFixed(1) + '%p '
-      + (d.mom > 0 ? '상승' : (d.mom < 0 ? '하락' : '보합'));
-  const yoy = (d.yoyDiff == null) ? null
-    : (d.yoyDiff === 0 ? '1년 전과 같은'
-      : '1년 전보다 ' + srR1(Math.abs(d.yoyDiff)).toFixed(1) + '%p '
-        + (d.yoyDiff > 0 ? '높은' : '낮은'));
-  if (mom && yoy) out.push(head + '로 ' + mom + '했고, ' + yoy + ' 수준입니다.');
-  else if (mom) out.push(head + '로 ' + mom + '했습니다.');
-  else if (yoy) out.push(head + '로, ' + yoy + ' 수준입니다.');
-  else out.push(head + '입니다.');
-
-  if (d.streak && d.streak.n >= SR_STREAK_MIN) {
-    out.push(d.streak.n + '개월 연속 ' + (d.streak.up ? '오름세' : '내림세') + '입니다.');
-  }
-  if (d.wWord) {
-    out.push('최근 ' + d.win.length + '개월간은 ' + d.wWord + '세를 보이고 있습니다.');
-  }
-  return out;
-}
-
-/** 리포트 본문. 버튼을 누르기 전에는 호출되지 않는다. */
-function srReportHtml() {
-  const d = srReportData(_srYear);
-  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
-  const scope = (_srYear === 'all') ? '전체 기간' : (_srYear + '년');
-  const h = srHeadline(d);
-
-  const head = '<div class="srr-hero">'
-    + '<div class="srr-hero__when">' + escapeHtml(srYmLabel(h.ym)) + ' 해상 정시성</div>'
-    + '<div class="srr-hero__row">'
-    + '<span class="srr-hero__v">' + escapeHtml(h.value) + '</span>'
-    + (h.delta
-      ? '<span class="srr-hero__d srr-' + h.dir + '">' + h.arrow + ' ' + escapeHtml(h.delta)
-        + '<span class="srr-hero__vs">전월 대비</span></span>'
-      : '<span class="srr-hero__d srr-flat">전월 비교 자료 없음</span>')
-    + '</div></div>';
-
-  const subs = srReportSubs(d).map((t) =>
-    '<p class="srr-p">' + escapeHtml(t) + '</p>').join('');
-
-  const cell = (k, v, sub, cls) => '<div class="gs-cell srr-stat ' + cls + '">'
-    + '<span class="gs-k">' + escapeHtml(k) + '</span>'
-    + '<span class="gs-v">' + escapeHtml(v) + '</span>'
-    + '<span class="srr-sub">' + escapeHtml(sub) + '</span></div>';
-  const stats = '<div class="gs srr-stats">'
-    + cell('조회 기간 최고', srPct(d.hi.v), srYmLabel(d.hi.ym), 'srr-stat--hi')
-    + cell('조회 기간 최저', srPct(d.lo.v), srYmLabel(d.lo.ym), 'srr-stat--lo')
-    + cell('조회 기간 평균', srPct(d.avg), d.pts.length + '개월 기준', 'srr-stat--avg')
-    + '</div>';
-
-  return '<div class="srr">'
-    + '<div class="srr-head">리포트 분석 <span class="srr-scope">' + escapeHtml(scope)
-    + ' · ' + escapeHtml(d.pts.length + '개월 관측') + '</span></div>'
-    + '<p class="srr-def">해상 정시성이란 선사가 사전에 공표한 도착 예정일에 '
-    + '실제로 도착한 선박의 비율(%)을 뜻합니다.</p>'
-    + head + subs
-    + '<h4 class="srr-h">참고 지표 <span class="srr-hint">최고·최저에 마우스를 올리면 그래프에서 해당 지점이 표시됩니다</span></h4>'
-    + stats
-    + '<div class="srr-chart">' + srReportChart(d.pts, d.hi.ym, d.lo.ym) + '</div>'
-    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
-    + srSummaryText(d).map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
-    + '</div>'
-    + '</div>';
 }
 
 function srViewData(year) {
@@ -3614,16 +3385,12 @@ function srViewData(year) {
 /** 해상 정시성 블록 HTML (ICIS와 동일 스타일: 연도 버튼 → 선그래프) */
 function renderScheduleReliabilityHtml() {
   if (!_srData) return '';
-  // 연도를 고른 뒤에만 리포트를 낼 수 있다(관측 구간이 정해져야 계산이 된다)
-  const canReport = !_srData.error && _srYear;
-  const reportBtn = canReport
-    ? `<button type="button" class="srr-btn${_srReport ? ' is-on' : ''}" data-sr-report="1"
-        aria-expanded="${_srReport ? 'true' : 'false'}">📊 리포트 분석</button>`
-    : '';
+  // 배지는 연도 선택과 무관하게 전 구간으로 계산한다(전년비에 12개월이 필요하다).
+  const srBadges = _srData.error ? '' : msBadgesHtml(msPtsSr(), '전체 선사 정시율 · 월별 전 구간');
   const head = `<div class="viz-head"><div>
       <div class="viz-title">해상 정시성 (Global Schedule Reliability)</div>
       <div class="viz-sub">월별 정시 도착 비율(%) · 연도별</div>
-    </div>${reportBtn}</div>`;
+    </div></div>${srBadges}`;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -3642,7 +3409,7 @@ function renderScheduleReliabilityHtml() {
   } else {
     const { months, series } = srViewData(_srYear);
     body = buildSrChart(months, series);
-    extras = (_srReport ? srReportHtml() : '') + renderSrTermsHtml() + renderSrForecastHtml();
+    extras = renderSrTermsHtml() + renderSrForecastHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
@@ -4215,14 +3982,14 @@ function renderOilPricesHtml() {
       + '<button type="button" class="oc-tool" data-oc-exp="csv">csv 저장</button>'
       + '<button type="button" class="oc-tool" data-oc-exp="xls">엑셀저장</button>'
       + '<button type="button" class="oc-tool" data-oc-exp="print">인쇄하기</button>'
-      + '<button type="button" class="oc-tool or-btn' + (_ocReport ? ' is-on' : '')
-      + '" data-oc-report="1" aria-expanded="' + (_ocReport ? 'true' : 'false')
-      + '">📊 리포트 분석</button>'
       + '</div></div>';
     const result = (_ocView === 'chart')
       ? buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
-    body = tools + result + (_ocReport ? orReportHtml('crude') : '');
+    const ocOn = msFirstOn(_ocData, q);
+    body = tools
+      + (ocOn ? msBadgesHtml(msPtsPetro(_ocData, ocOn.key), ocOn.label + ' 기준 · 월별 전 구간') : '')
+      + result + msFactorsHtml('oil_price');
   }
   const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
   return `<div class="viz-root viz-figure oil-figure">${head}${controls}${body}${note}${cap}</div>`;
@@ -4281,6 +4048,7 @@ function buildOilChart(rows, onSeries, term) {
       <line class="oil-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="oil-dots"></g>
       <rect class="oil-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${msEventsSvg('oil_price', rows.map((r) => r.period), X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -4504,12 +4272,8 @@ function renderKoimaHtml() {
   const controls = `<div class="koima-controls">${selects}</div>`;
 
   // 3) 기간 칩
-  const rptBtn = (ok && _koimaRange)
-    ? `<button type="button" class="oc-tool or-btn koima-report${_koimaReport ? ' is-on' : ''}"
-        data-koima-report="1" aria-expanded="${_koimaReport ? 'true' : 'false'}">📊 리포트 분석</button>`
-    : '';
   const chips = `<div class="icis-years koima-ranges">${KOIMA_RANGES.map((r) =>
-    `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}${rptBtn}</div>`;
+    `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
 
   let body;
   if (!_koimaData) {                                   // 1) 데이터 없음
@@ -4520,9 +4284,13 @@ function renderKoimaHtml() {
     body = '<div class="icis-prompt">기간을 선택하세요</div>';
   } else {                                              // 3) 선택됨 → 차트 + 표
     const rows = koimaSliceRows();
-    body = buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
-      + koimaRecentTable(rows, cat)
-      + (_koimaReport ? krIndexHtml() : '');
+    // 배지는 고른 기간이 아니라 부문 전 구간으로 계산한다(전년비에 12개월이 필요하다).
+    const kLast = (cat.rows || [])[cat.rows.length - 1] || {};
+    body = msBadgesHtml(msPtsKoima(cat), cat.label + ' 지수 기준 · ' + (kLast.period || ''),
+      { momPct: kLast.momPct, yoyPct: kLast.yoyPct })
+      + buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
+      + msFactorsHtml('koima_index')
+      + koimaRecentTable(rows, cat);
   }
   return `<div class="viz-root viz-figure koima-figure">${head}${tabs}${controls}${chips}${body}${cap}</div>`;
 }
@@ -4576,6 +4344,7 @@ function buildKoimaChart(rows, cat) {
       <line class="koima-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="koima-dots"></g>
       <rect class="koima-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${msEventsSvg('koima_index', rows.map((r) => r.period), X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -4668,8 +4437,6 @@ function wireKoimaControls(root) {
     if (yEl) _koimaEnd = `${yEl.value}-${mEl.value}`;
     renderMaterial();
   });
-  const krBtn = fig.querySelector('.koima-report');
-  if (krBtn) krBtn.addEventListener('click', () => { _koimaReport = !_koimaReport; renderMaterial(); });
   if (_koimaRange && _koimaData && !_koimaData.error) wireKoimaChart();
 }
 
@@ -4842,292 +4609,15 @@ function kpSummaryBar(item, rows) {
   </div>`;
 }
 
-/* ── KOIMA 리포트 분석 (월간 부문별 지수 · 일일 국제원자재가격) ─────────────
-   ★ AI/LLM 을 쓰지 않는다. 문장은 템플릿, 숫자는 화면에 이미 있는 값과 받아둔
-     관측치에서 계산한다. 외부 호출이 없어 비용도 없다.
-   ★★ 원인(중국 수요·공급망 등)은 이 데이터에 없다 — 한 줄도 지어내지 않는다.
-     서술하는 것은 값 자체의 움직임뿐: 등락률·최고/최저·평균·역대 대비 수준.
+/* ── KOIMA (월간 부문별 지수 · 일일 국제원자재가격) ─────────────────────────
    ★ 이 두 카드는 부문·품목·기간을 바꿀 때마다 renderMaterial() 이 다시 도므로
-     리포트가 늘 현재 선택을 따라간다(유가 카드처럼 [조회] 단계가 없다). */
-let _koimaReport = false;   // 월간 부문별 지수 리포트 펼침
-let _kpReport = false;      // 일일 국제원자재가격 리포트 펼침
-
-const KR_HI = 'var(--blue)';
-const KR_LO = 'var(--accent)';
-const KR_NOW = 'var(--ink)';
-
-function krN(v, d) { return (v == null) ? '—' : Number(v).toFixed(d == null ? 2 : d); }
-function krPct(v) { return (v == null) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
-function krWord(v) { return v == null ? '보합' : (v > 0 ? '상승' : (v < 0 ? '하락' : '보합')); }
-
-/** 'YYYY-MM' / 'YYYY-MM-DD' → 축에 쓸 짧은 라벨 */
-function krShort(p) {
-  const s = String(p);
-  return (s.length > 7) ? s.slice(2).replace(/-/g, '.') : s.slice(2).replace('-', '.');
-}
-
-/** 단위에 맞춘 원화 병기. 환산할 수 없는 단위(CNY·원 등)면 null.
-    ★ 단위 판정은 이미 있는 krwFactor() 를 그대로 쓴다. */
-function krKrw(v, unit) {
-  const f = krwFactor(unit);
-  if (f == null || v == null) return null;
-  // ★ 축약(fmtKrwAxis)은 10,317원을 '1만'으로 줄여 본문에서 너무 뭉개진다.
-  //   본문에는 만 단위 소수 한 자리까지 쓴다(제품 카드 opKrw 와 같은 규칙).
-  const w = Number(v) * f, sign = w < 0 ? '-' : '', a = Math.abs(w);
-  return (a >= 1e4) ? (sign + (a / 1e4).toFixed(1) + '만 원')
-    : (sign + Math.round(a).toLocaleString('ko-KR') + '원');
-}
-
-/** 단일 계열 리포트 그래프 — 최고·최저·최근 3곳만 라벨을 단다.
-    pts=[{p,v}] · fmt=값 표기 · unit=원화 병기용(없으면 병기 생략) */
-function krChart(pts, fmt, unit) {
-  const n = pts.length;
-  if (n < 2) return '<div class="chart-empty">추이를 그릴 값이 부족합니다.</div>';
-  const vals = pts.map((x) => x.v);
-  let ymin = Math.min.apply(null, vals), ymax = Math.max.apply(null, vals);
-  const yp = (ymax - ymin) * 0.18 || 5;
-  ymin = Math.max(0, ymin - yp); ymax += yp;
-
-  const W = VIZ_W, H = 176, padL = 46, padR = 16, padT = 18, padB = 26;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (i) => padL + (i / (n - 1)) * plotW;
-  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
-  const kf = unit ? krwFactor(unit) : null;
-
-  const grid = vizYFractions().map((t) => {
-    const val = ymin + (ymax - ymin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`
-      + (kf ? vizKrwTick(padL - 6, y, val, kf) : '');
-  }).join('');
-
-  const xlab = orTickIdx(n, 6).map((i, k) =>
-    `<text class="or-xlab${k % 2 ? ' or-xlab--alt' : ''}" x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(krShort(pts[i].p))}</text>`).join('');
-
-  let d = '';
-  pts.forEach((x, i) => { d += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(x.v).toFixed(1)} `; });
-  const line = `<path d="${d.trim()}" fill="none" stroke="var(--slate)" stroke-width="2" opacity=".55" stroke-linejoin="round" stroke-linecap="round"/>`;
-  const dots = pts.map((x, i) =>
-    `<circle cx="${X(i).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="2" fill="var(--slate)" opacity=".5"/>`).join('');
-
-  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
-  const hiI = vals.indexOf(mx), loI = vals.indexOf(mn), nowI = n - 1;
-  const put = (i, color, tag) => {
-    if (i < 0) return '';
-    const v = pts[i].v, x = X(i), y = Y(v), up = y > padT + 26;
-    const ly = up ? y - 13 : y + 20;
-    const kw = unit ? krKrw(v, unit) : null;
-    return `<g><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.6"/>`
-      + `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="800"`
-      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}">${escapeHtml(fmt(v))}</text>`
-      + `<text x="${x.toFixed(1)}" y="${(up ? ly - 9 : ly + 9).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700"`
-      + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3" fill="${color}" opacity=".85">`
-      + `${tag}${kw ? ' · 약 ' + escapeHtml(kw) : ''}</text></g>`;
-  };
-  let marks = put(hiI, KR_HI, '최고') + put(loI, KR_LO, '최저');
-  if (nowI !== hiI && nowI !== loI) marks += put(nowI, KR_NOW, '최근');
-
-  const legend = '<div class="srr-legend">'
-    + '<span class="srr-lg"><i style="background:' + KR_HI + '"></i>최고</span>'
-    + '<span class="srr-lg"><i style="background:' + KR_LO + '"></i>최저</span>'
-    + '<span class="srr-lg"><i style="background:' + KR_NOW + '"></i>최근</span></div>';
-
-  return legend
-    + `<svg class="srr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="추이 · 최고 최저 최근 강조">`
-    + grid + xlab + line + dots + marks
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`;
-}
+     요약 배지가 늘 현재 선택을 따라간다(유가 카드처럼 [조회] 단계가 없다).
+   ★ 전월비·전년비는 KOIMA 가 직접 계산해 준 momPct/yoyPct 를 그대로 쓴다 —
+     일별 자료를 월말끼리 비교하는 것보다 정확하다(msBadgesHtml 의 given 인자). */
 
 /* ── 1) 월간 부문별 지수 ─────────────────────────────────────────────── */
 
-/** 리포트 수치. 화면의 momPct/yoyPct 를 그대로 쓰고, 나머지는 관측치에서 계산한다. */
-function krIndexData() {
-  const cat = koimaCatOf(_koimaCat);
-  if (!_koimaData || _koimaData.error || !cat || !_koimaRange) return null;
-  const win = (koimaSliceRows() || []).filter((r) => r.index != null);
-  if (!win.length) return null;
-  const all = (cat.rows || []).filter((r) => r.index != null);
-  const last = win[win.length - 1];
-  // 최근 12개월 — 조회 구간이 아니라 '최신 월 기준 12개월'을 본다
-  const li = all.map((r) => r.period).indexOf(last.period);
-  const w12 = all.slice(Math.max(0, li - 11), li + 1);
-  const v12 = w12.map((r) => r.index);
-  const allMax = all.reduce((a, b) => (b.index > a.index ? b : a), all[0]);
-  const wv = win.map((r) => r.index);
-  return {
-    cat: cat, win: win, all: all, last: last,
-    hi12: w12.filter((r) => r.index === Math.max.apply(null, v12))[0],
-    lo12: w12.filter((r) => r.index === Math.min.apply(null, v12))[0],
-    n12: w12.length,
-    allMax: allMax,
-    ratio: allMax.index ? Math.round((last.index / allMax.index) * 1000) / 10 : null,
-    avg: Math.round((wv.reduce((a, b) => a + b, 0) / wv.length) * 100) / 100,
-    firstPeriod: all[0].period,
-  };
-}
-
-/** 다른 부문의 최신 전월비만 간단히 나열 */
-function krOtherCats() {
-  return koimaCatsOrdered().map((c) => {
-    const rows = (c.rows || []).filter((r) => r.index != null);
-    const r = rows[rows.length - 1];
-    return { key: c.key, label: c.label || c.key, pct: r ? r.momPct : null, period: r ? r.period : null };
-  });
-}
-
-function krIndexHtml() {
-  const d = krIndexData();
-  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
-  const rangeLbl = (KOIMA_RANGES.find((r) => r.key === _koimaRange) || {}).label || '';
-  const dir = d.last.momPct == null ? 'flat' : (d.last.momPct > 0 ? 'up' : (d.last.momPct < 0 ? 'down' : 'flat'));
-  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-
-  const subs = [];
-  if (d.last.yoyPct != null) {
-    subs.push('전년 같은 달 대비로는 ' + krPct(d.last.yoyPct) + ' '
-      + (d.last.yoyPct > 0 ? '높습니다.' : (d.last.yoyPct < 0 ? '낮습니다.' : '같습니다.')));
-  }
-  subs.push('최근 ' + d.n12 + '개월 중 가장 높았던 달은 ' + d.hi12.period + '(' + krN(d.hi12.index)
-    + '), 가장 낮았던 달은 ' + d.lo12.period + '(' + krN(d.lo12.index) + ')입니다.');
-  if (d.ratio != null) {
-    subs.push('현재 지수는 역대 최고치(' + d.allMax.period + ', ' + krN(d.allMax.index)
-      + ') 대비 ' + d.ratio.toFixed(1) + '% 수준입니다 (' + d.firstPeriod + '부터 집계).');
-  }
-  subs.push('조회 구간(' + d.win[0].period + ' ~ ' + d.last.period + ' · ' + d.win.length
-    + '개월) 평균은 ' + krN(d.avg) + '입니다.');
-
-  const others = krOtherCats().map((c) => {
-    const cls = c.pct == null ? '' : (c.pct > 0 ? ' oc-up' : (c.pct < 0 ? ' oc-down' : ''));
-    return '<span class="kr-oth' + (c.key === _koimaCat ? ' is-me' : '') + '">'
-      + escapeHtml(c.label) + '<b class="' + cls.trim() + '">' + krPct(c.pct) + '</b></span>';
-  }).join('');
-
-  const sum = [];
-  sum.push(d.last.period + ' ' + d.cat.label + ' 지수는 ' + krN(d.last.index) + '로 전월 대비 '
-    + krPct(d.last.momPct) + ' ' + krWord(d.last.momPct) + '했고'
-    + (d.last.yoyPct != null ? ', 전년 같은 달보다는 ' + krPct(d.last.yoyPct) + ' '
-      + (d.last.yoyPct > 0 ? '높습니다.' : '낮습니다.') : '입니다.'));
-  if (d.ratio != null) {
-    sum.push('역대 최고치(' + d.allMax.period + ' ' + krN(d.allMax.index) + ') 대비 '
-      + d.ratio.toFixed(1) + '% 수준이며, 최근 ' + d.n12 + '개월 범위는 '
-      + krN(d.lo12.index) + ' ~ ' + krN(d.hi12.index) + '입니다.');
-  }
-
-  return '<div class="srr">'
-    + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
-    + escapeHtml(d.cat.label) + ' · ' + escapeHtml(_koimaData.baseline || '') + '</span></div>'
-    + '<p class="srr-cond"><b>현재 조회 조건</b> · 부문 ' + escapeHtml(d.cat.label)
-    + ' · 기간 ' + escapeHtml(rangeLbl) + ' (' + escapeHtml(d.win[0].period) + ' ~ '
-    + escapeHtml(d.last.period) + ' · ' + d.win.length + '개월)</p>'
-    + '<p class="srr-def">KOIMA 부문별 지수란 수입 원자재 가격을 부문별로 묶어 지수로 만든 값으로, '
-    + escapeHtml(_koimaData.baseline || '') + '입니다.</p>'
-    + '<div class="srr-hero"><div class="srr-hero__when">' + escapeHtml(d.last.period + ' · ' + d.cat.label) + '</div>'
-    + '<div class="srr-hero__row"><span class="srr-hero__v">' + krN(d.last.index) + '</span>'
-    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
-    + escapeHtml(krPct(d.last.momPct == null ? null : Math.abs(d.last.momPct)).replace('+', ''))
-    + '<span class="srr-hero__vs">전월 대비</span></span></div></div>'
-    + subs.map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('')
-    + '<div class="srr-chart">' + krChart(d.win.map((r) => ({ p: r.period, v: r.index })),
-      (v) => krN(v), null) + '</div>'
-    + '<h4 class="srr-h">다른 부문도 함께 보기 <span class="srr-hint">각 부문의 최신 전월비</span></h4>'
-    + '<div class="kr-oths">' + others + '</div>'
-    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
-    + sum.map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
-    + '</div></div>';
-}
-
 /* ── 2) 일일 국제원자재가격 ──────────────────────────────────────────── */
-
-/** period <= target 인 마지막 행 */
-function krAtOrBefore(rows, target) {
-  let hit = null;
-  for (let i = 0; i < rows.length; i += 1) {
-    if (rows[i].date <= target) hit = rows[i]; else break;
-  }
-  return hit;
-}
-
-function krPriceData() {
-  const cat = kpCatOf(_kpCat);
-  const item = kpItemOf(cat, _kpItem);
-  if (!_kpData || _kpData.error || !item || !_kpRange) return null;
-  const win = (kpSliceRows(item) || []).filter((r) => r.price != null);
-  if (!win.length) return null;
-  const all = (item.rows || []).filter((r) => r.price != null);
-  const last = win[win.length - 1];
-  const vals = win.map((r) => r.price);
-  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
-  // ★ 전년동일비는 원본에 없다(전일·전주·전월비만 온다). 받아둔 3년치에서 직접 계산한다.
-  const yoyBase = krAtOrBefore(all, opShift(last.date, -1, 0, 0));
-  return {
-    cat: cat, item: item, win: win, all: all, last: last,
-    hi: win.filter((r) => r.price === mx)[0], lo: win.filter((r) => r.price === mn)[0],
-    avg: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100,
-    yoy: (yoyBase && yoyBase.date !== last.date && yoyBase.price)
-      ? { base: yoyBase, value: Math.round((last.price - yoyBase.price) * 100) / 100,
-        pct: Math.round(((last.price - yoyBase.price) / yoyBase.price) * 10000) / 100 }
-      : null,
-  };
-}
-
-function krPriceHtml() {
-  const d = krPriceData();
-  if (!d) return '<div class="srr"><div class="chart-empty">리포트를 만들 관측치가 없습니다.</div></div>';
-  const u = d.item.unit || '';
-  const rangeLbl = (KP_RANGES.find((r) => r.key === _kpRange) || {}).label || '';
-  const dir = d.last.domPct == null ? 'flat' : (d.last.domPct > 0 ? 'up' : (d.last.domPct < 0 ? 'down' : 'flat'));
-  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-  const withKrw = (v) => krN(v) + ' ' + u + (krKrw(v, u) ? ' (약 ' + krKrw(v, u) + '/' + u.split('/')[1] + ')' : '');
-
-  const subs = [];
-  subs.push(d.item.name + '는 ' + (d.item.market || '-') + ' 시장에서 '
-    + (d.item.spotFutures || '현물') + '로 거래되며, 단위는 ' + u + '입니다.');
-  const cmp = [];
-  if (d.last.wowPct != null) cmp.push('전주 대비 ' + krPct(d.last.wowPct));
-  if (d.last.momPct != null) cmp.push('전월 같은 날 대비 ' + krPct(d.last.momPct));
-  if (d.yoy) cmp.push('전년 같은 날(' + d.yoy.base.date + ') 대비 ' + krPct(d.yoy.pct));
-  if (cmp.length) subs.push(cmp.join(', ') + ' 수준입니다.');
-  subs.push('조회 기간 최고가는 ' + d.hi.date + ' ' + withKrw(d.hi.price)
-    + ', 최저가는 ' + d.lo.date + ' ' + withKrw(d.lo.price) + '입니다.');
-  subs.push('조회 기간(' + d.win[0].date + ' ~ ' + d.last.date + ' · ' + d.win.length
-    + '일) 평균은 ' + withKrw(d.avg) + '입니다.');
-
-  const sum = [];
-  sum.push(d.last.date + ' ' + d.item.name + ' 가격은 ' + withKrw(d.last.price)
-    + '로 전일 대비 ' + krPct(d.last.domPct) + ' ' + krWord(d.last.domPct) + '했습니다.');
-  const s2 = [];
-  if (d.last.wowPct != null) s2.push('전주 ' + krPct(d.last.wowPct));
-  if (d.last.momPct != null) s2.push('전월 ' + krPct(d.last.momPct));
-  if (d.yoy) s2.push('전년 ' + krPct(d.yoy.pct));
-  if (s2.length) sum.push('비교 기준별로는 ' + s2.join(' · ') + '이며, 거래시장은 '
-    + (d.item.market || '-') + '입니다.');
-  sum.push('조회 기간 범위는 ' + krN(d.lo.price) + ' ~ ' + krN(d.hi.price) + ' ' + u
-    + ', 평균은 ' + krN(d.avg) + ' ' + u + '입니다.');
-
-  return '<div class="srr">'
-    + '<div class="srr-head">리포트 분석 <span class="srr-scope">'
-    + escapeHtml(d.item.name + ' · ' + (d.item.market || '-') + ' · ' + u) + '</span></div>'
-    + '<p class="srr-cond"><b>현재 조회 조건</b> · 부문 ' + escapeHtml(d.cat ? d.cat.label : '-')
-    + ' · 품목 ' + escapeHtml(d.item.name) + ' · 기간 ' + escapeHtml(rangeLbl)
-    + ' (' + escapeHtml(d.win[0].date) + ' ~ ' + escapeHtml(d.last.date) + ' · ' + d.win.length + '일)</p>'
-    + '<p class="srr-def">KOIMA 일일 국제원자재가격이란 주요 원자재의 거래시장별 하루 시세로, '
-    + '품목마다 거래되는 시장과 단위가 다릅니다.</p>'
-    + '<div class="srr-hero"><div class="srr-hero__when">' + escapeHtml(d.last.date + ' · ' + d.item.name) + '</div>'
-    + '<div class="srr-hero__row"><span class="srr-hero__v">' + krN(d.last.price) + '</span>'
-    + '<span class="srr-hero__unit">' + escapeHtml(u) + '</span>'
-    + '<span class="srr-hero__d srr-' + dir + '">' + arrow + ' '
-    + escapeHtml(krPct(d.last.domPct == null ? null : Math.abs(d.last.domPct)).replace('+', ''))
-    + '<span class="srr-hero__vs">전일 대비</span></span></div>'
-    + (krKrw(d.last.price, u) ? '<div class="srr-hero__krw">≈ 약 ' + escapeHtml(krKrw(d.last.price, u))
-      + '/' + escapeHtml(u.split('/')[1] || '') + '</div>' : '')
-    + '</div>'
-    + subs.map((t) => '<p class="srr-p">' + escapeHtml(t) + '</p>').join('')
-    + '<div class="srr-chart">' + krChart(d.win.map((r) => ({ p: r.date, v: r.price })),
-      (v) => krN(v), u) + (krwFactor(u) != null ? krwNote('USD') : '') + '</div>'
-    + '<div class="srr-sum"><div class="srr-sum__h">총 내용 정리</div>'
-    + sum.map((t) => '<p class="srr-sum__p">' + escapeHtml(t) + '</p>').join('')
-    + '</div></div>';
-}
 
 /** 카드 HTML — 3단계 빈 상태 */
 function renderKoimaPriceHtml() {
@@ -5156,12 +4646,8 @@ function renderKoimaPriceHtml() {
   </div>`;
 
   // 3) 기간 칩
-  const rptBtn = (ok && _kpRange && item)
-    ? `<button type="button" class="oc-tool or-btn kp-report${_kpReport ? ' is-on' : ''}"
-        data-kp-report="1" aria-expanded="${_kpReport ? 'true' : 'false'}">📊 리포트 분석</button>`
-    : '';
   const chips = `<div class="icis-years kp-ranges">${KP_RANGES.map((r) =>
-    `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}${rptBtn}</div>`;
+    `<button class="icis-year kp-range${r.key === _kpRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
 
   let body;
   if (_kpBusy) {                                    // 로드 중
@@ -5174,9 +4660,15 @@ function renderKoimaPriceHtml() {
     body = '<div class="icis-prompt">품목과 기간을 선택하세요</div>';
   } else {                                          // 3) 선택됨
     const rows = kpSliceRows(item);
-    body = kpSummaryBar(item, rows) + buildKpChart(rows, item, cat)
-      + '<div class="viz-tooltip" id="kpTooltip"></div>' + kpRecentTable(rows, item)
-      + (_kpReport ? krPriceHtml() : '');
+    // 배지는 고른 기간이 아니라 품목 전 구간으로 계산한다(전년비에 12개월이 필요하다).
+    body = kpSummaryBar(item, rows)
+      + msBadgesHtml(msPtsKp(item), item.name + ' 기준 · ' + ((item.rows || []).length
+        ? item.rows[item.rows.length - 1].date : ''),
+        { momPct: (item.rows || []).length ? item.rows[item.rows.length - 1].momPct : null })
+      + buildKpChart(rows, item, cat)
+      + '<div class="viz-tooltip" id="kpTooltip"></div>'
+      + msFactorsHtml('naphtha')
+      + kpRecentTable(rows, item);
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
@@ -5234,6 +4726,7 @@ function buildKpChart(rows, item, cat) {
       <line class="kp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="kp-dots"></g>
       <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${msEventsSvg('naphtha', rows.map((r) => r.date), X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -5316,8 +4809,6 @@ function wireKpControls(root) {
     _kpRange = b.dataset.range;
     renderMaterial();
   });
-  const kprBtn = fig.querySelector('.kp-report');
-  if (kprBtn) kprBtn.addEventListener('click', () => { _kpReport = !_kpReport; renderMaterial(); });
   if (_kpRange && _kpData && !_kpData.error && !_kpBusy) wireKpChart();
 }
 
@@ -7529,15 +7020,16 @@ function resetDashboard() {
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _igData = null;       // SIMMONS IG 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
+  _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
-  _srData = null; _srYear = null; _srChart = null; _srReport = false; // 해상 정시성 비우기
+  _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
-  _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _ocReport = false; _oilChart = null; // 국제유가(원유) 비우기
-  _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opReport = false; _opChart = null; // 국제유가(제품) 비우기
+  _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _oilChart = null; // 국제유가(원유) 비우기
+  _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opChart = null; // 국제유가(제품) 비우기
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
-  _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null; _koimaReport = false;
+  _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
-  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false; _kpReport = false;
+  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false;
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
@@ -7636,6 +7128,8 @@ function initUpdate() {
     // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchInstagram();
+    // 순수 추가: 시황 해설(구조적·단기 요인 + 변곡점). 위와 같은 이유로 await 안 한다.
+    fetchInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

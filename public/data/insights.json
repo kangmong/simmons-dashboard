@@ -1,0 +1,38 @@
+{
+  "updated": "2026-09-08",
+  "oil_price": {
+    "structural_factor": "OPEC+ 감산 기조 유지, 비OPEC(미국 등) 증산이 공급 완충 역할",
+    "short_term_factor": "2월 말 중동전쟁 발발로 호르무즈 해협 물류 마비, 3월 브렌트 급등 후 점진적 하락, 9월 현재도 전년비 상승세 지속",
+    "events": [
+      {
+        "date": "2026-02-28",
+        "label": "미-이스라엘 이란 공습",
+        "detail": "호르무즈 해협 물류 마비로 유가 급등 시작"
+      },
+      {
+        "date": "2026-03-30",
+        "label": "브렌트 $115 돌파",
+        "detail": "후티 반군 확전으로 월간 최대 상승폭 기록"
+      }
+    ]
+  },
+  "icis_asia_pu": {
+    "structural_factor": "동남아 폴리올·PP 공급과잉 국면 진행 (중국 신증설 지속)",
+    "short_term_factor": "중동전쟁발 유가 급등 여파로 PO 원료사 불가항력 발생, 폴리올 계열이 TDI/MDI보다 급격히 상승 후 진정",
+    "events": [
+      {
+        "date": "2026-03-05",
+        "label": "PO 공급 차질",
+        "detail": "LyondellBasell 불가항력 선언으로 폴리올 가격 급등"
+      }
+    ]
+  },
+  "koima_index": {
+    "structural_factor": "유가·원자재 사이클상 2008년, 2022년과 유사한 급등 패턴",
+    "short_term_factor": "중동전쟁발 유가 급등이 유화원료 지수 전반에 반영, 6월 이후 진정"
+  },
+  "naphtha": {
+    "structural_factor": "아시아 크래커 가동률·에틸렌 마진에 연동",
+    "short_term_factor": "유가 급등과 동반 상승 후 재진정, 최근 소폭 반등"
+  }
+}
