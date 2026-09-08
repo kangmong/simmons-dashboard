@@ -67,6 +67,10 @@ FIELDS = [
     ("Since Inception", "inception"),
 ]
 
+# 사양표(Index Specifications)에서 함께 가져올 것 — 단위를 코드에 적지 않기 위해서다.
+SPECS = [("Currency", "currency"), ("Inception Date", "inception"),
+         ("Bloomberg Ticker", "bloomberg")]
+
 HEAD_RE = re.compile(
     r'class="elementor-heading-title elementor-size-default">(.*?)</div>', re.S)
 TAG_RE = re.compile(r"<[^>]+>")
@@ -121,7 +125,18 @@ def fetch_page(slug):
         if key == "date":
             continue
         stats[key] = _num(raw[key])
+
+    # 사양표 — 통화(USD 인지 지수 포인트인지)를 여기서 읽는다. 추측하지 않는다.
+    spec = {}
+    for i, x in enumerate(heads):
+        for label, key in SPECS:
+            if x == label and i + 1 < len(heads):
+                spec.setdefault(key, heads[i + 1])
+    # 지수 정의 문장(FAK · 32일 미만 · 40피트 컨테이너 …) 원문 그대로
+    desc = next((x for x in heads if "Freight All Kind" in x or "FAK" in x), "")
+
     return {"indiceId": int(m.group(1)), "name": name, "stats": stats,
+            "spec": spec, "desc": desc,
             "rawStats": {k: raw[k] for k in raw}}
 
 
@@ -166,6 +181,9 @@ def collect():
                 "key": slug, "name": ko, "short": short,
                 "title": page["name"], "code": slug.upper(),
                 "url": PAGE % slug,
+                "currency": page["spec"].get("currency"),
+                "inception": page["spec"].get("inception"),
+                "desc": page["desc"],
                 "stats": page["stats"],
                 "series": series,
             })
@@ -192,6 +210,9 @@ def main():
         "sourceUrl": BASE + "/indices/?family=xsi",
         # 기간 버튼은 차트만 자를 뿐 통계를 다시 계산하지 않는다(원본 JS 확인).
         "statsNote": "통계는 Compass 가 공표한 값으로, 기간 선택과 무관한 전체 기간 기준입니다.",
+        # 단위는 사양표의 Currency 를 그대로 쓴다(항로별로 같은지 확인해 하나로 올린다).
+        "currency": (routes[0].get("currency") if routes else None),
+        "unitNote": "40피트(40’) 컨테이너 1개 기준, 32일 미만 단기 FAK(Freight All Kind) 운임",
         "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "routes": routes,
         "failures": failures,

@@ -1122,6 +1122,19 @@ body {
   border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
 }
 .xsi-stat__lbl { display: flex; flex-direction: column; font-size: 11px; font-weight: 700; color: var(--muted); }
+.xsi-stat__ko { display: flex; align-items: center; gap: 0; }
+/* 좁은 통계 칸에 들어가는 ⓘ — 기본 .gc-abbr 보다 작고 여백도 줄인다 */
+.xsi-stat__ko .gc-abbr, .xsi-lead__lbl .gc-abbr {
+  margin-left: 4px; padding: 0 5px; font-size: 10px; line-height: 1.5;
+}
+/* 카드가 작아 말풍선이 잘리지 않도록 위치를 왼쪽으로 물린다 */
+.xsi-stat .gc-abbr__bub { left: auto; right: 0; max-width: 260px; }
+/* 최근값 옆 단위 — 숫자가 주, 단위는 보조 */
+.xsi-lead__unit {
+  margin-left: 6px; font-size: 12px; font-weight: 700; color: var(--muted);
+  letter-spacing: 0; white-space: nowrap;
+}
+.xsi-lead__lbl { display: flex; align-items: center; }
 .xsi-stat__en { font-size: 9.5px; font-weight: 500; color: var(--muted); opacity: .8; }
 .xsi-stat__val { margin-top: 5px; font-size: 13px; font-variant-numeric: tabular-nums; }
 

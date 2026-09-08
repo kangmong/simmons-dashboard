@@ -4061,17 +4061,39 @@ const XSI_RANGES = [
   { key: '5', label: '5년' }, { key: 'all', label: '전체' },
 ];
 
+/** 지수 단위 — 수집 데이터의 Currency 를 그대로 쓴다(코드에 적지 않는다). */
+function xsiUnit() {
+  const cur = _xsiData && _xsiData.currency;
+  return cur ? cur + ' / 40ft 컨테이너' : '지수';
+}
+
+/** 최근값이 무엇인지 — Compass 정의 문장을 우리말로 옮긴 것. */
+function xsiValueTip() {
+  const cur = (_xsiData && _xsiData.currency) || 'USD';
+  return '해당 항로에서 40피트(40\u2019) 컨테이너 1개를 32일 미만 단기로 실을 때의 '
+    + 'FAK(Freight All Kind, 품목을 가리지 않는 일괄 운임) 수준입니다. 단위는 ' + cur
+    + ' 이며, Compass 가 매 영업일 산출해 유럽 중부시간 18시에 공표합니다.';
+}
+
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
 const XSI_STATS = [
-  { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return' },
+  { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return',
+    // ★ 산술로 확인했다 — 8개 항로 모두 '산출 이래 누적 수익률의 연환산'과 일치한다.
+    def: '산출을 시작한 날 이후의 누적 등락률을 1년 단위로 환산한 값입니다.' },
   // 변동성은 '얼마나 흔들렸나'를 재는 크기 지표라 부호가 없다.
   // 수익률과 같은 ▲빨강/▼파랑을 붙이면 '올랐다'는 뜻으로 잘못 읽힌다.
-  { key: 'annVol', label: '연간 변동성', tip: 'Annualised Volatility', plain: true },
-  { key: 'd1', label: '1일', tip: '1 Day Return' },
-  { key: 'mtd', label: '월초 이후', tip: 'MTD Return' },
-  { key: 'qtd', label: '분기초 이후', tip: 'QTD Return' },
-  { key: 'ytd', label: '연초 이후', tip: 'YTD Return' },
-  { key: 'inception', label: '산출 이래', tip: 'Since Inception' },
+  { key: 'annVol', label: '연간 변동성', tip: 'Annualised Volatility', plain: true,
+    // ★ 창(1년·3년·전체)을 바꿔 맞춰 봤으나 8개 항로에서 일관되게 재현되지 않았다.
+    //   그래서 '무엇을 재는 값인지'만 적고 산출식은 단정하지 않는다.
+    def: '운임이 얼마나 크게 출렁였는지를 1년 단위로 환산한 값입니다. 숫자가 클수록 '
+      + '등락이 심했다는 뜻이며, 오르거나 내린 방향과는 관계가 없습니다. '
+      + '산출 구간과 방식은 Compass 공표 기준을 그대로 따릅니다.' },
+  { key: 'd1', label: '1일', tip: '1 Day Return', def: '직전 영업일 대비 등락률입니다.' },
+  { key: 'mtd', label: '월초 이후', tip: 'MTD Return', def: '이번 달 첫 영업일 대비 등락률입니다.' },
+  { key: 'qtd', label: '분기초 이후', tip: 'QTD Return', def: '이번 분기 첫 영업일 대비 등락률입니다.' },
+  { key: 'ytd', label: '연초 이후', tip: 'YTD Return', def: '올해 첫 영업일 대비 등락률입니다.' },
+  { key: 'inception', label: '산출 이래', tip: 'Since Inception',
+    def: '산출을 시작한 날 이후의 누적 등락률입니다(연 단위로 환산하지 않은 값).' },
 ];
 
 /** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다. */
@@ -4149,6 +4171,10 @@ function buildXsiChart(slice, color) {
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
   }).join('');
 
+  // Y축 단위 — 맨 위 눈금 바로 위에, 눈금과 같은 오른쪽 정렬로 얹는다.
+  const yUnit = `<text x="${(padL - 6).toFixed(1)}" y="${(padT - 2).toFixed(1)}" text-anchor="end"
+      font-size="${VIZ_FS_AXIS}" font-weight="700" fill="var(--muted)">${escapeHtml(xsiUnit())}</text>`;
+
   // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
   let path = '';
   vals.forEach((v, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; });
@@ -4160,7 +4186,7 @@ function buildXsiChart(slice, color) {
   const bands = xsiiBandsSvg(slice, X, padT, plotH);
 
   return `<svg class="viz-svg xsi-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="컨테이너 운임지수 추이">
-      ${grid}${bands}${xticks}
+      ${grid}${bands}${xticks}${yUnit}
       <path d="${area}" fill="${color}" opacity=".08"/>
       <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
@@ -4341,7 +4367,8 @@ function renderXsiHtml() {
   const head = `<div class="viz-head"><div>
       <div class="viz-title">글로벌 컨테이너 운임지수 (Xeneta Shipping Index by Compass)</div>
       <div class="viz-sub">주요 8개 항로 컨테이너 스팟 운임지수 · 일별</div>
-      <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다</div>
+      <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다${_xsiData
+        && _xsiData.unitNote ? ' · ' + escapeHtml(_xsiData.unitNote) : ''}</div>
     </div></div>`;
   const cap = capSrc('출처: Compass Financial Technologies (Xeneta Shipping Index)',
     [{ text: 'XSI-C 지수 목록', url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/' }]);
@@ -4372,15 +4399,16 @@ function renderXsiHtml() {
   const st = r.stats || {};
   const color = 'var(--blue)';
   const cards = XSI_STATS.map((f) => `<div class="xsi-stat">
-      <div class="xsi-stat__lbl">${escapeHtml(f.label)}<span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
+      <div class="xsi-stat__lbl"><span class="xsi-stat__ko">${escapeHtml(f.label)}${f.def
+        ? gcAbbr('ⓘ', f.tip + ' — ' + f.def) : ''}</span><span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
       <div class="xsi-stat__val">${xsiPct(st[f.key], f.plain)}</div>
     </div>`).join('');
 
   const lead = `<div class="xsi-lead">
     <div class="xsi-lead__box">
-      <div class="xsi-lead__lbl">최근값</div>
-      <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}</div>
-      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준 · ${escapeHtml(r.code || '')}</div>
+      <div class="xsi-lead__lbl">최근값${gcAbbr('ⓘ', xsiValueTip())}</div>
+      <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}<span class="xsi-lead__unit">${escapeHtml(xsiUnit())}</span></div>
+      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준 · ${escapeHtml(r.code || '')}${r.inception ? ' · 산출 개시 ' + escapeHtml(r.inception) : ''}</div>
     </div>
     <div class="xsi-lead__name">${escapeHtml(r.name || '')}
       <a class="src-link" href="${escapeHtml(safeUrl(r.url) || '#')}" target="_blank" rel="noopener noreferrer">원본 페이지 ›</a></div>
