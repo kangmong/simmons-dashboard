@@ -123,7 +123,6 @@ git push
 ## 원자재 · 원가 동향 (ICIS 시황 그래프)
 
 스폰지 주원료(PPG·TDI·MDI·PO) 월별 시황은 `app.js` 의 `ICIS_DATA` 상수로 그립니다(외부 호출 없음).
-그 아래 "주요 시황 원자재 링크"는 `MATERIAL_LINKS` 상수의 외부 사이트로 연결됩니다.
 
 ## 국제유가 (원유) — PETRONET 일일국제원유가격
 

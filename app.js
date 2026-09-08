@@ -2046,13 +2046,6 @@ const ICIS_TERMS = [
     use: 'PPG(폴리올)를 만드는 기초 원료(원료의 원료)' },
 ];
 
-// 그래프 아래 "주요 시황 원자재 링크" (클릭 시 새 탭)
-const MATERIAL_LINKS = [
-  { name: '글로벌 컨테이너 운임지수', desc: 'Freightos Baltic Index (FBX)', icon: '🚢',
-    url: 'https://app.terminal.freightos.com/fbx?ticker=FBX&frequency=%22weekly%22' },
-  { name: '제재목 (Lumber)', desc: 'Trading Economics Lumber', icon: '🪵',
-    url: 'https://tradingeconomics.com/commodity/lumber' },
-];
 
 let _icisChart = null;
 let _matReady = false;      // [업데이트] 누르기 전엔 빈 초기 상태
@@ -2913,8 +2906,7 @@ function renderMaterial() {
   ${renderOilPricesHtml()}
   ${renderOilProductHtml()}
   ${renderKoimaHtml()}
-  ${renderKoimaPriceHtml()}
-  ${renderMaterialLinksHtml()}`;
+  ${renderKoimaPriceHtml()}`;
 
   const yearsEl = root.querySelector('.icis-years');
   if (yearsEl) yearsEl.addEventListener('click', (e) => {
@@ -6186,20 +6178,6 @@ function wireOilChart() {
   });
   overlay.addEventListener('mouseleave', clear);
 }
-
-/** 주요 시황 원자재 링크 HTML */
-function renderMaterialLinksHtml() {
-  const cards = MATERIAL_LINKS.map((l) => `<a class="matlink" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">
-    <span class="matlink__icon" aria-hidden="true">${l.icon}</span>
-    <span class="matlink__txt">
-      <span class="matlink__name">${escapeHtml(l.name)}</span>
-      <span class="matlink__desc">${escapeHtml(l.desc)}</span>
-    </span>
-    <span class="matlink__go" aria-hidden="true">↗</span>
-  </a>`).join('');
-  return `<h3 class="subhead matlink-head">주요 시황 원자재 링크</h3><div class="matlink-grid">${cards}</div>`;
-}
-
 
 /* ── 월간 부문별 지수 (KOIMA) — 순수 추가 카드 ─────────────────────────────
    백엔드 koima_index.py 가 8개 부문 전 구간(1995-12~)을 한 번에 실어 보내므로
