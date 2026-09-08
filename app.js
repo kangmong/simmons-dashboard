@@ -4592,6 +4592,100 @@ function xsiInsightBox(fc) {
   </div>`;
 }
 
+/* ── 지표 설명 ────────────────────────────────────────────────────────────
+   해상 정시성 위젯의 .sr-terms / .sr-termtable 을 그대로 쓴다 —
+   두 위젯이 같은 표로 읽히도록 새 클래스를 만들지 않는다.
+   ★ 문장은 public/data/xsi-insights.json 의 terms 에만 있고, 코드는 그 안의
+     {route}·{last}·{krw} 같은 자리표시를 실데이터로 바꿔 넣는 일만 한다. */
+
+/** 현재값이 산출 이래 범위에서 몇 % 지점인지. 관측이 모자라면 null */
+function xsiPercentile(series, v) {
+  const vals = (series && series.values) || [];
+  if (vals.length < 20 || v == null) return null;
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  if (!(mx > mn)) return null;
+  return Math.round(((v - mn) / (mx - mn)) * 100);
+}
+
+/** 백분위 → 수준 키 */
+function xsiLevelKey(pct) {
+  if (pct == null) return null;
+  return pct < 34 ? 'low' : (pct < 67 ? 'mid' : 'high');
+}
+
+/** 자리표시 치환 — 없는 키는 그대로 남겨 눈에 띄게 한다. */
+function xsiFill(text, map) {
+  return String(text || '').replace(/\{(\w+)\}/g, (m, k) =>
+    (Object.prototype.hasOwnProperty.call(map, k) ? map[k] : m));
+}
+
+/** 추세 해석 줄 — 세 국면을 모두 보여 주고 지금 국면만 진하게 강조한다. */
+function xsiTrendRow(t, dir, st, fc) {
+  const items = [
+    { key: 'up', dot: '🔴', label: '상승세' },
+    { key: 'down', dot: '🟢', label: '하락세' },
+    { key: 'flat', dot: '🔵', label: '횡보' },
+  ];
+  const cells = items.map((it) => {
+    const on = (it.key === dir);
+    return '<span class="xsi-tr' + (on ? ' is-on' : '') + '">'
+      + it.dot + ' ' + escapeHtml(it.label) + ' → '
+      + escapeHtml((t.trend && t.trend[it.key]) || '') + '</span>';
+  }).join('');
+  // 무엇을 근거로 지금 국면을 골랐는지 밝힌다(숫자를 지어내지 않는다)
+  const basis = [];
+  if (fc) basis.push('최근 12개월 추세 ' + (fc.chgPct > 0 ? '+' : '') + fc.chgPct.toFixed(1) + '%');
+  if (st && st.d1 != null) basis.push('1일 ' + (st.d1 > 0 ? '+' : '') + st.d1.toFixed(2) + '%');
+  if (st && st.annReturn != null) basis.push('연간 수익률 ' + (st.annReturn > 0 ? '+' : '') + st.annReturn.toFixed(2) + '%');
+  return '<div class="xsi-trs">' + cells + '</div>'
+    + (basis.length ? '<div class="xsi-tr__basis">판단 근거: ' + escapeHtml(basis.join(' · ')) + '</div>' : '');
+}
+
+/** 지표 설명 표. 항로를 고르지 않았거나 문구가 없으면 ''(빈 표를 만들지 않는다) */
+function xsiTermsHtml(r, fc) {
+  const t = (_xsiiData && _xsiiData.terms) || null;
+  if (!t || !r) return '';
+  const st = r.stats || {};
+  const rate = krwRate('USD');
+  const pct = xsiPercentile(r.series, st.last);
+  const lvl = xsiLevelKey(pct);
+  const dir = fc ? fc.dir : 'flat';
+  const map = {
+    route: r.name || '',
+    last: st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US'),
+    lastPlain: st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US'),
+    krw: (st.last != null && rate != null) ? ('약 ' + (fmtKrwShort(st.last * rate) || '')) : '원화 환산 불가',
+  };
+  // '현재 판단' — 과거 대비 수준 + 최근 방향성. 두 조각 모두 JSON 문구를 쓴다.
+  const judge = [
+    '현재 운임은',
+    (lvl && t.level) ? t.level[lvl] : '과거 대비 수준을 판단할 관측치가 모자라',
+    (t.move && t.move[dir]) || '',
+  ].filter(Boolean).join(' ');
+  const pctNote = (pct != null)
+    ? '<div class="xsi-tr__basis">산출 이래 최저~최고 범위에서 ' + pct + '% 지점 (기간 '
+      + escapeHtml(r.series.dates[0]) + '~' + escapeHtml(r.series.dates[r.series.dates.length - 1]) + ')</div>'
+    : '';
+
+  const rows = [
+    ['운임이란?', escapeHtml(xsiFill(t.what, map))],
+    ['수치 읽는 법', escapeHtml(xsiFill(t.read, map))],
+    ['추세 해석', xsiTrendRow(t, dir, st, fc)],
+    ['왜 중요한가?', escapeHtml(t.why || '')],
+    ['주요 변동 요인', escapeHtml(t.drivers || '')],
+    ['현재 판단', escapeHtml(judge) + pctNote],
+  ].map(([k, v]) => '<tr><td class="sr-term__item">' + escapeHtml(k) + '</td><td>' + v + '</td></tr>').join('');
+
+  return `<div class="sr-terms">
+    <h3 class="subhead">지표 설명</h3>
+    <div class="sr-term-wrap"><table class="sr-termtable">
+      <thead><tr><th>항목</th><th>설명</th></tr></thead><tbody>${rows}</tbody>
+    </table></div>
+    <div class="sr-terms__ref">항로를 바꾸면 '수치 읽는 법'·'추세 해석'·'현재 판단'의 값과 표현이
+      그 항로의 실제 데이터에 맞춰 다시 계산됩니다.</div>
+  </div>`;
+}
+
 /** 위젯 전체 HTML. 데이터가 없으면 안내만 내고 레이아웃을 흔들지 않는다. */
 function renderXsiHtml() {
   const head = xsiHero() + `<div class="viz-head"><div>
@@ -4684,6 +4778,7 @@ function renderXsiHtml() {
     ${panels}
     ${xsiInsightBox(fc)}
     ${cap}
+    ${xsiTermsHtml(r, fc)}
   </div>`;
 }
 
