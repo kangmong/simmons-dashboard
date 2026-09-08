@@ -1497,44 +1497,61 @@ function smMarketBars(d) {
 
 /** (3) 슬립테크 주요 기업 카드 — 확인된 값만 적고, 없는 것은 그대로 '비공개/미확인'.
     ★ 국내·국외가 같은 함수를 쓴다. 넘기는 데이터 파일만 다르고 화면 구성은 똑같다. */
-/* 제품 아이콘 — 실물 사진 대신 쓰는 일러스트.
-   ★ 공식 제품 사진은 사용 허락을 확인할 수 없어 넣지 않는다. 라이선스가
-     확인된 사진이 생기면 JSON 의 product.image 에 경로만 넣으면 사진으로 바뀐다.
-   ★ 없는 사진을 만들어 붙이지 않는다 — 여기 있는 건 도형으로 그린 아이콘이다. */
+/* 제품 아이콘 — 실물 사진을 못 쓰는 자리에 넣는 '제품 형태' 일러스트.
+   ★ 6개 기업 공식 홈페이지를 모두 확인했지만 사진은 쓸 수 없었다(코웨이는 이미지
+     무단 사용 금지 명시, 에이슬립은 비즈니스 파트너 한정, 세라젬은 무단 복제 금지,
+     나머지 3곳은 허락 문구 없음). 그래서 도형으로 제품 실루엣을 그린다.
+   ★★ 원형 픽토그램이 아니라 제품 겉모양이 보이게 채운 실루엣 + 선으로 그린다.
+   ★★★ 라이선스가 확인된 사진이 생기면 JSON 의 product.image 에 경로만 넣으면
+     이 일러스트 대신 사진이 나온다(코드 수정 불필요). */
 const ST_PROD_ICONS = {
-  // 비접촉 신호 — 사람 위로 지나가는 전파
-  wave: '<path d="M6 30h36"/><path d="M14 30a10 10 0 0 1 20 0"/>'
-    + '<path d="M9 20.5c2.6-3.4 6.2-5.4 10-5.4s7.4 2 10 5.4"/>'
-    + '<path d="M13.5 13.5c3.3-2.8 7-4.3 10.5-4.3s7.2 1.5 10.5 4.3"/>'
-    + '<circle cx="24" cy="30" r="1.6" fill="currentColor" stroke="none"/>',
-  // 공기주머니 매트리스 — 층층이 쌓인 셀
-  aircell: '<rect x="5" y="16" width="38" height="16" rx="4"/>'
-    + '<path d="M5 24h38"/><path d="M14 16v16M24 16v16M34 16v16"/>'
-    + '<path d="M8 13c0-1.7 1.4-3 3-3h26c1.7 0 3 1.3 3 3"/>',
-  // 스마트 베개 — 가운데가 부푼 베개 + 신호
-  pillow: '<path d="M8 18c0-3.3 3.6-5.5 16-5.5S40 14.7 40 18v8c0 3.3-3.6 5.5-16 5.5S8 29.3 8 26Z"/>'
-    + '<path d="M18 22h12"/><path d="M24 18v8"/>'
-    + '<path d="M13 36c3.5-2 7.2-3 11-3s7.5 1 11 3"/>',
-  // 온도조절 매트리스 — 매트리스 + 온도계
-  thermo: '<rect x="5" y="20" width="30" height="13" rx="4"/>'
-    + '<path d="M5 26.5h30"/>'
-    + '<path d="M41 24V13.5a2.5 2.5 0 0 0-5 0V24a4 4 0 1 0 5 0Z"/>'
-    + '<circle cx="38.5" cy="27.5" r="1.5" fill="currentColor" stroke="none"/>',
-  // AI 판독 리포트 — 문서 + 파형
-  report: '<path d="M12 6h16l8 8v24a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2Z"/>'
-    + '<path d="M28 6v8h8"/>'
-    + '<path d="M17 30l3-5 3 8 3-11 3 8 2-3h3"/>',
-  // 앱 코칭 — 스마트폰 + 체크
-  app: '<rect x="15" y="5" width="18" height="38" rx="3"/>'
-    + '<path d="M21 9h6"/><path d="M19.5 26.5l3.5 3.5 6-7"/>'
-    + '<path d="M20 36h8"/>',
+  // 비접촉 센서 기기 — 본체 + 뻗어 나가는 신호
+  sensor: '<rect x="4" y="30" width="22" height="12" rx="2.5" fill="currentColor" opacity=".16"/>'
+    + '<rect x="4" y="30" width="22" height="12" rx="2.5"/>'
+    + '<circle cx="15" cy="36" r="2.4" fill="currentColor" stroke="none"/>'
+    + '<path d="M31 34.5c2.2-2.4 3.4-5.3 3.4-8.4S33.2 20 31 17.6"/>'
+    + '<path d="M36.5 38c3.4-3.4 5.3-7.6 5.3-11.9S39.9 17.6 36.5 14.2"/>'
+    + '<path d="M9 24.5v-3.8a6 6 0 0 1 12 0v3.8"/>',
+  // 매트리스 — 두툼한 본체 실루엣 + 내부 공기셀
+  mattress: '<rect x="3" y="18" width="42" height="17" rx="5" fill="currentColor" opacity=".16"/>'
+    + '<rect x="3" y="18" width="42" height="17" rx="5"/>'
+    + '<path d="M12 18v17M20.5 18v17M29 18v17M37.5 18v17"/>'
+    + '<path d="M8 39.5h32"/><path d="M7 35v4.5M41 35v4.5"/>',
+  // 베개 — 가운데가 부푼 실루엣 + 목 받침선
+  pillow: '<path d="M6 20.5c0-4 4.3-6.5 18-6.5s18 2.5 18 6.5v7c0 4-4.3 6.5-18 6.5S6 31.5 6 27.5Z"'
+    + ' fill="currentColor" opacity=".16"/>'
+    + '<path d="M6 20.5c0-4 4.3-6.5 18-6.5s18 2.5 18 6.5v7c0 4-4.3 6.5-18 6.5S6 31.5 6 27.5Z"/>'
+    + '<path d="M17 24c2.2-2 12.6-2 14 0"/>'
+    + '<path d="M12 39c3.8-2.2 7.8-3.3 12-3.3s8.2 1.1 12 3.3"/>',
+  // 헤드보드 — 침대 머리판 실루엣 + 내장 센서·제어 표시
+  headboard: '<path d="M7 30V13a4 4 0 0 1 4-4h26a4 4 0 0 1 4 4v17" fill="currentColor" opacity=".16"/>'
+    + '<path d="M7 30V13a4 4 0 0 1 4-4h26a4 4 0 0 1 4 4v17"/>'
+    + '<rect x="3" y="30" width="42" height="8" rx="2.5"/>'
+    + '<path d="M6 38v4M42 38v4"/>'
+    + '<circle cx="18" cy="18" r="1.7" fill="currentColor" stroke="none"/>'
+    + '<circle cx="24" cy="18" r="1.7" fill="currentColor" stroke="none"/>'
+    + '<circle cx="30" cy="18" r="1.7" fill="currentColor" stroke="none"/>'
+    + '<path d="M15 24.5h18"/>',
+  // 판독 리포트 — 문서 실루엣 + 수면 파형
+  report: '<path d="M11 6.5h16l9 9v24a2.5 2.5 0 0 1-2.5 2.5h-22A2.5 2.5 0 0 1 9 39.5V9a2.5 2.5 0 0 1 2.5-2.5Z"'
+    + ' fill="currentColor" opacity=".16"/>'
+    + '<path d="M11 6.5h16l9 9v24a2.5 2.5 0 0 1-2.5 2.5h-22A2.5 2.5 0 0 1 9 39.5V9a2.5 2.5 0 0 1 2.5-2.5Z"/>'
+    + '<path d="M27 6.5v9h9"/>'
+    + '<path d="M14 31.5l3.5-6 3.5 9 3.5-12 3.5 9 2-3h3.5"/>'
+    + '<path d="M14 37h9"/>',
+  // 앱 — 스마트폰 실루엣 + 처방 체크
+  app: '<rect x="14" y="4" width="20" height="40" rx="3.5" fill="currentColor" opacity=".16"/>'
+    + '<rect x="14" y="4" width="20" height="40" rx="3.5"/>'
+    + '<path d="M20.5 8h7"/>'
+    + '<path d="M19 25.5l3.6 3.6L30 21.5"/>'
+    + '<path d="M19 34h10"/><path d="M19 38h6"/>',
 };
 
 /** 제품 아이콘 SVG. 없는 키면 첫 아이콘으로 떨어뜨리지 않고 빈 문자열을 준다. */
 function stProdIcon(key) {
   const d = ST_PROD_ICONS[key];
   if (!d) return '';
-  return '<svg class="stp-ico" viewBox="0 0 48 48" width="52" height="52" fill="none"'
+  return '<svg class="stp-ico" viewBox="0 0 48 48" width="60" height="60" fill="none"'
     + ' stroke="currentColor" stroke-width="1.7" stroke-linecap="round"'
     + ' stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
 }
@@ -1547,6 +1564,14 @@ function stProdCard(c) {
     ? '<img class="stp-img" src="' + escapeHtml(safeUrl(p.image)) + '" alt="'
       + escapeHtml(p.name) + '" loading="lazy">'
     : '<span class="stp-iconwrap" aria-hidden="true">' + stProdIcon(p.icon) + '</span>';
+  /* 사진이 없을 때는 '공식 홈페이지에서 확인하세요' 안내와 링크를 함께 둔다 —
+     일러스트를 실제 제품 사진으로 오해하지 않게. */
+  const off = safeUrl(p.officialUrl);
+  const hint = (!safeUrl(p.image) && off)
+    ? '<div class="stp-official">실제 제품 이미지는 공식 홈페이지에서 확인하세요'
+      + ' <a class="src-link" href="' + escapeHtml(off) + '" target="_blank"'
+      + ' rel="noopener noreferrer">공식 홈페이지 ›</a></div>'
+    : '';
   return '<div class="stp">'
     + (p.badge ? '<span class="stp-badge stp-badge--'
       + (p.badge === '국내' ? 'kr' : 'gl') + '">' + escapeHtml(p.badge) + '</span>' : '')
@@ -1554,6 +1579,7 @@ function stProdCard(c) {
     + '<div class="stp-name">' + escapeHtml(p.name) + '</div>'
     + (p.desc ? '<div class="stp-desc">' + escapeHtml(p.desc) + '</div>' : '')
     + (p.source ? '<div class="stp-src">' + escapeHtml(p.source) + '</div>' : '')
+    + hint
     + '</div>';
 }
 

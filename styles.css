@@ -2314,6 +2314,18 @@ body {
 .stp-name { font-size: 13px; font-weight: 800; color: var(--ink); line-height: 1.35; }
 .stp-desc { margin-top: 2px; font-size: 11.5px; color: var(--text); line-height: 1.5; }
 .stp-src { margin-top: 5px; font-size: 10px; color: var(--muted); }
+/* 사진을 못 쓴 자리 안내 — 일러스트를 실제 사진으로 오해하지 않게 */
+.stp-official {
+  margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line);
+  font-size: 10px; line-height: 1.5; color: var(--muted);
+}
+.stp-official .src-link { display: inline-block; margin-top: 1px; font-size: 10px; }
+/* 실루엣이 보이도록 아이콘 자리를 넓힌다(원형 배경 제거) */
+.stp-iconwrap {
+  width: auto; height: auto; padding: 0; border: 0; border-radius: 0;
+  background: transparent; color: var(--slate);
+}
+.stp-fig { height: 72px; }
 
 /* 핵심 작동방식 — 가로 화살표 순서도 */
 .stm3 {
