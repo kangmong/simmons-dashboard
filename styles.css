@@ -1413,6 +1413,70 @@ body {
 }
 .oil-facs { grid-template-columns: repeat(4, 1fr); }
 
+/* ── 석유제품 인사이트 대시보드 ────────────────────────────────────────────
+   배너·요인카드·시나리오표·시사점·요약은 다른 위젯 컴포넌트를 그대로 쓴다.
+   여기서는 '대표제품 카드'와 '제품별 현황 표'만 새로 정의한다. */
+.oilp-cards {
+  display: grid; grid-template-columns: repeat(4, 1fr) 1.5fr; gap: 10px; margin: 12px 0 4px;
+}
+.oilp-c {
+  padding: 10px 12px 11px; background: var(--field);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
+}
+.oilp-c--ins { background: var(--card); }
+.oilp-c__top { display: flex; align-items: center; gap: 6px; }
+.oilp-c__ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--blue-soft); font-size: 12px;
+}
+.oilp-c__name { font-size: 11.5px; font-weight: 700; color: var(--ink); min-width: 0; word-break: keep-all; }
+.oilp-c__val {
+  margin-top: 6px; font-size: 18px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.oilp-c__u { margin-left: 2px; font-size: 10.5px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.oilp-c__krw { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.oilp-c__chg { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; }
+.oilp-c__as { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.oilp-c__ul { margin: 7px 0 0; padding-left: 16px; }
+.oilp-c__ul li { margin: 4px 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+
+/* ① 차트(좌) + 제품별 현황 표(우) */
+.oilp-row { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; align-items: start; }
+.oilp-row__main { min-width: 0; }
+.oilp-side {
+  padding: 10px 12px 11px; background: var(--field);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
+}
+.oilp-side__h {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 800; color: var(--ink);
+}
+.oilp-side__h i { font-style: normal; font-weight: 600; font-size: 10.5px; color: var(--muted); }
+.oilp-t-wrap { overflow-x: auto; margin-top: 7px; }
+.oilp-t { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.oilp-t thead th {
+  padding: 5px 6px; text-align: left; font-size: 10.5px; font-weight: 700; color: var(--muted);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.oilp-t tbody th, .oilp-t tbody td {
+  padding: 6px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line);
+}
+.oilp-t tbody tr:last-child th, .oilp-t tbody tr:last-child td { border-bottom: none; }
+.oilp-t tbody th { font-weight: 600; color: var(--text); word-break: keep-all; }
+/* 조회에 포함한 제품은 진하게 — 차트와 표를 눈으로 잇는다 */
+.oilp-t tbody tr.is-on th { font-weight: 800; color: var(--ink); }
+.oilp-t tbody tr.is-on { background: var(--card); }
+.oilp-t__v { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.oilp-t__krw { display: block; font-size: 10px; font-weight: 500; color: var(--muted); }
+.oilp-t__as { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .oilp-cards { grid-template-columns: repeat(2, 1fr); }
+  .oilp-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) { .oilp-cards { grid-template-columns: 1fr; } }
+
 @media (max-width: 1100px) {
   .oil-s3 { grid-template-columns: 1fr; }
   .oil-eras { grid-template-columns: repeat(2, 1fr); }
