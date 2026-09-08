@@ -1331,84 +1331,131 @@ function smStInvest(st) {
     + (rate != null ? krwNote('USD') : '') + excl;
 }
 
-/** 국내 수면·슬립테크 시장 규모 추이.
-    ★★ 발표된 세 시점(2011·2021·2025)만 점으로 찍는다. 사이 연도(2012~2020,
-      2022~2024)는 정기 통계가 없어 값을 만들지 않고, 구간을 점선으로만 잇는다.
-      점선은 '그 사이를 이렇게 지나갔다'는 뜻이 아니라 '발표 시점끼리 이었다'는 뜻이다.
-    ★ X축은 연도에 비례해 배치한다 — 2011→2021 은 10년, 2021→2025 는 4년이라
-      균등 간격으로 놓으면 기울기가 실제와 달라진다. */
-function smSleepMarket(d) {
-  const m = d.sleepMarket;
+/* ══ 국내 수면시장 — 좌우 2분할 ════════════════════════════════════════════
+   왼쪽: 슬립테크 기술 분야 지도(측정→분석→개선 3단계 순서도)
+   오른쪽: 시장 규모 막대그래프 + 설명 박스 + 출처·근거표
+   ★ 예전에는 가로 전체를 쓰는 타임라인 하나였다. 발표 시점이 세 개뿐이라
+     넓은 폭이 남았고, 그 자리에 기술 분류를 넣어 공간을 쓴다.
+   ★★ 컨테이너·카드·제목은 기존 .sm-grid2 / .sm-card / .sm-h 를 그대로 쓴다. */
+
+/** 왼쪽 — 기술 분야 & 기업 지도. 내용은 전부 JSON(techMap)에서 온다. */
+function smTechMap(d) {
+  const t = d && d.techMap;
+  if (!t || !Array.isArray(t.stages) || !t.stages.length) return '';
+  const stages = t.stages.map((s, i) => {
+    const groups = (s.groups || []).map((g) => {
+      const tags = (g.tags || []).map((x) =>
+        '<span class="stm-tag">' + escapeHtml(x) + '</span>').join('');
+      return '<div class="stm-grp">'
+        + '<div class="stm-grp__h">' + escapeHtml(g.label || '')
+        + (g.hint ? ' <i>' + escapeHtml(g.hint) + '</i>' : '') + '</div>'
+        + (tags ? '<div class="stm-tags">' + tags + '</div>' : '')
+        + '</div>';
+    }).join('');
+    return '<div class="stm-stage stm-stage--' + escapeHtml(s.key || ('s' + i)) + '">'
+      + '<div class="stm-stage__top">'
+      + '<span class="stm-stage__no">' + escapeHtml(String(s.step || (i + 1))) + '</span>'
+      + '<span class="stm-stage__ttl">' + escapeHtml(s.title || '')
+      + (s.en ? '<span class="stm-stage__en">' + escapeHtml(s.en) + '</span>' : '') + '</span>'
+      + '</div>'
+      + (s.desc ? '<div class="stm-stage__desc">' + escapeHtml(s.desc) + '</div>' : '')
+      + '<div class="stm-grps">' + groups + '</div>'
+      + '</div>';
+  });
+  // 단계 사이 화살표 — 세로로 쌓이는 구조라 아래로 향한다
+  const flow = stages.join('<div class="stm-arrow" aria-hidden="true">'
+    + '<svg viewBox="0 0 24 14" width="18" height="11" fill="none" stroke="currentColor"'
+    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M12 1v9"/><path d="m6.5 7 5.5 5.5L17.5 7"/></svg></div>');
+  return '<div class="sm-card sm-techmap">'
+    + '<div class="sm-h">' + escapeHtml(t.title || '슬립테크 기술 분야 및 주요 기업') + '</div>'
+    + (t.lead ? '<div class="stm-lead">' + escapeHtml(t.lead) + '</div>' : '')
+    + '<div class="stm-flow">' + flow + '</div>'
+    + (t.foot ? '<div class="sm-foot">' + escapeHtml(t.foot) + '</div>' : '')
+    + '</div>';
+}
+
+/** 오른쪽 — 시장 규모 막대그래프. 값·배수·기간은 전부 points 에서 계산한다. */
+function smMarketBars(d) {
+  const m = d && d.sleepMarket;
   if (!m || !Array.isArray(m.points) || m.points.length < 2) return '';
   const pts = m.points.slice().sort((a, b) => a.year - b.year)
     .map((p) => ({ year: p.year, jo: p.eok / 10000, label: p.label }));
-  const y0 = pts[0].year, y1 = pts[pts.length - 1].year;
   const vals = pts.map((p) => p.jo);
-  let lo = 0, hi = Math.max.apply(null, vals) * 1.28;
+  const hi = Math.max.apply(null, vals) * 1.18;
 
-  const W = VIZ_W, H = 190, padL = 46, padR = 22, padT = 26, padB = 30;
+  // 막대 — 파란 계열. 최신 시점만 진하게 둔다(지금 어디인지 바로 보이게).
+  const W = VIZ_W, H = 210, padL = 44, padR = 16, padT = 24, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
-  const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
+  const n = pts.length;
+  const slot = plotW / n;
+  const bw = Math.min(76, slot * 0.52);
+  const X = (i) => padL + slot * i + (slot - bw) / 2;
+  const Y = (v) => padT + (1 - v / (hi || 1)) * plotH;
 
   const grid = vizYFractions().map((t) => {
-    const val = lo + (hi - lo) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${val.toFixed(1)}</text>`;
+    const val = hi * t, y = Y(val);
+    return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW)
+      + '" y2="' + y.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1)
+      + '" text-anchor="end" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
+      + val.toFixed(1) + '</text>';
   }).join('');
 
-  // 구간 점선 + 구간별 성장 배수(실제 계산값)
-  let segs = '', mult = '';
-  for (let i = 1; i < pts.length; i += 1) {
-    const a = pts[i - 1], b = pts[i];
-    segs += `<line x1="${X(a.year).toFixed(1)}" y1="${Y(a.jo).toFixed(1)}" x2="${X(b.year).toFixed(1)}" y2="${Y(b.jo).toFixed(1)}"`
-      + ` stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" opacity=".75"/>`;
-    const x = (X(a.year) + X(b.year)) / 2, y = (Y(a.jo) + Y(b.jo)) / 2 - 8;
-    const times = Math.round((b.jo / a.jo) * 10) / 10;
-    mult += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="700"`
-      + ` paint-order="stroke" stroke="var(--card)" stroke-width="3" fill="var(--accent)">약 ${times.toFixed(1)}배</text>`;
-  }
-  // 발표 시점 — 실선 원 + 값 라벨
-  const dots = pts.map((p, i) => {
-    const x = X(p.year), y = Y(p.jo);
-    const anchor = i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle');
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`
-      + `<text x="${x.toFixed(1)}" y="${(y - 12).toFixed(1)}" text-anchor="${anchor}" font-size="11" font-weight="800"`
-      + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`;
-  }).join('');
-  const xlab = pts.map((p, i) => {
-    const anchor = i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle');
-    return `<text x="${X(p.year).toFixed(1)}" y="${(padT + plotH + 16).toFixed(1)}" text-anchor="${anchor}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${p.year}년</text>`;
+  const bars = pts.map((p, i) => {
+    const x = X(i), y = Y(p.jo), h = (padT + plotH) - y;
+    const last = i === n - 1;
+    return '<g>'
+      + '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1)
+      + '" height="' + Math.max(0, h).toFixed(1) + '" rx="3" fill="'
+      + (last ? 'var(--blue)' : 'var(--blue)') + '" opacity="' + (last ? '1' : (0.45 + i * 0.2).toFixed(2)) + '"/>'
+      + '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 7).toFixed(1)
+      + '" text-anchor="middle" font-size="11.5" font-weight="800" paint-order="stroke"'
+      + ' stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">'
+      + escapeHtml(p.label) + '</text>'
+      + '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (padT + plotH + 16).toFixed(1)
+      + '" text-anchor="middle" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
+      + p.year + '년</text>'
+      + '</g>';
   }).join('');
 
-  const growth = [];
-  for (let i = 1; i < pts.length; i += 1) {
-    const a = pts[i - 1], b = pts[i];
-    growth.push(a.year + '→' + b.year + '년 약 '
-      + (Math.round((b.jo / a.jo) * 10) / 10).toFixed(1) + '배 성장');
-  }
+  // 설명 문구 — {..} 자리에 계산값을 넣는다(문장은 JSON, 숫자는 데이터)
+  const a = pts[0], b = pts[1], c = pts[n - 1];
+  const n1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  const rep = {
+    y0: a.year, v0: a.label, y1: b.year, v1: b.label, y2: c.year, v2: c.label,
+    span1: b.year - a.year, span2: c.year - b.year,
+    x1: Math.floor(b.jo / a.jo), x2: n1(c.jo / b.jo),
+  };
+  let note = String(m.note || '');
+  Object.keys(rep).forEach((k) => { note = note.split('{' + k + '}').join(String(rep[k])); });
 
-  // 한줄 요약 — 처음과 끝 두 시점만으로 만든다(배수·기간 모두 계산값, 하드코딩 없음).
-  const a0 = pts[0], aN = pts[pts.length - 1];
-  const totX = Math.round((aN.jo / a0.jo) * 10) / 10;
-  const span = aN.year - a0.year;
-  // 제목에서 '규모 추이'를 떼어 문장 주어로 쓴다 — 제목이 바뀌면 문장도 따라간다.
-  const subj = String(m.title || '').replace(/\s*규모\s*추이\s*$/, '') || '이 시장';
-  const lead = '<div class="sm-mkthead">' + escapeHtml(subj) + '은 '
-    + escapeHtml(a0.year + '년 ' + a0.label) + '에서 '
-    + escapeHtml(aN.year + '년 ' + aN.label) + '으로 '
-    + escapeHtml(span + '년간') + ' <b>약 ' + totX.toFixed(1) + '배</b> 성장했습니다.</div>';
+  const basis = (Array.isArray(m.basis) && m.basis.length)
+    ? '<div class="smb-basis">'
+      + '<div class="smb-basis__h">' + escapeHtml(m.basisTitle || '출처 및 근거자료') + '</div>'
+      + '<table class="smb-tb"><thead><tr><th>연도</th><th>규모</th><th>근거</th></tr></thead><tbody>'
+      + m.basis.map((r) => '<tr><th scope="row">' + escapeHtml(String(r.year)) + '년</th>'
+        + '<td class="smb-tb__v">' + escapeHtml(r.size || '-') + '</td>'
+        + '<td>' + (safeUrl(r.url)
+          ? '<a href="' + escapeHtml(safeUrl(r.url)) + '" target="_blank" rel="noopener noreferrer">'
+            + escapeHtml(r.by || '-') + ' ›</a>'
+          : escapeHtml(r.by || '-')) + '</td></tr>').join('')
+      + '</tbody></table>'
+      + (m.basisNote ? '<div class="sm-foot">' + escapeHtml(m.basisNote) + '</div>' : '')
+      + '</div>'
+    : '';
 
-  return '<div class="sm-card sm-card--full"><div class="sm-h">' + escapeHtml(m.title)
+  return '<div class="sm-card sm-mktbars">'
+    + '<div class="sm-h">' + escapeHtml(m.cardTitle || '국내 수면시장 규모 추이')
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '조원') + ')</span></div>'
-    + lead
-    + '<div class="sm-growth">' + growth.map((t) => '<span>' + escapeHtml(t) + '</span>').join('') + '</div>'
-    + `<svg class="sm-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
-    + ' aria-label="' + escapeHtml(m.title) + '">'
-    + grid + xlab + segs + mult + dots
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg>`
-    + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>발표된 시점(실측)'
-    + '<span class="sm-mktlg__dash"></span>' + escapeHtml(m.gapNote || '') + '</div>'
+    + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+    + escapeHtml(m.cardTitle || '국내 수면시장 규모 추이') + '">'
+    + grid + bars
+    + '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW)
+    + '" y2="' + (padT + plotH) + '" stroke="var(--axis)" stroke-width="1"/></svg>'
+    + (note ? '<div class="smb-note">' + escapeHtml(note) + '</div>' : '')
+    + basis
     + (m.source ? '<div class="sm-foot">' + escapeHtml(m.source) + '</div>' : '')
     + '</div>';
 }
@@ -1486,7 +1533,13 @@ function smKoreaHtml() {
     + '년 침대 매트리스 시장 점유율</div>'
     + smShareDonut(d) + '</div>'
     + '</div>'
-    + smSleepMarket(d)
+    /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
+       ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
+         위, 오른쪽(그래프)이 아래로 쌓인다. */
+    + '<div class="sm-grid2 sm-grid2--mkt">'
+    + smTechMap(d)
+    + smMarketBars(d)
+    + '</div>'
     + smSleepTech(d)
     + '</div>';
 }

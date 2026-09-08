@@ -2282,6 +2282,78 @@ body {
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
 /* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
 /* 한줄 요약 — 다른 리포트 헤드라인과 같은 결(크고 굵게, 핵심 배수만 강조색) */
+/* ── 국내 수면시장 좌우 2분할 ──────────────────────────────────────────────
+   컨테이너는 기존 .sm-grid2 / .sm-card / .sm-h / .sm-foot 를 그대로 쓰고,
+   여기서는 순서도(stm-*)와 막대그래프 부속(smb-*)만 정의한다.
+   ★ 좌우 카드가 같은 높이로 끝나도록 stretch 를 준다(한쪽 아래가 비는 것 방지). */
+.sm-grid2--mkt { align-items: stretch; }
+.sm-grid2--mkt > .sm-card { display: flex; flex-direction: column; }
+
+/* 왼쪽 — 슬립테크 기술 분야 지도 */
+.stm-lead { margin: -2px 0 10px; font-size: 12px; line-height: 1.6; color: var(--text); }
+.stm-flow { display: flex; flex-direction: column; }
+.stm-arrow {
+  display: flex; justify-content: center; align-items: center;
+  height: 18px; color: var(--slate); opacity: .7;
+}
+.stm-stage {
+  padding: 10px 12px 11px;
+  border: 1px solid var(--line); border-left: 3px solid var(--stm-c, var(--slate));
+  border-radius: var(--radius-sm); background: var(--field);
+}
+.stm-stage--measure { --stm-c: var(--blue); }
+.stm-stage--analyze { --stm-c: var(--violet); }
+.stm-stage--improve { --stm-c: var(--green, #12B981); }
+.stm-stage__top { display: flex; align-items: center; gap: 7px; }
+.stm-stage__no {
+  flex: none; width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--stm-c, var(--slate)); color: #fff;
+  font-size: 11px; font-weight: 800; line-height: 1;
+}
+.stm-stage__ttl { font-size: 13px; font-weight: 800; color: var(--ink); }
+.stm-stage__en {
+  margin-left: 5px; font-size: 10.5px; font-weight: 600; color: var(--stm-c, var(--slate));
+  letter-spacing: .01em;
+}
+.stm-stage__desc { margin-top: 3px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.stm-grps { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+.stm-grp__h { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.stm-grp__h i {
+  font-style: normal; margin-left: 3px; font-size: 10.5px; font-weight: 500; color: var(--muted);
+}
+.stm-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.stm-tag {
+  display: inline-block; padding: 2px 7px;
+  background: var(--card, #fff); border: 1px solid var(--line); border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; color: var(--text); white-space: nowrap;
+}
+
+/* 오른쪽 — 시장 규모 막대그래프 */
+.sm-mktbars .sm-mktsvg { display: block; width: 100%; height: auto; }
+.smb-note {
+  margin-top: 10px; padding: 10px 12px;
+  background: var(--blue-soft); border: 1px solid color-mix(in srgb, var(--blue) 20%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px; line-height: 1.7; color: var(--blue-ink);
+}
+.smb-basis { margin-top: 12px; }
+.smb-basis__h { margin-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--ink); }
+.smb-tb { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.smb-tb th {
+  padding: 5px 7px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.smb-tb td { padding: 5px 7px; border-bottom: 1px solid var(--line); }
+.smb-tb tbody th {
+  padding: 5px 7px; background: transparent; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.smb-tb tbody tr:last-child th, .smb-tb tbody tr:last-child td { border-bottom: 0; }
+.smb-tb__v { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.smb-tb a { color: var(--blue-ink); text-decoration: none; }
+.smb-tb a:hover { text-decoration: underline; }
+
 .sm-mkthead { margin: 6px 0 8px; font-size: 16px; font-weight: 800; line-height: 1.5;
   color: var(--ink); word-break: keep-all; letter-spacing: -.01em; }
 .sm-mkthead b { color: var(--accent); font-weight: 800; }
