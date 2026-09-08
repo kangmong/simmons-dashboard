@@ -1560,18 +1560,29 @@ function stProdIcon(key) {
 function stProdCard(c) {
   const p = c && c.product;
   if (!p || !p.name) return '';
-  const img = safeUrl(p.image)
-    ? '<img class="stp-img" src="' + escapeHtml(safeUrl(p.image)) + '" alt="'
-      + escapeHtml(p.name) + '" loading="lazy">'
+  const isrc = assetSrc(p.image);
+  const img = isrc
+    ? '<img class="stp-img" src="' + escapeHtml(isrc) + '" alt="'
+      + escapeHtml(p.name) + ' 제품 이미지" loading="lazy" onerror="this.remove()">'
     : '<span class="stp-iconwrap" aria-hidden="true">' + stProdIcon(p.icon) + '</span>';
-  /* 사진이 없을 때는 '공식 홈페이지에서 확인하세요' 안내와 링크를 함께 둔다 —
-     일러스트를 실제 제품 사진으로 오해하지 않게. */
+  /* 사진이 있으면 '어디서 받은 이미지인지' 출처를 적는다(기존 로고가 logoSource 를
+     남긴 것과 같은 방식). 사진이 없으면 예전처럼 공식 홈페이지 안내를 둔다. */
   const off = safeUrl(p.officialUrl);
-  const hint = (!safeUrl(p.image) && off)
-    ? '<div class="stp-official">실제 제품 이미지는 공식 홈페이지에서 확인하세요'
-      + ' <a class="src-link" href="' + escapeHtml(off) + '" target="_blank"'
-      + ' rel="noopener noreferrer">공식 홈페이지 ›</a></div>'
-    : '';
+  const isu = safeUrl(p.imageSourceUrl);
+  let hint;
+  if (isrc) {
+    hint = p.imageSource
+      ? '<div class="stp-official">이미지 출처: ' + escapeHtml(p.imageSource)
+        + (isu ? ' <a class="src-link" href="' + escapeHtml(isu) + '" target="_blank"'
+          + ' rel="noopener noreferrer">원본 ›</a>' : '') + '</div>'
+      : '';
+  } else {
+    hint = off
+      ? '<div class="stp-official">실제 제품 이미지는 공식 홈페이지에서 확인하세요'
+        + ' <a class="src-link" href="' + escapeHtml(off) + '" target="_blank"'
+        + ' rel="noopener noreferrer">공식 홈페이지 ›</a></div>'
+      : '';
+  }
   return '<div class="stp">'
     + (p.badge ? '<span class="stp-badge stp-badge--'
       + (p.badge === '국내' ? 'kr' : 'gl') + '">' + escapeHtml(p.badge) + '</span>' : '')
@@ -2164,6 +2175,15 @@ function fmtDate(d) {
 function safeUrl(u) {
   const s = String(u || '').trim();
   return /^https?:\/\//i.test(s) ? s : null;
+}
+
+/** 이미지 경로 — 절대 https 이거나, 저장소 안 public/... 상대경로만 허용한다.
+ *  ★ safeUrl 은 http(s) 만 받으므로 public/products/... 같은 상대경로가 걸러진다.
+ *    javascript: 같은 스킴이 끼어들지 못하게 허용 형태를 좁게 잡았다. */
+function assetSrc(u) {
+  const s = String(u || '').trim();
+  if (/^https?:\/\//i.test(s)) return s;
+  return /^public\/[\w./-]+$/.test(s) ? s : null;
 }
 
 /** 고유값 목록 (등장 순서 유지) */

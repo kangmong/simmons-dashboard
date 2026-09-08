@@ -104,6 +104,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/products/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/maps/**",
       "use": "@vercel/static"
     }

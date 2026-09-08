@@ -2303,9 +2303,14 @@ body {
 .stp-badge--gl { background: var(--slate-soft); color: var(--slate); border: 1px solid var(--line); }
 .stp-fig {
   display: flex; align-items: center; justify-content: center;
-  height: 64px; margin-bottom: 7px;
+  height: 118px; margin-bottom: 8px;
+  background: var(--card, #fff); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); overflow: hidden;
 }
-.stp-img { max-height: 64px; max-width: 100%; object-fit: contain; }
+/* 실제 제품 사진 — 잘리지 않게 contain, 사진마다 비율이 달라도 가운데 정렬 */
+.stp-img {
+  max-height: 112px; max-width: 96%; object-fit: contain; display: block;
+}
 .stp-iconwrap {
   display: inline-flex; align-items: center; justify-content: center;
   width: 64px; height: 64px; border-radius: 50%;
@@ -2325,7 +2330,7 @@ body {
   width: auto; height: auto; padding: 0; border: 0; border-radius: 0;
   background: transparent; color: var(--slate);
 }
-.stp-fig { height: 72px; }
+
 
 /* 핵심 작동방식 — 가로 화살표 순서도 */
 .stm3 {
