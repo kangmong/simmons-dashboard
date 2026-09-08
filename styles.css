@@ -1923,6 +1923,54 @@ body {
   .koima-fc__boxes { grid-template-columns: 1fr; }
 }
 
+/* ── 일일 국제원자재가격 — 인사이트 대시보드 배치 ──────────────────────────
+   ★ 새 카드 디자인을 만들지 않는다. .sr-sum(요약박스) · .sr-fac(변동요인) ·
+     .xsi-sc(시나리오 표) · .ii-imp(시사점) · .xsi-ins(하단 요약)를 재사용하고,
+     이 블록은 '5칸 배치'와 KOIMA 일일가격 고유 표만 담는다. */
+
+/* 요약 5박스 — .sr-sum 은 4열이라 이 위젯만 5열로 바꾼다 */
+.sr-sum.kpi-sum5 { grid-template-columns: repeat(5, 1fr); }
+
+/* 4번째 칸: 지역별 현재가(또는 거래시장 정보) */
+.kpi-regbox { display: flex; flex-direction: column; min-width: 0; }
+.kpi-rt { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+.kpi-rt th {
+  padding: 2px 0; text-align: left; font-weight: 600; color: var(--muted);
+  white-space: nowrap;
+}
+.kpi-rt td { padding: 2px 0 2px 6px; text-align: right; font-variant-numeric: tabular-nums; }
+.kpi-rt__v { font-weight: 700; color: var(--ink); }
+.kpi-rt tr.is-on th, .kpi-rt tr.is-on td { color: var(--ink); font-weight: 800; }
+.kpi-regbox__cap { margin-top: auto; padding-top: 4px; font-size: 10.5px; color: var(--muted); }
+
+/* ③ 최근 12개월 가격 현황 */
+.kpi-mt-wrap { overflow-x: auto; }
+.kpi-mt { width: 100%; border-collapse: collapse; font-size: 12px; }
+.kpi-mt th {
+  padding: 7px 8px; text-align: right; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.kpi-mt th:first-child, .kpi-mt th:last-child { text-align: left; }
+.kpi-mt td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.kpi-mt tbody th {
+  padding: 7px 8px; text-align: left; background: transparent; font-weight: 600; color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.kpi-mt tbody tr:last-child th, .kpi-mt tbody tr:last-child td { border-bottom: 0; }
+.kpi-mt tbody tr:hover { background: var(--row-hover); }
+.kpi-mt__v { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kpi-mt__i { text-align: left !important; font-size: 11.5px; color: var(--muted); }
+
+@media (max-width: 1240px) {
+  .sr-sum.kpi-sum5 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 760px) {
+  .sr-sum.kpi-sum5 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .sr-sum.kpi-sum5 { grid-template-columns: 1fr; }
+}
+
 /* ── 일일 국제원자재가격 (KOIMA) — 순수 추가 카드 전용 스타일 ────────────────
    컨테이너/탭/칩은 .viz-figure · .icis-years · .icis-year 를 재사용한다. */
 
