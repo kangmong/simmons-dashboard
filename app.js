@@ -4196,9 +4196,6 @@ function buildXsiChart(slice, color) {
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
   }).join('');
 
-  // Y축 단위 — 맨 위 눈금 바로 위에, 눈금과 같은 오른쪽 정렬로 얹는다.
-  const yUnit = `<text x="${(padL - 6).toFixed(1)}" y="${(padT - 2).toFixed(1)}" text-anchor="end"
-      font-size="${VIZ_FS_AXIS}" font-weight="700" fill="var(--muted)">${escapeHtml(xsiUnit())}</text>`;
 
   // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
   let path = '';
@@ -4211,7 +4208,7 @@ function buildXsiChart(slice, color) {
   const bands = xsiiBandsSvg(slice, X, padT, plotH);
 
   return `<svg class="viz-svg xsi-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="컨테이너 운임지수 추이">
-      ${grid}${bands}${xticks}${yUnit}
+      ${grid}${bands}${xticks}
       <path d="${area}" fill="${color}" opacity=".08"/>
       <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
@@ -4613,8 +4610,11 @@ function renderXsiHtml() {
   const chips = hasSeries ? `<div class="icis-years xsi-ranges">${XSI_RANGES.map((x) =>
     `<button class="icis-year xsi-range${x.key === _xsiRange ? ' is-active' : ''}" data-xrange="${x.key}">${x.label}</button>`).join('')}</div>` : '';
   const slice = hasSeries ? xsiSlice(r.series, _xsiRange) : null;
+  // ★ 단위는 차트 위 캡션으로 뺀다. SVG 안 Y축 옆에 두면 맨 위 눈금 숫자와
+  //   같은 줄을 써서 겹쳤고(8개 항로 전부), 오른쪽 정렬 탓에 뷰박스 왼쪽 밖으로도 나갔다.
   const chart = hasSeries
-    ? buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
+    ? `<div class="xsi-unit">단위: ${escapeHtml(xsiUnit())}</div>`
+      + buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
       + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`
     : '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
 
