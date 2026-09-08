@@ -6792,20 +6792,31 @@ function renderKoimaHtml() {
   } else if (_koimaData.error) {
     body = `<div class="chart-empty">데이터를 불러오지 못했습니다 (${escapeHtml(_koimaData.error)})</div>`;
   } else {
-    // ① 추이 — 기간 미선택이면 차트 자리에만 기존 안내를 둔다(조작 흐름 유지)
-    const rows = koimaSliceRows();
-    const evItems = koimaEventItems(cat);
-    const refN = evItems.filter((e) => e.ref).length;
-    const chartCell = _koimaRange
-      ? vizUnitCap(unitLbl, false) + buildKoimaChart(rows, cat, KOIMA_CHART_H, evItems)
+    /* ① 추이 — 기간 버튼을 직접 누르기 전에는 그래프도, 우측 '기간별 변동률'
+         표도 내지 않는다. 부문 버튼만으로는 ①이 열리지 않는다.
+       ★ 두 요소를 한 덩어리로 묶어 두는 이유: 변동률 표만 남으면 '기간을
+         선택하세요' 안내와 수치가 같은 줄에 함께 떠 선택 전인지 후인지
+         헷갈린다. ①은 기간을 고른 뒤에만 채운다. */
+    const rows = _koimaRange ? koimaSliceRows() : [];
+    let trendBody;
+    if (!_koimaRange) {
+      _koimaChart = null;
+      trendBody = '<div class="icis-prompt">기간을 선택하세요</div>';
+    } else {
+      const evItems = koimaEventItems(cat);
+      const refN = evItems.filter((e) => e.ref).length;
+      const chartCell = vizUnitCap(unitLbl, false)
+        + buildKoimaChart(rows, cat, KOIMA_CHART_H, evItems)
         + '<div class="viz-tooltip" id="koimaTooltip"></div>'
         + '<div class="ii-cap ii-cap--chart">' + escapeHtml(unitCap)
           + ' 표시 구간은 위 기간 버튼과 기준 년월을 따릅니다.'
           + (evItems.length ? ' 주요 사건 마커는 이 부문 데이터로 검증한 것이며'
             + (refN ? ', * 표시 ' + refN + '건은 이 부문에서 변동이 뚜렷하지 않아 참고용입니다'
               : '') + '.' : '')
-        + '</div>'
-      : '<div class="icis-prompt">기간을 선택하세요</div>';
+        + '</div>';
+      trendBody = '<div class="koima-row"><div class="koima-row__main">' + chartCell + '</div>'
+        + koimaChangePanel(cat, st) + '</div>';
+    }
     // 제목 뒤에는 '지금 그려진 구간'을 적는다 — 수집 전 구간과 헷갈리지 않게,
     // 기간 버튼을 안 골랐을 때만 수집 범위를 보여준다.
     const allRows = ((cat && cat.rows) || []).filter((r) => r.index != null);
@@ -6818,8 +6829,7 @@ function renderKoimaHtml() {
       + '<h3 class="subhead ii-h">① 지수 추이'
       + (cat ? ' <span class="koima-h__cat">' + escapeHtml(cat.label)
         + (span ? ' · ' + escapeHtml(span) : '') + '</span>' : '') + '</h3>'
-      + '<div class="koima-row"><div class="koima-row__main">' + chartCell + '</div>'
-      + koimaChangePanel(cat, st) + '</div></div>';
+      + trendBody + '</div>';
     body = trend
       + koimaFactors(cat)
       + koimaRecentPanel(cat, st)
@@ -6967,9 +6977,9 @@ function wireKoimaControls(root) {
     // 끝점 보정 — 희소금속(2010-01~)처럼 구간이 짧은 부문으로 옮길 때 필요하다.
     // 아직 끝점이 없으면(첫 선택) 그 부문의 마지막 관측월로 잡힌다.
     if (cat) _koimaEnd = koimaClampEnd(cat, _koimaEnd);
-    // 버튼 한 번으로 요약·①~④·그래프가 다 나오도록 기간은 '전체'로 시작한다.
-    // 이미 고른 기간이 있으면 그대로 유지한다(부문만 갈아 끼운다).
-    if (!_koimaRange) _koimaRange = 'all';
+    // ★ 기간도 함께 비운다 — 부문을 바꾸면 새 부문에서 기간을 다시 골라야
+    //   그래프가 나온다. (부문 버튼만으로 ①이 열리지 않게 하는 규칙)
+    _koimaRange = null;
     renderMaterial();
   });
   const chipsEl = fig.querySelector('.koima-ranges');
