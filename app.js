@@ -2309,25 +2309,50 @@ function msEventsSvg(key, keys, X, padT, plotH, W) {
   const info = msFor(key);
   const evs = (info && Array.isArray(info.events)) ? info.events : [];
   if (!evs.length || !keys || keys.length < 2) return '';
-  const out = evs.map((e) => {
+  const FS = 7.5, GAP = 5, ROWS = [13, 22];   // 라벨을 얹을 줄(마커 점 기준 아래로)
+
+  // ① 그릴 수 있는 것만 골라 x 순서로 세운다
+  const items = evs.map((e) => {
     const fi = msFracIndex(keys, e.date);
-    if (fi == null) return '';
+    if (fi == null) return null;
     const x = X(fi);
-    if (!isFinite(x)) return '';
-    // 라벨이 그림 밖으로 나가지 않게 끝에서는 안쪽으로 붙인다
+    if (!isFinite(x)) return null;
+    const label = String(e.label || '');
+    const tw = vizTextW(label, FS);
     const anchor = (x < 60) ? 'start' : ((x > W - 60) ? 'end' : 'middle');
+    const x0 = anchor === 'start' ? x : (anchor === 'end' ? x - tw : x - tw / 2);
+    return { e: e, x: x, label: label, anchor: anchor, x0: x0, x1: x0 + tw };
+  }).filter(Boolean).sort((a, b) => a.x0 - b.x0);
+  if (!items.length) return '';
+
+  // ② 줄 배정 — 앞 라벨과 겹치면 다음 줄로 내린다. 두 줄로도 안 되면 라벨만 뺀다
+  //    (마커 선·점은 남겨 위치는 계속 보이게 한다).
+  //    ★ 예전에는 모두 한 줄에 찍어 가까운 두 이벤트의 이름이 붙어 보였다.
+  const rowEnd = ROWS.map(() => -Infinity);
+  items.forEach((it) => {
+    it.row = -1;
+    for (let r = 0; r < ROWS.length; r += 1) {
+      if (it.x0 >= rowEnd[r] + GAP) { it.row = r; rowEnd[r] = it.x1; break; }
+    }
+  });
+
+  const out = items.map((it) => {
     const y0 = padT, y1 = padT + plotH;
+    const label = (it.row >= 0)
+      ? '<text pointer-events="none" x="' + it.x.toFixed(1) + '" y="' + (y0 + ROWS[it.row]).toFixed(1) + '"'
+        + ' text-anchor="' + it.anchor + '" font-size="' + FS + '" font-weight="700"'
+        + ' paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
+        + ' fill="var(--ink)">' + escapeHtml(it.label) + '</text>'
+      : '';
     return '<g class="ms-ev" tabindex="0"'
-      + ' data-label="' + escapeHtml(e.label || '') + '"'
-      + ' data-detail="' + escapeHtml(e.detail || '') + '"'
-      + ' data-date="' + escapeHtml(e.date || '') + '">'
-      + '<line pointer-events="none" x1="' + x.toFixed(1) + '" y1="' + y0 + '" x2="' + x.toFixed(1) + '" y2="' + y1.toFixed(1) + '"'
+      + ' data-label="' + escapeHtml(it.label) + '"'
+      + ' data-detail="' + escapeHtml(it.e.detail || '') + '"'
+      + ' data-date="' + escapeHtml(it.e.date || '') + '">'
+      + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + y0 + '" x2="' + it.x.toFixed(1) + '" y2="' + y1.toFixed(1) + '"'
       + ' stroke="var(--amber)" stroke-width="1" stroke-dasharray="2 2" opacity=".6"/>'
-      + '<circle pointer-events="none" cx="' + x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>'
-      + '<text pointer-events="none" x="' + x.toFixed(1) + '" y="' + (y0 + 13).toFixed(1) + '" text-anchor="' + anchor + '"'
-      + ' font-size="7.5" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
-      + ' fill="var(--ink)">' + escapeHtml(e.label || '') + '</text>'
-      + '<rect class="ms-ev__hit" x="' + (x - 7).toFixed(1) + '" y="' + y0 + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
+      + '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (y0 + 2).toFixed(1) + '" r="2.6" fill="var(--amber)"/>'
+      + label
+      + '<rect class="ms-ev__hit" x="' + (it.x - 7).toFixed(1) + '" y="' + y0 + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
       + '</g>';
   }).join('');
   return out ? '<g class="ms-evs">' + out + '</g>' : '';
@@ -4305,6 +4330,15 @@ const OIL_TONE = {
   adjust: 'var(--blue)', rebound: 'var(--teal)',
 };
 
+/** SVG 글자 폭 어림값(px). 겹침을 피하려고 '그릴지 말지' 판단할 때만 쓴다.
+ *  ★ 정확한 측정은 렌더 전에는 알 수 없으므로 넉넉하게 잡는다 —
+ *    좁으면 라벨을 빼는 쪽이 겹쳐 보이는 것보다 낫다. */
+function vizTextW(txt, fs) {
+  let w = 0;
+  for (const c of String(txt || '')) w += (/[가-힣ㄱ-ㅎ]/.test(c) ? 1.0 : 0.56) * fs;
+  return w;
+}
+
 /** 구간 색 — 유가 표에 없으면 운임지수 표로 떨어진다 */
 function oilToneOf(e) {
   return (e && (OIL_TONE[e.tone] || XSII_TONE[e.tone])) || 'var(--slate)';
@@ -5822,6 +5856,22 @@ function buildOilChart(rows, onSeries, term, bands) {
   // 칸의 '가운데'가 아니라 이웃 칸과의 중간까지 칠해야 카드가 말하는 기간과 맞는다.
   const edgeL = (i) => (i <= 0 ? padL : (X(i - 1) + X(i)) / 2);
   const edgeR = (i) => (i >= n - 1 ? padL + plotW : (X(i) + X(i + 1)) / 2);
+  // ★ 구간명은 '그래프 영역 위 가장자리'(y≈7.5)에 얹는다. 예전엔 padT+8 이라
+  //   이벤트 마커 글자(padT+13)와 세로로 겹쳤다 — 실측 7쌍.
+  //   이제 구간명 상자 y[2.1~7.5], 이벤트 상자 y[17.6~23.0] 으로 10px 떨어진다.
+  // ★ 구간이 글자보다 좁으면 라벨을 아예 빼서 옆 구간 이름과 겹치지 않게 한다.
+  const LB_FS = 7.5;
+  const bandLabel = (b, x0, w) => {
+    const t = String(b.era.title || '');
+    if (!t) return '';
+    const tw = vizTextW(t, LB_FS);
+    if (w < tw + 8) return '';
+    let cx = x0 + w / 2;
+    cx = Math.max(tw / 2 + 2, Math.min(cx, W - tw / 2 - 2));   // 뷰박스 밖으로 나가지 않게
+    return `<text x="${cx.toFixed(1)}" y="${(padT - 2.5).toFixed(1)}" text-anchor="middle"
+      font-size="${LB_FS}" font-weight="700" fill="${b.color}" paint-order="stroke"
+      stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(t)}</text>`;
+  };
   const bandSvg = (bands || []).map((b) => {
     const x0 = edgeL(b.a), x1 = edgeR(b.b), w = x1 - x0;
     if (!(w > 0)) return '';
@@ -5831,9 +5881,7 @@ function buildOilChart(rows, onSeries, term, bands) {
         fill="${b.color}" opacity=".12"/>
       ${last ? '' : `<line x1="${x1.toFixed(1)}" y1="${padT}" x2="${x1.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
         stroke="${b.color}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`}
-      ${w > 46 ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${(padT + 8).toFixed(1)}" text-anchor="middle"
-        font-size="7.5" font-weight="700" fill="${b.color}" paint-order="stroke"
-        stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(b.era.title || '')}</text>` : ''}
+      ${bandLabel(b, x0, w)}
     </g>`;
   }).join('');
 
