@@ -5085,14 +5085,26 @@ function renderXsiHtml() {
   const fc = hasSeries ? xsiForecast(r.series) : null;
 
   // ① 차트(좌) + 향후 3개월 전망(우)
-  const chartRow = `<div class="xsi-row">
+  /* ★ 기간 칩을 직접 누른 뒤에만 아래 전부를 낸다(섹션 공통 규칙).
+       항로만 고른 상태에서 보이는 것은 배너 · 요약박스(최근값 + 통계 8박스) ·
+       기간 칩과 '기간을 선택하세요' 안내까지다.
+     ★★ 3개월 전망 박스 · ②변동요인 · 정성 전망 · ③시나리오 · ④시사점 ·
+       핵심 인사이트 · 지표 설명은 전부 기간 선택 뒤로 보낸다. 이 값들은
+       항로 단위로도 계산되지만, 기간을 고르지 않았는데 해설이 먼저 떠 있는
+       것을 없애는 것이 이 규칙의 목적이다. */
+  const chartRow = slice
+    // ★ 들여쓰기를 예전 그대로 둔다 — 기간을 고른 뒤의 출력이 수정 전과
+    //   한 글자도 달라지지 않게 해서 무변경을 증명할 수 있게 한다.
+    ? `<div class="xsi-row">
     <div class="xsi-row__main">${chips}${chart}</div>
     ${xsiFcBox(fc, st)}
-  </div>`;
+  </div>`
+    // 기간 미선택 — 칩만 두고 오른쪽 전망 박스는 만들지 않는다(빈 칸이 남지 않게)
+    : `${chips}${chart}`;
 
-  // 구간 주석은 차트 위 마커와 짝이므로 기간을 고른 뒤에만 낸다
-  const panels = (slice ? xsiiEras(slice) : '') + xsiiFactors() + xsiiOutlook()
-    + xsiScenarios(fc, st) + xsiActions();
+  const panels = slice
+    ? xsiiEras(slice) + xsiiFactors() + xsiiOutlook() + xsiScenarios(fc, st) + xsiActions()
+    : '';
 
   return `<div class="viz-root viz-figure xsi-figure">${head}
     ${tabs}
@@ -5101,9 +5113,9 @@ function renderXsiHtml() {
     ${chartRow}
     ${note}
     ${panels}
-    ${xsiInsightBox(fc)}
+    ${slice ? xsiInsightBox(fc) : ''}
     ${cap}
-    ${xsiTermsHtml(r, fc)}
+    ${slice ? xsiTermsHtml(r, fc) : ''}
   </div>`;
 }
 
