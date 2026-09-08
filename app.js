@@ -6746,20 +6746,18 @@ function renderKoimaHtml() {
   const cat = ok ? koimaCatOf(_koimaCat) : null;
   const dis = ok ? '' : ' disabled';
 
-  /* 소제목 아래 한 줄 — '지수'가 무슨 뜻인지 지금 고른 부문 이름으로 풀어 준다.
-     ★ 부문 이름을 코드에 적지 않는다. 탭에서 고른 부문(cat.label)을 그대로 쓰므로
-       유화원료를 고르면 문구도 '유화원료 가격이…'로 따라간다.
-     ★ 아직 못 고른 상태(로드 전)면 부문 이름 없이 일반 문장으로 둔다. */
-  const catName = (cat && cat.label) || (KOIMA_TAB_LABELS[_koimaCat] || '');
   /* 남색 배너 — 다른 위젯(ICIS·해상정시성·유가·운임지수)과 같은 vizHero 를 그대로 쓴다.
-     우측 배지는 '데이터 기준 {지금 고른 부문의 최신 년월}' 이다. */
+     우측 배지는 '데이터 기준 {지금 고른 부문의 최신 년월}' 이다.
+     ★ 제목은 부문과 무관하게 항상 고정이다. vizHero 의 note 인자(제목 뒤 <i>)에
+       부문명을 넣었더니 "원자재 원가 부문별 지수 (KOIMA) 유화원료"처럼 붙어 나왔다 —
+       부문명은 요약박스·범례·패널 제목 같은 콘텐츠 안에서만 보여 준다. */
   const kHero = (_koimaIns && _koimaIns.hero) || {};
   const kSt0 = (ok && cat) ? koimaStatFull(cat) : null;
   const head = vizHero('mine', kHero.title || '원자재 원가 부문별 지수 (KOIMA)',
     kHero.subtitle || '주요 원자재의 장기 추이와 변동 요인을 분석하여, 향후 방향성을 예측하고 '
       + '구매 의사결정에 활용할 수 있는 인사이트를 제공합니다.',
     kSt0 ? kSt0.ym : (_koimaData && _koimaData.latestPeriod) || '',
-    catName || null, kHero.badgePrefix || '데이터 기준');
+    null, kHero.badgePrefix || '데이터 기준');
 
   // 1) 부문 탭 8개 — 데이터 없으면 비활성
   const tabList = ok ? koimaCatsOrdered()
@@ -6856,12 +6854,16 @@ function renderKoimaHtml() {
       + (cat ? ' <span class="koima-h__cat">' + escapeHtml(cat.label)
         + (span ? ' · ' + escapeHtml(span) : '') + '</span>' : '') + '</h3>'
       + trendBody + '</div>';
-    body = trend
-      + koimaFactors(cat)
-      + koimaRecentPanel(cat, st)
-      + koimaOutlook(cat, st, fc)
-      + koimaActions(cat)
-      + koimaInsightBox(cat, st, fc);
+    /* ★ ②③④·시사점·핵심인사이트도 기간을 고른 뒤에만 낸다.
+         부문 버튼만으로 열리는 것은 배너·상단 요약박스·조작부(기준 년월·기간 칩)와
+         ① 자리의 안내 문구까지다 — 섹션 공통 규칙과 같다. */
+    body = trend + (_koimaRange
+      ? koimaFactors(cat)
+        + koimaRecentPanel(cat, st)
+        + koimaOutlook(cat, st, fc)
+        + koimaActions(cat)
+        + koimaInsightBox(cat, st, fc)
+      : '');
   }
   const koimaSum = (ok && cat && st) ? koimaSum4(cat, st, fc) : '';
   return `<div class="viz-root viz-figure koima-figure">${head}${koimaSum}${tabs}${controls}${chips}${body}${cap}</div>`;
