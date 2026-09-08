@@ -84,6 +84,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/oil-insights.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/logos/**",
       "use": "@vercel/static"
     },

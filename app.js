@@ -4091,6 +4091,9 @@ const VIZ_HERO_ICONS = {
     + '<path d="M7.6 14.5h8.8"/>',
   // 항해 — 나침반
   compass: '<circle cx="12" cy="12" r="9"/><path d="m15.2 8.8-1.9 4.5-4.5 1.9 1.9-4.5z"/>',
+  // 원유 — 유정 탑(데릭) + 기름방울
+  oil: '<path d="M4 20h16"/><path d="m7 20 3.2-11M13.4 20 10.2 9"/><path d="M7.6 14.2h5.2"/>'
+    + '<path d="M10.2 9V4.8h5.6"/><path d="M18 12.4c1 1.2 1.6 2.1 1.6 2.9a1.6 1.6 0 1 1-3.2 0c0-.8.6-1.7 1.6-2.9Z"/>',
 };
 
 function vizHero(icon, title, sub, dateLabel, note) {
@@ -5402,15 +5405,269 @@ function ocPrint(q, win) {
   w.print();
 }
 
+/* ══ 국제유가 인사이트 대시보드 ═══════════════════════════════════════════
+   상단 요약 3분할 → ① 구간 설명 → ② 변동요인 4카드 → ③ 시나리오 표
+   → ④ 시사점 3카드 → 하단 인사이트
+   ★ 조회 조건(기준·기간·제품)은 건드리지 않는다. 다만 ①의 구간 강조와
+     하단 인사이트는 '지금 조회된 창'에 맞춰 다시 계산된다.
+   ★★ 시나리오 수치는 통계 모델이 아니다. 최근 변동성으로 잡은 범위이며
+     화면에 '추정치'라고 적는다. */
+const OIL_DATA_URL = 'public/data/oil-insights.json';
+let _oilIns = null;
+
+const OIL_FC_MONTHS = 3;     // 전망 지평(개월)
+const OIL_VOL_WIN = 6;       // 변동성을 재는 창(개월)
+const OIL_BASE_KEY = 'dubai';  // 기간별 상승률·시나리오의 기준 유종
+
+async function fetchOilInsights() {
+  try {
+    const res = await fetch(OIL_DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _oilIns = d;
+  } catch (e) {
+    _oilIns = null;
+    console.warn('[oil-insights] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 월별 [{k:'YYYY-MM', v}] — 유종 하나. 없으면 [] */
+function oilMonthly(key) {
+  const rows = (_ocData && _ocData.terms && _ocData.terms.m && _ocData.terms.m.rows) || [];
+  return rows.map((r) => ({ k: r.period, v: r[key] })).filter((x) => x.v != null && isFinite(x.v));
+}
+
+/** n개월 전 대비 변화율(%). 관측이 모자라면 null */
+function oilBack(pts, n) {
+  if (pts.length <= n) return null;
+  const last = pts[pts.length - 1].v, prev = pts[pts.length - 1 - n].v;
+  return prev ? ((last - prev) / prev) * 100 : null;
+}
+
+/** 연초(1월) 대비 변화율(%). 없으면 null */
+function oilYtd(pts) {
+  if (!pts.length) return null;
+  const y = pts[pts.length - 1].k.slice(0, 4);
+  const jan = pts.find((p) => p.k === y + '-01');
+  if (!jan || !jan.v) return null;
+  return ((pts[pts.length - 1].v - jan.v) / jan.v) * 100;
+}
+
+/** 3개월 전망 — 최근 12개월 추세 + 최근 OIL_VOL_WIN 개월 변동성. 못 내면 null */
+function oilForecast(pts) {
+  if (pts.length < 8) return null;
+  const xs = pts.slice(-12).map((p) => p.v), n = xs.length;
+  const xm = (n - 1) / 2, ym = xs.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  xs.forEach((y, i) => { num += (i - xm) * (y - ym); den += (i - xm) * (i - xm); });
+  if (!den) return null;
+  const slope = num / den, base = xs[n - 1];
+  const w = pts.slice(-(OIL_VOL_WIN + 1)).map((p) => p.v);
+  const r = [];
+  for (let i = 1; i < w.length; i += 1) if (w[i - 1] > 0 && w[i] > 0) r.push(Math.log(w[i] / w[i - 1]));
+  if (r.length < 3) return null;
+  const rm = r.reduce((a, b) => a + b, 0) / r.length;
+  const sd = Math.sqrt(r.reduce((a, b) => a + (b - rm) * (b - rm), 0) / (r.length - 1));
+  const sd3 = sd * Math.sqrt(OIL_FC_MONTHS);
+  const med = Math.max(0, base + slope * OIL_FC_MONTHS);
+  const chg = base ? ((med - base) / base) * 100 : 0;
+  return {
+    base: base, med: med, sd3: sd3 * 100,
+    up: [base * Math.exp(sd3 * 0.5), base * Math.exp(sd3)],
+    mid: [Math.min(base, med) * Math.exp(-sd3 * 0.35), Math.max(base, med) * Math.exp(sd3 * 0.35)],
+    dn: [base * Math.exp(-sd3), base * Math.exp(-sd3 * 0.5)],
+    chgPct: chg, dir: (chg > 3 ? 'up' : (chg < -3 ? 'down' : 'flat')),
+    from: pts[Math.max(0, pts.length - 12)].k, to: pts[pts.length - 1].k,
+  };
+}
+
+function oilUsd(v, digits) {
+  return (v == null || !isFinite(v)) ? '—'
+    : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: digits == null ? 1 : digits,
+      maximumFractionDigits: digits == null ? 1 : digits });
+}
+
+/* ── 상단 요약 3분할 ────────────────────────────────────────────────────── */
+function oilSummary3() {
+  if (!_ocData || _ocData.error) return '';
+  // 표기 순서는 Brent → Dubai → WTI 로 고정한다(자료의 배열 순서와 무관하게)
+  const OIL_SUM_ORDER = ['brent', 'dubai', 'wti'];
+  const series = OIL_SUM_ORDER.map((k) => (_ocData.series || []).find((x) => x.key === k)).filter(Boolean);
+  const basePts = oilMonthly(OIL_BASE_KEY);
+  if (!series.length || !basePts.length) return '';
+  const asOf = basePts[basePts.length - 1].k;
+
+  // ① 최근가 — 유종별 최근 월값 + 전월비
+  const prices = series.map((s) => {
+    const p = oilMonthly(s.key);
+    if (!p.length) return '';
+    const mom = oilBack(p, 1);
+    return `<div class="oil-s__row"><span class="oil-s__k">${escapeHtml(s.label)}</span>
+      <span class="oil-s__v">${oilUsd(p[p.length - 1].v, 2)}</span>
+      <span class="oil-s__d">${matBadge(mom)}</span></div>`;
+  }).join('');
+
+  // ② 기간별 상승률 — 기준 유종 하나로
+  const baseLabel = ((_ocData.series || []).find((s) => s.key === OIL_BASE_KEY) || {}).label || 'Dubai';
+  const rets = [['3개월', oilBack(basePts, 3)], ['6개월', oilBack(basePts, 6)], ['연초 대비', oilYtd(basePts)]]
+    .map(([k, v]) => `<div class="oil-s__row"><span class="oil-s__k">${escapeHtml(k)}</span>
+      <span class="oil-s__d">${matBadge(v)}</span></div>`).join('');
+
+  // ③ 인사이트 — 첫 줄은 실데이터에서 만들고, 나머지는 JSON 문구를 쓴다
+  const auto = oilAutoBullet(basePts);
+  const more = ((_oilIns && _oilIns.bullets) || []).map((b) =>
+    `<li>${escapeHtml(b)}</li>`).join('');
+  const bullets = (auto ? `<li>${escapeHtml(auto)}</li>` : '') + more;
+
+  return `<div class="oil-s3">
+    <div class="oil-s"><div class="oil-s__h">최근가 <i>${escapeHtml(asOf)} 기준</i></div>${prices}</div>
+    <div class="oil-s"><div class="oil-s__h">기간별 상승률 <i>${escapeHtml(baseLabel)} 기준</i></div>${rets}</div>
+    <div class="oil-s"><div class="oil-s__h">주요 인사이트</div>
+      <ul class="oil-s__ul">${bullets}</ul></div>
+  </div>`;
+}
+
+/** 최근 흐름 한 줄 — 최고점·저점·현재 방향을 실제 월에서 뽑아 문장으로 만든다.
+ *  ★ 원인은 말하지 않는다. 언제 오르고 언제 내렸는지만 적는다. */
+function oilAutoBullet(pts) {
+  const w = pts.slice(-14);
+  if (w.length < 6) return null;
+  let hi = 0, lo = 0;
+  w.forEach((p, i) => { if (p.v > w[hi].v) hi = i; });
+  for (let i = hi; i < w.length; i += 1) if (w[i].v < w[lo].v || lo < hi) { if (w[i].v <= w[lo < hi ? i : lo].v || lo < hi) lo = i; }
+  // hi 이후 최저점을 다시 정확히 찾는다
+  lo = hi;
+  for (let i = hi; i < w.length; i += 1) if (w[i].v < w[lo].v) lo = i;
+  const mo = (k) => String(Number(k.slice(5, 7))) + '월';
+  const last = w[w.length - 1], dir = last.v > w[lo].v * 1.02 ? '재상승' : (last.v < w[lo].v * 0.98 ? '추가 하락' : '보합');
+  const parts = [mo(w[hi].k) + ' 고점 ' + oilUsd(w[hi].v, 0)];
+  if (lo > hi) parts.push(mo(w[lo].k) + '까지 조정 ' + oilUsd(w[lo].v, 0));
+  if (lo < w.length - 1) parts.push(mo(last.k) + ' ' + dir + ' ' + oilUsd(last.v, 0));
+  return parts.join(' → ') + ' 흐름';
+}
+
+/* ── ① 구간 설명 (조회 창에 맞춰 강조/흐림) ────────────────────────────── */
+function oilEras(win, term) {
+  const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
+  if (!eras.length) return '';
+  const keys = (win || []).map((r) => ocYm(r.period, term)).filter(Boolean).sort();
+  const first = keys.length ? keys[0] : null, last = keys.length ? keys[keys.length - 1] : null;
+  const cards = eras.map((e) => {
+    const shown = first && !(e.to.slice(0, 7) < first || e.from.slice(0, 7) > last);
+    return `<div class="xsii-era${shown ? '' : ' is-off'}" style="--xe:${XSII_TONE[e.tone] || 'var(--slate)'}">
+      <div class="xsii-era__span">${escapeHtml(e.span)}</div>
+      <div class="xsii-era__title">${escapeHtml(e.title || '')}</div>
+      <p class="xsii-era__detail">${escapeHtml(e.detail || '')}</p>
+    </div>`;
+  }).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">① 주요 원유 가격 추이 및 핵심 이벤트</h3>
+    <div class="ii-cap">조회한 기간에 걸치는 구간만 진하게 표시됩니다. 구간 구분과 설명은 참고용입니다.</div>
+    <div class="xsii-eras oil-eras">${cards}</div>
+  </div>`;
+}
+
+/* ── ② 변동요인 4카드 ──────────────────────────────────────────────────── */
+function oilFactors() {
+  const list = (_oilIns && Array.isArray(_oilIns.factors)) ? _oilIns.factors : [];
+  if (!list.length) return '';
+  const cards = list.map((f) => `<div class="sr-fac sr-fac--${escapeHtml(f.level || 'mid')}">
+      <div class="sr-fac__top">
+        <span class="sr-fac__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
+        <span class="sr-fac__title">${escapeHtml(f.title || '')}</span>
+      </div>
+      <div class="xsii-fac__tags">
+        ${f.dirLabel ? `<span class="xsii-dir xsii-dir--${escapeHtml(f.dir || 'both')}">${escapeHtml(f.dirLabel)}</span>` : ''}
+      </div>
+      <p class="sr-fac__desc">${escapeHtml(f.desc || '')}</p>
+    </div>`).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">② 최근 가격 변동요인 분석</h3>
+    <div class="sr-facs oil-facs">${cards}</div>
+  </div>`;
+}
+
+/* ── ③ 시나리오 표 ─────────────────────────────────────────────────────── */
+function oilScenarios(fc, baseLabel) {
+  const list = (_oilIns && Array.isArray(_oilIns.scenarios)) ? _oilIns.scenarios : [];
+  if (!list.length) return '';
+  if (!fc) {
+    return `<div class="ii-panel">
+      <h3 class="subhead ii-h">③ 향후 3개월 전망 <span class="xsi-fc__tag">추정치</span></h3>
+      <div class="ii-cap">추세·변동성을 잴 만큼의 월별 관측치가 없어 시나리오를 내지 않았습니다.</div>
+    </div>`;
+  }
+  const rng = { up: fc.up, base: fc.mid, down: fc.dn };
+  const rows = list.map((s) => {
+    const r = rng[s.key] || [];
+    return `<tr class="xsi-sc--${escapeHtml(s.tone)}">
+      <th scope="row"><span class="xsi-sc__dot"></span>${escapeHtml(s.name)}
+        <span class="xsi-sc__prob">확률 추정 ${Number(s.prob)}%</span></th>
+      <td class="xsi-sc__val">${oilUsd(r[0], 0)}~${oilUsd(r[1], 0)}<span class="xsi-sc__u">${escapeHtml(baseLabel)} 기준</span></td>
+      <td class="xsi-sc__basis">${escapeHtml(s.basis || '')}</td>
+      <td>${escapeHtml(s.assumption || '')}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">③ 향후 3개월 전망 <span class="xsi-fc__tag">추정치</span></h3>
+    <div class="xsi-sc-wrap"><table class="xsi-sc">
+      <thead><tr><th>시나리오</th><th>3개월 후 가격범위</th><th>산출 기준</th><th>주요 가정</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="ii-cap">※ 상기 확률·범위는 과거 변동성 기반 통계적 추정이며 실제 시장 전망이 아닙니다.
+      최근 ${OIL_VOL_WIN}개월 월별 등락의 표준편차(3개월 지평 ±${fc.sd3.toFixed(1)}%)와
+      최근 12개월(${escapeHtml(fc.from)}~${escapeHtml(fc.to)}) 추세로 계산했고,
+      확률(%)은 계산값이 아니라 시나리오 구분을 위한 가정치입니다.</div>
+  </div>`;
+}
+
+/* ── ④ 시사점 3카드 ────────────────────────────────────────────────────── */
+function oilActions() {
+  const list = (_oilIns && Array.isArray(_oilIns.actions)) ? _oilIns.actions : [];
+  if (!list.length) return '';
+  const cols = list.map((a) => `<div class="ii-imp ii-imp--${escapeHtml(a.tone || 'info')}">
+      <div class="ii-imp__h">${iiImpIcon(a.tone || 'info')}${escapeHtml(a.title || '')}</div>
+      <ul class="xsi-act">${(a.items || []).map((t) => `<li>${iiEmph(t)}</li>`).join('')}</ul>
+    </div>`).join('');
+  const upd = (_oilIns && _oilIns.updated) ? String(_oilIns.updated) : null;
+  return `<div class="ii-panel">
+    <h3 class="subhead ii-h">④ 시사점 및 대응 방안</h3>
+    <div class="ii-imps">${cols}</div>
+    <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
+  </div>`;
+}
+
+/* ── 하단 핵심 인사이트 ────────────────────────────────────────────────── */
+function oilInsightBox(fc) {
+  const ins = (_oilIns && _oilIns.insight) || null;
+  if (!ins) return '';
+  const lead = ins[fc ? fc.dir : 'flat'] || ins.flat;
+  if (!lead) return '';
+  const trend = fc
+    ? `<span class="xsi-ins__trend">최근 12개월 추세 연장 기준 ${(fc.chgPct > 0 ? '+' : '')
+      + fc.chgPct.toFixed(1)}% <i>추정</i></span>` : '';
+  return `<div class="xsi-ins">
+    <div class="xsi-ins__h">핵심 인사이트${trend}</div>
+    <p class="xsi-ins__lead">${escapeHtml(lead)}</p>
+    ${ins.action ? `<p class="xsi-ins__act">→ ${escapeHtml(ins.action)}</p>` : ''}
+  </div>`;
+}
+
 /* ── 카드 전체 ───────────────────────────────────────────────────────── */
 
 function renderOilPricesHtml() {
   const unit = (_ocData && !_ocData.error && _ocData.unit) || '$/배럴';
-  const head = `<div class="viz-head"><div>
-      <div class="viz-title">국제유가 (PETRONET)</div>
+  // 배너의 '업데이트 기준'은 월별 자료의 마지막 달(수집 시각이 아니다)
+  const ocPts = oilMonthly(OIL_BASE_KEY);
+  const ocDay = ocPts.length ? ocPts[ocPts.length - 1].k : '';
+  const head = vizHero('oil', '국제유가 동향 (PETRONET)',
+    (_oilIns && _oilIns.hero && _oilIns.hero.subtitle) || '', ocDay)
+    + `<div class="viz-head"><div>
       <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
       <div class="viz-sub2">지역별 대표 원유(유종)의 가격을 비교하는 그래프</div>
-    </div></div>`;
+    </div></div>` + oilSummary3();
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
   // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
   const ocSum = (_ocData && !_ocData.error)
@@ -5446,7 +5703,13 @@ function renderOilPricesHtml() {
     const result = (_ocView === 'chart')
       ? vizUnitCap(unit, 'USD') + buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
-    body = tools + result + msFactorsHtml('oil_price');
+    // 인사이트 패널 — 조회한 창(win)과 기준 유종으로 계산한다
+    const ocFc = oilForecast(ocPts);
+    const ocBaseLabel = ((_ocData.series || []).find((x) => x.key === OIL_BASE_KEY) || {}).label || 'Dubai';
+    body = tools + result + msFactorsHtml('oil_price')
+      + oilEras(win, q.term) + oilFactors()
+      + oilScenarios(ocFc, ocBaseLabel) + oilActions()
+      + oilInsightBox(ocFc);
   }
   const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
   return `<div class="viz-root viz-figure oil-figure">${head}${ocSum}${controls}${body}${note}${cap}</div>`;
@@ -8499,6 +8762,7 @@ function resetDashboard() {
   _sriData = null;      // 해상 정시성 5단 패널 비우기
   _xsiData = null; _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;  // 운임지수 비우기
   _xsiiData = null;     // 운임지수 4단 해설 비우기
+  _oilIns = null;       // 국제유가 인사이트 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
@@ -8619,6 +8883,8 @@ function initUpdate() {
     fetchXsi();
     // 순수 추가: 운임지수 4단 해설(구간·요인·전망·전략). 위와 같은 이유로 await 안 한다.
     fetchXsiInsights();
+    // 순수 추가: 국제유가 인사이트(구간·요인·시나리오·시사점). 위와 같은 이유로 await 안 한다.
+    fetchOilInsights();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를
