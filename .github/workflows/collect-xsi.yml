@@ -1,0 +1,77 @@
+name: 컨테이너 운임지수 수집 (하루 1회)
+
+# Compass 의 XSI-C 항로 8개를 모아 public/data/xsi-freight-index.json 으로 커밋한다.
+# 지수가 일별로 갱신되므로 하루 한 번이면 충분하고, 요청도 8×2=16번뿐이다.
+on:
+  schedule:
+    - cron: '40 20 * * 1-5'   # UTC 평일 20:40 = KST 05:40 (지수는 영업일에만 갱신)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-xsi
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      # 항로 하나가 막혀도 나머지는 저장한다.
+      # 전 항로 실패 시에만 0이 아닌 코드로 끝나며, 그때는 기존 파일을 덮어쓰지 않는다.
+      - name: XSI-C 수집
+        run: python xsi_freight.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/xsi-freight-index.json; then
+            echo "내용 변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/xsi-freight-index.json
+          git commit -m "자동 수집: 컨테이너 운임지수 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git push
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/xsi-freight-index.json"
+          if not os.path.isfile(p):
+              print("::error::xsi-freight-index.json 이 없습니다"); raise SystemExit(1)
+          d = json.load(io.open(p, encoding="utf-8"))
+          rs, fails = d.get("routes", []), d.get("failures", [])
+          txt = ["## %s 컨테이너 운임지수 (XSI-C)" % ("⚠️" if fails else "✅"), "",
+                 "- 항로 %d개 · 수집 %s" % (len(rs), d.get("updatedAt", "—")),
+                 "- 파일 %.0f KB" % (os.path.getsize(p) / 1024.0), "",
+                 "| 항로 | 최근값 | 기준일 | YTD | 시계열 |", "| --- | ---: | --- | ---: | ---: |"]
+          for r in rs:
+              s = r.get("stats", {})
+              ser = r.get("series")
+              txt.append("| %s | %s | %s | %s%% | %s |" % (
+                  r.get("name"), s.get("last"), s.get("date"), s.get("ytd"),
+                  ("%d일" % len(ser["dates"])) if ser else "없음"))
+          if fails:
+              txt += ["", "### 실패", ""] + ["- `%s` (%s) — %s" % (f.get("route"), f.get("part"), f.get("reason")) for f in fails]
+              print("::warning::수집 실패 %d건" % len(fails))
+          print("\n".join(txt))
+          s = os.environ.get("GITHUB_STEP_SUMMARY")
+          if s:
+              io.open(s, "a", encoding="utf-8").write("\n".join(txt) + "\n")
+          PY

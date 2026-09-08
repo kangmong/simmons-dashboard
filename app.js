@@ -2857,6 +2857,7 @@ function renderMaterial() {
     <div class="comp-caption">출처: ICIS Asia</div>
   </div>
   ${renderScheduleReliabilityHtml()}
+  ${renderXsiHtml()}
   ${renderOilPricesHtml()}
   ${renderOilProductHtml()}
   ${renderKoimaHtml()}
@@ -2884,6 +2885,7 @@ function renderMaterial() {
   wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
   wireProductControls(root); // 국제유가(석유제품): 같은 조회 UI
 
+  wireXsi(root);            // 순수 추가: 컨테이너 운임지수(항로 탭·기간 칩·툴팁)
   msWireEvents(root);       // 순수 추가: 변곡점 마커 툴팁(hover·포커스·탭)
   wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
   wireKpControls(root);     // 순수 추가: KOIMA 일일 국제원자재가격 카드
@@ -4038,6 +4040,240 @@ function renderScheduleReliabilityHtml() {
     ${capSrc('출처: Sea-Intelligence', SRC_LINKS.sea)}
     ${extras}
   </div>`;
+}
+
+/* ══ 글로벌 컨테이너 운임지수 — Xeneta Shipping Index by Compass (XSI-C) ══
+   항로 8개를 탭으로 고르고, 그 항로의 공표 통계 9개 + 전 구간 라인차트를 보여준다.
+   수집: xsi_freight.py → public/data/xsi-freight-index.json (하루 1회)
+
+   ★★ 기간 버튼(1Y/3Y/5Y/전체)은 '차트만' 자른다. 통계는 다시 계산하지 않는다.
+     원본 사이트(compassft.js)도 같은 방식이라 그대로 맞췄고, 화면에도 '전체 기간
+     기준 공표값'이라고 적는다 — 기간을 바꿨는데 통계가 그대로인 이유를 감추지 않는다.
+   ★ 그래프 데이터를 못 받은 항로는 통계 카드만 나온다(위젯이 죽지 않는다). */
+const XSI_DATA_URL = 'public/data/xsi-freight-index.json';
+let _xsiData = null;
+let _xsiRoute = null;      // 고른 항로 key
+let _xsiRange = 'all';     // 차트 기간: '1' | '3' | '5' | 'all'
+let _xsiChart = null;      // 툴팁이 쓸 좌표·값
+
+const XSI_RANGES = [
+  { key: '1', label: '1년' }, { key: '3', label: '3년' },
+  { key: '5', label: '5년' }, { key: 'all', label: '전체' },
+];
+
+/** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
+const XSI_STATS = [
+  { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return' },
+  // 변동성은 '얼마나 흔들렸나'를 재는 크기 지표라 부호가 없다.
+  // 수익률과 같은 ▲빨강/▼파랑을 붙이면 '올랐다'는 뜻으로 잘못 읽힌다.
+  { key: 'annVol', label: '연간 변동성', tip: 'Annualised Volatility', plain: true },
+  { key: 'd1', label: '1일', tip: '1 Day Return' },
+  { key: 'mtd', label: '월초 이후', tip: 'MTD Return' },
+  { key: 'qtd', label: '분기초 이후', tip: 'QTD Return' },
+  { key: 'ytd', label: '연초 이후', tip: 'YTD Return' },
+  { key: 'inception', label: '산출 이래', tip: 'Since Inception' },
+];
+
+/** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다. */
+async function fetchXsi() {
+  try {
+    const res = await fetch(XSI_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + XSI_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !Array.isArray(d.routes) || !d.routes.length) throw new Error('형식이 올바르지 않습니다');
+    _xsiData = d;
+    if (!_xsiRoute || !d.routes.some((r) => r.key === _xsiRoute)) _xsiRoute = d.routes[0].key;
+  } catch (e) {
+    _xsiData = { status: 'error', routes: [], reason: (e && e.message) || String(e) };
+    console.warn('[xsi] 로드 실패:', e);
+  }
+  renderMaterial();
+}
+
+/** 지금 고른 항로 객체. 없으면 null */
+function xsiRoute() {
+  const rs = (_xsiData && _xsiData.routes) || [];
+  return rs.find((r) => r.key === _xsiRoute) || rs[0] || null;
+}
+
+/** 기간에 맞춰 시계열을 자른다. 원본 사이트와 같은 규칙(오늘로부터 N년). */
+function xsiSlice(series, range) {
+  if (!series || !series.dates || !series.dates.length) return null;
+  if (range === 'all') return series;
+  const yrs = Number(range);
+  if (!isFinite(yrs) || yrs <= 0) return series;
+  const last = series.dates[series.dates.length - 1];
+  const cut = String(Number(last.slice(0, 4)) - yrs) + last.slice(4);
+  let i = 0;
+  while (i < series.dates.length && series.dates[i] < cut) i += 1;
+  if (i >= series.dates.length - 1) return series;   // 너무 짧으면 전 구간을 그대로
+  return { dates: series.dates.slice(i), values: series.values.slice(i) };
+}
+
+/** 수익률 표기 — 오르면 빨강 ▲ / 내리면 파랑 ▼ (다른 카드와 같은 규칙) */
+function xsiPct(v, plain) {
+  if (v == null || !isFinite(v)) return '<span class="ms-badge__val na">—</span>';
+  if (plain) return '<span class="ms-badge__val flat">' + v.toFixed(2) + '%</span>';
+  const cls = v > 0.005 ? 'up' : (v < -0.005 ? 'down' : 'flat');
+  const icon = v > 0.005 ? '▲ +' : (v < -0.005 ? '▼ ' : '');
+  return '<span class="ms-badge__val ' + cls + '">' + icon + v.toFixed(2) + '%</span>';
+}
+
+/** 지수값 라인차트. 다른 차트와 같은 VIZ_* 규격을 쓴다. */
+function buildXsiChart(slice, color) {
+  const n = slice ? slice.dates.length : 0;
+  if (!n) { _xsiChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
+  const vals = slice.values;
+  let ymin = Math.min(...vals), ymax = Math.max(...vals);
+  const yp = (ymax - ymin) * 0.1 || 10; ymin = Math.max(0, ymin - yp); ymax += yp;
+
+  const W = VIZ_W, H = VIZ_H, padL = 46, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = ymin + (ymax - ymin) * t, y = Y(val);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>`;
+  }).join('');
+
+  const xticks = vizTickIdx(n, plotW, VIZ_TICK_GAP).map((i) => {
+    const d = slice.dates[i];
+    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
+  }).join('');
+
+  // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
+  let path = '';
+  vals.forEach((v, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; });
+  const area = `${path}L${X(n - 1).toFixed(1)} ${(padT + plotH).toFixed(1)} L${X(0).toFixed(1)} ${(padT + plotH).toFixed(1)} Z`;
+
+  _xsiChart = { dates: slice.dates, values: vals, color: color, geom: { X, Y, n, W, padL } };
+
+  return `<svg class="viz-svg xsi-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="컨테이너 운임지수 추이">
+      ${grid}${xticks}
+      <path d="${area}" fill="${color}" opacity=".08"/>
+      <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
+      <line class="xsi-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g class="xsi-dots"></g>
+      <rect class="xsi-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+    </svg>`;
+}
+
+/** 위젯 전체 HTML. 데이터가 없으면 안내만 내고 레이아웃을 흔들지 않는다. */
+function renderXsiHtml() {
+  const head = `<div class="viz-head"><div>
+      <div class="viz-title">글로벌 컨테이너 운임지수 (Xeneta Shipping Index by Compass)</div>
+      <div class="viz-sub">주요 8개 항로 컨테이너 스팟 운임지수 · 일별</div>
+      <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다</div>
+    </div></div>`;
+  const cap = capSrc('출처: Compass Financial Technologies (Xeneta Shipping Index)',
+    [{ text: 'XSI-C 지수 목록', url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/' }]);
+
+  if (!_xsiData) {
+    return `<div class="viz-root viz-figure xsi-figure">${head}`
+      + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>' + `${cap}</div>`;
+  }
+  if (_xsiData.status === 'error' || !(_xsiData.routes || []).length) {
+    return `<div class="viz-root viz-figure xsi-figure">${head}`
+      + `<div class="chart-empty">데이터를 불러오지 못했습니다${_xsiData.reason ? ' (' + escapeHtml(_xsiData.reason) + ')' : ''}</div>`
+      + `${cap}</div>`;
+  }
+
+  const r = xsiRoute();
+  const tabs = `<div class="icis-years xsi-routes">${_xsiData.routes.map((x) =>
+    `<button class="icis-year xsi-route${x.key === _xsiRoute ? ' is-active' : ''}" data-route="${escapeHtml(x.key)}">${escapeHtml(x.short || x.name)}</button>`).join('')}</div>`;
+  if (!r) return `<div class="viz-root viz-figure xsi-figure">${head}${tabs}${cap}</div>`;
+
+  const st = r.stats || {};
+  const color = 'var(--blue)';
+  const cards = XSI_STATS.map((f) => `<div class="xsi-stat">
+      <div class="xsi-stat__lbl">${escapeHtml(f.label)}<span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
+      <div class="xsi-stat__val">${xsiPct(st[f.key], f.plain)}</div>
+    </div>`).join('');
+
+  const lead = `<div class="xsi-lead">
+    <div class="xsi-lead__box">
+      <div class="xsi-lead__lbl">최근값</div>
+      <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}</div>
+      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준 · ${escapeHtml(r.code || '')}</div>
+    </div>
+    <div class="xsi-lead__name">${escapeHtml(r.name || '')}
+      <a class="src-link" href="${escapeHtml(safeUrl(r.url) || '#')}" target="_blank" rel="noopener noreferrer">원본 페이지 ›</a></div>
+  </div>`;
+
+  const hasSeries = r.series && r.series.dates && r.series.dates.length;
+  const chips = hasSeries ? `<div class="icis-years xsi-ranges">${XSI_RANGES.map((x) =>
+    `<button class="icis-year xsi-range${x.key === _xsiRange ? ' is-active' : ''}" data-xrange="${x.key}">${x.label}</button>`).join('')}</div>` : '';
+  const slice = hasSeries ? xsiSlice(r.series, _xsiRange) : null;
+  const chart = hasSeries
+    ? buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
+      + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`
+    : '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
+
+  const note = _xsiData.statsNote
+    ? `<div class="ii-cap">${escapeHtml(_xsiData.statsNote)}${_xsiData.updatedAt ? ' · 수집 ' + escapeHtml(_xsiData.updatedAt) : ''}</div>` : '';
+
+  return `<div class="viz-root viz-figure xsi-figure">${head}
+    ${tabs}
+    ${lead}
+    <div class="xsi-stats">${cards}</div>
+    ${chips}
+    ${chart}
+    ${note}
+    ${cap}
+  </div>`;
+}
+
+/** 항로 탭 · 기간 칩 · 차트 툴팁 배선 */
+function wireXsi(root) {
+  const fig = root.querySelector('.xsi-figure');
+  if (!fig) return;
+  fig.addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('[data-route]');
+    if (t) { _xsiRoute = t.getAttribute('data-route'); renderMaterial(); return; }
+    const g = e.target.closest && e.target.closest('[data-xrange]');
+    if (g) { _xsiRange = g.getAttribute('data-xrange'); renderMaterial(); }
+  });
+
+  const tip = document.getElementById('xsiTooltip');
+  const svg = fig.querySelector('.xsi-svg');
+  if (!tip || !svg || !_xsiChart) return;
+  const overlay = svg.querySelector('.xsi-overlay');
+  const cross = svg.querySelector('.xsi-cross');
+  const dots = svg.querySelector('.xsi-dots');
+  const c = _xsiChart, gm = c.geom;
+  const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
+  const move = (clientX, clientY) => {
+    const rect = svg.getBoundingClientRect();
+    const sx = (clientX - rect.left) * (gm.W / rect.width);
+    let i = gm.n === 1 ? 0 : Math.round(((sx - gm.padL) / ((gm.X(gm.n - 1) - gm.padL) || 1)) * (gm.n - 1));
+    i = Math.max(0, Math.min(gm.n - 1, i));
+    const cx = gm.X(i), v = c.values[i];
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
+    dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${gm.Y(v).toFixed(1)}" r="3.5" fill="${c.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>`
+      + `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>지수</span><span class="viz-tt-val">${v.toLocaleString('en-US')}</span></div>`;
+    const fr = fig.getBoundingClientRect();
+    let left = clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = clientX - fr.left - tip.offsetWidth - 14;
+    tip.style.left = `${Math.max(4, left)}px`;
+    tip.style.top = `${clientY - fr.top + 14}px`;
+    tip.classList.add('is-visible');
+  };
+  overlay.addEventListener('mousemove', (evt) => move(evt.clientX, evt.clientY));
+  overlay.addEventListener('mouseleave', clear);
+  // 모바일: 탭·드래그에도 값이 뜨게 한다(다른 차트와 같은 방식)
+  overlay.addEventListener('touchstart', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  overlay.addEventListener('touchmove', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  overlay.addEventListener('touchend', clear, { passive: true });
 }
 
 /* 순수 추가: 정시성 '지표 설명' 정적 텍스트 (데이터 수집·API 없음).
@@ -7687,6 +7923,7 @@ function resetDashboard() {
   _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
   _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
   _sriData = null;      // 해상 정시성 5단 패널 비우기
+  _xsiData = null; _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;  // 운임지수 비우기
   _icisForecast = null; // 순수 추가: 예측 초기화(섹션 숨김)
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
@@ -7800,6 +8037,8 @@ function initUpdate() {
     fetchIcisInsights();
     // 순수 추가: 해상 정시성 5단 패널. 위와 같은 이유로 await 안 한다.
     fetchSrInsights();
+    // 순수 추가: 컨테이너 운임지수(XSI-C). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
+    fetchXsi();
     try {
       const { data, source } = await fetchDashboardData();
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를

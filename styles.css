@@ -1086,6 +1086,48 @@ body {
 @media (max-width: 720px) {
   .sr-sum, .sr-facs { grid-template-columns: 1fr; }
 }
+/* ── 글로벌 컨테이너 운임지수 (XSI-C) ──────────────────────────────────────
+   항로 탭과 기간 칩은 다른 카드가 쓰는 .icis-years/.icis-year 를 그대로 쓴다
+   — 새 버튼 스타일을 만들지 않는다. 여기서는 고유한 부분만 정의한다. */
+
+/* 항로 탭이 8개라 한 줄을 넘긴다 — 줄바꿈을 허용하고 간격만 맞춘다 */
+.xsi-routes { flex-wrap: wrap; }
+
+/* 최근값 + 항로 이름 */
+.xsi-lead {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin: 10px 0 12px;
+}
+.xsi-lead__box { min-width: 0; }
+.xsi-lead__lbl { font-size: 11px; font-weight: 700; color: var(--muted); }
+.xsi-lead__val {
+  font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.xsi-lead__sub { margin-top: 2px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.xsi-lead__name {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 13.5px; font-weight: 700; color: var(--ink); text-align: right;
+}
+
+/* 통계 7칸 */
+.xsi-stats { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.xsi-stat {
+  padding: 8px 10px 9px; background: var(--field);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
+}
+.xsi-stat__lbl { display: flex; flex-direction: column; font-size: 11px; font-weight: 700; color: var(--muted); }
+.xsi-stat__en { font-size: 9.5px; font-weight: 500; color: var(--muted); opacity: .8; }
+.xsi-stat__val { margin-top: 5px; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.xsi-figure .xsi-ranges { margin-top: 14px; }
+.xsi-figure .viz-svg { margin-top: 4px; }
+
+@media (max-width: 1100px) { .xsi-stats { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 720px) {
+  .xsi-stats { grid-template-columns: repeat(2, 1fr); }
+  .xsi-lead__name { text-align: left; }
+}
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
 .or-tbl .or-lo { display: block; color: var(--accent); font-weight: 700; }
