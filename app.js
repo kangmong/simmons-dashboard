@@ -6212,7 +6212,9 @@ const KOIMA_RANGES = [
   { key: '1y', label: '1년', months: 12 }, { key: '3y', label: '3년', months: 36 },
   { key: '5y', label: '5년', months: 60 }, { key: 'all', label: '전체', months: null },
 ];
-const KOIMA_DEFAULT_CAT = 'petchem';   // 기본 선택 부문: 유화원료
+// 위젯은 부문을 기본 선택하지 않는다(직접 눌러야 나온다). 이 상수는
+// 메인 그리드의 한 줄 요약(renderKoimaSummaryHtml)에서 무슨 부문을 보여줄지에만 쓴다.
+const KOIMA_DEFAULT_CAT = 'petchem';   // 한 줄 요약에 띄우는 부문: 유화원료
 
 let _koimaData = null;   // {source,baseline,latestPeriod,categories:[...]} | {error} | null
 let _koimaCat = null;    // 선택 부문 key
@@ -6229,12 +6231,12 @@ function applyKoimaUpdate(data) {
       source: k.source, baseline: k.baseline,
       latestPeriod: k.latestPeriod, categories: k.categories,
     };
-    // 부문·끝점만 기본값을 잡고 기간은 미선택으로 둔다(유가 카드와 동일한 2단계 유지)
-    if (!_koimaCat) _koimaCat = KOIMA_DEFAULT_CAT;
-    if (!_koimaEnd) _koimaEnd = k.latestPeriod || null;
-    const rc = (koimaCatOf(_koimaCat) || {}).rows || [];
-    console.log('[koima] 부문 %d개 · 최신월 %s · 기본 탭 %s(%d행)',
-      k.categories.length, k.latestPeriod, _koimaCat, rc.length);
+    /* ★ 부문을 기본 선택하지 않는다 — 운임지수 위젯의 항로와 같은 규칙이다.
+         예전에는 여기서 유화원료를 자동으로 골라, 버튼을 누르지도 않았는데
+         전체 대시보드가 떠 있었다. 끝점·기간도 부문을 고르는 시점에 잡는다. */
+    _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
+    console.log('[koima] 부문 %d개 · 최신월 %s · 부문 미선택 상태로 대기',
+      k.categories.length, k.latestPeriod);
   } else {
     _koimaData = { error: (k && k.reason) || '데이터 없음' };
   }
@@ -6763,6 +6765,18 @@ function renderKoimaHtml() {
   const chips = `<div class="icis-years koima-ranges">${KOIMA_RANGES.map((r) =>
     `<button class="icis-year koima-range${r.key === _koimaRange ? ' is-active' : ''}${ok ? '' : ' is-disabled'}" data-range="${r.key}"${dis}>${r.label}</button>`).join('')}</div>`;
 
+  /* ★ 부문을 고르기 전 — 버튼만 두고 값은 하나도 내지 않는다.
+       (운임지수의 '항로를 선택하세요'와 같은 .icis-prompt 플레이스홀더)
+       기준 년월·기간 칩은 고른 부문의 수집 범위로 만들어지므로 함께 감춘다. */
+  if (ok && !cat) {
+    _koimaChart = null;
+    return `<div class="viz-root viz-figure koima-figure">${head}
+      ${tabs}
+      <div class="icis-prompt">부문을 선택하세요</div>
+      ${cap}
+    </div>`;
+  }
+
   /* ★ 8개 부문 모두 같은 틀로 나온다. 수치는 부문의 실제 rows 에서 계산하고,
        해설만 koima-insights.json 의 해당 부문 항목에서 가져온다. */
   const st = kSt0;
@@ -6946,9 +6960,16 @@ function wireKoimaControls(root) {
   if (tabsEl) tabsEl.addEventListener('click', (e) => {
     const b = e.target.closest('.koima-tab');
     if (!b || b.disabled) return;
+    // 부문을 바꾸면 이전 부문 값은 전부 버리고 새 부문으로 다시 계산한다
     _koimaCat = b.dataset.cat;
+    _koimaChart = null;
     const cat = koimaCatOf(_koimaCat);
-    if (cat) _koimaEnd = koimaClampEnd(cat, _koimaEnd);  // 짧은 구간 부문으로 옮길 때 보정
+    // 끝점 보정 — 희소금속(2010-01~)처럼 구간이 짧은 부문으로 옮길 때 필요하다.
+    // 아직 끝점이 없으면(첫 선택) 그 부문의 마지막 관측월로 잡힌다.
+    if (cat) _koimaEnd = koimaClampEnd(cat, _koimaEnd);
+    // 버튼 한 번으로 요약·①~④·그래프가 다 나오도록 기간은 '전체'로 시작한다.
+    // 이미 고른 기간이 있으면 그대로 유지한다(부문만 갈아 끼운다).
+    if (!_koimaRange) _koimaRange = 'all';
     renderMaterial();
   });
   const chipsEl = fig.querySelector('.koima-ranges');
@@ -9691,6 +9712,10 @@ function initUpdate() {
     //   떠 있는 일이 없도록 선택을 비우고 시작한다.
     _xsiRoute = null; _xsiRange = 'all'; _xsiChart = null;
     fetchXsi();
+    // ★ KOIMA 부문별 지수도 같은 규칙 — 갱신 뒤에도 부문을 다시 고르게 한다.
+    //   (applyKoimaUpdate 에서도 비우지만, 응답이 늦거나 실패해도 이전 선택이
+    //    남아 데이터가 떠 있지 않도록 누른 시점에 먼저 비운다)
+    _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
     // 순수 추가: 운임지수 4단 해설(구간·요인·전망·전략). 위와 같은 이유로 await 안 한다.
     fetchXsiInsights();
     // 순수 추가: 국제유가 인사이트(구간·요인·시나리오·시사점). 위와 같은 이유로 await 안 한다.
