@@ -1,0 +1,91 @@
+{
+  "status": "ok",
+  "source": "Global Market Insights (gminsights.com)",
+  "sourceUrl": "https://www.gminsights.com/industry-analysis/mattress-market",
+  "checkedAt": "2026-09-09",
+  "updatedAt": "2026-09-09",
+  "title": "글로벌 매트리스 시장 규모",
+  "subtitle": "시장조사기관 GMInsights 의 공개 요약 기준",
+  "caution": "본 수치는 GMInsights 시장조사 추정치이며, 조사기관에 따라 다른 수치가 존재할 수 있습니다 (GMInsights $458억, MRFR $577억, Grand View Research $492억 등, 2025년 기준 서로 다름). 국내 PPI 차트(정부 공식 통계)와 달리 조사기관 추정치입니다.",
+  "estimates": [
+    {
+      "org": "Global Market Insights",
+      "value": "$458억",
+      "year": 2025,
+      "self": true
+    },
+    {
+      "org": "MRFR",
+      "value": "$577억",
+      "year": 2025
+    },
+    {
+      "org": "Grand View Research",
+      "value": "$492억",
+      "year": 2025
+    }
+  ],
+  "base": {
+    "usdBn": 45.8,
+    "year": 2025
+  },
+  "next": {
+    "usdBn": 48.4,
+    "year": 2026
+  },
+  "target": {
+    "usdBn": 78.3,
+    "year": 2035
+  },
+  "cagr": {
+    "pct": 5.5,
+    "from": 2026,
+    "to": 2035
+  },
+  "leader": {
+    "name": "Tempur Sealy International",
+    "sharePct": 11.3,
+    "year": 2025
+  },
+  "topPlayers": {
+    "names": [
+      "Tempur Sealy International",
+      "Sleep Number Corporation",
+      "Corsicana Bedding",
+      "Serta Simmons Bedding",
+      "Hilding Anders"
+    ],
+    "sharePct": 22.1,
+    "year": 2025
+  },
+  "regions": {
+    "largest": "North America",
+    "fastest": "Asia Pacific",
+    "largestUsdBn": 16.9,
+    "fastestPct": 6.2
+  },
+  "products": [
+    {
+      "name": "Innerspring",
+      "ko": "이너스프링",
+      "usdBn": 15.9,
+      "year": 2025,
+      "note": "최대 제품군"
+    },
+    {
+      "name": "Hybrid",
+      "ko": "하이브리드",
+      "cagrPct": 6.4,
+      "to": 2035,
+      "note": "가장 빠른 성장"
+    },
+    {
+      "name": "Online",
+      "ko": "온라인 판매",
+      "usdBn": 10.7,
+      "year": 2025,
+      "cagrPct": 6.2,
+      "note": "유통 채널"
+    }
+  ]
+}

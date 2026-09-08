@@ -1,0 +1,77 @@
+name: 글로벌 매트리스 시장 규모 수집 (월 1회)
+
+# Global Market Insights 의 공개 요약에서 시장 규모·CAGR·지역·기업 정보를 뽑아
+# public/data/global-mattress-market.json 으로 커밋한다.
+# 시장조사 보고서는 자주 바뀌지 않으므로 월 1회면 충분하고, 요청도 1번뿐이다.
+#
+# ★ 실패해도 기존 값을 덮어쓰지 않는다. mattress_market.py 가 필수 항목을 못 뽑으면
+#   캐시를 그대로 두고 last_error 만 기록한 뒤 0이 아닌 코드로 끝난다.
+on:
+  schedule:
+    - cron: '20 20 1 * *'   # UTC 매월 1일 20:20 = KST 매월 2일 05:20
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-mattress-market
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 표준 라이브러리만 쓴다(urllib + re) — 설치할 의존성이 없다.
+      - name: 시장 규모 수집
+        id: collect
+        continue-on-error: true
+        run: python mattress_market.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/global-mattress-market.json; then
+            echo "내용 변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/global-mattress-market.json
+          git commit -m "자동 수집: 글로벌 매트리스 시장 규모 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git push
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/global-mattress-market.json"
+          if not os.path.isfile(p):
+              print("::error::global-mattress-market.json 이 없습니다"); raise SystemExit(1)
+          d = json.load(io.open(p, encoding="utf-8"))
+          err = d.get("last_error")
+          ok = d.get("status") == "ok"
+          head = "✅" if (ok and not err) else ("⚠️" if ok else "❌")
+          txt = ["## %s 글로벌 매트리스 시장 규모" % head, ""]
+          if ok:
+              b, n, t = d.get("base", {}), d.get("next", {}), d.get("target", {})
+              txt.append("- %s년 $%sB → %s년 $%sB → %s년 $%sB · CAGR %s%%" % (
+                  b.get("year"), b.get("usdBn"), n.get("year"), n.get("usdBn"),
+                  t.get("year"), t.get("usdBn"), (d.get("cagr") or {}).get("pct")))
+              txt.append("- 최종 확인일: %s" % d.get("checkedAt"))
+          if err:
+              txt.append("")
+              txt.append("> 이번 수집은 실패했고 **기존 값을 유지**했습니다: %s" % err)
+              txt.append("> (마지막 시도: %s)" % d.get("last_attempt"))
+              print("::warning::수집 실패 — 기존 캐시 유지: %s" % err)
+          io.open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8").write(
+              "\n".join(txt) + "\n")
+          PY

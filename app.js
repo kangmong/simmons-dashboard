@@ -691,8 +691,6 @@ function applyCompetitorsUpdate(data) {
   if (!cp) return;
   _competitorsAt = (data && data.updated_at) || null;  // 순수 추가: 수집 시각 표시용
   _competitors = cp.global ? cp : null;
-  // 미국 매트리스 제조업 PPI — 별도 섹션(us_ppi)을 그대로 읽는다.
-  _usPpi = (data && data.sections && data.sections.us_ppi) || null;
   if (cp.status === 'error') console.warn('[update] competitors error:', cp.reason);
   renderCompetitor();
 }
@@ -858,156 +856,9 @@ function compKoreaCard(c, i) {
   </div>`;
 }
 
-/* ── 국외(Global) · 미국 매트리스 제조업 PPI ───────────────────────────────
-   차트 하나, 선 하나. BLS PCU337910337910 의 월별 지수를 연평균으로 집계한다.
-
-   ★ 단일 지표다. '하이엔드/프리미엄' 같은 가격대 구분을 만들지 않는다 —
-     이 시리즈는 미국에서 만드는 전 매트리스를 하나로 평균한 값이고, BLS 는
-     NAICS 337910 아래에 가격대별 하위 시리즈를 발표하지 않는다.
-     (예전 화면의 티어 버튼은 HS 코드 = '소재' 구분이었고 가격대가 아니었다.
-      근거 없는 구분이라 걷어냈다.)
-   ★ 원지수를 그대로 그린다 — 기준월을 다시 잡지 않는다. 그래야 축 라벨과
-     설명표의 '기준 시점(1983년 6월 = 100)'이 어긋나지 않는다.
-   ★ 설명표의 숫자·추세 문구는 us_ppi.py 가 실데이터에서 계산해 payload.table
-     로 보낸다. 프런트는 그 목록을 그대로 그린다 — 여기서 숫자를 만들지 않는다. */
-let _usPpi = null;          // sections.us_ppi
+/* ── 국외(Global) 차트 공용 상태 ───────────────────────────────────────── */
 let _gtCharts = {};         // 차트 툴팁 데이터·기하 (gtState/gtShowTip 공용)
 
-const G_COL_PPI = 'var(--accent)';
-
-/** Y축 단위 라벨 */
-function gtYUnit(txt) {
-  return '<div class="gt-yunit">' + escapeHtml(txt) + '</div>';
-}
-
-/** 연도별 원지수 선그래프(단일 계열).
-    years: [{year, value, months, complete}] — us_ppi.py 의 연평균 그대로.
-    마지막 해가 부분 연도면 그 구간만 점선으로 이어 '아직 안 끝난 해'임을 보인다. */
-function gPpiChart(key, years, unitLabel) {
-  const pts = (years || []).filter((y) => y && y.value != null);
-  if (pts.length < 2) return null;
-  const vals = pts.map((p) => p.value);
-  let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-  if (lo === hi) { lo -= 1; hi += 1; }
-  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
-
-  const padL = 42, padR = 10;
-  const plotW = VIZ_W - padL - padR, plotH = VIZ_H - VIZ_PAD_T - VIZ_PAD_B;
-  const X = (i) => padL + (i / (pts.length - 1)) * plotW;
-  const Y = (v) => VIZ_PAD_T + plotH - ((v - lo) / (hi - lo)) * plotH;
-
-  let grid = '';
-  for (let k = 0; k <= VIZ_Y_TICKS; k += 1) {
-    const v = lo + ((hi - lo) * k) / VIZ_Y_TICKS, y = Y(v);
-    grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (VIZ_W - padR) + '" y2="'
-      + y.toFixed(1) + '" stroke="var(--line)" stroke-width="1"/>'
-      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + Math.round(v) + '</text>';
-  }
-  let xlab = '';
-  pts.forEach((p, i) => {
-    xlab += '<text x="' + X(i).toFixed(1) + '" y="' + (VIZ_H - 8) + '" text-anchor="middle" font-size="'
-      + VIZ_FS_AXIS + '" fill="var(--muted)">' + p.year + '</text>';
-  });
-  // 완전한 해까지는 실선, 부분 연도로 넘어가는 마지막 구간만 점선
-  const solid = [], dash = [];
-  pts.forEach((p, i) => {
-    const xy = X(i).toFixed(1) + ' ' + Y(p.value).toFixed(1);
-    if (p.complete === false && i > 0) {
-      if (!dash.length) dash.push('M' + X(i - 1).toFixed(1) + ' ' + Y(pts[i - 1].value).toFixed(1));
-      dash.push('L' + xy);
-    } else {
-      solid.push((solid.length ? 'L' : 'M') + xy);
-    }
-  });
-  let lines = '';
-  if (solid.length > 1) {
-    lines += '<path d="' + solid.join(' ') + '" fill="none" stroke="' + G_COL_PPI
-      + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
-  }
-  if (dash.length > 1) {
-    lines += '<path d="' + dash.join(' ') + '" fill="none" stroke="' + G_COL_PPI
-      + '" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 3"/>';
-  }
-  _gtCharts[key] = {
-    tip: pts.map((p) => ({
-      q: p.year + '년 ' + (p.complete === false ? p.months + '개월 평균' : '연평균'),
-      rows: [{ name: 'PPI (원지수)', color: G_COL_PPI, seg: p.complete === false,
-        y: Y(p.value), val: p.value.toFixed(1) }],
-    })),
-    geom: { padL: padL, plotW: plotW, n: pts.length },
-  };
-  const hov = '<g class="gt-hov" aria-hidden="true">'
-    + '<line class="gt-hov__l" x1="0" y1="' + VIZ_PAD_T + '" x2="0" y2="' + (VIZ_PAD_T + plotH) + '"/>'
-    + '<circle class="gt-adot" data-si="0" r="3.5" cx="-99" cy="-99" fill="var(--card)" stroke="'
-    + G_COL_PPI + '" stroke-width="2"/></g>';
-  const partial = pts.filter((p) => p.complete === false).length > 0;
-  return '<div class="gt-chartwrap" data-gt-chart="' + escapeHtml(key) + '">'
-    + gtYUnit(unitLabel || '지수')
-    + '<svg class="gt-chart" viewBox="0 0 ' + VIZ_W + ' ' + VIZ_H
-    + '" preserveAspectRatio="xMidYMid meet" role="img"'
-    + ' aria-label="미국 매트리스 제조업 PPI 연평균 추이">'
-    + grid + lines + xlab + hov + '</svg>'
-    + '<div class="gt-tip" hidden></div></div>'
-    + '<div class="gt-legend"><span class="gt-lg"><i style="background:' + G_COL_PPI
-    + '"></i>매트리스 제조업 PPI (연평균)</span>'
-    + (partial ? '<span class="gt-lg gt-lg--seg"><i></i>진행 중인 해(부분 연도)</span>' : '')
-    + '</div>';
-}
-
-/** 요약 3칸 — 최신 월값 / 올해 평균 / 첫 해 대비 변화. 전부 payload 값에서 만든다. */
-function gPpiSummary(u) {
-  const ys = u.years || [], last = u.latest;
-  if (!ys.length || !last) return '';
-  // d = 큰 숫자 아래에 붙는 한 줄 설명(caption). 세 숫자가 각각 무엇인지 그 자리에서
-  // 읽히게 한다 — 표로 빼지 않는다. 크기·색은 각주(.sm-foot)와 같다.
-  const cell = (k, v, d) => '<div class="gs-cell"><span class="gs-k">' + escapeHtml(k)
-    + '</span><span class="gs-v">' + v + '</span>'
-    + (d ? '<span class="gs-d">' + escapeHtml(d) + '</span>' : '') + '</div>';
-  const cur = ys[ys.length - 1], first = ys[0];
-  let out = cell('최근 값 (' + last.month + ')', last.value.toFixed(1),
-    '가장 최근 발표된 한 달 수치');
-  // ★ 1~2월에는 BLS 가 새해 첫 달을 아직 공표하지 않아 마지막 해가 '올해'가 아니다.
-  //   그때만 연도를 밝혀 '올해'라는 말이 틀리지 않게 한다(연도는 하드코딩하지 않는다).
-  const isThisYear = cur.year === new Date().getFullYear();
-  out += cell(cur.year + '년 평균' + (cur.complete ? '' : ' (' + cur.months + '개월)'),
-    cur.value.toFixed(1),
-    isThisYear ? '올해 발표된 달까지의 평균' : cur.year + '년에 발표된 달까지의 평균');
-  if (first.value) {
-    const chg = ((last.value - first.value) / first.value) * 100;
-    out += cell(first.year + '년 대비',
-      '<span class="gs-gap' + (chg < 0 ? ' gs-gap--neg' : '') + '">'
-      + (chg > 0 ? '+' : '') + chg.toFixed(1) + '%</span>',
-      '기준 연도 대비 변화율');
-  }
-  return '<div class="gs">' + out + '</div>';
-}
-
-/** 지표 설명표 — us_ppi.py 가 만든 payload.table({k,v}) 을 그대로 그린다.
-    ★ 여기서 값을 계산하거나 문구를 덧붙이지 않는다. 표 내용을 고칠 일이 생기면
-      us_ppi.py 한 곳만 고친다(새 데이터가 들어오면 자동으로 최신화된다). */
-function gPpiTable(u) {
-  const rows = (u && u.table) || [];
-  if (!rows.length) return '';
-  return '<div class="icis-terms"><h3 class="subhead">지표 설명</h3>'
-    + '<div class="icis-term-wrap"><table class="icis-termtable">'
-    + '<thead><tr><th>항목</th><th>설명</th></tr></thead><tbody>'
-    + rows.map((r) => '<tr><td>' + escapeHtml(r.k) + '</td><td>'
-      + escapeHtml(r.v) + '</td></tr>').join('')
-    + '</tbody></table></div></div>';
-}
-
-/** 수집 시각 여러 개 중 가장 최근 날짜(YYYY-MM-DD). 하나도 없으면 null. */
-function gSrcDate() {
-  let best = null;
-  for (let i = 0; i < arguments.length; i += 1) {
-    const s = arguments[i];
-    if (!s) continue;
-    const d = String(s).slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (best == null || d > best)) best = d;
-  }
-  return best;
-}
 
 /* 카드별 원본 페이지 — 각주의 기관·페이지 이름을 이 주소로 건다.
    ★ 미국 PPI 각주가 쓰는 gLinkify(text, links) 와 같은 형식이라 함수를 재사용한다.
@@ -1061,27 +912,162 @@ function gSrcFoot(text, date, links) {
     + (date ? ' · 최종 업데이트: ' + escapeHtml(date) : '') + '</div>';
 }
 
-/** 미국 매트리스 제조업 PPI 블록 — 차트 + 요약 + 설명표. */
-function gUsPpiBlock() {
-  const u = _usPpi;
-  if (!u || u.status !== 'ok' || !(u.years || []).length) {
-    return emptyState((u && u.reason) || '업데이트 버튼을 누르면 표시됩니다');
+/* ══ 글로벌 매트리스 시장 규모 (Global Market Insights) ═══════════════════
+   요약 4박스 → 시장규모 막대 / 지역별 우위 / 주요 기업 3분할 → 제품유형 인사이트
+   ★ 대시보드는 수집해 둔 캐시(public/data/global-mattress-market.json)만 읽는다.
+     페이지를 직접 부르지 않는다 — 갱신은 GitHub Actions(월 1회)가 한다.
+   ★★ 정부 통계가 아니라 '조사기관 추정치'다. 기관마다 값이 달라서, 그 사실과
+     다른 기관 수치를 화면에 함께 적는다(caution + estimates). */
+const GMM_URL = 'public/data/global-mattress-market.json';
+let _gmm = null;
+
+async function fetchMattressMarket() {
+  try {
+    const res = await fetch(GMM_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _gmm = d;
+  } catch (e) {
+    _gmm = null;
+    console.warn('[mattress-market] 로드 실패:', e);
   }
-  const chart = gPpiChart('gusppi', u.years, u.unit);
-  if (!chart) return emptyState('연도가 2개 미만이라 추이를 그릴 수 없습니다');
-  // 부분 연도·잠정치는 '숨기지 않고 밝힌다' — 나중에 값이 바뀔 수 있는 구간이다.
-  let caveat = '';
-  if (u.partial_year) {
-    caveat += ' ' + u.partial_year.year + '년은 아직 '
-      + u.partial_year.months + '개월치라 부분 연도 평균이며 점선으로 표시했습니다.';
+  renderCompetitor();
+}
+
+/** $45.8B → '458억 달러' (조사기관이 십억 달러 단위로 적는 값을 우리 단위로) */
+function gmmEok(usdBn) {
+  if (usdBn == null || !isFinite(usdBn)) return '—';
+  return (Math.round(usdBn * 10) / 10 * 10).toFixed(0) + '억 달러';
+}
+
+/** 요약 4박스 — 최근년도 / 다음년도 / 목표연도 / CAGR */
+function gmmSummary(d) {
+  const box = (lbl, val, sub) => '<div class="sr-sum__box">'
+    + '<div class="sr-sum__lbl">' + escapeHtml(lbl) + '</div>'
+    + '<div class="sr-sum__val">' + val + '</div>'
+    + (sub ? '<div class="sr-sum__sub">' + sub + '</div>' : '') + '</div>';
+  const one = (o, lbl) => (o ? box(o.year + '년 ' + lbl, gmmEok(o.usdBn),
+    '$' + o.usdBn + 'B') : '');
+  const c = d.cagr || {};
+  return '<div class="sr-sum gmm-sum">'
+    + one(d.base, '시장규모') + one(d.next, '시장규모') + one(d.target, '예상규모')
+    + (c.pct != null ? box('연평균 성장률 (CAGR)', c.pct.toFixed(1) + '<span class="sr-sum__u">%</span>',
+      (c.from && c.to) ? escapeHtml(c.from + '~' + c.to + '년') : '조사기관 전망') : '')
+    + '</div>';
+}
+
+/** 시장규모 막대 — 세 시점(최근/다음/목표)을 비교한다 */
+function gmmBars(d) {
+  const pts = [d.base, d.next, d.target].filter((x) => x && x.usdBn > 0);
+  if (pts.length < 2) return '';
+  const max = Math.max.apply(null, pts.map((x) => x.usdBn));
+  const rows = pts.map((x, i) => {
+    const w = Math.max(3, (x.usdBn / max) * 100);
+    const last = i === pts.length - 1;
+    return '<div class="sm-hrow">'
+      + '<div class="sm-hname">' + x.year + '년'
+      + (last ? '<span class="gmm-tag">전망</span>' : (i === 0 ? '' : '<span class="gmm-tag">전망</span>'))
+      + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
+      + '%;background:var(--blue);opacity:' + (0.5 + i * 0.25).toFixed(2) + '"></div></div>'
+      + '<div class="sm-hval">' + gmmEok(x.usdBn)
+      + '<span class="sm-hkrw">$' + x.usdBn + 'B</span></div>'
+      + '</div>';
+  }).join('');
+  return '<div class="gmm-card"><div class="gmm-card__h">시장규모 동향</div>'
+    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + '<div class="gmm-card__f">' + escapeHtml(d.base ? (d.base.year + '년 실측 추정치, 이후는 전망') : '')
+    + '</div></div>';
+}
+
+/** 지역별 우위 */
+function gmmRegions(d) {
+  const r = d.regions;
+  if (!r) return '';
+  const row = (k, v, sub) => '<div class="gmm-row"><span class="gmm-row__k">' + escapeHtml(k)
+    + '</span><span class="gmm-row__v">' + escapeHtml(v)
+    + (sub ? '<i>' + escapeHtml(sub) + '</i>' : '') + '</span></div>';
+  return '<div class="gmm-card"><div class="gmm-card__h">지역별 우위</div>'
+    + (r.largest ? row('최대 시장', r.largest,
+      r.largestUsdBn != null ? gmmEok(r.largestUsdBn) + (d.base ? ' (' + d.base.year + '년)' : '') : '') : '')
+    + (r.fastest ? row('가장 빠른 성장', r.fastest,
+      r.fastestPct != null ? '연 ' + r.fastestPct + '% 성장 전망' : '') : '')
+    + '</div>';
+}
+
+/** 주요 기업 — 선도기업 점유율 + 상위 기업 합산 */
+function gmmPlayers(d) {
+  const L = d.leader, T = d.topPlayers;
+  if (!L && !T) return '';
+  const names = (T && Array.isArray(T.names)) ? T.names : [];
+  /* 시몬스(Serta Simmons Bedding)가 목록에 있으면 눈에 띄게 둔다 */
+  const chips = names.map((n) => '<span class="gmm-chip'
+    + (/simmons/i.test(n) ? ' gmm-chip--mine' : '') + '">' + escapeHtml(n) + '</span>').join('');
+  return '<div class="gmm-card"><div class="gmm-card__h">주요 기업</div>'
+    + (L ? '<div class="gmm-lead"><span class="gmm-lead__n">' + escapeHtml(L.name) + '</span>'
+      + '<span class="gmm-lead__v">' + L.sharePct + '%</span>'
+      + '<span class="gmm-lead__s">' + (L.year ? L.year + '년 ' : '') + '점유율 1위</span></div>' : '')
+    + (T ? '<div class="gmm-row"><span class="gmm-row__k">상위 ' + names.length + '개사 합산</span>'
+      + '<span class="gmm-row__v">' + T.sharePct + '%'
+      + (T.year ? '<i>' + T.year + '년 기준</i>' : '') + '</span></div>' : '')
+    + (chips ? '<div class="gmm-chips">' + chips + '</div>' : '')
+    + '</div>';
+}
+
+/** 제품유형·유통 인사이트 — 무료 요약에서 확인된 것만 문장으로 */
+function gmmProducts(d) {
+  const ps = Array.isArray(d.products) ? d.products : [];
+  if (!ps.length) return '';
+  const li = ps.map((p) => {
+    const bits = [];
+    if (p.usdBn != null) bits.push(gmmEok(p.usdBn) + (p.year ? ' (' + p.year + '년)' : ''));
+    if (p.cagrPct != null) bits.push('연 ' + p.cagrPct + '% 성장'
+      + (p.to ? ' (~' + p.to + '년)' : ''));
+    return '<li><b>' + escapeHtml(p.ko || p.name) + '</b> '
+      + escapeHtml(bits.join(' · ')) + (p.note ? ' <i>' + escapeHtml(p.note) + '</i>' : '') + '</li>';
+  }).join('');
+  return '<div class="gmm-prod"><div class="gmm-card__h">제품유형·유통 인사이트</div>'
+    + '<ul class="gmm-prod__ul">' + li + '</ul>'
+    + '<div class="gmm-card__f">공개 요약에서 확인되는 항목만 적었습니다. '
+    + '제품유형 전체 구성비는 유료 보고서에만 있어 만들지 않았습니다.</div></div>';
+}
+
+/** 조사기관별 추정치 대조 — '기관마다 다르다'를 숫자로 보여 준다 */
+function gmmEstimates(d) {
+  const es = Array.isArray(d.estimates) ? d.estimates : [];
+  if (!es.length) return '';
+  return '<div class="gmm-est"><span class="gmm-est__h">같은 해 다른 조사기관 추정치</span>'
+    + es.map((e) => '<span class="gmm-est__i' + (e.self ? ' is-self' : '') + '">'
+      + escapeHtml(e.org) + ' <b>' + escapeHtml(e.value) + '</b>'
+      + (e.year ? ' <i>' + e.year + '</i>' : '') + '</span>').join('')
+    + '</div>';
+}
+
+/** 글로벌 매트리스 시장 규모 블록 전체 */
+function gmmBlock() {
+  const d = _gmm;
+  if (!d) return emptyState('업데이트 버튼을 누르면 표시됩니다');
+  if (d.status !== 'ok') {
+    return emptyState('데이터를 불러오지 못했습니다'
+      + (d.reason ? ' (' + d.reason + ')' : ''));
   }
-  if (u.prelim_months) {
-    caveat += ' 최근 ' + u.prelim_months + '개월은 BLS 잠정치로, 공표 후 4개월까지 개정될 수 있습니다.';
-  }
-  return gPpiSummary(u) + chart
-    + '<div class="g-note">' + escapeHtml(u.note || '') + escapeHtml(caveat) + '</div>'
-    + gSrcFoot('출처: ' + (u.source || ''), gSrcDate(u.updatedAt), u.source_links)
-    + gPpiTable(u);
+  const stale = d.last_error
+    ? '<div class="g-note gmm-stale">※ 최근 자동 수집이 실패해 이전 값을 그대로 보여 주고 있습니다'
+      + (d.last_attempt ? ' (마지막 시도 ' + escapeHtml(d.last_attempt) + ')' : '')
+      + '. 사유: ' + escapeHtml(d.last_error) + '</div>'
+    : '';
+  return gmmSummary(d)
+    + '<div class="gmm-grid3">' + gmmBars(d) + gmmRegions(d) + gmmPlayers(d) + '</div>'
+    + gmmProducts(d)
+    + gmmEstimates(d)
+    + (d.caution ? '<div class="g-note gmm-caution">※ ' + escapeHtml(d.caution) + '</div>' : '')
+    + stale
+    + '<div class="sm-foot">최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—')
+    + ' · 출처: ' + (safeUrl(d.sourceUrl)
+      ? '<a class="src-link" href="' + escapeHtml(safeUrl(d.sourceUrl)) + '" target="_blank"'
+        + ' rel="noopener noreferrer">' + escapeHtml(d.source || '') + ' ›</a>'
+      : escapeHtml(d.source || '')) + '</div>';
 }
 
 /* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (public/data/simmons-market.json) ══
@@ -1614,66 +1600,53 @@ function stMechFlow(c) {
     + '</div>';
 }
 
-/** 기업별 누적 수상 건수 — 6개 기업을 한 줄씩 모두 보여 준다.
- *  ★ 확인된 건수만 막대로 그린다. 미확인 기업은 0건으로 그리지 않고 막대 자리를
- *    비운 채 '확인필요'/'확인 안됨' 글자만 낸다 — 0건과 미확인은 뜻이 다르다.
- *  ★★ 세라젬은 한 막대를 연도 구간으로 쪼개 3→6→12 증가를 보여 주고,
- *    각 구간에 title 을 달아 마우스를 올리면 연도별 건수가 뜬다. */
+/** 기업별 누적 수상 건수 — CES 수상 이력이 확인된 기업만 막대로 그린다.
+ *  ★ 확인 안 된 기업은 데이터에 넣지 않는다(0건으로 그리지 않는다). 어떤 기업을
+ *    왜 뺐는지는 그래프 아래 foot 문구가 밝힌다.
+ *  ★★ 막대 색은 국내(kr)/해외(gl)로만 나눈다 — 범례와 색이 어긋나지 않게. */
 function stCesAwards(st) {
   const c = st && st.cesAwards;
-  const items = (c && Array.isArray(c.items)) ? c.items : [];
+  const items = (c && Array.isArray(c.items))
+    ? c.items.filter((x) => typeof x.total === 'number' && x.total > 0) : [];
   if (!items.length) return '';
   const unit = c.unit || '건';
-  const lab = c.labels || {};
-  const nums = items.filter((x) => typeof x.total === 'number' && x.total > 0);
-  if (!nums.length) return '';
-  const max = Math.max.apply(null, nums.map((x) => x.total)) || 1;
+  const sorted = items.slice().sort((a, b) => b.total - a.total);
+  const max = sorted[0].total || 1;
+  const col = (o) => (o === 'kr' ? 'var(--blue-ink)' : 'var(--slate)');
 
-  const rows = items.map((x) => {
-    const known = typeof x.total === 'number' && x.total > 0;
-    const base = x.color || 'var(--slate)';
-    let track;
-    let val;
-    if (known) {
-      const w = Math.max(2, (x.total / max) * 100);
-      track = (Array.isArray(x.byYear) && x.byYear.length)
-        ? '<div class="sm-hbar ces-hbar" style="width:' + w.toFixed(1) + '%">'
-          + x.byYear.map((y, i) => '<span class="ces-seg" title="'
-            + escapeHtml(y.year + '년 ' + y.n + unit) + '" style="flex:' + y.n
-            + ';background:' + escapeHtml(base) + ';opacity:'
-            + (0.45 + i * 0.275).toFixed(3) + '">'
-            + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2)) + '·' + y.n + '</i>'
-            + '</span>').join('')
-          + '</div>'
-        : '<div class="sm-hbar" style="width:' + w.toFixed(1) + '%;background:'
-          + escapeHtml(base) + ';opacity:1"></div>';
-      val = '<div class="sm-hval">' + x.total.toLocaleString('ko-KR') + unit
-        + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
-        + '</div>';
-    } else {
-      // 막대를 만들지 않는다(폭 0도 아니다) — 빗금 자리만 두어 '값 없음'을 보인다
-      track = '<div class="ces-nobar" aria-hidden="true"></div>';
-      const t = lab[x.status] || '확인 안됨';
-      val = '<div class="sm-hval ces-val--none">'
-        + '<span class="ces-chip ces-chip--' + escapeHtml(x.status || 'unknown') + '">'
-        + escapeHtml(t) + '</span>'
-        + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
-        + '</div>';
-    }
-    return '<div class="sm-hrow' + (known ? '' : ' ces-row--none') + '">'
+  const rows = sorted.map((x) => {
+    const w = Math.max(2, (x.total / max) * 100);
+    const base = col(x.origin);
+    const track = (Array.isArray(x.byYear) && x.byYear.length)
+      ? '<div class="sm-hbar ces-hbar" style="width:' + w.toFixed(1) + '%">'
+        + x.byYear.map((y, i) => '<span class="ces-seg" title="'
+          + escapeHtml(y.year + '년 ' + y.n + unit) + '" style="flex:' + y.n
+          + ';background:' + base + ';opacity:' + (0.45 + i * 0.275).toFixed(3) + '">'
+          + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2)) + '·' + y.n + '</i>'
+          + '</span>').join('')
+        + '</div>'
+      : '<div class="sm-hbar" style="width:' + w.toFixed(1) + '%;background:' + base
+        + ';opacity:1"></div>';
+    return '<div class="sm-hrow">'
       + '<div class="sm-hname" title="' + escapeHtml(x.name) + '">'
       + escapeHtml(x.name) + '</div>'
       + '<div class="sm-htrack">' + track + '</div>'
-      + val
+      + '<div class="sm-hval">' + x.total.toLocaleString('ko-KR') + unit
+      + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
+      + '</div>'
       + (x.detail ? '<div class="sm-hmemo">' + escapeHtml(x.detail) + '</div>' : '')
       + '</div>';
   }).join('');
 
+  const legend = (Array.isArray(c.legend) && c.legend.length)
+    ? '<div class="ces-legend">' + c.legend.map((l) =>
+      '<span class="ces-lg"><i class="ces-lg__sw" style="background:' + col(l.origin)
+      + '"></i>' + escapeHtml(l.label || '') + '</span>').join('') + '</div>'
+    : '';
   const head = escapeHtml(c.heading || '기업별 누적 수상 건수')
-    + (c.subject ? ' <span class="sm-h__u">(' + escapeHtml(c.subject)
-      + ' · 단위: ' + escapeHtml(unit) + ')</span>'
-      : ' <span class="sm-h__u">(단위: ' + escapeHtml(unit) + ')</span>');
-  return '<h3 class="subhead sm-st__ih">' + head + '</h3>'
+    + ' <span class="sm-h__u">(' + escapeHtml(c.subject || 'CES 혁신상')
+    + ' · 단위: ' + escapeHtml(unit) + ')</span>';
+  return '<h3 class="subhead sm-st__ih">' + head + legend + '</h3>'
     + (c.note ? '<div class="sm-othfoot">※ ' + escapeHtml(c.note) + '</div>' : '')
     + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
     + (c.foot ? '<div class="sm-foot ces-foot">' + escapeHtml(c.foot) + '</div>' : '')
@@ -1780,9 +1753,6 @@ function gcAbbr(label, tip) {
     + '<span class="gc-abbr__bub">' + escapeHtml(tip) + '</span></span>';
 }
 
-const PPI_ABBR = 'PPI(생산자물가지수)';
-const PPI_ABBR_TIP = 'PPI = Producer Price Index, 생산자물가지수 — '
-  + '공장이 도매로 파는 판매가격의 변화를 측정하는 지표';
 
 /* ══ 국외 섹션 — 해외 수면·슬립테크 시장 + 주요 기업 ═══════════════════════
    (public/data/global-sleeptech.json · 국내 simmons-market.json 과 같은 방식)
@@ -1978,33 +1948,32 @@ function gsBlocksHtml() {
     + '</div>';
 }
 
-/** 국외 섹션 — 미국 매트리스 제조업 PPI 블록 하나. 그 외에는 만들지 않는다.
-    payload 에 us_ppi 섹션이 없으면(구버전 dashboard.json) null 을 돌려
+/** 국외 섹션 — 글로벌 매트리스 시장 규모 블록 하나. 그 외에는 만들지 않는다.
+    캐시(global-mattress-market.json)를 못 읽으면 null 을 돌려
     호출부가 기존 SEC 분기 실적 카드를 그대로 쓰게 한다. */
 function gtGlobalHtml() {
-  // PPI 가 없으면 예전처럼 null 을 돌려 SEC 분기 실적 카드로 되돌아간다(기존 동작 그대로).
-  if (!_usPpi) return null;
-  return '<div class="gc-block"><div class="gc-h">미국 매트리스 제조업'
-    + gcAbbr(PPI_ABBR, PPI_ABBR_TIP) + '</div>'
-    + gUsPpiBlock() + '</div>'
-    + gsBlocksHtml();   // 순수 추가: 해외 슬립테크 시장 규모 + 주요 기업(없으면 빈 문자열)
+  // 시장 규모 캐시가 없으면 예전처럼 null 을 돌려 SEC 분기 실적 카드로 되돌아간다.
+  if (!_gmm) return null;
+  return '<div class="gc-block"><div class="gc-h">글로벌 매트리스 시장 규모</div>'
+    + gmmBlock() + '</div>'
+    + gsBlocksHtml();   // 해외 슬립테크 시장 규모 + 주요 기업(없으면 빈 문자열)
 }
 
 /* 국외 섹션 소제목 — 블록이 늘어난 만큼만 문구를 늘린다.
    ★ 해외 슬립테크 데이터가 없으면(로드 실패·구버전) 예전 문구를 그대로 돌려준다. */
-const GT_SUB_PPI = '미국 매트리스 가격 동향';
-const GT_DESC_PPI = '미국 매트리스 공장 출고가격(생산자물가지수)의 연평균 추이 · '
-  + 'BLS(Bureau of Labor Statistics, 미국 노동통계국) 월별 데이터 자동 수집';
+const GT_SUB_GMM = '글로벌 매트리스 시장 규모';
+const GT_DESC_GMM = '세계 매트리스 시장의 규모·성장률·지역·주요 기업 · '
+  + 'Global Market Insights 공개 요약을 월 1회 자동 수집(조사기관 추정치)';
 
 function gtSubTitle() {
   return (_gsData && _gsData.status === 'ok')
-    ? GT_SUB_PPI + ' · 해외 슬립테크 시장' : GT_SUB_PPI;
+    ? GT_SUB_GMM + ' · 해외 슬립테크 시장' : GT_SUB_GMM;
 }
 
 function gtSubDesc() {
   return (_gsData && _gsData.status === 'ok')
-    ? GT_DESC_PPI + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기)'
-    : GT_DESC_PPI;
+    ? GT_DESC_GMM + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기)'
+    : GT_DESC_GMM;
 }
 
 /* ── 원화 병기 공용 헬퍼 (순수 추가) ─────────────────────────────────────
@@ -10418,6 +10387,8 @@ function initUpdate() {
     fetchSimmonsMarket();
     // 순수 추가: 국외 해외 슬립테크 시장·기업 정적 JSON (위와 같은 이유로 await 안 한다)
     fetchGlobalSleepTech();
+    // 순수 추가: 글로벌 매트리스 시장 규모 — 월 1회 수집해 둔 캐시를 읽는다.
+    fetchMattressMarket();
     // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchInstagram();

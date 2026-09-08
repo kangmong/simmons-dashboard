@@ -60,6 +60,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/global-mattress-market.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/instagram.json",
       "use": "@vercel/static"
     },
