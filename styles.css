@@ -2291,39 +2291,32 @@ body {
   border-right: 1px solid var(--card, #fff);
 }
 .ces-seg:last-child { border-right: 0; }
+/* 확인 안 된 기업 — 막대를 만들지 않고 빗금 자리만 둔다(0건과 구분) */
+.ces-nobar {
+  height: 100%; border-radius: 3px;
+  background: repeating-linear-gradient(135deg,
+    var(--field) 0 6px, var(--slate-soft) 6px 12px);
+  border: 1px dashed var(--stm2-gl-sw, #B6BFCC);
+}
+.ces-row--none .sm-hname { color: var(--muted); font-weight: 600; }
+.ces-val--none { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.ces-chip {
+  padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; white-space: nowrap;
+}
+/* '확인필요'(일부 확인)와 '확인 안됨'(전혀 없음)을 색으로도 구분한다 */
+.ces-chip--partial { background: var(--amber-soft); color: var(--amber-ink); }
+.ces-chip--unknown { background: var(--slate-soft); color: var(--slate); }
+/* 하단 안내 — 그냥 각주보다 눈에 띄게 */
+.ces-foot {
+  margin-top: 10px; padding: 7px 10px; border-radius: var(--radius-sm);
+  background: var(--field); border: 1px solid var(--line); color: var(--text);
+}
 .ces-seg__t {
   font-style: normal; font-size: 9px; font-weight: 800; color: #fff;
   white-space: nowrap; overflow: hidden; text-shadow: 0 0 2px rgba(0,0,0,.35);
 }
 
-/* 매출 규모 비교 표 */
-.strv-wrap { overflow-x: auto; }
-.strv { width: 100%; border-collapse: collapse; font-size: 12px; }
-.strv thead th {
-  padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted);
-  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
-}
-.strv tbody th {
-  padding: 8px 8px; text-align: left; vertical-align: top; background: transparent;
-  font-size: 12px; font-weight: 700; color: var(--ink);
-  border-bottom: 1px solid var(--line); white-space: nowrap;
-}
-.strv tbody td { padding: 8px 8px; vertical-align: top; border-bottom: 1px solid var(--line); }
-.strv tbody tr:last-child th, .strv tbody tr:last-child td { border-bottom: 0; }
-.strv tbody tr:hover { background: var(--row-hover); }
-.strv-open { display: flex; flex-direction: column; gap: 7px; }
-.strv-v { display: flex; flex-direction: column; }
-.strv-v__n {
-  font-size: 14px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums;
-}
-.strv-v__s { margin-top: 1px; font-size: 11px; color: var(--text); }
-.strv-v__m { display: block; margin-top: 1px; font-size: 10.5px; color: var(--muted); }
-.strv-caution {
-  margin-top: 2px; padding: 6px 8px; border-radius: var(--radius-sm);
-  background: var(--amber-soft); color: var(--amber-ink);
-  font-size: 10.5px; line-height: 1.5;
-}
-.strv-none { font-size: 12px; font-weight: 700; color: var(--slate); }
 
 /* ── 슬립테크 기업카드: 대표 제품 + 핵심 작동방식 ─────────────────────────
    기업카드(.sm-st) 안에 얹는 블록이라 바깥 박스를 새로 만들지 않는다. */
