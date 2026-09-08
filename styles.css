@@ -2282,6 +2282,49 @@ body {
 /* ── 국내 · 슬립테크 기업 카드 ─────────────────────────────────────────── */
 /* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
 /* 한줄 요약 — 다른 리포트 헤드라인과 같은 결(크고 굵게, 핵심 배수만 강조색) */
+/* ── CES 혁신상 수상 이력 · 매출 규모 비교 ────────────────────────────────
+   막대는 투자 유치액 비교(.sm-hbars--inv)와 같은 마크업을 그대로 쓴다. */
+/* 연도별 구간을 나눈 막대 — 한 막대 안에서 연도가 왼→오로 읽힌다 */
+.ces-hbar { display: flex; height: 100%; border-radius: 3px; overflow: hidden; }
+.ces-seg {
+  display: flex; align-items: center; justify-content: center; min-width: 0;
+  border-right: 1px solid var(--card, #fff);
+}
+.ces-seg:last-child { border-right: 0; }
+.ces-seg__t {
+  font-style: normal; font-size: 9px; font-weight: 800; color: #fff;
+  white-space: nowrap; overflow: hidden; text-shadow: 0 0 2px rgba(0,0,0,.35);
+}
+
+/* 매출 규모 비교 표 */
+.strv-wrap { overflow-x: auto; }
+.strv { width: 100%; border-collapse: collapse; font-size: 12px; }
+.strv thead th {
+  padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.strv tbody th {
+  padding: 8px 8px; text-align: left; vertical-align: top; background: transparent;
+  font-size: 12px; font-weight: 700; color: var(--ink);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.strv tbody td { padding: 8px 8px; vertical-align: top; border-bottom: 1px solid var(--line); }
+.strv tbody tr:last-child th, .strv tbody tr:last-child td { border-bottom: 0; }
+.strv tbody tr:hover { background: var(--row-hover); }
+.strv-open { display: flex; flex-direction: column; gap: 7px; }
+.strv-v { display: flex; flex-direction: column; }
+.strv-v__n {
+  font-size: 14px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.strv-v__s { margin-top: 1px; font-size: 11px; color: var(--text); }
+.strv-v__m { display: block; margin-top: 1px; font-size: 10.5px; color: var(--muted); }
+.strv-caution {
+  margin-top: 2px; padding: 6px 8px; border-radius: var(--radius-sm);
+  background: var(--amber-soft); color: var(--amber-ink);
+  font-size: 10.5px; line-height: 1.5;
+}
+.strv-none { font-size: 12px; font-weight: 700; color: var(--slate); }
+
 /* ── 슬립테크 기업카드: 대표 제품 + 핵심 작동방식 ─────────────────────────
    기업카드(.sm-st) 안에 얹는 블록이라 바깥 박스를 새로 만들지 않는다. */
 
@@ -2385,6 +2428,17 @@ body {
    ★ 분기선은 가짜 요소(::before)로만 그린다 — SVG 를 쓰지 않아 폭이 바뀌어도
      선이 어긋나지 않고, 1열로 접히면 미디어쿼리에서 선만 지운다. */
 
+/* 다이어그램 전용 색 — 여기서만 쓰는 지역 변수(전역 토큰 불변) */
+.sm-techmap {
+  --stm2-link: var(--muted);        /* 연결선: 흰 배경 대비 3.10:1 */
+  --stm2-kr: var(--blue-ink);       /* 국내: 진한 파랑 */
+  --stm2-kr-bg: #DBEAFE;            /* 국내 배지 배경(진한 파랑 글자와 5.49:1) */
+  --stm2-gl: #8A93A3;               /* 해외: 진한 회색 테두리 */
+  --stm2-gl-bg: #F1F3F7;            /* 해외 배지 배경 */
+  --stm2-gl-ink: #334155;           /* 해외 글자(배경과 9.32:1) */
+  --stm2-gl-sw: #B6BFCC;            /* 해외 범례 스와치(국내와 3.61:1) */
+}
+
 /* 상단 헤더 박스 + 아래로 내려가는 줄기 */
 .stm2-root { display: flex; flex-direction: column; align-items: center; }
 .stm2-root__box {
@@ -2394,25 +2448,27 @@ body {
   font-size: 13px; font-weight: 800; letter-spacing: -.01em; text-align: center;
 }
 .stm2-root__hint { font-size: 10.5px; font-weight: 500; opacity: .85; letter-spacing: 0; }
-.stm2-stem { width: 1px; height: 10px; background: var(--line); }
+/* 연결선 — 예전에는 --line(#EDEFF3, 1.15:1)이라 사실상 안 보였다 */
+.stm2-stem { width: 2px; height: 11px; background: var(--stm2-link); border-radius: 1px; }
 
 /* 3분기 — 위쪽 가로 분기선 + 박스마다 세로 연결선 */
 .stm2-fork {
-  position: relative; padding-top: 11px;
+  position: relative; padding-top: 13px;
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
 }
 .stm2-fork::before {
-  content: ''; position: absolute; top: 0; height: 1px; background: var(--line);
+  content: ''; position: absolute; top: 0; height: 2px; border-radius: 1px;
+  background: var(--stm2-link);
   left: calc(16.6% + 5px); right: calc(16.6% + 5px);
 }
 .stm2-box {
   position: relative; padding: 9px 11px 10px; min-width: 0;
-  border: 1px solid var(--line); border-top: 2px solid var(--stm2-c, var(--slate));
+  border: 1px solid var(--line); border-top: 3px solid var(--stm2-c, var(--slate));
   border-radius: var(--radius-sm); background: var(--field);
 }
 .stm2-box::before {
-  content: ''; position: absolute; top: -11px; left: 50%;
-  width: 1px; height: 11px; background: var(--line);
+  content: ''; position: absolute; top: -13px; left: 50%; margin-left: -1px;
+  width: 2px; height: 13px; background: var(--stm2-link); border-radius: 1px;
 }
 .stm2-box--blue { --stm2-c: var(--blue); }
 .stm2-box--violet { --stm2-c: var(--violet); }
@@ -2423,37 +2479,51 @@ body {
   color: var(--stm2-c, var(--slate)); letter-spacing: .01em;
 }
 .stm2-box__d { margin-top: 2px; font-size: 10.5px; color: var(--muted); line-height: 1.45; }
-.stm2-tags { margin-top: 7px; display: flex; flex-direction: column; gap: 4px; }
-.stm2-tags--cat { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+.stm2-tags { margin-top: 7px; display: flex; flex-direction: column; gap: 5px; }
+.stm2-tags--cat { flex-direction: row; flex-wrap: wrap; gap: 5px; }
 
-/* 기업 태그 — 국내(파랑) / 해외(회색) */
+/* 기업 태그 — 국내/해외를 왼쪽 굵은 띠 + 배경 + 글자색 3중으로 구분한다 */
 .stm2-tag {
-  display: block; padding: 4px 7px; border-radius: 5px;
-  border: 1px solid var(--stm2-tb, var(--line)); background: var(--stm2-tg, var(--card, #fff));
-  min-width: 0;
+  display: block; padding: 4px 8px; border-radius: 5px;
+  border: 1px solid var(--stm2-tb, var(--line));
+  border-left: 4px solid var(--stm2-tb, var(--line));
+  background: var(--stm2-tg, var(--card, #fff)); min-width: 0;
 }
-.stm2-tags--cat .stm2-tag { display: inline-block; border-radius: 999px; padding: 3px 9px; }
-.stm2-tag--kr { --stm2-tb: color-mix(in srgb, var(--blue) 28%, transparent); --stm2-tg: var(--blue-soft); }
-.stm2-tag--gl { --stm2-tb: var(--line); --stm2-tg: var(--card, #fff); }
-.stm2-tag__n { display: block; font-size: 11px; font-weight: 700; color: var(--ink); line-height: 1.35; }
-.stm2-tag--kr .stm2-tag__n { color: var(--blue-ink); }
-.stm2-tag--gl .stm2-tag__n { color: var(--slate); }
-.stm2-tags--cat .stm2-tag__n { display: inline; font-size: 10.5px; }
+.stm2-tag--kr { --stm2-tb: var(--stm2-kr); --stm2-tg: var(--stm2-kr-bg); }
+.stm2-tag--gl { --stm2-tb: var(--stm2-gl); --stm2-tg: var(--stm2-gl-bg); }
+.stm2-tag__n { display: block; font-size: 11px; font-weight: 700; line-height: 1.35; }
+.stm2-tag--kr .stm2-tag__n { color: var(--stm2-kr); }
+.stm2-tag--gl .stm2-tag__n { color: var(--stm2-gl-ink); }
 .stm2-tag__d { display: block; margin-top: 1px; font-size: 10px; color: var(--muted); line-height: 1.4; }
 
+/* 카테고리 카드 안 알약 배지 — 국내는 꽉 찬 파랑, 해외는 옅은 회색 */
+.stm2-tags--cat .stm2-tag {
+  display: inline-block; border-radius: 999px; padding: 3px 10px; border-left-width: 1px;
+}
+.stm2-tags--cat .stm2-tag--kr { background: var(--stm2-kr); border-color: var(--stm2-kr); }
+.stm2-tags--cat .stm2-tag--kr .stm2-tag__n { color: #fff; }
+.stm2-tags--cat .stm2-tag--gl { background: var(--stm2-gl-bg); border-color: var(--stm2-gl-sw); }
+.stm2-tags--cat .stm2-tag--gl .stm2-tag__n { color: var(--stm2-gl-ink); }
+.stm2-tags--cat .stm2-tag__n { display: inline; font-size: 10.5px; }
+
 /* 구분선 + '어느 분야에 어느 기업이 있나' */
-.stm2-sep { margin: 14px 0 11px; border-top: 1px dashed var(--line); }
+.stm2-sep { margin: 14px 0 11px; border-top: 1px dashed var(--stm2-link); opacity: .55; }
 .stm2-maph {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
 }
 .stm2-maph__t { font-size: 12.5px; font-weight: 800; color: var(--ink); }
-.stm2-legend { margin-left: auto; display: flex; gap: 10px; }
-.stm2-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); }
-.stm2-lg__sw { width: 9px; height: 9px; border-radius: 2px; border: 1px solid var(--line); }
-.stm2-lg__sw--kr { background: var(--blue-soft); border-color: color-mix(in srgb, var(--blue) 28%, transparent); }
-.stm2-lg__sw--gl { background: var(--card, #fff); }
+/* 범례 — 카드 안 배지와 같은 모양으로 보여 준다(범례와 실물이 어긋나지 않게) */
+.stm2-legend { margin-left: auto; display: flex; gap: 12px; }
+.stm2-lg {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; color: var(--slate);
+}
+.stm2-lg__sw { width: 14px; height: 11px; border-radius: 999px; border: 1px solid transparent; }
+.stm2-lg__sw--kr { background: var(--stm2-kr); border-color: var(--stm2-kr); }
+.stm2-lg__sw--gl { background: var(--stm2-gl-bg); border-color: var(--stm2-gl-sw); }
 
 /* 카테고리 카드 3개 */
+
 .stm2-cats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .stm2-cat {
   padding: 9px 11px 10px; min-width: 0;

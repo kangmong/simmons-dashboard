@@ -1614,6 +1614,87 @@ function stMechFlow(c) {
     + '</div>';
 }
 
+/** CES 혁신상 수상 이력 — 투자 유치액 비교와 같은 가로 막대.
+ *  ★ 확인된 횟수만 막대로 낸다. 미확인 기업은 0회가 아니라 '데이터 없음'이라
+ *    아래 '그래프에서 제외' 줄에 따로 적는다(0과 혼동하지 않게).
+ *  ★★ 세라젬은 연도별 증가(3→6→12)를 막대 안 구간으로 나눠 보여 준다. */
+function stCesAwards(st) {
+  const c = st && st.cesAwards;
+  const items = (c && Array.isArray(c.items)) ? c.items.filter((x) => x.total > 0) : [];
+  if (!items.length) return '';
+  const sorted = items.slice().sort((a, b) => b.total - a.total);
+  const max = Math.max.apply(null, sorted.map((x) => x.total)) || 1;
+  const unit = c.unit || '회';
+  const rows = sorted.map((x) => {
+    const w = Math.max(2, (x.total / max) * 100);
+    const base = x.color || 'var(--slate)';
+    /* 연도별 값이 있으면 한 막대를 연도 구간으로 쪼갠다 — 같은 색을 농도만
+       달리해서, 늘어난 순서가 왼쪽에서 오른쪽으로 읽히게 한다. */
+    const inner = (Array.isArray(x.byYear) && x.byYear.length)
+      ? '<div class="sm-hbar ces-hbar" style="width:' + w.toFixed(1) + '%">'
+        + x.byYear.map((y, i) => '<span class="ces-seg" title="'
+          + escapeHtml(y.year + '년 ' + y.n + unit) + '" style="flex:' + y.n
+          + ';background:' + escapeHtml(base) + ';opacity:'
+          + (0.45 + i * 0.275).toFixed(3) + '">'
+          + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2)) + '·' + y.n + '</i>'
+          + '</span>').join('')
+        + '</div>'
+      : '<div class="sm-hbar" style="width:' + w.toFixed(1) + '%;background:'
+        + escapeHtml(base) + ';opacity:1"></div>';
+    return '<div class="sm-hrow">'
+      + '<div class="sm-hname" title="' + escapeHtml(x.name) + '">'
+      + escapeHtml(x.name) + '</div>'
+      + '<div class="sm-htrack">' + inner + '</div>'
+      + '<div class="sm-hval">' + x.total.toLocaleString('ko-KR') + unit
+      + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
+      + '</div>'
+      + (x.basis ? '<div class="sm-hmemo">' + escapeHtml(x.basis) + '</div>' : '')
+      + '</div>';
+  }).join('');
+  const ex = (Array.isArray(c.excluded) && c.excluded.length)
+    ? '<div class="sm-foot">※ 그래프에서 제외: '
+      + c.excluded.map((x) => escapeHtml(x.name) + '('
+        + escapeHtml(x.reason || '데이터 없음') + ')').join(', ') + '</div>'
+    : '';
+  return '<h3 class="subhead sm-st__ih">' + escapeHtml(c.heading || 'CES 혁신상 수상 이력')
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(unit) + ')</span></h3>'
+    + (c.note ? '<div class="sm-othfoot">※ ' + escapeHtml(c.note) + '</div>' : '')
+    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + ex
+    + (c.source ? '<div class="sm-foot">' + escapeHtml(c.source) + '</div>' : '');
+}
+
+/** 매출 규모 비교 — 공개 수치가 있는 기업만 숫자, 나머지는 '비공개'.
+ *  ★ 코웨이처럼 집계 범위가 다른 수치가 둘이면 둘 다 적고, 어느 쪽이 맞다고
+ *    단정하지 않는다(주의 문구를 같은 행에 붙인다). */
+function stRevenueTable(st) {
+  const t = st && st.revenueTable;
+  const rows = (t && Array.isArray(t.rows)) ? t.rows : [];
+  if (!rows.length) return '';
+  const body = rows.map((r) => {
+    if (Array.isArray(r.values) && r.values.length) {
+      const vs = r.values.map((v) => '<div class="strv-v">'
+        + '<span class="strv-v__n">' + escapeHtml(v.v || '') + '</span>'
+        + (v.scope ? '<span class="strv-v__s">' + escapeHtml(v.scope) + '</span>' : '')
+        + (v.memo ? '<span class="strv-v__m">' + escapeHtml(v.memo) + '</span>' : '')
+        + '</div>').join('');
+      return '<tr><th scope="row">' + escapeHtml(r.name) + '</th>'
+        + '<td class="strv-open">' + vs
+        + (r.caution ? '<div class="strv-caution">※ ' + escapeHtml(r.caution) + '</div>' : '')
+        + '</td></tr>';
+    }
+    return '<tr><th scope="row">' + escapeHtml(r.name) + '</th>'
+      + '<td><span class="strv-none">' + escapeHtml(r.undisclosed || '비공개') + '</span>'
+      + (r.memo ? '<span class="strv-v__m">' + escapeHtml(r.memo) + '</span>' : '')
+      + '</td></tr>';
+  }).join('');
+  return '<h3 class="subhead sm-st__ih">' + escapeHtml(t.heading || '매출 규모 비교') + '</h3>'
+    + (t.note ? '<div class="sm-othfoot">※ ' + escapeHtml(t.note) + '</div>' : '')
+    + '<div class="strv-wrap"><table class="strv">'
+    + '<thead><tr><th>기업</th><th>매출</th></tr></thead><tbody>' + body + '</tbody></table></div>'
+    + (t.source ? '<div class="sm-foot">' + escapeHtml(t.source) + '</div>' : '');
+}
+
 function stCardsHtml(st) {
   if (!st || !Array.isArray(st.companies) || !st.companies.length) return '';
   const row = (k, v) => (v ? '<div class="sm-st__row"><span class="sm-st__k">'
@@ -1642,6 +1723,9 @@ function stCardsHtml(st) {
     + escapeHtml(st.title || '국내 슬립테크 시장 주요 기업') + '</div>'
     + '<div class="sm-st-grid">' + cards + '</div>'
     + smStInvest(st)
+    // 순수 추가: CES 혁신상 수상 이력 · 매출 규모 비교(투자 유치액 비교 아래)
+    + stCesAwards(st)
+    + stRevenueTable(st)
     + (st.note ? '<div class="sm-foot">' + escapeHtml(st.note) + '</div>' : '')
     // 순수 추가: 제품 이미지를 아이콘으로 대체한 이유 · 작동방식 출처
     + (st.productNote ? '<div class="sm-foot">' + escapeHtml(st.productNote) + '</div>' : '')
