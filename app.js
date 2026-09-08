@@ -1793,6 +1793,27 @@ function krwNote(cur) {
     + (d ? ' <span class="viz-fxnote__d">(' + escapeHtml(d) + ' 기준)</span>' : '') + '</div>';
 }
 
+/** 원화 환산 짧은 표기 — 만원 한 자리(예: 13.8만원).
+ *  fmtKrwShort 는 만원을 정수로 반올림해 13.8 이 14 로 뭉개진다.
+ *  배럴·톤당 단가처럼 만원 자리에서 소수가 의미 있는 곳은 이 쪽을 쓴다. */
+function krwMan(v) {
+  if (v == null || !isFinite(v)) return null;
+  const sign = v < 0 ? '-' : '';
+  const a = Math.abs(v);
+  const n1 = (x) => x.toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (a >= 1e8) return sign + n1(a / 1e8) + '억원';
+  if (a >= 1e4) return sign + n1(a / 1e4) + '만원';
+  return sign + Math.round(a).toLocaleString('ko-KR') + '원';
+}
+
+/** 달러 금액의 원화 환산 조각. 환율이 없으면 '' (지어내지 않는다). */
+function krwOf(usd, unit) {
+  const r = krwRate('USD');
+  if (r == null || usd == null || !isFinite(usd)) return '';
+  const t = krwMan(usd * r);
+  return t ? ('≈ ' + t + (unit ? '/' + unit : '')) : '';
+}
+
 /** Y축 눈금 아래에 붙일 원화 둘째 줄. 환율 없으면 '' */
 function vizKrwTick(x, y, val, rate) {
   if (rate == null || val == null || val === 0) return '';
@@ -2791,13 +2812,16 @@ function matVal(v, unit, digits) {
 }
 
 /** 품목 여러 개를 한 박스씩 — ICIS·국제유가처럼 계열이 여럿인 위젯용 */
-function matSeriesBoxes(items, unit, digits) {
+function matSeriesBoxes(items, unit, digits, krwUnit) {
   return matSum((items || []).map((it) => {
     const s = matStat(it.pts);
     if (!s) return null;
+    // krwUnit 을 주면 값 아래에 원화 환산을 한 줄 더 붙인다(달러 표기 위젯용)
+    const krw = krwUnit ? krwOf(s.v, krwUnit) : '';
     return {
       label: it.label,
-      val: matVal(s.v, unit, digits),
+      val: matVal(s.v, unit, digits)
+        + (krw ? '<span class="sr-sum__krw">' + escapeHtml(krw) + '</span>' : ''),
       sub: escapeHtml(s.ym) + ' · ' + matChg('전월비', s.mom),
     };
   }));
@@ -3659,7 +3683,7 @@ function renderOilProductHtml() {
   const opSum = (_opData && !_opData.error)
     ? matSeriesBoxes(OP_SUM_KEYS.map((k) => (_opData.series || []).find((s) => s.key === k))
       .filter(Boolean).map((s) => ({ label: s.label, pts: msPtsPetro(_opData, s.key) })),
-      '$/배럴', 2) : '';
+      '$/배럴', 2, '배럴') : '';
   if (!_opData) {
     return `<div class="viz-root viz-figure oilp-figure">${head}`
       + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>' + `${cap}</div>`;
@@ -5543,8 +5567,11 @@ function oilSummary3() {
     const p = oilMonthly(s.key);
     if (!p.length) return '';
     const mom = oilBack(p, 1);
+    const v = p[p.length - 1].v;
+    const krw = krwOf(v, '배럴');
     return `<div class="oil-s__row"><span class="oil-s__k">${escapeHtml(s.label)}</span>
-      <span class="oil-s__v">${oilUsd(p[p.length - 1].v, 2)}</span>
+      <span class="oil-s__v">${oilUsd(v, 2)}${krw
+        ? `<span class="oil-s__krw">${escapeHtml(krw)}</span>` : ''}</span>
       <span class="oil-s__d">${matBadge(mom)}</span></div>`;
   }).join('');
 
@@ -5717,7 +5744,7 @@ function renderOilPricesHtml() {
   // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
   const ocSum = (_ocData && !_ocData.error)
     ? matSeriesBoxes((_ocData.series || []).slice(0, 4).map((s) => ({
-      label: s.label, pts: msPtsPetro(_ocData, s.key) })), '$/배럴', 2) : '';
+      label: s.label, pts: msPtsPetro(_ocData, s.key) })), '$/배럴', 2, '배럴') : '';
 
   if (!_ocData) {
     return `<div class="viz-root viz-figure oil-figure">${head}`
