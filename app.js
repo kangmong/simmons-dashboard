@@ -2255,60 +2255,6 @@ function msPhase(m) {
   return { kind: 'flat', icon: '▬', text: '혼조' };
 }
 
-/** 배지 한 칸 */
-function msBadge(label, val, cls, title) {
-  return '<div class="ms-badge"' + (title ? ' title="' + escapeHtml(title) + '"' : '') + '>'
-    + '<span class="ms-badge__lbl">' + escapeHtml(label) + '</span>'
-    + '<span class="ms-badge__val ' + cls + '">' + val + '</span></div>';
-}
-
-/** 등락률 배지 값 — 오르면 빨강 ▲ / 내리면 파랑 ▼ (국내 시세 표기 관행) */
-function msPctVal(c) {
-  if (!c || c.pct == null || !isFinite(c.pct)) {
-    return { html: '—', cls: 'na', tip: '비교할 과거 시점의 데이터가 없습니다' };
-  }
-  const p = c.pct;
-  const cls = p > 0.05 ? 'up' : (p < -0.05 ? 'down' : 'flat');
-  const icon = p > 0.05 ? '▲' : (p < -0.05 ? '▼' : '');
-  return {
-    html: (icon ? icon + ' ' : '') + (p > 0 ? '+' : '') + p.toFixed(1) + '%',
-    cls: cls,
-    tip: c.tip || (c.from.ym + ' ' + msNumTip(c.from.v) + ' → ' + c.to.ym + ' ' + msNumTip(c.to.v)),
-  };
-}
-
-/** 자료가 직접 계산해 준 등락률(%)이면 그대로 쓴다. 아니면 null. */
-function msGiven(v, what) {
-  return (typeof v === 'number' && isFinite(v))
-    ? { pct: v, tip: '자료 제공 ' + what + ' 값' } : null;
-}
-
-function msNumTip(v) {
-  return Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
-}
-
-/** 요약 배지 3개 (전월비 · 전년비 · 국면) + 기준 표기.
- *  pts 가 모자라면 배지 줄 자체를 내지 않는다(빈 껍데기를 남기지 않는다). */
-function msBadgesHtml(pts, basis, given) {
-  const p = (pts || []).filter((x) => x && x.v != null && isFinite(x.v));
-  if (p.length < 2) return '';
-  const m = msMonthly(p);
-  // ★ 자료가 이미 계산해 둔 값이 있으면 그쪽을 쓴다. 일별 자료를 월말끼리 비교하면
-  //   같은 값이 걸려 '전월비 0.0%' 처럼 오해를 부르는데, 자료 제공값은 같은 날짜
-  //   기준이라 정확하다.
-  const g = given || {};
-  const mom = msPctVal(msGiven(g.momPct, '전월 대비') || msChangeAt(m, 1));
-  const yoy = msPctVal(msGiven(g.yoyPct, '전년 대비') || msChangeAt(m, 12));
-  const ph = msPhase(m);
-  return '<div class="ms-badges">'
-    + msBadge('전월비', mom.html, mom.cls, mom.tip)
-    + msBadge('전년비', yoy.html, yoy.cls, yoy.tip)
-    + (ph ? msBadge('국면', escapeHtml(ph.icon + ' ' + ph.text), ph.kind, null)
-          : msBadge('국면', '—', 'na', '국면을 판정할 만큼의 월별 관측치가 없습니다'))
-    + (basis ? '<span class="ms-basis">' + escapeHtml(basis) + '</span>' : '')
-    + '</div>';
-}
-
 /* ── 변곡점 마커 ─────────────────────────────────────────────────────────
    차트마다 X(i) 가 인덱스에 선형이라, 날짜를 '소수 인덱스'로 바꿔 그대로 넘긴다. */
 
@@ -2445,25 +2391,10 @@ function msFactorsHtml(key) {
    ★ 여러 계열을 평균 내지 않는다. 없는 합성지수를 만드는 셈이 되기 때문이다.
      대신 어느 계열로 쟀는지 배지 옆에 그대로 적는다. */
 
-/** 스폰지 주원료 — PPG(폴리올). 해설도 폴리올 계열을 다룬다. */
-function msPtsIcis() {
-  return ICIS_DATA.periods
-    .map((p, i) => ({ k: p, v: ICIS_DATA.PPG[i] }))
-    .filter((x) => x.v != null);
-}
-
 /** 국제유가(원유·제품) — 월별 전 구간에서 고른 유종/제품 하나. */
 function msPtsPetro(data, key) {
   const rows = (data && data.terms && data.terms.m && data.terms.m.rows) || [];
   return rows.map((r) => ({ k: r.period, v: r[key] })).filter((x) => x.v != null);
-}
-
-/** 지금 켜져 있는 계열 중 첫 번째 {key,label}. 없으면 null. */
-function msFirstOn(data, q) {
-  const list = (data && data.series) || [];
-  const on = (q && q.on) ? q.on : null;
-  const hit = on ? list.find((s) => on.has(s.key)) : null;
-  return hit || list[0] || null;
 }
 
 /** KOIMA 월간 부문별 지수 — 선택된 부문. */
@@ -2807,6 +2738,71 @@ function iiImplications() {
   </div>`;
 }
 
+/* ── 위젯 헤더 공용 요약 4박스 ────────────────────────────────────────────
+   해상 정시성 위젯의 .sr-sum / sriBox() 를 그대로 재사용한다 —
+   새 컴포넌트를 만들면 같은 자리에 두 가지 모양이 다시 생긴다. */
+
+/** [{label, val, sub, cls}] → 요약 박스 줄. 빈 배열이면 ''(빈 껍데기를 남기지 않는다) */
+function matSum(boxes) {
+  const cells = (boxes || []).filter(Boolean)
+    .map((b) => sriBox(b.label, b.val, b.cls || '', b.sub || '')).join('');
+  return cells ? '<div class="sr-sum">' + cells + '</div>' : '';
+}
+
+/** 시계열 한 줄에서 최근값·전월비·전년비·12개월 평균을 뽑는다. 없으면 null */
+function matStat(pts) {
+  const p = (pts || []).filter((x) => x && x.v != null && isFinite(x.v));
+  if (p.length < 2) return null;
+  const m = msMonthly(p);
+  const last = m[m.length - 1];
+  const mom = msChangeAt(m, 1), yoy = msChangeAt(m, 12);
+  const win = m.slice(-12).map((x) => x.v).filter((v) => v != null && isFinite(v));
+  return {
+    ym: last.ym, v: last.v,
+    mom: mom ? mom.pct : null, yoy: yoy ? yoy.pct : null,
+    avg: win.length ? win.reduce((a, b) => a + b, 0) / win.length : null,
+  };
+}
+
+/** 등락률 한 조각 — 부호를 반드시 남긴다(음수가 '▼ 10.01%' 처럼 보이지 않게) */
+function matPct(pct, digits) {
+  if (pct == null || !isFinite(pct)) return '—';
+  const icon = pct > 0.05 ? '▲ ' : (pct < -0.05 ? '▼ ' : '');
+  return icon + (pct > 0 ? '+' : '') + pct.toFixed(digits == null ? 1 : digits) + '%';
+}
+
+/** 등락률 배지 — 박스의 값 칸이나 보조줄에 그대로 넣는다 */
+function matBadge(pct, digits) {
+  return '<span class="ms-badge__val ' + iiCls(pct) + '">' + matPct(pct, digits) + '</span>';
+}
+
+/** 등락률을 박스 보조줄에 넣을 모양으로 (해상 정시성 박스와 같은 표기) */
+function matChg(label, pct) {
+  return (label ? escapeHtml(label) + ' ' : '') + '<b class="ms-badge__val ' + iiCls(pct) + '">'
+    + matPct(pct) + '</b>';
+}
+
+/** 값 + 작은 단위 표기 */
+function matVal(v, unit, digits) {
+  if (v == null || !isFinite(v)) return '—';
+  const n = Number(v).toLocaleString('en-US', {
+    minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 });
+  return escapeHtml(n) + (unit ? '<span class="sr-sum__u">' + escapeHtml(unit) + '</span>' : '');
+}
+
+/** 품목 여러 개를 한 박스씩 — ICIS·국제유가처럼 계열이 여럿인 위젯용 */
+function matSeriesBoxes(items, unit, digits) {
+  return matSum((items || []).map((it) => {
+    const s = matStat(it.pts);
+    if (!s) return null;
+    return {
+      label: it.label,
+      val: matVal(s.v, unit, digits),
+      sub: escapeHtml(s.ym) + ' · ' + matChg('전월비', s.mom),
+    };
+  }));
+}
+
 /** 섹션 5 전체 렌더: 업데이트 전 안내 → 업데이트 후 연도 툴바 → 연도 선택 시 그래프 */
 function renderMaterial() {
   const root = document.getElementById('materialRoot');
@@ -2825,6 +2821,14 @@ function renderMaterial() {
       `<button class="icis-year${y === _matYear ? ' is-active' : ''}" data-year="${y}">${y === 'all' ? '전체' : y}</button>`).join('')}</div>`
     : '';
 
+  // 요약 4박스 — 원료마다 한 칸. 연도 선택과 무관하게 전 구간에서 계산한다
+  // (전년비를 재려면 12개월이 필요하다). 해상 정시성 위젯과 같은 .sr-sum 을 쓴다.
+  const icisSum = matSeriesBoxes(ICIS_SERIES.map((s) => ({
+    label: s.key,
+    pts: ICIS_DATA.periods.map((p, i) => ({ k: p, v: ICIS_DATA[s.key][i] }))
+      .filter((x) => x.v != null),
+  })), 'USD/톤');
+
   let body;
   if (!_matYear) {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
@@ -2832,9 +2836,7 @@ function renderMaterial() {
     const { periods, series } = icisViewData(_matYear);
     // 추세 연장은 화면이 데이터 끝까지 닿아 있을 때만 만든다(iiExtend 안에서 판단).
     const ext = iiExtend(periods);
-    // 배지는 고른 연도가 아니라 '전 구간'으로 계산한다 — 전년비를 재려면 12개월이 필요하다.
-    body = msBadgesHtml(msPtsIcis(), 'PPG(폴리올) 기준 · 전체 수집구간')
-      + buildIcisChart(periods, series, ext)
+    body = buildIcisChart(periods, series, ext)
       + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
         + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
         + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
@@ -2851,6 +2853,7 @@ function renderMaterial() {
       <div class="viz-title">스폰지 주원료 시황 (ICIS Asia)</div>
       <div class="viz-sub">PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료</div>
     </div></div>
+    ${icisSum}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
@@ -3649,6 +3652,13 @@ function renderOilProductHtml() {
       <div class="viz-sub">일일국제제품가격 · 휘발유·등유·경유·중유·나프타 (${escapeHtml(unit)})</div>
     </div></div>`;
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제제품가격', SRC_LINKS.oilProduct);
+  // 요약 4박스 — 제품이 9개라 다 넣을 수 없다. 대표 유종 슬레이트(휘발유·등유·경유)에
+  // 나프타를 더한 4개를 고정으로 보여 준다(나프타는 폴리우레탄 폼 원료 계통이라 함께 본다).
+  const OP_SUM_KEYS = ['gasoline95', 'kerosene', 'diesel005', 'naphtha'];
+  const opSum = (_opData && !_opData.error)
+    ? matSeriesBoxes(OP_SUM_KEYS.map((k) => (_opData.series || []).find((s) => s.key === k))
+      .filter(Boolean).map((s) => ({ label: s.label, pts: msPtsPetro(_opData, s.key) })),
+      '$/배럴', 2) : '';
   if (!_opData) {
     return `<div class="viz-root viz-figure oilp-figure">${head}`
       + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>' + `${cap}</div>`;
@@ -3677,15 +3687,12 @@ function renderOilProductHtml() {
     const result = (_opView === 'chart')
       ? buildProductChart(win, opOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilpTooltip"></div>'
       : opTableHtml(q, win);
-    const opOn = msFirstOn(_opData, q);
-    body = tools
-      + (opOn ? msBadgesHtml(msPtsPetro(_opData, opOn.key), opOn.label + ' 기준 · 월별 전 구간') : '')
-      + result + msFactorsHtml('oil_price');
+    body = tools + result + msFactorsHtml('oil_price');
   }
   const note = (_opData.note ? '<div class="g-note">' + escapeHtml(_opData.note) + '</div>' : '');
   // 적용 환율·기준일 — 이미 있는 krwNote()(usd_krw 섹션 기반)를 그대로 쓴다
   const fxnote = _opQuery ? krwNote('USD') : '';
-  return `<div class="viz-root viz-figure oilp-figure">${head}${controls}${body}${fxnote}${note}${cap}</div>`;
+  return `<div class="viz-root viz-figure oilp-figure">${head}${opSum}${controls}${body}${fxnote}${note}${cap}</div>`;
 }
 
 /** 제품 카드 조회 조건 배선 — 원유 카드와 같은 동작, 선택자만 다르다 */
@@ -5273,6 +5280,10 @@ function renderOilPricesHtml() {
       <div class="viz-sub2">지역별 대표 원유(유종)의 가격을 비교하는 그래프</div>
     </div></div>`;
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
+  // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
+  const ocSum = (_ocData && !_ocData.error)
+    ? matSeriesBoxes((_ocData.series || []).slice(0, 4).map((s) => ({
+      label: s.label, pts: msPtsPetro(_ocData, s.key) })), '$/배럴', 2) : '';
 
   if (!_ocData) {
     return `<div class="viz-root viz-figure oil-figure">${head}`
@@ -5303,13 +5314,10 @@ function renderOilPricesHtml() {
     const result = (_ocView === 'chart')
       ? buildOilChart(win, ocOnSeries(q), q.term) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
-    const ocOn = msFirstOn(_ocData, q);
-    body = tools
-      + (ocOn ? msBadgesHtml(msPtsPetro(_ocData, ocOn.key), ocOn.label + ' 기준 · 월별 전 구간') : '')
-      + result + msFactorsHtml('oil_price');
+    body = tools + result + msFactorsHtml('oil_price');
   }
   const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
-  return `<div class="viz-root viz-figure oil-figure">${head}${controls}${body}${note}${cap}</div>`;
+  return `<div class="viz-root viz-figure oil-figure">${head}${ocSum}${controls}${body}${note}${cap}</div>`;
 }
 
 
@@ -5602,14 +5610,21 @@ function renderKoimaHtml() {
   } else {                                              // 3) 선택됨 → 차트 + 표
     const rows = koimaSliceRows();
     // 배지는 고른 기간이 아니라 부문 전 구간으로 계산한다(전년비에 12개월이 필요하다).
-    const kLast = (cat.rows || [])[cat.rows.length - 1] || {};
-    body = msBadgesHtml(msPtsKoima(cat), cat.label + ' 지수 기준 · ' + (kLast.period || ''),
-      { momPct: kLast.momPct, yoyPct: kLast.yoyPct })
-      + buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
+    body = buildKoimaChart(rows, cat) + '<div class="viz-tooltip" id="koimaTooltip"></div>'
       + msFactorsHtml('koima_index')
       + koimaRecentTable(rows, cat);
   }
-  return `<div class="viz-root viz-figure koima-figure">${head}${tabs}${controls}${chips}${body}${cap}</div>`;
+  // 요약 4박스 — 부문이 하나뿐인 단일 지표라 최근값·전월비·전년비·12개월 평균으로 채운다.
+  // 전월비·전년비는 KOIMA 가 직접 계산해 준 값을 그대로 쓴다.
+  const kRow = (ok && cat && cat.rows.length) ? cat.rows[cat.rows.length - 1] : null;
+  const kSt = (ok && cat) ? matStat(msPtsKoima(cat)) : null;
+  const koimaSum = (kSt && kRow) ? matSum([
+    { label: cat.label + ' 지수', val: matVal(kSt.v, '', 2), sub: escapeHtml(kRow.period) + ' 기준' },
+    { label: '전월비', val: matBadge(kRow.momPct, 2), sub: '자료 제공값' },
+    { label: '전년비', val: matBadge(kRow.yoyPct, 2), sub: '자료 제공값' },
+    { label: '최근 12개월 평균', val: matVal(kSt.avg, '', 1), sub: '실측 평균' },
+  ]) : '';
+  return `<div class="viz-root viz-figure koima-figure">${head}${koimaSum}${tabs}${controls}${chips}${body}${cap}</div>`;
 }
 
 /** 단일 시리즈 월별 선그래프 (dot 없음, Y축 auto — 0에서 시작하지 않음) */
@@ -5979,9 +5994,6 @@ function renderKoimaPriceHtml() {
     const rows = kpSliceRows(item);
     // 배지는 고른 기간이 아니라 품목 전 구간으로 계산한다(전년비에 12개월이 필요하다).
     body = kpSummaryBar(item, rows)
-      + msBadgesHtml(msPtsKp(item), item.name + ' 기준 · ' + ((item.rows || []).length
-        ? item.rows[item.rows.length - 1].date : ''),
-        { momPct: (item.rows || []).length ? item.rows[item.rows.length - 1].momPct : null })
       + buildKpChart(rows, item, cat)
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + msFactorsHtml('naphtha')
@@ -5989,7 +6001,18 @@ function renderKoimaPriceHtml() {
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
-  return `<div class="viz-root viz-figure kp-figure">${head}${tabs}${controls}${chips}${body}${warn}${cap}</div>`;
+  // 요약 4박스 — 품목 하나짜리 단일 지표. 아래 kp-sum(거래시장·전주평균 등 품목 상세)과
+  // 겹치지 않도록 여기서는 '한눈에' 보는 네 값만 둔다.
+  const kpRow = (item && (item.rows || []).length) ? item.rows[item.rows.length - 1] : null;
+  const kpSt = item ? matStat(msPtsKp(item)) : null;
+  const kpSum4 = (kpSt && kpRow) ? matSum([
+    { label: item.name, val: matVal(kpSt.v, escapeHtml(item.unit || ''), 2),
+      sub: escapeHtml(kpRow.date) + ' 기준' },
+    { label: '전월비', val: matBadge(kpRow.momPct, 2), sub: '자료 제공값' },
+    { label: '전년비', val: matBadge(kpSt.yoy), sub: '월별 실측 기준' },
+    { label: '최근 12개월 평균', val: matVal(kpSt.avg, '', 1), sub: '실측 평균' },
+  ]) : '';
+  return `<div class="viz-root viz-figure kp-figure">${head}${kpSum4}${tabs}${controls}${chips}${body}${warn}${cap}</div>`;
 }
 
 /** 단일 품목 일별 선그래프 (dot 없음, Y축 auto) */
