@@ -129,6 +129,9 @@
           "badge": "🇫🇮 핀란드",
           "name": "Oura Ring",
           "desc": "수면·회복 추적 스마트 링",
+          "image": "public/products/oura-ring.jpg",
+          "imageSource": "ouraring.com 공식 Oura Ring 제품 페이지 (finishes 갤러리)",
+          "imageSourceUrl": "https://ouraring.com/product/rings",
           "officialUrl": "https://ouraring.com/product/rings"
         },
         "mechanism": {
@@ -229,6 +232,9 @@
           "badge": "🇩🇪 독일",
           "name": "온도조절 매트리스 토퍼",
           "desc": "매트리스에 얹는 온도조절 토퍼 (CES 2023 혁신상)",
+          "image": "public/products/variowell-topper.jpg",
+          "imageSource": "variowell.com 공식 Products & Projects 페이지 (Our technology 단면 이미지)",
+          "imageSourceUrl": "https://variowell.com/products-projects/",
           "officialUrl": "https://variowell.com/products-projects/"
         },
         "mechanism": {
