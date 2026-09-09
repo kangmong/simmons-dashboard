@@ -2234,6 +2234,60 @@ function wireGtControls() {
 }
 
 /** 경쟁사 분석 전체 렌더 (국내 + 국외) */
+/* ══ 국내/국외 보기 전환 ═══════════════════════════════════════════════
+   경쟁사 분기 실적의 두 배너가 탭이 되고, 아래 '신제품·브랜드 동향' 섹션의
+   국내/국외 소그룹도 같은 상태를 따른다.
+   ★ 다시 그릴 때마다 상태를 잃지 않게, 보기 상태는 DOM 이 아니라 이 변수가 갖는다.
+   ★★ 숨김은 [hidden] 대신 .is-off 로 한다 — 숨길 대상이 CSS 에서 display 를
+     지정받고 있으면 hidden 속성이 그 display 에 밀려 그대로 보인다. */
+let _sideView = 'kr';           // 'kr' = 국내(기본) · 'gl' = 국외
+
+/** 현재 보기 상태를 화면에 반영한다. 경쟁사 섹션과 브랜드 섹션 양쪽을 함께 본다. */
+function applySideView() {
+  const on = _sideView === 'gl' ? 'gl' : 'kr';
+
+  // 탭 버튼 — 활성 표시(아리아 + 스타일 훅)
+  document.querySelectorAll('.comp-tab').forEach((b) => {
+    const sel = b.getAttribute('data-side') === on;
+    b.setAttribute('aria-selected', sel ? 'true' : 'false');
+    b.setAttribute('tabindex', sel ? '0' : '-1');
+  });
+
+  // 두 섹션의 패널 — 한쪽만 남긴다
+  document.querySelectorAll('.comp-panel, .brand-side').forEach((el) => {
+    el.classList.toggle('is-off', el.getAttribute('data-side') !== on);
+  });
+
+  // 브랜드 섹션은 탭에서 멀리 떨어져 있어, 왜 한쪽만 보이는지 그 자리에 적어 준다.
+  const note = document.getElementById('domSideNote');
+  if (note) note.textContent = (on === 'gl' ? '국외' : '국내') + ' 보기 중';
+}
+
+/** 탭 클릭·키보드 조작. innerHTML 을 다시 쓸 때마다 불러도 안전하다(위임 1개). */
+function wireCompTabs() {
+  const root = document.getElementById('compRoot');
+  if (!root || root.dataset.tabsWired === '1') return;
+  root.dataset.tabsWired = '1';
+  root.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('.comp-tab');
+    if (!b) return;
+    const side = b.getAttribute('data-side');
+    if (!side || side === _sideView) return;
+    _sideView = side;
+    applySideView();
+  });
+  // ← → 로도 옮길 수 있게(탭 위젯의 기본 조작)
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (!(e.target && e.target.closest && e.target.closest('.comp-tab'))) return;
+    e.preventDefault();
+    _sideView = _sideView === 'kr' ? 'gl' : 'kr';
+    applySideView();
+    const next = root.querySelector('.comp-tab[data-side="' + _sideView + '"]');
+    if (next && next.focus) next.focus();
+  });
+}
+
 /** 국내/국외 배너 오른쪽 요약 배지. 숫자는 로드된 데이터에서 센다.
  *  ★ 세어질 게 없으면 빈 문자열 → vizHero 가 배지를 아예 그리지 않는다. */
 function compGroupBadge(side) {
@@ -2283,18 +2337,24 @@ function renderCompetitor() {
   /* 국내/국외 구분은 배너(.viz-hero)로 세운다 — 스크롤 중에도 '여기서부터
      구분이 바뀐다'가 한눈에 보이도록, 원자재 섹션 배너와 같은 컴포넌트를 쓴다.
      ★ 요약 배지는 데이터에서 센다(기업 수를 코드에 적어 두면 카드가 늘 때 어긋난다). */
+  const tab = (side, hero) => `<button class="comp-tab" type="button" role="tab"
+      data-side="${side}" aria-controls="compPanel-${side}">${hero}</button>`;
   el.innerHTML = `
-    <div class="comp-group">
-      ${vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 비상장사 수기 입력',
-        compGroupBadge('kr'), 'Korea', '', 'viz-hero--plain')}
+    <div class="comp-tabs" role="tablist" aria-label="국내/국외 보기 전환">
+      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 비상장사 수기 입력',
+        compGroupBadge('kr'), 'Korea', '', 'viz-hero--tab'))}
+      ${tab('gl', vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
+        compGroupBadge('gl'), 'Global', '', 'viz-hero--tab'))}
+    </div>
+    <div class="comp-panel comp-group" data-side="kr" id="compPanel-kr" role="tabpanel">
       ${koreaHtml}
     </div>
-    <div class="comp-group">
-      ${vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
-        compGroupBadge('gl'), 'Global', '', 'viz-hero--plain')}
+    <div class="comp-panel comp-group" data-side="gl" id="compPanel-gl" role="tabpanel">
       ${globalHtml}
     </div>`;
   wireGtControls();
+  wireCompTabs();
+  applySideView();
 }
 
 /* ============================================================
@@ -8700,8 +8760,15 @@ function renderBrands() {
   const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중', 'glo');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
-  el.innerHTML = kor + '<div class="brand-divider"></div>' + glo + foot;
+  /* 이 섹션은 탭에서 멀리 떨어져 있다 — 어느 쪽을 보고 있는지 여기서도 밝힌다.
+     ★ 구분선은 두지 않는다. 한 번에 한쪽만 보이므로 가를 것이 없다. */
+  el.innerHTML = '<div class="dom-side"><span class="dom-side__n" id="domSideNote"></span>'
+    + '<span class="dom-side__h">위 ‘국내외 경쟁사 분기 실적’ 탭을 따릅니다</span></div>'
+    + '<div class="brand-side" data-side="kr">' + kor + '</div>'
+    + '<div class="brand-side" data-side="gl">' + glo + '</div>'
+    + foot;
   wireBrandCats();
+  applySideView();
 }
 
 /* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */

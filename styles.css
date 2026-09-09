@@ -1226,6 +1226,8 @@ body {
 /* 감싸는 위젯에 padding 이 없는 자리용 — 음수 마진을 0으로 두고 네 귀를 둥글린다.
    ★ 국내/국외 구분 배너(경쟁사 섹션)가 이 변형을 쓴다. */
 .viz-hero--plain { margin: 0 0 14px; border-radius: var(--radius); }
+/* 탭으로 쓰는 배너 — 버튼 안에 들어가므로 바깥 여백을 두지 않는다 */
+.viz-hero--tab { margin: 0; border-radius: var(--radius); height: 100%; }
 .viz-hero__ico {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 38px; height: 38px; border-radius: 11px;
@@ -2960,3 +2962,40 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 투자 막대 값 아래 원화 병기(달러 단위 그래프에서만 나온다) */
 .sm-hkrw { display: block; margin-top: 1px; font-size: 10.5px; font-weight: 600;
   color: var(--muted); white-space: nowrap; }
+
+
+/* ── 국내/국외 보기 전환 탭 (경쟁사 분기 실적 + 브랜드 동향) ────────────────
+   배너 자체가 탭 버튼이다. 활성 탭은 더 밝은 네이비 + 아래 강조선,
+   비활성 탭은 반투명으로 물러난다. */
+.comp-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+}
+@media (max-width: 760px) { .comp-tabs { grid-template-columns: 1fr; } }
+.comp-tab {
+  display: block; width: 100%; padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--radius); transition: opacity .15s, transform .15s;
+}
+.comp-tab:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+/* 비활성 — 물러나 있다 */
+.comp-tab[aria-selected="false"] .viz-hero { opacity: .5; }
+.comp-tab[aria-selected="false"]:hover .viz-hero { opacity: .72; }
+/* 활성 — 더 밝은 네이비 + 하단 강조선 */
+.comp-tab[aria-selected="true"] .viz-hero {
+  background: linear-gradient(135deg, var(--navy-2) 0%,
+    color-mix(in srgb, var(--blue) 52%, var(--navy-2)) 100%);
+  box-shadow: inset 0 -3px 0 var(--blue);
+}
+/* 탭으로 감춘 패널 — display 를 쓰는 요소도 확실히 접히게 !important 를 둔다 */
+.is-off { display: none !important; }
+
+/* 브랜드 섹션이 어느 쪽을 보여주는지 알리는 줄 */
+.dom-side {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
+  margin-bottom: 12px;
+}
+.dom-side__n {
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--navy); color: #fff; font-size: 11px; font-weight: 800;
+}
+.dom-side__h { font-size: 11px; color: var(--muted); }
