@@ -1569,10 +1569,15 @@ function stProdCard(c) {
   const p = c && c.product;
   if (!p || !p.name) return '';
   const isrc = assetSrc(p.image);
+  /* ★ 사진이 없을 때 아이콘을 그려 넣지 않는다 — 그림 자리를 아이콘으로 채우면
+     '이게 그 제품 사진'처럼 읽힌다. 비어 있다고 밝히고 공식 링크로 보낸다.
+     (icon 이 데이터에 남아 있으면 예전처럼 아이콘을 쓴다 — 국내 카드 호환) */
   const img = isrc
     ? '<img class="stp-img" src="' + escapeHtml(isrc) + '" alt="'
       + escapeHtml(p.name) + ' 제품 이미지" loading="lazy" onerror="this.remove()">'
-    : '<span class="stp-iconwrap" aria-hidden="true">' + stProdIcon(p.icon) + '</span>';
+    : (p.icon
+      ? '<span class="stp-iconwrap" aria-hidden="true">' + stProdIcon(p.icon) + '</span>'
+      : '<span class="stp-nofig">제품 사진 없음</span>');
   /* 사진이 있으면 '어디서 받은 이미지인지' 출처를 적는다(기존 로고가 logoSource 를
      남긴 것과 같은 방식). 사진이 없으면 예전처럼 공식 홈페이지 안내를 둔다. */
   const off = safeUrl(p.officialUrl);
@@ -1617,7 +1622,10 @@ function stMechFlow(c) {
     + '<span class="stm3-step__t">' + escapeHtml(s) + '</span></span>').join(arrow);
   return '<div class="stm3">'
     + '<div class="stm3__h">' + escapeHtml(m.title || '핵심 작동방식')
-    + '<span class="stm3__n">' + steps.length + '단계</span></div>'
+    + '<span class="stm3__n">' + steps.length + '단계</span>'
+    /* 이 순서도가 어디서 온 요약인지 한마디로 밝힌다(예전의 긴 mechNote 대체) */
+    + (m.note ? '<span class="stm3__note">' + escapeHtml(m.note) + '</span>' : '')
+    + '</div>'
     + '<div class="stm3-flow">' + cells + '</div>'
     + '</div>';
 }
@@ -1724,7 +1732,10 @@ function stCardsHtml(st) {
       + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
       + row('설립', c.founded) + row('주요 제품·서비스', c.products)
       + row('투자 유치', c.funding) + row('매출·재무', c.revenue) + row('그 밖에', c.extra)
-      + (src ? '<div class="sm-st__src">출처<ul>' + src + '</ul></div>' : '')
+      + (src ? '<div class="sm-st__src">출처<ul>' + src + '</ul>'
+        + (c.logoSource ? '<div class="sm-st__srcnote">로고: '
+          + escapeHtml(c.logoSource) + '</div>' : '')
+        + '</div>' : '')
       + '</div>';
   }).join('');
   return '<div class="sm-card sm-card--full"><div class="sm-h">'
@@ -2223,6 +2234,23 @@ function wireGtControls() {
 }
 
 /** 경쟁사 분석 전체 렌더 (국내 + 국외) */
+/** 국내/국외 배너 오른쪽 요약 배지. 숫자는 로드된 데이터에서 센다.
+ *  ★ 세어질 게 없으면 빈 문자열 → vizHero 가 배지를 아예 그리지 않는다. */
+function compGroupBadge(side) {
+  const parts = [];
+  if (side === 'kr') {
+    const n = (_smData && _smData.status === 'ok' && _smData.sleepTech
+      && (_smData.sleepTech.companies || []).length) || 0;
+    if (n) parts.push('기업 ' + n + '곳');
+  } else {
+    const st = (_gsData && _gsData.status === 'ok') ? _gsData.sleepTech : null;
+    const n = (st && (st.companies || []).length) || 0;
+    if (n) parts.push('기업 ' + n + '곳');
+    if (st && st.cesAwards && (st.cesAwards.items || []).length) parts.push('CES 수상 확인');
+  }
+  return parts.join(' · ');
+}
+
 function renderCompetitor() {
   const el = document.getElementById('compRoot');
   if (!el) return;
@@ -2252,19 +2280,18 @@ function renderCompetitor() {
   // (네이버 금융 분기 수집기는 그대로 두되 이 자리에는 더 쓰지 않는다)
   const koreaHtml = smKoreaHtml();
 
+  /* 국내/국외 구분은 배너(.viz-hero)로 세운다 — 스크롤 중에도 '여기서부터
+     구분이 바뀐다'가 한눈에 보이도록, 원자재 섹션 배너와 같은 컴포넌트를 쓴다.
+     ★ 요약 배지는 데이터에서 센다(기업 수를 코드에 적어 두면 카드가 늘 때 어긋난다). */
   el.innerHTML = `
     <div class="comp-group">
-      <div class="comp-group__head">국내 <span class="comp-group__tag">Korea</span></div>
-      <div class="comp-group__sub">시몬스·경쟁사 실적과 시장 점유율
-        <span class="comp-group__desc">단위 억원 · 비상장사 수기 입력 · 출처는 각 차트에 표기</span>
-      </div>
+      ${vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 비상장사 수기 입력',
+        compGroupBadge('kr'), 'Korea', '', 'viz-hero--plain')}
       ${koreaHtml}
     </div>
     <div class="comp-group">
-      <div class="comp-group__head">국외 <span class="comp-group__tag">Global</span></div>
-      <div class="comp-group__sub">${gTier ? gtSubTitle() : '분기별 실적'}
-        <span class="comp-group__desc${gTier ? ' comp-group__desc--own' : ''}">${gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR'}</span>
-      </div>
+      ${vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
+        compGroupBadge('gl'), 'Global', '', 'viz-hero--plain')}
       ${globalHtml}
     </div>`;
   wireGtControls();
@@ -4684,14 +4711,23 @@ const VIZ_HERO_ICONS = {
   mine: '<path d="M2.5 20.5h19"/><path d="m5.5 20.5 4.2-6.6 4.2 6.6"/>'
     + '<path d="m12.6 20.5 3.3-5 3.3 5"/><path d="M8.2 15.4h3"/>'
     + '<path d="M14.4 8.6 19 4"/><path d="M12.6 3.5c1.9-.6 3.9-.1 5.3 1.3s1.9 3.4 1.3 5.3"/>',
+  // 국내 구분 — 지도 핀
+  pin: '<path d="M12 21.5s7-5.6 7-11.1A7 7 0 0 0 5 10.4c0 5.5 7 11.1 7 11.1Z"/>'
+    + '<circle cx="12" cy="10.2" r="2.6"/>',
+  // 국외 구분 — 지구(경위선)
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3.2 9.5h17.6M3.2 14.5h17.6"/>'
+    + '<path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18Z"/>',
   // 원유 — 유정 탑(데릭) + 기름방울
   oil: '<path d="M4 20h16"/><path d="m7 20 3.2-11M13.4 20 10.2 9"/><path d="M7.6 14.2h5.2"/>'
     + '<path d="M10.2 9V4.8h5.6"/><path d="M18 12.4c1 1.2 1.6 2.1 1.6 2.9a1.6 1.6 0 1 1-3.2 0c0-.8.6-1.7 1.6-2.9Z"/>',
 };
 
-function vizHero(icon, title, sub, dateLabel, note, badgePrefix) {
+function vizHero(icon, title, sub, dateLabel, note, badgePrefix, cls) {
   const d = VIZ_HERO_ICONS[icon] || VIZ_HERO_ICONS.ship;
-  return `<div class="viz-hero">
+  /* ★ cls 로 변형을 받는다 — 기본 .viz-hero 는 .viz-figure 의 padding(11px)을
+     음수 마진으로 상쇄하는 전제라, padding 이 없는 자리(예: 경쟁사 섹션)에
+     그대로 쓰면 좌우가 밖으로 삐져나온다. 그런 자리는 --plain 을 준다. */
+  return `<div class="viz-hero${cls ? ' ' + cls : ''}">
     <span class="viz-hero__ico" aria-hidden="true">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>
@@ -4701,7 +4737,11 @@ function vizHero(icon, title, sub, dateLabel, note, badgePrefix) {
         ? ` <i>${escapeHtml(note)}</i>` : ''}</div>
       ${sub ? `<p class="viz-hero__sub">${escapeHtml(sub)}</p>` : ''}
     </div>
-    ${dateLabel ? `<span class="viz-hero__badge">${escapeHtml(badgePrefix || '업데이트 기준')} ${escapeHtml(dateLabel)}</span>` : ''}
+    ${dateLabel ? `<span class="viz-hero__badge">${escapeHtml(
+      /* ★ '' 를 넘기면 접두어 없이 배지 본문만 쓴다. 예전엔 `||` 라서 빈 문자열이
+         기본값('업데이트 기준')으로 되살아났다 — 날짜가 아닌 요약 배지에는 맞지 않는다. */
+      badgePrefix == null ? '업데이트 기준 ' + dateLabel : (badgePrefix ? badgePrefix + ' ' + dateLabel : dateLabel)
+    )}</span>` : ''}
   </div>`;
 }
 

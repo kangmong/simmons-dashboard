@@ -15,8 +15,6 @@
   "dataEntry": "manual",
   "sleepTech": {
     "title": "해외 슬립테크 시장 주요 6개 기업",
-    "note": "CES 혁신상 수상이 확인된 6개 기업입니다. 비상장사는 매출·투자액이 공시되지 않아 확인된 경우에만 적었고, 확인되지 않은 항목은 \"미확인\"으로 두었습니다. 추정치를 만들지 않았습니다.",
-    "logoNote": "로고는 각사 공식 사이트·공식 브랜드 자산에서 받은 이미지입니다. DeRUCCI·Earable·Variowell은 로고 파일을 확보하지 못해 이름만 표시합니다.",
     "companies": [
       {
         "name": "Withings (프랑스)",
@@ -47,7 +45,9 @@
           "badge": "🇫🇷 프랑스",
           "name": "BeamO",
           "desc": "다기능 건강 스캐너 (CES 2024 혁신상)",
-          "icon": "sensor",
+          "image": "public/products/withings-beamo.jpg",
+          "imageSource": "withings.com 공식 BeamO 제품 페이지 (공식 패키지샷)",
+          "imageSourceUrl": "https://www.withings.com/us/en/beamo",
           "officialUrl": "https://www.withings.com/"
         },
         "mechanism": {
@@ -56,7 +56,8 @@
             "가슴에 대고 짧게 측정",
             "심전도·체온·산소포화도·청진음 기록",
             "앱에서 건강 지표 리포트 확인"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       },
       {
@@ -84,7 +85,9 @@
           "badge": "🇺🇸 미국",
           "name": "Climate360 스마트베드",
           "desc": "온도조절 스마트베드 (CES 2020 Best of Innovation)",
-          "icon": "mattress",
+          "image": "public/products/sleepnumber-climate360.jpg",
+          "imageSource": "sleepnumber.com 공식 Climate360 스마트베드 제품 페이지",
+          "imageSourceUrl": "https://www.sleepnumber.com/products/climate360-smart-bed",
           "officialUrl": "https://www.sleepnumber.com/"
         },
         "mechanism": {
@@ -93,7 +96,8 @@
             "침대가 수면 단계와 자세를 감지",
             "구역별 경도·온도를 자동 조절",
             "SleepIQ 점수로 수면 리포트 제공"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       },
       {
@@ -125,8 +129,7 @@
           "badge": "🇫🇮 핀란드",
           "name": "Oura Ring",
           "desc": "수면·회복 추적 스마트 링",
-          "icon": "report",
-          "officialUrl": "https://ouraring.com/"
+          "officialUrl": "https://ouraring.com/product/rings"
         },
         "mechanism": {
           "title": "핵심 작동방식",
@@ -134,7 +137,8 @@
             "반지 안쪽 센서가 체온·심박변이 측정",
             "수면 단계와 회복도를 분석",
             "앱에서 수면·준비도 점수 제공"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       },
       {
@@ -159,7 +163,9 @@
           "badge": "🇨🇳 중국",
           "name": "T11 Pro 스마트매트리스",
           "desc": "스마트 매트리스 (CES 2024 혁신상 2개 부문)",
-          "icon": "mattress"
+          "image": "public/products/derucci-t11pro.jpg",
+          "imageSource": "derucci.com 공식 T11 PRO(MWI1-032) 제품 페이지",
+          "imageSourceUrl": "https://www.derucci.com/products/info.html?id=34"
         },
         "mechanism": {
           "title": "핵심 작동방식",
@@ -167,7 +173,8 @@
             "매트리스가 수면 중 자세·호흡을 감지",
             "구역별 경도를 자동 조절",
             "앱으로 수면 리포트 확인"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       },
       {
@@ -189,7 +196,9 @@
           "badge": "🇸🇬 싱가포르",
           "name": "FRENZ Brainband",
           "desc": "EEG 기반 수면·집중 웨어러블 (CES 3년 연속 혁신상)",
-          "icon": "sensor"
+          "image": "public/products/frenz-brainband.png",
+          "imageSource": "earable.ai 공식 FRENZ Brainband 제품 페이지",
+          "imageSourceUrl": "https://earable.ai/"
         },
         "mechanism": {
           "title": "핵심 작동방식",
@@ -197,7 +206,8 @@
             "이마·귀 센서로 뇌파를 측정",
             "수면 단계를 실시간 판별",
             "맞춤 소리로 수면·집중을 유도"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       },
       {
@@ -219,7 +229,7 @@
           "badge": "🇩🇪 독일",
           "name": "온도조절 매트리스 토퍼",
           "desc": "매트리스에 얹는 온도조절 토퍼 (CES 2023 혁신상)",
-          "icon": "mattress"
+          "officialUrl": "https://variowell.com/products-projects/"
         },
         "mechanism": {
           "title": "핵심 작동방식",
@@ -227,12 +237,11 @@
             "토퍼 안 공기층으로 바람을 흘림",
             "체온·주변 온도에 맞춰 조절",
             "잠자리 온도를 일정하게 유지"
-          ]
+          ],
+          "note": "공식 설명 요약"
         }
       }
     ],
-    "productNote": "제품 목업 사진을 확보하지 못해 제품 카드는 아이콘으로 대체했습니다. 실제 제품 이미지는 각 카드의 공식 홈페이지 링크에서 확인할 수 있습니다.",
-    "mechNote": "핵심 작동방식은 각사가 공개한 제품 설명을 3단계로 요약한 것입니다. 제조사가 검증한 기술 명세가 아닙니다.",
     "cesAwards": {
       "heading": "기업별 누적 수상 건수",
       "subject": "CES 혁신상",

@@ -1223,6 +1223,9 @@ body {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
   border-radius: var(--radius) var(--radius) 0 0; color: #fff;
 }
+/* 감싸는 위젯에 padding 이 없는 자리용 — 음수 마진을 0으로 두고 네 귀를 둥글린다.
+   ★ 국내/국외 구분 배너(경쟁사 섹션)가 이 변형을 쓴다. */
+.viz-hero--plain { margin: 0 0 14px; border-radius: var(--radius); }
 .viz-hero__ico {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 38px; height: 38px; border-radius: 11px;
@@ -2353,6 +2356,12 @@ body {
   border: 1px solid color-mix(in srgb, var(--blue) 28%, transparent);
 }
 .stp-badge--gl { background: var(--slate-soft); color: var(--slate); border: 1px solid var(--line); }
+/* 사진을 확보하지 못한 자리 — 아이콘으로 채우지 않고 비었다고 밝힌다 */
+.stp-nofig { font-size: 11px; font-weight: 700; color: var(--muted); }
+/* 작동방식 헤더의 짧은 꼬리표 */
+.stm3__note { margin-left: 6px; font-size: 10px; font-weight: 600; color: var(--muted); }
+/* 카드 출처 블록 안의 로고 출처 한 줄 */
+.sm-st__srcnote { margin-top: 3px; font-size: 10px; color: var(--muted); line-height: 1.45; }
 .stp-fig {
   display: flex; align-items: center; justify-content: center;
   height: 118px; margin-bottom: 8px;
