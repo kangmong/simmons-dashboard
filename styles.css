@@ -2297,6 +2297,19 @@ body {
 .ces-lg { display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 700; color: var(--slate); }
 .ces-lg__sw { width: 13px; height: 10px; border-radius: 2px; }
+/* 원화 병기 — 달러 옆 작은 글씨 */
+.gmm-krw { margin-left: 5px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.gmm-sum .sr-sum__krw { color: var(--muted); }
+/* 수상 연도 — 어디까지 확인했는지 배지로 구분한다 */
+.ces-conf {
+  display: inline-block; margin-right: 5px; padding: 0 6px; border-radius: 999px;
+  font-size: 9.5px; font-weight: 800; vertical-align: 1px;
+}
+.ces-conf--exact { background: var(--blue-soft); color: var(--blue-ink); }
+.ces-conf--partial { background: var(--amber-soft); color: var(--amber-ink); }
+.ces-conf--unknown { background: var(--slate-soft); color: var(--slate); }
+.ces-years { font-weight: 700; color: var(--text); }
+.ces-detail { color: var(--muted); }
 .ces-foot {
   margin-top: 10px; padding: 7px 10px; border-radius: var(--radius-sm);
   background: var(--field); border: 1px solid var(--line); color: var(--text);

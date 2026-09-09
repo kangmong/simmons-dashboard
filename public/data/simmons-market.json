@@ -423,22 +423,13 @@
       "heading": "기업별 누적 수상 건수",
       "subject": "CES 혁신상",
       "unit": "건",
-      "note": "CES 2020~2026 슬립 제품 부문에서 수상 이력이 확인된 기업만 넣었습니다.",
-      "legend": [
-        {
-          "label": "국내기업",
-          "origin": "kr"
-        },
-        {
-          "label": "해외기업",
-          "origin": "gl"
-        }
-      ],
+      "note": "국내 기업만 표시합니다. 연도는 공개 보도로 확인된 만큼만 적었고, 확인되지 않은 연도는 추정하지 않았습니다.",
       "items": [
         {
           "name": "세라젬 (CERAGEM)",
           "origin": "kr",
           "total": 21,
+          "conf": "exact",
           "byYear": [
             {
               "year": 2024,
@@ -453,62 +444,58 @@
               "n": 12
             }
           ],
-          "detail": "2024년 3건 → 2025년 6건 → 2026년 12건",
+          "years": "2024년 3건 → 2025년 6건 → 2026년 12건",
+          "detail": "연도별 건수까지 확인",
           "period": "2024~2026"
         },
         {
           "name": "ANSSil",
           "origin": "kr",
           "total": 8,
-          "detail": "디지털헬스 4건 + 스마트홈 4건"
-        },
-        {
-          "name": "에이슬립 (Asleep)",
-          "origin": "kr",
-          "total": 3,
-          "detail": "2020~2023년 3회",
-          "period": "2020~2023"
+          "conf": "partial",
+          "years": "2022년·2023년 수상 확인",
+          "detail": "2023년 수상이 '2022년에 이은 두 번째 수상'으로 명시됨 · 나머지 연도는 확인 안됨 (8건 중 일부만 연도 확인 가능)"
         },
         {
           "name": "텐마인즈 (10minds)",
           "origin": "kr",
           "total": 3,
-          "detail": "2020~2023년 3회",
-          "period": "2020~2023"
+          "conf": "exact",
+          "years": "2020년 · 2022년 · 2023년",
+          "detail": "3회 모두 연도 확인"
         },
         {
-          "name": "XSmart (Sleepal)",
-          "origin": "gl",
+          "name": "에이슬립 (Asleep)",
+          "origin": "kr",
           "total": 3,
-          "detail": "디지털헬스 1건 + 스마트홈 1건 + 접근성·웰에이징 1건"
-        },
-        {
-          "name": "DeRUCCI",
-          "origin": "gl",
-          "total": 2,
-          "detail": "디지털헬스 1건 + 스마트홈 1건"
-        },
-        {
-          "name": "Earable",
-          "origin": "gl",
-          "total": 2,
-          "detail": "디지털헬스 1건 + 접근성·웰에이징 1건"
+          "conf": "partial",
+          "years": "2020~2023년 사이 3회",
+          "detail": "기간은 확인, 개별 연도는 확인 안됨"
         },
         {
           "name": "NeuroTx",
           "origin": "kr",
           "total": 1,
-          "detail": "디지털헬스 1건"
+          "conf": "unknown",
+          "years": "확인 안됨",
+          "detail": "디지털헬스 1건 · 수상 연도는 확인 안됨"
         },
         {
           "name": "Wis Medical",
           "origin": "kr",
           "total": 1,
-          "detail": "접근성·웰에이징 1건"
+          "conf": "unknown",
+          "years": "확인 안됨",
+          "detail": "접근성·웰에이징 1건 · 수상 연도는 확인 안됨"
         }
       ],
-      "foot": "코웨이(비렉스)·허니냅스·웰트는 공개된 CES 수상 이력이 확인되지 않아 이 그래프에서는 제외했습니다. 대신 CES 2020~2026 슬립 제품 부문에서 수상 이력이 확인된 다른 기업들을 함께 표시합니다.",
-      "source": "출처: 헤럴드경제(2025.11.11), 아시아투데이(2025.11.10), 마이데일리(2024.11.15), 폴리뉴스(2026.02.27), CES Innovation Awards 공식 수상목록(2020~2026) 등"
+      "foot": "코웨이(비렉스)·허니냅스·웰트는 공개된 CES 수상 이력이 확인되지 않아 이 그래프에서 제외했습니다. 해외 수상 기업(XSmart·DeRUCCI·Earable)도 국내 기업만 보기 위해 뺐습니다.",
+      "source": "출처: 헤럴드경제(2025.11.11), 아시아투데이(2025.11.10), 마이데일리(2024.11.15), 폴리뉴스(2026.02.27), 한국경제TV(2022.11.23, ANSSil), 스마트투데이(2024.01.06, 텐마인즈), CES Innovation Awards 공식 수상목록(2020~2026) 등",
+      "confLabels": {
+        "exact": "연도 확인",
+        "partial": "일부만 확인",
+        "unknown": "연도 확인 안됨"
+      }
     }
   },
   "techMap": {

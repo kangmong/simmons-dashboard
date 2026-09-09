@@ -941,13 +941,31 @@ function gmmEok(usdBn) {
   return (Math.round(usdBn * 10) / 10 * 10).toFixed(0) + '억 달러';
 }
 
+/** 십억 달러 → '≈ 61.4조원'. 환율은 대시보드가 이미 쓰는 값을 그대로 재사용한다
+ *  (krwRate('USD') — 원자재 위젯·환율 카드와 같은 출처). 환율을 못 읽으면 ''. */
+function gmmKrw(usdBn) {
+  const r = krwRate('USD');
+  if (r == null || usdBn == null || !isFinite(usdBn)) return '';
+  const w = usdBn * 1e9 * r;
+  const t = (w >= 1e12) ? (w / 1e12).toFixed(1) + '조원'
+    : Math.round(w / 1e8).toLocaleString('ko-KR') + '억원';
+  return '≈ ' + t;
+}
+
+/** 원화를 작은 글씨로 덧붙이는 조각 */
+function gmmKrwTag(usdBn, cls) {
+  const t = gmmKrw(usdBn);
+  return t ? '<span class="' + (cls || 'gmm-krw') + '">' + escapeHtml(t) + '</span>' : '';
+}
+
 /** 요약 4박스 — 최근년도 / 다음년도 / 목표연도 / CAGR */
 function gmmSummary(d) {
   const box = (lbl, val, sub) => '<div class="sr-sum__box">'
     + '<div class="sr-sum__lbl">' + escapeHtml(lbl) + '</div>'
     + '<div class="sr-sum__val">' + val + '</div>'
     + (sub ? '<div class="sr-sum__sub">' + sub + '</div>' : '') + '</div>';
-  const one = (o, lbl) => (o ? box(o.year + '년 ' + lbl, gmmEok(o.usdBn),
+  const one = (o, lbl) => (o ? box(o.year + '년 ' + lbl,
+    gmmEok(o.usdBn) + gmmKrwTag(o.usdBn, 'sr-sum__krw'),
     '$' + o.usdBn + 'B') : '');
   const c = d.cagr || {};
   return '<div class="sr-sum gmm-sum">'
@@ -972,7 +990,7 @@ function gmmBars(d) {
       + '<div class="sm-htrack"><div class="sm-hbar" style="width:' + w.toFixed(1)
       + '%;background:var(--blue);opacity:' + (0.5 + i * 0.25).toFixed(2) + '"></div></div>'
       + '<div class="sm-hval">' + gmmEok(x.usdBn)
-      + '<span class="sm-hkrw">$' + x.usdBn + 'B</span></div>'
+      + '<span class="sm-hkrw">$' + x.usdBn + 'B · ' + escapeHtml(gmmKrw(x.usdBn)) + '</span></div>'
       + '</div>';
   }).join('');
   return '<div class="gmm-card"><div class="gmm-card__h">시장규모 동향</div>'
@@ -990,7 +1008,10 @@ function gmmRegions(d) {
     + (sub ? '<i>' + escapeHtml(sub) + '</i>' : '') + '</span></div>';
   return '<div class="gmm-card"><div class="gmm-card__h">지역별 우위</div>'
     + (r.largest ? row('최대 시장', r.largest,
-      r.largestUsdBn != null ? gmmEok(r.largestUsdBn) + (d.base ? ' (' + d.base.year + '년)' : '') : '') : '')
+      r.largestUsdBn != null
+        ? gmmEok(r.largestUsdBn) + ' ' + gmmKrw(r.largestUsdBn)
+          + (d.base ? ' (' + d.base.year + '년)' : '')
+        : '') : '')
     + (r.fastest ? row('가장 빠른 성장', r.fastest,
       r.fastestPct != null ? '연 ' + r.fastestPct + '% 성장 전망' : '') : '')
     + '</div>';
@@ -1038,9 +1059,15 @@ function gmmEstimates(d) {
   const es = Array.isArray(d.estimates) ? d.estimates : [];
   if (!es.length) return '';
   return '<div class="gmm-est"><span class="gmm-est__h">같은 해 다른 조사기관 추정치</span>'
-    + es.map((e) => '<span class="gmm-est__i' + (e.self ? ' is-self' : '') + '">'
-      + escapeHtml(e.org) + ' <b>' + escapeHtml(e.value) + '</b>'
-      + (e.year ? ' <i>' + e.year + '</i>' : '') + '</span>').join('')
+    + es.map((e) => {
+      /* '$577억' 같은 표기에서 숫자만 뽑아 십억 달러로 되돌린 뒤 원화를 붙인다 */
+      const m = String(e.value || '').match(/([\d,.]+)\s*억/);
+      const bn = m ? Number(m[1].replace(/,/g, '')) / 10 : null;
+      return '<span class="gmm-est__i' + (e.self ? ' is-self' : '') + '">'
+        + escapeHtml(e.org) + ' <b>' + escapeHtml(e.value) + '</b>'
+        + (bn ? ' <span class="gmm-krw">' + escapeHtml(gmmKrw(bn)) + '</span>' : '')
+        + (e.year ? ' <i>' + e.year + '</i>' : '') + '</span>';
+    }).join('')
     + '</div>';
 }
 
@@ -1061,6 +1088,7 @@ function gmmBlock() {
     + '<div class="gmm-grid3">' + gmmBars(d) + gmmRegions(d) + gmmPlayers(d) + '</div>'
     + gmmProducts(d)
     + gmmEstimates(d)
+    + krwNote('USD')
     + (d.caution ? '<div class="g-note gmm-caution">※ ' + escapeHtml(d.caution) + '</div>' : '')
     + stale
     + '<div class="sm-foot">최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—')
@@ -1613,6 +1641,7 @@ function stCesAwards(st) {
   const sorted = items.slice().sort((a, b) => b.total - a.total);
   const max = sorted[0].total || 1;
   const col = (o) => (o === 'kr' ? 'var(--blue-ink)' : 'var(--slate)');
+  const cl = c.confLabels || {};
 
   const rows = sorted.map((x) => {
     const w = Math.max(2, (x.total / max) * 100);
@@ -1634,7 +1663,15 @@ function stCesAwards(st) {
       + '<div class="sm-hval">' + x.total.toLocaleString('ko-KR') + unit
       + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
       + '</div>'
-      + (x.detail ? '<div class="sm-hmemo">' + escapeHtml(x.detail) + '</div>' : '')
+      /* 연도는 확인된 만큼만 적고, 어느 수준까지 확인했는지 배지로 밝힌다 */
+      + ((x.years || x.detail)
+        ? '<div class="sm-hmemo">'
+          + (x.conf ? '<span class="ces-conf ces-conf--' + escapeHtml(x.conf) + '">'
+            + escapeHtml((cl[x.conf] || x.conf)) + '</span>' : '')
+          + (x.years ? '<b class="ces-years">' + escapeHtml(x.years) + '</b>' : '')
+          + (x.detail ? ' <span class="ces-detail">' + escapeHtml(x.detail) + '</span>' : '')
+          + '</div>'
+        : '')
       + '</div>';
   }).join('');
 
