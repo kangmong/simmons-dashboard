@@ -2427,15 +2427,8 @@ body {
 .gs-sub { margin: -4px 0 10px; font-size: 11.5px; color: var(--muted); }
 
 /* 전망 막대 — 실적과 헷갈리지 않게 빗금을 얹는다 */
-.gsd-bar--fc {
-  background-image: repeating-linear-gradient(135deg,
-    rgba(255,255,255,.55) 0 5px, rgba(255,255,255,0) 5px 10px);
-}
-.gsd-tag {
-  margin-left: 5px; padding: 0 5px; border-radius: 999px;
-  background: var(--blue-soft); color: var(--blue-ink);
-  font-size: 9.5px; font-weight: 700;
-}
+/* 세로 막대 그래프 — 반반 2단 칸에서도 막대가 납작해지지 않게 */
+.gsd-svg { margin-top: 4px; min-height: 190px; }
 .gsd-basis { margin-top: 12px; }
 .gsd-basis__h { margin-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--ink); }
 

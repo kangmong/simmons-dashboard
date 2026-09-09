@@ -1841,26 +1841,90 @@ function gsJosa(word, withJong, without) {
   const s = String(word == null ? '' : word);
   return (s && gsJong(s.charAt(s.length - 1)) === true) ? withJong : without;
 }
-/** [왼쪽] 글로벌 슬립테크 기기 시장 규모 — 막대 3개(실적 2 + 전망 1).
- *  ★ 전망 막대는 실적과 눈에 띄게 구분한다(빗금 + '전망' 꼬리표).
- *    같은 색 농도만 다르면 실적과 전망이 같은 무게로 읽힌다. */
+/** Y축 눈금을 '떨어지는 숫자'로 만들기 위한 상한. max 를 덮으면서, 눈금 간격이
+ *  1·2·2.5·5·10 ×10ⁿ 중 하나가 되는 가장 작은 상한을 고른다.
+ *  ★ max*1.18 을 그대로 쓰면 1,589 같은 상한이 나와 눈금이 533·1,067 로 읽힌다.
+ *    축은 데이터가 바뀌어도 계속 깔끔해야 하므로 코드가 계산하게 둔다. */
+function gsNiceTop(max, ticks) {
+  const seg = Math.max(1, (ticks || 4) - 1);
+  const raw = (max || 1) / seg;                       // 눈금 하나가 담을 최소 크기
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const mult = [1, 2, 2.5, 5, 10].find((k) => k * mag >= raw - 1e-9) || 10;
+  return mult * mag * seg;
+}
+
+/** [왼쪽] 글로벌 슬립테크 기기 시장 규모 — 세로 막대 3개(실적 2 + 전망 1).
+ *  ★ 전망 막대는 실적과 눈에 띄게 구분한다(가장 진한 색 + X축 아래 '전망' 꼬리표).
+ *    같은 색 농도만 다르면 실적과 전망이 같은 무게로 읽힌다.
+ *  ★★ 금액 라벨은 막대 위에 둔다 — 249 와 1,347 은 열 배 넘게 벌어져서, 짧은
+ *    막대는 안쪽에 글자를 넣을 자리가 없다.
+ *  ★★★ 세로 막대는 국내 시장규모 그래프(smMarketBars)와 같은 치수·폰트를 쓴다.
+ *    같은 2단 칸에 들어가는 그래프끼리 크기가 달라 보이지 않게. */
 function gsDeviceMarket(m) {
   const pts = (m && Array.isArray(m.points)) ? m.points.filter((p) => p.usdEok > 0) : [];
   if (pts.length < 2) return '';
-  const max = Math.max.apply(null, pts.map((p) => p.usdEok));
-  const rows = pts.map((p, i) => {
-    const w = Math.max(3, (p.usdEok / max) * 100);
-    const fc = p.kind === 'forecast';
-    return '<div class="sm-hrow">'
-      + '<div class="sm-hname">' + p.year + '년'
-      + (fc ? '<span class="gsd-tag">전망</span>' : '') + '</div>'
-      + '<div class="sm-htrack"><div class="sm-hbar' + (fc ? ' gsd-bar--fc' : '')
-      + '" style="width:' + w.toFixed(1) + '%;background:var(--blue);opacity:'
-      + (fc ? '1' : (0.45 + i * 0.2).toFixed(2)) + '"></div></div>'
-      + '<div class="sm-hval">' + escapeHtml(p.label || '')
-      + gmmKrwTag(p.usdEok / 10, 'sm-hkrw') + '</div>'
-      + '</div>';
+  const sorted = pts.slice().sort((a, b) => a.year - b.year);
+  const n = sorted.length;
+  const max = Math.max.apply(null, sorted.map((p) => p.usdEok));
+  const hi = gsNiceTop(max, VIZ_Y_TICKS);
+
+  /* padT 는 막대 위 두 줄(금액 + 원화)이 들어갈 만큼, padB 는 X축 두 줄
+     (연도 + '전망' 꼬리표)이 들어갈 만큼 잡는다. */
+  const W = VIZ_W, H = 260, padL = 44, padR = 14, padT = 48, padB = 42;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const base = padT + plotH;
+  const slot = plotW / n;
+  const bw = Math.min(76, slot * 0.52);
+  const X = (i) => padL + slot * i + (slot - bw) / 2;
+  const Y = (v) => padT + (1 - v / (hi || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = hi * t, y = Y(val);
+    return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW)
+      + '" y2="' + y.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1)
+      + '" text-anchor="end" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
+      + Math.round(val).toLocaleString('ko-KR') + '</text>';
   }).join('');
+
+  const bars = sorted.map((p, i) => {
+    const x = X(i), y = Y(p.usdEok), h = Math.max(0, base - y);
+    const cx = x + bw / 2;
+    const fc = p.kind === 'forecast';
+    const krw = gmmKrw(p.usdEok / 10);
+    /* 전망만 꽉 찬 색, 실적은 이른 해부터 옅게 — 최신 실적이 전망 바로 앞에서
+       가장 진하게 읽히도록 한다. */
+    const op = fc ? '1' : (0.45 + i * 0.2).toFixed(2);
+    return '<g>'
+      + '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1)
+      + '" height="' + h.toFixed(1) + '" rx="3" fill="var(--blue)" opacity="' + op + '"/>'
+      /* 금액 — 막대 위. 글자 뒤에 카드색 테두리를 깔아 격자선 위에서도 읽히게 */
+      + '<text x="' + cx.toFixed(1) + '" y="' + (y - 19).toFixed(1)
+      + '" text-anchor="middle" font-size="11.5" font-weight="800" paint-order="stroke"'
+      + ' stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">'
+      + escapeHtml(p.label || '') + '</text>'
+      + (krw ? '<text x="' + cx.toFixed(1) + '" y="' + (y - 7).toFixed(1)
+        + '" text-anchor="middle" font-size="9" font-weight="700" paint-order="stroke"'
+        + ' stroke="var(--card)" stroke-width="3" fill="var(--muted)">'
+        + escapeHtml(krw) + '</text>' : '')
+      /* X축 — 연도, 전망은 그 아래 꼬리표를 하나 더 붙인다 */
+      + '<text x="' + cx.toFixed(1) + '" y="' + (base + 16).toFixed(1)
+      + '" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--text)">'
+      + p.year + '년</text>'
+      + (fc
+        ? '<rect x="' + (cx - 15).toFixed(1) + '" y="' + (base + 22).toFixed(1)
+          + '" width="30" height="13" rx="6.5" fill="var(--blue)" opacity=".14"/>'
+          + '<text x="' + cx.toFixed(1) + '" y="' + (base + 31).toFixed(1)
+          + '" text-anchor="middle" font-size="8.5" font-weight="800"'
+          + ' fill="var(--blue-ink)">전망</text>'
+        : '')
+      + '</g>';
+  }).join('');
+
+  const aria = (m.title || '글로벌 슬립테크 기기 시장 규모') + ' — '
+    + sorted.map((p) => p.year + '년 ' + (p.label || '')
+      + (p.kind === 'forecast' ? ' 전망' : '')).join(', ');
+
   const basis = (Array.isArray(m.basis) && m.basis.length)
     ? '<div class="gsd-basis"><div class="gsd-basis__h">'
       + escapeHtml(m.basisTitle || '출처') + '</div>'
@@ -1875,7 +1939,15 @@ function gsDeviceMarket(m) {
     + '<div class="sm-h">' + escapeHtml(m.title || '글로벌 슬립테크 기기 시장 규모')
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '억 달러') + ')</span></div>'
     + (m.subtitle ? '<div class="gs-sub">' + escapeHtml(m.subtitle) + '</div>' : '')
-    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + '<svg class="sm-mktsvg gsd-svg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+    + escapeHtml(aria) + '">'
+    /* Y축이 무엇을 세는지 축 위에 적는다(카드 제목의 단위와 같은 값) */
+    + '<text x="4" y="' + (padT - 16) + '" font-size="' + VIZ_FS_AXIS
+    + '" fill="var(--muted)">(' + escapeHtml(m.unit || '억 달러') + ')</text>'
+    + grid + bars
+    + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW)
+    + '" y2="' + base + '" stroke="var(--axis)" stroke-width="1"/></svg>'
     + (m.summary ? '<div class="smb-note">' + escapeHtml(m.summary) + '</div>' : '')
     + basis
     + (m.foot ? '<div class="sm-foot">※ ' + escapeHtml(m.foot) + '</div>' : '')
