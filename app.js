@@ -10794,9 +10794,31 @@ function ptDataSpan() {
   return ds.length ? { from: ds[0], to: ds[ds.length - 1] } : { from: '', to: '' };
 }
 
-function ptRange() {
+/** 오늘 날짜(YYYY-MM-DD). 현지 시각 기준으로 만든다.
+ *  ★ toISOString() 은 UTC 라 한국에서 오전에 열면 어제가 나온다. */
+function ptToday() {
+  const d = new Date();
+  const p2 = (v) => (v < 10 ? '0' + v : String(v));
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+}
+
+/** 처음 열었을 때의 조회 기간 — 2020-01-01 ~ 오늘.
+ *  ★ 전체 데이터(2007년~)를 기본으로 두면 20년 치가 한 화면에 눌려 최근 흐름이
+ *    안 보인다. 최근 몇 해를 기본으로 하고, 더 과거는 [수집 기간 전체]로 넓힌다.
+ *  ★★ 오늘 날짜는 실행 시점에 만든다(하드코딩하지 않는다).
+ *  ★★★ 데이터가 2020년 이후에만 있으면 시작일을 데이터 시작으로 당긴다 —
+ *    데이터가 없는 구간을 기본값으로 들고 있을 이유가 없다. */
+const PT_DEFAULT_FROM = '2020-01-01';
+function ptDefaultRange() {
   const sp = ptDataSpan();
-  return { from: _ptFrom || sp.from, to: _ptTo || sp.to };
+  const today = ptToday();
+  const from = (sp.from && sp.from > PT_DEFAULT_FROM) ? sp.from : PT_DEFAULT_FROM;
+  return { from: from, to: today };
+}
+
+function ptRange() {
+  const def = ptDefaultRange();
+  return { from: _ptFrom || def.from, to: _ptTo || def.to };
 }
 
 /** 구간과 '같은 길이의 직전 1년' 구간(전년 동기 비교용). */
@@ -11508,13 +11530,16 @@ function ptRecent(rows) {
 /* ── 9) 기간 필터 ──────────────────────────────────────────────────────── */
 function ptRangeUi() {
   const sp = ptDataSpan();
+  const today = ptToday();
   const r = ptRange();
-  /* ★ min/max 를 데이터 범위로 걸어 없는 구간은 아예 고를 수 없게 한다. */
+  /* ★ min 은 데이터의 가장 오래된 출원일, max 는 오늘 — 미래 날짜와 데이터가
+     없는 과거는 달력에서 아예 못 고르게 한다. */
   const inp = (id, val) => '<input class="pt-date" type="date" id="' + id
     + '" value="' + escapeHtml(val || '') + '"'
     + (sp.from ? ' min="' + escapeHtml(sp.from) + '"' : '')
-    + (sp.to ? ' max="' + escapeHtml(sp.to) + '"' : '') + '>';
-  const narrowed = (_ptFrom || _ptTo);
+    + ' max="' + escapeHtml(today) + '">';
+  // 이미 전체 범위를 보고 있으면 [전체]로 더 넓힐 것이 없다
+  const isFull = sp.from && r.from <= sp.from && r.to >= (sp.to || today);
   return '<div class="pt-filter">'
     + '<span class="pt-filter__l">조회 기간</span>'
     + inp('ptFrom', r.from)
@@ -11524,9 +11549,9 @@ function ptRangeUi() {
        튀고, 시작일만 고른 중간 상태로 화면이 한 번 바뀐다. [조회]로 확정한다. */
     + '<button class="pt-btn pt-btn--go" type="button" id="ptApply">조회</button>'
     + '<button class="pt-btn" type="button" id="ptReset"'
-    + (narrowed ? '' : ' disabled') + '>수집 기간 전체</button>'
+    + (isFull ? ' disabled' : '') + '>수집 기간 전체</button>'
     + (sp.from ? '<span class="pt-filter__h">데이터 범위 ' + escapeHtml(sp.from) + ' ~ '
-      + escapeHtml(sp.to) + '</span>' : '')
+      + escapeHtml(sp.to) + ' · 기본 ' + escapeHtml(PT_DEFAULT_FROM) + '부터</span>' : '')
     + '</div>';
 }
 
@@ -11728,7 +11753,15 @@ function wirePatent() {
   root.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'ptApply') { applyDates(); return; }
     if (e.target && e.target.id === 'ptReset') {
-      _ptFrom = ''; _ptTo = ''; _ptPage = 1; renderPatent(); return;
+      /* ★ 기본값(2020~오늘)보다 넓게 = 수집된 전체 범위로 벌린다.
+         빈 값으로 되돌리면 기본값으로 돌아가 버려 '더 과거를 보고 싶다'는
+         이 버튼의 뜻과 반대가 된다. */
+      const sp = ptDataSpan();
+      _ptFrom = sp.from || '';
+      _ptTo = sp.to || ptToday();
+      _ptPage = 1;
+      renderPatent();
+      return;
     }
     const pg = e.target && e.target.closest ? e.target.closest('.pt-pg') : null;
     if (pg && !pg.disabled) {
@@ -11787,9 +11820,17 @@ function wirePatent() {
     let a = (f && f.value) || '';
     let b = (t && t.value) || '';
     if (a && b && a > b) { const x = a; a = b; b = x; }   // 뒤집혀 들어오면 바로잡는다
-    const sp = ptDataSpan();
-    _ptFrom = (a && a !== sp.from) ? a : '';
-    _ptTo = (b && b !== sp.to) ? b : '';
+    /* min/max 는 달력에서만 막힌다 — 값이 프로그램으로 들어오거나 직접 타이핑되면
+       범위를 넘을 수 있으므로 여기서 한 번 더 가둔다. */
+    const spc = ptDataSpan();
+    const tdy = ptToday();
+    if (b && b > tdy) b = tdy;
+    if (a && spc.from && a < spc.from) a = spc.from;
+    /* 기본값과 같은 날짜면 빈 값으로 둔다 — 빈 값 = '기본 기간'이라는 한 가지
+       뜻만 갖게 해서, 나중에 기본값을 바꿔도 저장된 값이 어긋나지 않는다. */
+    const def = ptDefaultRange();
+    _ptFrom = (a && a !== def.from) ? a : '';
+    _ptTo = (b && b !== def.to) ? b : '';
     _ptPage = 1;
     renderPatent();
   };
