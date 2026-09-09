@@ -1806,7 +1806,12 @@ async function fetchGlobalSleepTech() {
     if (res.status === 404) throw new Error('데이터 파일 없음 (' + GS_DATA_URL + ')');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
-    if (!d || !d.sleepMarket || !d.sleepTech) throw new Error('형식이 올바르지 않습니다');
+    /* ★ 예전에는 sleepMarket(2계열 라인차트)을 필수로 봤다. 그 블록을 걷어내면서
+       파일에서 키가 사라져 로드가 통째로 실패했다 — 화면에서 해외 슬립테크
+       블록이 전부 사라진 원인이었다. 지금 화면이 실제로 쓰는 키로 검사한다. */
+    if (!d || !d.sleepTech || !(d.deviceMarket || d.sleepLoss)) {
+      throw new Error('형식이 올바르지 않습니다');
+    }
     _gsData = Object.assign({ status: 'ok' }, d);
   } catch (e) {
     _gsData = { status: 'error', reason: (e && e.message) || String(e) };
