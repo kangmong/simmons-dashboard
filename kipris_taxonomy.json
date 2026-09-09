@@ -332,6 +332,21 @@
     "_note": "API 의 ipcNumber 파라미터로 건다. 'A47C*' 같은 와일드카드는 0건이 되므로 접두 코드만 적는다. 코드를 비우거나 enabled=false 로 두면 전 분야를 수집한다(코웨이 정수기·공기청정기까지 포함되어 매트리스 업계 비교로는 뜻이 흐려진다)."
   },
   "defaultYears": 20,
+  "foreignApi": {
+    "service": "ForeignPatentAdvencedSearchService",
+    "operation": "applicantSearch",
+    "applicantParam": "applicant",
+    "collectionParam": "collectionValues",
+    "collections": [
+      "US",
+      "EP",
+      "WO",
+      "JP",
+      "CN"
+    ],
+    "rowTag": "searchResult",
+    "_note": "KIPRIS 명세 페이지(DBII_000000000000036)에서 확인한 실제 경로다. 서비스명에 오타가 있다('Advenced'). 이 이름으로 부르면 오류가 resultCode 31(서비스 접근불가)에서 10(파라미터)으로 바뀌므로 경로 자체는 맞다. 파라미터도 KIPRIS 샘플 폼과 같은 applicant+collectionValues 이고, 그 조합으로 KIPRIS 자체 테스트베드에서는 Tempur World, LLC 등 실데이터가 나온다. 우리 키로는 아직 10 이 떠서 수집되지 않는다(권한 문의 필요). 국내 오퍼레이션과 달리 성공 시 resultCode 가 빈 값이고, 행 태그가 item 이 아니라 searchResult 다."
+  },
   "companies": [
     {
       "key": "simmons",

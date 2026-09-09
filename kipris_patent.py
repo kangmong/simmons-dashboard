@@ -48,7 +48,10 @@ TAXONOMY_REL = "kipris_taxonomy.json"
 
 KIPRIS_HOST = "https://plus.kipris.or.kr/kipo-api/kipi"
 SVC_DOMESTIC = "patUtiModInfoSearchSevice"          # ★ 원문 오타(Sevice)가 실제 경로다
-SVC_FOREIGN = "ForeignPatentInfoSearchService"
+# ★ 실제 서비스명은 명세 페이지(DBII_000000000000036)에서 확인했다.
+#   원문 오타 'Advenced' 가 실제 경로다(국내의 'Sevice' 오타와 같은 부류).
+#   설정(kipris_taxonomy.json > foreignApi)으로 뺐으니 여기 값은 기본값일 뿐이다.
+SVC_FOREIGN = "ForeignPatentAdvencedSearchService"
 
 ENV_KEY = "KIPRIS_API_KEY"
 # ★ 확인된 값: ServiceKey. 더미 키로 두 이름을 넣어 본 결과
@@ -163,12 +166,13 @@ def _get(path, params, key, key_param, budget, raw_sink=None):
     return root, None
 
 
-def _items(root):
-    """response/body/items/item → dict 목록. 태그 이름을 그대로 키로 쓴다."""
+def _items(root, tag="item"):
+    """응답의 행 목록 → dict 목록. 태그 이름을 그대로 키로 쓴다.
+    ★ 국내는 <item>, 해외는 <searchResult> 로 온다(실측). 태그를 인자로 받는다."""
     out = []
     if root is None:
         return out
-    for it in root.iter("item"):
+    for it in root.iter(tag):
         d = {}
         for ch in it:
             t = (ch.text or "").strip()
@@ -180,7 +184,7 @@ def _items(root):
 
 
 # ── 인증/파라미터 형태 진단 ──────────────────────────────────────────────
-def probe(key, budget, raw_sink=None):
+def probe(key, budget, raw_sink=None, tax_cache=None):
     """어떤 키 파라미터와 오퍼레이션이 실제로 통하는지 확인한다.
     ★ 문서가 갈려 있는 부분을 코드가 추측하지 않고 '물어봐서' 정한다."""
     result = {"keyParam": None, "domesticOp": None, "foreignOp": None, "tries": []}
@@ -201,15 +205,18 @@ def probe(key, budget, raw_sink=None):
     if not result["keyParam"]:
         return result
     kp = result["keyParam"]
-    # 해외특허 오퍼레이션 — 문서상 후보를 순서대로 확인한다.
-    for op, params in (("applicantSearch", {"applicant": "Tempur", "numOfRows": 1, "pageNo": 1}),
-                       ("freeSearch", {"free": "mattress", "numOfRows": 1, "pageNo": 1})):
-        root, err = _get("%s/%s" % (SVC_FOREIGN, op), params, key, kp, budget, raw_sink)
-        result["tries"].append({"keyParam": kp, "path": "%s/%s" % (SVC_FOREIGN, op),
-                                "error": err})
-        if err is None:
-            result["foreignOp"] = op
-            break
+    # 해외특허 — 명세에서 확인한 경로·파라미터로 한 번만 확인한다.
+    fc = (tax_cache.get("foreignApi") or {}) if tax_cache else {}
+    svc = fc.get("service") or SVC_FOREIGN
+    op = fc.get("operation") or "applicantSearch"
+    ap = fc.get("applicantParam") or "applicant"
+    cp = fc.get("collectionParam") or "collectionValues"
+    path = "%s/%s" % (svc, op)
+    root, err = _get(path, {ap: "Tempur", cp: (fc.get("collections") or ["US"])[0]},
+                     key, kp, budget, raw_sink)
+    result["tries"].append({"keyParam": kp, "path": path, "error": err})
+    if err is None:
+        result["foreignOp"] = op
     return result
 
 
@@ -289,17 +296,29 @@ def search_domestic(applicant, key, key_param, budget, period=None, rows=ROWS_PE
     return [], None, last
 
 
-def search_foreign(applicant, key, key_param, op, budget, rows=100, raw_sink=None):
-    """해외특허 — 출원인명으로 찾는다. op 는 probe 가 정한 오퍼레이션."""
-    if not op:
-        return [], None, "해외특허 오퍼레이션을 확인하지 못했습니다"
-    pname = "applicant" if op == "applicantSearch" else "free"
-    path = "%s/%s" % (SVC_FOREIGN, op)
-    root, err = _get(path, {pname: applicant, "numOfRows": rows, "pageNo": 1},
-                     key, key_param, budget, raw_sink)
-    if err:
-        return [], None, err
-    return _items(root), path, None
+def search_foreign(applicant, key, key_param, cfg, budget, raw_sink=None):
+    """해외특허 — 출원인명 + 국가코드(collectionValues)로 찾는다.
+
+    ★ 파라미터는 KIPRIS 샘플 폼과 같다(applicant + collectionValues). 그 조합으로
+      KIPRIS 자체 테스트베드에서는 실제 데이터가 나온다.
+    ★★ 국가코드는 한 번에 하나씩 부른다 — 'US,EP' 처럼 묶어 보내면 거부된다(실측).
+    ★★★ 성공 시 resultCode 가 빈 값이고 행 태그가 searchResult 다(국내와 다르다)."""
+    svc = cfg.get("service") or SVC_FOREIGN
+    op = cfg.get("operation") or "applicantSearch"
+    ap = cfg.get("applicantParam") or "applicant"
+    cp = cfg.get("collectionParam") or "collectionValues"
+    tag = cfg.get("rowTag") or "searchResult"
+    path = "%s/%s" % (svc, op)
+    out, last = [], None
+    for cv in (cfg.get("collections") or ["US"]):
+        if budget.stopped:
+            break
+        root, err = _get(path, {ap: applicant, cp: cv}, key, key_param, budget, raw_sink)
+        if err:
+            last = err
+            continue
+        out.extend(_items(root, tag))
+    return out, path, (None if out else last)
 
 
 # ── 항목 정규화 ──────────────────────────────────────────────────────────
@@ -447,7 +466,7 @@ def collect(years=None, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     budget = Budget(max_calls)
     raw_sink = [] if raw else None
 
-    pr = probe(key, budget, raw_sink)
+    pr = probe(key, budget, raw_sink, tax_cache=tax)
     out["probe"] = pr
     out["calls"] = budget.used
     if not pr["keyParam"]:
@@ -525,7 +544,7 @@ def collect(years=None, max_calls=CALL_BUDGET, raw=False, probe_only=False):
         for co in tax["companies"]:
             for variant in co["variants"][:2]:      # 해외는 표기 2개까지만(호출 절약)
                 items, path, err = search_foreign(variant, key, pr["keyParam"],
-                                                  pr["foreignOp"], budget,
+                                                  tax.get("foreignApi") or {}, budget,
                                                   raw_sink=raw_sink)
                 if err:
                     errors.append({"company": co["label"], "variant": variant,
@@ -562,10 +581,12 @@ def collect(years=None, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     out["years"] = years
     out["foreignAvailable"] = bool(pr.get("foreignOp"))
     out["foreignNote"] = (None if pr.get("foreignOp") else
-                          "해외특허 데이터 수집 대기 중 — API 는 승인된 상태이나 호출 "
-                          "경로가 확인되지 않아(resultCode 31) 아직 수집되지 않았습니다. "
-                          "현재 수치는 국내 출원만 집계한 것이며, 해외 출원 비율은 "
-                          "0%로 표시됩니다.")
+                          "해외특허 데이터 수집 대기 중 — 호출 경로는 확인했고"
+                          "(ForeignPatentAdvencedSearchService/applicantSearch),"
+                          " KIPRIS 자체 테스트베드에서는 같은 파라미터로 실데이터가"
+                          " 나오지만 현재 키로는 resultCode 10 이 떠 수집되지 않습니다."
+                          " 아래 수치는 국내 출원만 집계한 것이며, 해외 출원 비율은"
+                          " 0%로 표시됩니다.")
     out["companies"] = [{"key": c["key"], "label": c["label"],
                          "isOurs": bool(c.get("isOurs")),
                          "matchedName": c.get("_matched")} for c in tax["companies"]]
