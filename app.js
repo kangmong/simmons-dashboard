@@ -2240,28 +2240,42 @@ function wireGtControls() {
    ★ 다시 그릴 때마다 상태를 잃지 않게, 보기 상태는 DOM 이 아니라 이 변수가 갖는다.
    ★★ 숨김은 [hidden] 대신 .is-off 로 한다 — 숨길 대상이 CSS 에서 display 를
      지정받고 있으면 hidden 속성이 그 display 에 밀려 그대로 보인다. */
-let _sideView = 'kr';           // 'kr' = 국내(기본) · 'gl' = 국외
+let _sideView = 'kr';           // 분기 실적 섹션: 'kr' = 국내(기본) · 'gl' = 국외
+/* ★ 신제품·브랜드 섹션은 자기 상태를 따로 갖는다. 두 섹션을 한 변수로 묶었더니
+   위에서 국외를 보면 아래도 강제로 국외가 되어, 아래 섹션에서 국내를 볼 수 없었다.
+   두 섹션은 다루는 내용이 달라 서로를 끌고 다니지 않아야 한다. */
+let _brandSide = 'kr';          // 신제품·브랜드 섹션: 'kr'(기본) · 'gl'
 
 /** 현재 보기 상태를 화면에 반영한다. 경쟁사 섹션과 브랜드 섹션 양쪽을 함께 본다. */
 function applySideView() {
   const on = _sideView === 'gl' ? 'gl' : 'kr';
-
-  // 탭 버튼 — 활성 표시(아리아 + 스타일 훅). 두 섹션의 버튼을 함께 본다.
-  document.querySelectorAll('.comp-tab, .side-tab').forEach((b) => {
+  /* ★ 분기 실적 섹션만 본다. 셀렉터를 문서 전체로 넓히면 아래 신제품·브랜드
+     섹션까지 함께 끌려가 두 섹션이 같은 쪽만 보게 된다. */
+  const root = document.getElementById('compRoot');
+  if (!root) return;
+  root.querySelectorAll('.comp-tab').forEach((b) => {
     const sel = b.getAttribute('data-side') === on;
     b.setAttribute('aria-selected', sel ? 'true' : 'false');
     b.setAttribute('tabindex', sel ? '0' : '-1');
   });
-
-  // 두 섹션의 패널 — 한쪽만 남긴다
-  document.querySelectorAll('.comp-panel, .brand-side').forEach((el) => {
+  root.querySelectorAll('.comp-panel').forEach((el) => {
     el.classList.toggle('is-off', el.getAttribute('data-side') !== on);
   });
+}
 
-  /* 예전에 쓰던 '국내 보기 중' 배지가 남아 있으면 함께 갱신한다(지금은 버튼이
-     그 역할을 하므로 없어도 정상이다). */
-  const note = document.getElementById('domSideNote');
-  if (note) note.textContent = (on === 'gl' ? '국외' : '국내') + ' 보기 중';
+/** 신제품·브랜드 섹션의 국내/국외 적용. 분기 실적과 완전히 별개다. */
+function applyBrandSide() {
+  const on = _brandSide === 'gl' ? 'gl' : 'kr';
+  const root = document.getElementById('domesticList');
+  if (!root) return;
+  root.querySelectorAll('.side-tab').forEach((b) => {
+    const sel = b.getAttribute('data-side') === on;
+    b.setAttribute('aria-selected', sel ? 'true' : 'false');
+    b.setAttribute('tabindex', sel ? '0' : '-1');
+  });
+  root.querySelectorAll('.brand-side').forEach((el) => {
+    el.classList.toggle('is-off', el.getAttribute('data-side') !== on);
+  });
 }
 
 /** 탭 클릭·키보드 조작. innerHTML 을 다시 쓸 때마다 불러도 안전하다(위임 1개). */
@@ -2298,9 +2312,19 @@ function wireBrandSide() {
     const b = e.target && e.target.closest && e.target.closest('.side-tab');
     if (!b) return;
     const side = b.getAttribute('data-side');
-    if (!side || side === _sideView) return;
-    _sideView = side;
-    applySideView();
+    if (!side || side === _brandSide) return;
+    _brandSide = side;
+    applyBrandSide();
+  });
+  // ← → 로도 옮길 수 있게(탭 위젯의 기본 조작)
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    if (!(e.target && e.target.closest && e.target.closest('.side-tab'))) return;
+    e.preventDefault();
+    _brandSide = _brandSide === 'kr' ? 'gl' : 'kr';
+    applyBrandSide();
+    const next = root.querySelector('.side-tab[data-side="' + _brandSide + '"]');
+    if (next && next.focus) next.focus();
   });
 }
 
@@ -8776,25 +8800,22 @@ function renderBrands() {
   const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중', 'glo');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
-  /* ★ 이 섹션에도 전환 버튼을 둔다. 예전에는 국내·국외를 나란히 다 보여 줬고,
-     탭으로 바꾸면서 한쪽을 숨겼는데 조작 버튼은 분기 실적 섹션에만 있었다 —
-     여기까지 스크롤한 사람에게는 국외로 갈 방법이 사라진 셈이었다.
-     ★★ 상태(_sideView)는 분기 실적 탭과 공유한다. 두 섹션이 서로 다른 쪽을
-     보여 주면 '지금 무엇을 보고 있는지'가 흐려진다. */
+  /* ★ 이 섹션은 자기 전환 버튼과 자기 상태(_brandSide)를 갖는다.
+     분기 실적 섹션과 묶지 않는다 — 위에서 국외를 보는 중에도 여기서는 국내를
+     볼 수 있어야 한다(두 섹션이 다루는 내용이 다르다). */
   const sideTab = (side, label, tag) => '<button class="side-tab" type="button" role="tab"'
     + ' data-side="' + side + '">' + escapeHtml(label)
     + (tag ? '<span class="side-tab__t">' + escapeHtml(tag) + '</span>' : '') + '</button>';
   el.innerHTML = '<div class="dom-side" role="tablist" aria-label="신제품·브랜드 국내/국외 전환">'
     + sideTab('kr', '국내', '')
     + sideTab('gl', '국외', 'Global')
-    + '<span class="dom-side__h">위 ‘국내외 경쟁사 분기 실적’ 탭과 연동됩니다</span>'
     + '</div>'
     + '<div class="brand-side" data-side="kr">' + kor + '</div>'
     + '<div class="brand-side" data-side="gl">' + glo + '</div>'
     + foot;
   wireBrandCats();
   wireBrandSide();
-  applySideView();
+  applyBrandSide();
 }
 
 /* ── 환율 (우리은행 스타일: USD·EUR·JPY 원화 시세표 + 기간별 추이) ── */

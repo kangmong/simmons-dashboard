@@ -2989,14 +2989,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 탭으로 감춘 패널 — display 를 쓰는 요소도 확실히 접히게 !important 를 둔다 */
 .is-off { display: none !important; }
 
-/* 브랜드 섹션이 어느 쪽을 보여주는지 알리는 줄 */
+/* 신제품·브랜드 섹션의 국내/국외 전환 줄 (분기 실적 탭과 독립) */
 .dom-side {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
   margin-bottom: 12px;
-}
-.dom-side__n {
-  padding: 3px 9px; border-radius: 999px;
-  background: var(--navy); color: #fff; font-size: 11px; font-weight: 800;
 }
 /* 이 섹션 자체의 국내/국외 전환 버튼 — 분기 실적 탭과 같은 상태를 쓴다 */
 .side-tab {
@@ -3014,7 +3010,6 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .side-tab__t {
   font-size: 9.5px; font-weight: 700; letter-spacing: .04em; opacity: .75;
 }
-.dom-side__h { font-size: 11px; color: var(--muted); }
 
 
 /* ══ 특허 · 신소재 동향 (KIPRIS) ═══════════════════════════════════════════
