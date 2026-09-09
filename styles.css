@@ -3206,7 +3206,9 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .pt-lg--co .pt-lg__i { color: var(--text); }
 .pt-lg--co .pt-lg__i i { width: 11px; height: 11px; border-radius: 3px; }
 /* 이 기간에 0건인 회사 — 범례에 남기되 물러나 있게 */
-.pt-lg__i.is-zero { opacity: .55; }
+/* 이 기간에 0건 — 남기되 데이터 있는 회사와 확실히 구분되게 흐리다 */
+.pt-lg__i.is-zero { opacity: .32; }
+.pt-lg__i.is-zero i { filter: grayscale(.55); }
 .pt-lg__i.is-zero u { text-decoration: none; color: var(--muted); font-weight: 700; }
 
 /* 출원인 골라 보기 칩 — 최신순 목록이 한 회사로만 차는 것을 막는다 */
@@ -3327,3 +3329,18 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* 필터가 걸리면 전체 건수를 다 싣고 표 높이로 스크롤한다 */
 .pt-scroll--tall { max-height: 460px; overflow-y: auto; }
+
+/* 연도별 차트 — 20년 라벨을 다 적으려면 720 폭으로는 좁다.
+   viewBox 를 넓히고, 화면이 좁으면 카드 안에서 옆으로 흐르게 한다. */
+.pt-chartwrap { overflow-x: auto; margin-top: 2px; }
+.pt-ysvg { display: block; height: 400px; width: 100%; min-width: 760px; }
+/* 막대 세그먼트 — 누를 수 있다는 것을 커서와 hover 로 알린다 */
+.pt-ysvg rect.pt-pick { cursor: pointer; }
+.pt-ysvg rect.pt-pick:hover { filter: brightness(1.12); }
+.pt-ysvg rect.pt-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.pt-ysvg rect.pt-pick.is-on { stroke: var(--navy); stroke-width: 1.6; }
+
+/* [조회] — 확정 버튼임을 색으로 알린다 */
+.pt-btn--go { background: var(--navy); border-color: var(--navy); color: #fff; }
+.pt-btn--go:hover { border-color: var(--navy); filter: brightness(1.12); }
+.pt-btn:disabled { opacity: .45; cursor: default; }

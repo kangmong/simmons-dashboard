@@ -10781,9 +10781,18 @@ async function fetchPatents() {
 /* ── 집계 헬퍼 ─────────────────────────────────────────────────────────── */
 
 /** 수집 기간 안에서 필터가 고른 구간. 필터가 비면 수집 기간 그대로. */
+/** 데이터가 실제로 존재하는 범위. 수집 설정(period)이 아니라 행에서 센다.
+ *  ★ period 는 '오늘로부터 20년'이라는 계산값이어서, 데이터가 없는 구간까지
+ *    기본값으로 잡혔다(2006-09-09 같은 임의의 날짜). 있는 것만 보여 준다. */
+function ptDataSpan() {
+  const rows = (_ptData && Array.isArray(_ptData.rows)) ? _ptData.rows : [];
+  const ds = rows.map((r) => r.date).filter(Boolean).sort();
+  return ds.length ? { from: ds[0], to: ds[ds.length - 1] } : { from: '', to: '' };
+}
+
 function ptRange() {
-  const p = (_ptData && _ptData.period) || {};
-  return { from: _ptFrom || p.from || '', to: _ptTo || p.to || '' };
+  const sp = ptDataSpan();
+  return { from: _ptFrom || sp.from, to: _ptTo || sp.to };
 }
 
 /** 구간과 '같은 길이의 직전 1년' 구간(전년 동기 비교용). */
@@ -10864,7 +10873,9 @@ function ptKpiCards(cur, prev) {
      빠져도 남은 회사의 색이 바뀌지 않는다.
    ★★★★ 팔레트는 검증기(dataviz validate_palette)를 통과한 조합이다 —
      명도대·채도 하한·색약 분리(ΔE 8.9)·정상시야 분리(ΔE 23.8) 전부 PASS.
-     대비 WARN 은 범례의 회사명과 툴팁 수치로 해소한다(색만으로 식별하지 않는다). */
+     대비 WARN 은 범례의 회사명과 툴팁 수치로 해소한다(색만으로 식별하지 않는다).
+   ★★★★★ 높이를 넉넉히 준다 — 1~2건짜리 세그먼트에도 숫자가 들어가야
+     마우스 없이 값이 읽힌다. 그래도 안 들어가는 칸은 막대 오른쪽에 붙인다. */
 const PT_CO_COLORS = {
   simmons: '#C8102E',       // 자사 — 브랜드 크림슨
   tempur: '#3B82F6',
@@ -10875,8 +10886,8 @@ const PT_CO_COLORS = {
   tempursealy: '#EC4899',
 };
 const PT_CO_FALLBACK = ['#3B82F6', '#F59E0B', '#12B981', '#8B5CF6', '#06B6D4', '#EC4899'];
-// 이 높이(viewBox 단위) 아래로는 세그먼트 안에 숫자를 적지 않는다
-const PT_SEG_MIN_H = 11;
+// 세그먼트 안에 숫자를 넣을 최소 높이(viewBox 단위). 이보다 낮으면 막대 밖에 적는다.
+const PT_SEG_MIN_H = 9;
 
 /** 배경색 위에 얹을 글자색 — 밝은 채움에는 어두운 글자, 진한 채움에는 흰 글자.
  *  ★ 색마다 손으로 정하지 않는다. 팔레트를 바꾸면 그 표가 조용히 틀어진다.
@@ -10931,9 +10942,11 @@ function ptYearly(rows) {
     by[y].per[k] = (by[y].per[k] || 0) + 1;
   });
   const years = Object.keys(by).sort();
-  if (years.length < 2) {
+  /* ★ 한 해만 남아도 그린다 — 그 해의 회사 구성은 여전히 볼 것이 있다.
+     '2년 이상 필요'로 카드를 비우면 기간을 좁힌 순간 화면이 사라진다. */
+  if (!years.length) {
     return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (연도별)</div>'
-      + emptyState('추이를 그릴 만큼 기간이 넓지 않습니다(2년 이상 필요)') + '</div>';
+      + emptyState('이 기간에 해당하는 출원이 없습니다') + '</div>';
   }
   /* 빈 해도 축에 남긴다 — 건너뛰면 '그 해에 출원이 없었다'는 사실이 사라진다 */
   const y0 = Number(years[0]), y1 = Number(years[years.length - 1]);
@@ -10941,10 +10954,15 @@ function ptYearly(rows) {
   for (let y = y0; y <= y1; y += 1) {
     pts.push(by[String(y)] || { y: String(y), total: 0, per: {} });
   }
-  const W = VIZ_W, H = 268, padL = 40, padR = 14, padT = 30, padB = 42;
+  /* ★ 가로는 연도 수에 맞춰 늘린다 — 20년을 720 폭에 넣으면 라벨을 격년으로
+     솎아 낼 수밖에 없다. 한 해에 최소 44px 를 주고, 라벨은 45도 눕혀 전부 적는다.
+     ★★ 세로는 예전(268)의 1.5배 — 1~2건 세그먼트에도 숫자가 들어가게. */
+  const n = pts.length;
+  const W = Math.max(VIZ_W, 96 + n * 44);
+  const H = 400, padL = 44, padR = 26, padT = 34, padB = 62;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const hi = gsNiceTop(Math.max.apply(null, pts.map((p) => p.total)) || 1, VIZ_Y_TICKS);
-  const n = pts.length, slot = plotW / n, bw = Math.min(30, slot * 0.62);
+  const slot = plotW / n, bw = Math.min(34, slot * 0.6);
   const X = (i2) => padL + slot * i2 + slot / 2;
   const Y = (v) => padT + (1 - v / (hi || 1)) * plotH;
 
@@ -10957,7 +10975,7 @@ function ptYearly(rows) {
       + Math.round(val).toLocaleString('ko-KR') + '</text>';
   }).join('');
   // Y축이 무엇을 세는지 축 머리에 적는다
-  const yUnit = '<text x="' + (padL - 6) + '" y="' + (padT - 10) + '" text-anchor="end"'
+  const yUnit = '<text x="' + (padL - 6) + '" y="' + (padT - 12) + '" text-anchor="end"'
     + ' font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">(건)</text>';
 
   const bars = pts.map((p, i2) => {
@@ -10968,53 +10986,63 @@ function ptYearly(rows) {
       .sort((a, b) => b.n - a.n)
       .map((c) => c.label + ' ' + c.n);
     const tip = p.y + '년 · 총 ' + p.total + '건'
-      + (parts.length ? ' — ' + parts.join(' / ') : ' (출원 없음)')
-      + (p.total ? ' · 눌러서 목록 보기' : '');
+      + (parts.length ? ' — ' + parts.join(' / ') : ' (출원 없음)');
     if (!p.total) {
-      return '<rect x="' + x.toFixed(1) + '" y="' + (base - 3).toFixed(1) + '" width="'
+      const t0 = tip;
+      return '<rect class="pt-pick' + (_ptYear === p.y ? ' is-on' : '') + '" x="'
+        + x.toFixed(1) + '" y="' + (base - 3).toFixed(1) + '" width="'
         + bw.toFixed(1) + '" height="3" fill="var(--line)" data-tip="'
-        + escapeHtml(tip) + '" tabindex="0"><title>' + escapeHtml(tip) + '</title></rect>';
+        + escapeHtml(t0) + '" tabindex="0" role="button" data-ptyear="'
+        + escapeHtml(p.y) + '"><title>' + escapeHtml(t0) + '</title></rect>';
     }
     /* 아래에서 위로 쌓는다. 세그먼트 사이 2px 는 카드 배경을 드러내 경계가 된다
-       (마크 규격: 채움 사이 2px 여백). */
+       (마크 규격: 채움 사이 2px 여백).
+       ★ 세그먼트마다 연도+회사를 달아 둔다 — 누르면 그 조건으로 목록이 걸러진다. */
     let acc = 0;
     const segs = [];
+    const outside = [];     // 안에 못 들어간 숫자 — 막대 오른쪽에 붙인다
     cos.forEach((c) => {
       const v = p.per[c.label] || 0;
       if (!v) return;
       const yTop = Y(acc + v), yBot = Y(acc);
       const h = Math.max(1, yBot - yTop - 2);
-      segs.push('<rect x="' + x.toFixed(1) + '" y="' + yTop.toFixed(1) + '" width="'
-        + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + c.color + '"/>');
-      /* 세그먼트 안에 건수를 직접 적는다 — 마우스를 올려야만 보이는 값은
-         종이로 뽑거나 스치듯 볼 때 없는 값과 같다.
-         ★ 글자가 들어갈 높이·폭이 안 되면 적지 않는다. 억지로 넣으면 서로
-           겹쳐 오히려 못 읽는다(작은 값은 툴팁이 받는다). */
-      if (h >= PT_SEG_MIN_H && bw >= 14) {
+      const segTip = p.y + '년 · ' + c.label + ' ' + v + '건 — 눌러서 목록 보기';
+      const on = _ptYear === p.y && _ptCo === c.label;
+      segs.push('<rect class="pt-pick' + (on ? ' is-on' : '') + '" x="' + x.toFixed(1)
+        + '" y="' + yTop.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="'
+        + h.toFixed(1) + '" rx="1.5" fill="' + c.color + '" tabindex="0" role="button"'
+        + ' data-ptyear="' + escapeHtml(p.y) + '" data-ptco="' + escapeHtml(c.label)
+        + '" data-tip="' + escapeHtml(segTip) + '">'
+        + '<title>' + escapeHtml(segTip) + '</title></rect>');
+      if (h >= PT_SEG_MIN_H) {
         segs.push('<text x="' + (x + bw / 2).toFixed(1) + '" y="'
           + (yTop + h / 2 + 3.2).toFixed(1) + '" text-anchor="middle" font-size="9"'
           + ' font-weight="800" fill="' + ptInkOn(c.color) + '" pointer-events="none">'
           + v + '</text>');
+      } else {
+        outside.push({ y: yTop + h / 2, v: v, color: c.color });
       }
       acc += v;
     });
-    return '<g class="pt-pick' + (_ptYear === p.y ? ' is-on' : '') + '" data-tip="'
-      + escapeHtml(tip) + '" tabindex="0" role="button" data-ptyear="'
-      + escapeHtml(p.y) + '">'
-      + '<title>' + escapeHtml(tip) + '</title>' + segs.join('') + '</g>';
+    /* 막대 밖 숫자 — 서로 겹치지 않게 위에서 아래로 최소 간격을 벌린다 */
+    outside.sort((a, b) => a.y - b.y);
+    let lastY = -99;
+    outside.forEach((o) => {
+      const yy = Math.max(o.y, lastY + 8.5);
+      lastY = yy;
+      segs.push('<text x="' + (x + bw + 3).toFixed(1) + '" y="' + (yy + 3).toFixed(1)
+        + '" text-anchor="start" font-size="8" font-weight="800" fill="' + o.color
+        + '" pointer-events="none">' + o.v + '</text>');
+    });
+    return '<g class="pt-bar">' + segs.join('') + '</g>';
   }).join('');
 
-  /* X축 라벨 — 균등 간격으로 고른다. 공용 vizTickIdx 는 간격이 고르지 않아
-     2007·2009·2010·2012 처럼 띄엄띄엄 섞여 축이 임의로 보였다.
-     첫 해와 마지막 해는 항상 적는다(기간의 양끝은 알아야 한다). */
-  const maxLab = Math.max(2, Math.floor(plotW / 54));
-  const step = Math.max(1, Math.ceil(n / maxLab));
-  const idx = [];
-  for (let k = 0; k < n; k += step) idx.push(k);
-  if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);
-  const xlab = idx.map((i2) => '<text x="' + X(i2).toFixed(1) + '" y="' + (base + 15)
-    + '" text-anchor="middle" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
-    + escapeHtml(pts[i2].y) + '</text>').join('');
+  /* ★ X축 — 모든 해를 적는다. 겹치지 않게 45도 눕힌다(솎아 내면 막대는 있는데
+     라벨이 없는 해가 생겨, 어느 막대가 몇 년인지 셈해야 한다). */
+  const xlab = pts.map((p, i2) => '<text x="' + X(i2).toFixed(1) + '" y="' + (base + 12)
+    + '" text-anchor="end" font-size="9" fill="var(--muted)"'
+    + ' transform="rotate(-45 ' + X(i2).toFixed(1) + ' ' + (base + 12) + ')">'
+    + escapeHtml(p.y) + '</text>').join('');
 
   // 범례 — 모든 회사를 적는다. 이 기간에 0건인 회사는 흐리게 두고 0건임을 밝힌다.
   const tot = {};
@@ -11031,13 +11059,13 @@ function ptYearly(rows) {
   return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (연도별)'
     + ' <span class="sm-h__u">(단위: 건 · 막대 높이 = 그 해 전체)</span></div>'
     + '<div class="pt-lg pt-lg--co">' + legend + '</div>'
-    + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
-    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 회사별 특허 출원 추이">'
+    + '<div class="pt-chartwrap"><svg class="pt-ysvg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' preserveAspectRatio="xMinYMid meet" role="img"'
+    + ' aria-label="연도별 회사별 특허 출원 추이">'
     + grid + yUnit + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
-    + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg>'
-    + '<div class="sm-foot">작은 값은 마우스를 올려(모바일은 탭) 확인하세요.'
-    + ' 막대를 누르면 아래 목록이 그 해로 걸러집니다.</div>'
+    + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg></div>'
+    + '<div class="sm-foot">막대를 누르면 그 해·그 기업의 특허 목록만 아래에 표시됩니다.</div>'
     + '</div>';
 }
 
@@ -11375,9 +11403,11 @@ function ptRecent(rows) {
 
   const picked = ptApplyFilters(rows);
   const act = ptActiveFilters();
-  /* ★ 필터가 걸리면 20건으로 자르지 않는다 — '등록 91건'을 눌렀는데 20건만
-     나오면 고른 것을 다 볼 수 없다. 전부 싣고 표 높이로 스크롤을 준다. */
-  const items = act.length ? picked : picked.slice(0, 20);
+  /* ★ 조건을 좁힌 상태에서는 20건으로 자르지 않는다 — '등록 91건'을 눌렀는데
+     20건만 나오면 고른 것을 다 볼 수 없다. 전부 싣고 표 높이로 스크롤을 준다.
+     ★★ 날짜로 좁힌 것도 같은 '고른 상태'다(차트 클릭만 특별할 이유가 없다). */
+  const narrowed = act.length > 0 || !!(_ptFrom || _ptTo);
+  const items = narrowed ? picked : picked.slice(0, 20);
   const bar = act.length
     ? '<div class="pt-fbar">'
       + '<span class="pt-fbar__t">'
@@ -11396,7 +11426,7 @@ function ptRecent(rows) {
     + ' <span class="sm-h__u">(최신순 ' + items.length + '건'
     + (picked.length > items.length ? ' / ' + picked.length + '건 중' : '') + ')</span></div>'
     + bar + chips
-    + '<div class="pt-scroll' + (act.length ? ' pt-scroll--tall' : '')
+    + '<div class="pt-scroll' + (narrowed ? ' pt-scroll--tall' : '')
     + '"><table class="pt-tb pt-tb--list"><thead><tr>'
     + '<th>번호</th><th>출원번호</th><th>출원일</th><th>출원인</th><th>국가</th>'
     + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
@@ -11415,20 +11445,26 @@ function ptRecent(rows) {
 
 /* ── 9) 기간 필터 ──────────────────────────────────────────────────────── */
 function ptRangeUi() {
-  const p = (_ptData && _ptData.period) || {};
+  const sp = ptDataSpan();
   const r = ptRange();
-  const inp = (id, val, min, max) => '<input class="pt-date" type="date" id="' + id
+  /* ★ min/max 를 데이터 범위로 걸어 없는 구간은 아예 고를 수 없게 한다. */
+  const inp = (id, val) => '<input class="pt-date" type="date" id="' + id
     + '" value="' + escapeHtml(val || '') + '"'
-    + (min ? ' min="' + escapeHtml(min) + '"' : '')
-    + (max ? ' max="' + escapeHtml(max) + '"' : '') + '>';
+    + (sp.from ? ' min="' + escapeHtml(sp.from) + '"' : '')
+    + (sp.to ? ' max="' + escapeHtml(sp.to) + '"' : '') + '>';
+  const narrowed = (_ptFrom || _ptTo);
   return '<div class="pt-filter">'
     + '<span class="pt-filter__l">조회 기간</span>'
-    + inp('ptFrom', r.from, p.from, p.to)
+    + inp('ptFrom', r.from)
     + '<span class="pt-filter__t">~</span>'
-    + inp('ptTo', r.to, p.from, p.to)
-    + '<button class="pt-btn" type="button" id="ptReset">수집 기간 전체</button>'
-    + (p.from ? '<span class="pt-filter__h">수집 범위 ' + escapeHtml(p.from) + ' ~ '
-      + escapeHtml(p.to) + '</span>' : '')
+    + inp('ptTo', r.to)
+    /* ★ 날짜를 고를 때마다 다시 그리지 않는다 — 입력칸이 새로 만들어져 포커스가
+       튀고, 시작일만 고른 중간 상태로 화면이 한 번 바뀐다. [조회]로 확정한다. */
+    + '<button class="pt-btn pt-btn--go" type="button" id="ptApply">조회</button>'
+    + '<button class="pt-btn" type="button" id="ptReset"'
+    + (narrowed ? '' : ' disabled') + '>수집 기간 전체</button>'
+    + (sp.from ? '<span class="pt-filter__h">데이터 범위 ' + escapeHtml(sp.from) + ' ~ '
+      + escapeHtml(sp.to) + '</span>' : '')
     + '</div>';
 }
 
@@ -11628,6 +11664,7 @@ function wirePatent() {
   if (!root || root.dataset.wired === '1') return;
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'ptApply') { applyDates(); return; }
     if (e.target && e.target.id === 'ptReset') {
       _ptFrom = ''; _ptTo = ''; renderPatent(); return;
     }
@@ -11652,43 +11689,44 @@ function wirePatent() {
     const pick = e.target && e.target.closest
       ? e.target.closest('[data-ptkind],[data-ptyear],[data-ptcat],[data-ptco]') : null;
     if (pick) {
+      const py = pick.getAttribute('data-ptyear');
+      const pc = pick.getAttribute('data-ptco');
+      /* ★ 막대 세그먼트는 '그 해 · 그 기업' 한 칸이므로 두 축을 함께 켠다.
+         같은 칸을 다시 누르면 둘 다 끈다(반쪽만 남으면 무엇을 보고 있는지 흐려진다). */
+      if (py != null && pc != null) {
+        if (_ptYear === py && _ptCo === pc) { _ptYear = ''; _ptCo = ''; }
+        else { _ptYear = py; _ptCo = pc; }
+        renderPatent();
+        return;
+      }
       if (pick.hasAttribute('data-ptkind')) ptToggleFilter('kind', pick.getAttribute('data-ptkind'));
-      else if (pick.hasAttribute('data-ptyear')) ptToggleFilter('year', pick.getAttribute('data-ptyear'));
+      else if (py != null) ptToggleFilter('year', py);
       else if (pick.hasAttribute('data-ptcat')) ptToggleFilter('cat', pick.getAttribute('data-ptcat'));
-      else ptToggleFilter('co', pick.getAttribute('data-ptco'));
+      else ptToggleFilter('co', pc);
       return;
     }
     const nob = e.target && e.target.closest ? e.target.closest('.pt-nobtn') : null;
     if (nob) ptOpenDetail(nob.getAttribute('data-appno'));
   });
-  /* ★ change 만 듣지 않는다 — 날짜 입력기는 값을 고르는 순간 input 을 쏘고
-     change 는 포커스가 빠질 때야 온다. change 만 걸어 두면 '날짜를 바꿨는데
-     화면이 그대로'로 보인다(실측 확인).
-     ★★ 다시 그리면 입력칸이 새로 만들어져 포커스가 날아간다. 방금 만지던 칸으로
-     포커스를 돌려놓아야 연달아 고칠 수 있다. */
-  const onDate = (e) => {
-    const id = e.target && e.target.id;
-    if (id !== 'ptFrom' && id !== 'ptTo') return;
-    const v = e.target.value || '';
-    if (id === 'ptFrom') _ptFrom = v; else _ptTo = v;
-    /* 시작일이 종료일보다 늦어지면, 방금 만진 칸은 그대로 두고 반대쪽을 끌어당긴다.
-       두 값을 맞바꾸면 사용자가 건드리지 않은 칸이 바뀌어 더 헷갈린다. */
-    if (_ptFrom && _ptTo && _ptFrom > _ptTo) {
-      if (id === 'ptFrom') _ptTo = _ptFrom; else _ptFrom = _ptTo;
-    }
+  /* ★ [조회]를 눌러야 적용한다. 입력칸 값은 DOM 이 들고 있고, 누를 때 읽는다 —
+     초안 상태를 자바스크립트에 따로 두면 둘이 어긋날 자리가 생긴다. */
+  const applyDates = () => {
+    const f = document.getElementById('ptFrom');
+    const t = document.getElementById('ptTo');
+    let a = (f && f.value) || '';
+    let b = (t && t.value) || '';
+    if (a && b && a > b) { const x = a; a = b; b = x; }   // 뒤집혀 들어오면 바로잡는다
+    const sp = ptDataSpan();
+    _ptFrom = (a && a !== sp.from) ? a : '';
+    _ptTo = (b && b !== sp.to) ? b : '';
     renderPatent();
-    const again = document.getElementById(id);
-    if (again && again.focus) {
-      again.focus();
-      if (again.setSelectionRange) {
-        try { again.setSelectionRange(v.length, v.length); } catch (err) { /* date 입력은 지원 안 함 */ }
-      }
-    }
   };
-  root.addEventListener('change', onDate);
-  root.addEventListener('input', onDate);
-  /* 차트에서 고르는 요소는 role="button" + tabindex 라 키보드로도 눌려야 한다 */
   root.addEventListener('keydown', (e) => {
+    // 날짜칸에서 엔터 = 조회
+    if (e.key === 'Enter' && e.target && (e.target.id === 'ptFrom' || e.target.id === 'ptTo')) {
+      e.preventDefault(); applyDates(); return;
+    }
+    /* 차트에서 고르는 요소는 role="button" + tabindex 라 키보드로도 눌려야 한다 */
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const t = e.target && e.target.closest
       ? e.target.closest('[data-ptkind],[data-ptyear],[data-ptcat],[data-ptco]') : null;
