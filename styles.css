@@ -3198,3 +3198,6 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 #patentRoot [data-tip]:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 #patentRoot tr[data-tip]:hover { background: var(--field); }
 #patentRoot .sm-hrow[data-tip]:hover .sm-hbar { filter: brightness(1.08); }
+
+/* 0건 출원인 — 숫자를 흐리게 두어 '값 없음'이 아니라 '0'임을 보인다 */
+.pt-zero { color: var(--muted) !important; font-weight: 700 !important; }

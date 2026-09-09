@@ -10959,6 +10959,11 @@ function ptTech(rows) {
 /* ── 5) 주요 출원인 비교 ───────────────────────────────────────────────── */
 function ptApplicants(rows) {
   const c = {};
+  /* ★ 설정에 있는 기업은 0건이어도 자리를 남긴다 — '특허를 내지 않았다'는 것도
+     경쟁사 정보다. 결과에서 빠지면 조회가 안 된 것과 구분할 수 없다. */
+  ((_ptData && _ptData.companies) || []).forEach((co) => {
+    c[co.label] = { label: co.label, n: 0, ours: !!co.isOurs };
+  });
   rows.forEach((r) => {
     const k = r.company || '미표기';
     if (!c[k]) c[k] = { label: k, n: 0, ours: !!r.isOurs };
@@ -10983,10 +10988,14 @@ function ptApplicants(rows) {
         + (x.n / totalN * 100).toFixed(1) + '%)') + '">'
       + '<div class="sm-hname">' + escapeHtml(x.label)
       + (x.ours ? '<span class="pt-own">자사</span>' : '') + '</div>'
-      + '<div class="sm-htrack"><div class="sm-hbar" style="width:'
-      + Math.max(2, x.n / max * 100).toFixed(1) + '%"></div></div>'
-      + '<div class="sm-hval">' + x.n.toLocaleString('ko-KR') + '건</div>'
-      + '</div>').join('') + '</div></div>';
+      + '<div class="sm-htrack">' + (x.n
+        ? '<div class="sm-hbar" style="width:' + Math.max(2, x.n / max * 100).toFixed(1) + '%"></div>'
+        : '') + '</div>'
+      + '<div class="sm-hval' + (x.n ? '' : ' pt-zero') + '">'
+      + x.n.toLocaleString('ko-KR') + '건</div>'
+      + '</div>').join('') + '</div>'
+    + '<div class="sm-foot">0건은 해당 기간에 이 분야(IPC A47C) 출원이 확인되지 않은'
+    + ' 기업입니다 — 조회가 안 된 것이 아닙니다.</div></div>';
 }
 
 /* ── 6) 국가별 출원 — 세계지도 ─────────────────────────────────────────── */
@@ -11308,16 +11317,30 @@ function wirePatent() {
       _ptFrom = ''; _ptTo = ''; renderPatent();
     }
   });
-  root.addEventListener('change', (e) => {
+  /* ★ change 만 듣지 않는다 — 날짜 입력기는 값을 고르는 순간 input 을 쏘고
+     change 는 포커스가 빠질 때야 온다. change 만 걸어 두면 '날짜를 바꿨는데
+     화면이 그대로'로 보인다(실측 확인).
+     ★★ 다시 그리면 입력칸이 새로 만들어져 포커스가 날아간다. 방금 만지던 칸으로
+     포커스를 돌려놓아야 연달아 고칠 수 있다. */
+  const onDate = (e) => {
     const id = e.target && e.target.id;
     if (id !== 'ptFrom' && id !== 'ptTo') return;
     const v = e.target.value || '';
     if (id === 'ptFrom') _ptFrom = v; else _ptTo = v;
-    /* from 이 to 보다 늦으면 조용히 뒤집지 않는다 — 사용자가 고른 값을 두고
-       빈 결과를 보여 주면 왜 비었는지 알 수 없으니, 여기서 맞바꿔 준다. */
+    /* 시작일이 종료일보다 늦어지면, 방금 만진 칸은 그대로 두고 반대쪽을 끌어당긴다.
+       두 값을 맞바꾸면 사용자가 건드리지 않은 칸이 바뀌어 더 헷갈린다. */
     if (_ptFrom && _ptTo && _ptFrom > _ptTo) {
-      const t = _ptFrom; _ptFrom = _ptTo; _ptTo = t;
+      if (id === 'ptFrom') _ptTo = _ptFrom; else _ptFrom = _ptTo;
     }
     renderPatent();
-  });
+    const again = document.getElementById(id);
+    if (again && again.focus) {
+      again.focus();
+      if (again.setSelectionRange) {
+        try { again.setSelectionRange(v.length, v.length); } catch (err) { /* date 입력은 지원 안 함 */ }
+      }
+    }
+  };
+  root.addEventListener('change', onDate);
+  root.addEventListener('input', onDate);
 }
