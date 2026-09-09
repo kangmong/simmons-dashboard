@@ -1662,8 +1662,15 @@ function stCesAwards(st) {
       ? x.segs : [{ label: x.period || '', n: x.total }];
     const k = segs.length;
     const bar = segs.map((s, i) => {
-      const txt = (s.label ? s.label + ' · ' : '') + s.n + unit;
-      return '<span class="ces-seg" style="flex:' + s.n
+      /* 건수가 확정되지 않은 구간(open) — '수상은 확인됐지만 몇 건인지 모른다'.
+         ★ 여기에 임의의 숫자를 넣지 않는다. 넣는 순간 합계가 근거 없이 늘어난다.
+           폭은 눈에 보일 만큼만 주고, 빗금으로 '세어지지 않은 칸'임을 밝힌다. */
+      const open = !!s.open || typeof s.n !== 'number';
+      const txt = open
+        ? String(s.label || '')
+        : (s.label ? s.label + ' · ' : '') + s.n + unit;
+      return '<span class="ces-seg' + (open ? ' ces-seg--open' : '')
+        + '" style="flex:' + (open ? '1.2' : s.n)
         + ';background:' + cesSegColor(i, k) + '" title="' + escapeHtml(txt) + '">'
         + '<i class="ces-seg__t">' + escapeHtml(txt) + '</i></span>';
     }).join('');
@@ -1679,7 +1686,8 @@ function stCesAwards(st) {
       + '<div class="ces-item__b">'
       + '<div class="ces-track"><div class="ces-hbar" style="width:' + w.toFixed(1)
       + '%">' + bar + '</div></div>'
-      + '<div class="ces-total">' + x.total.toLocaleString('ko-KR') + unit + '</div>'
+      + '<div class="ces-total">' + x.total.toLocaleString('ko-KR') + unit
+      + escapeHtml(x.totalSuffix || '') + '</div>'
       + '</div>'
       + (x.detail ? '<div class="ces-detail">' + escapeHtml(x.detail) + '</div>' : '')
       + '</div>';

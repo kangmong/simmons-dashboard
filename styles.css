@@ -2300,6 +2300,11 @@ body {
   display: flex; align-items: center; justify-content: center;
   min-width: 0; padding: 0 3px; overflow: hidden;
 }
+/* 건수가 확정되지 않은 구간 — 빗금으로 '세어지지 않은 칸'임을 밝힌다 */
+.ces-seg--open {
+  background-image: repeating-linear-gradient(135deg,
+    rgba(255,255,255,.5) 0 4px, rgba(255,255,255,0) 4px 9px);
+}
 /* 총 건수 — 막대 오른쪽 끝에 굵게 */
 .ces-total { font-size: 13px; font-weight: 800; color: var(--ink);
   white-space: nowrap; text-align: right; min-width: 40px; }
