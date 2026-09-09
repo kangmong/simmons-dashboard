@@ -3201,3 +3201,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* 0건 출원인 — 숫자를 흐리게 두어 '값 없음'이 아니라 '0'임을 보인다 */
 .pt-zero { color: var(--muted) !important; font-weight: 700 !important; }
+
+/* 연도별 차트 범례 — 회사 수가 많아 여러 줄로 흐른다 */
+.pt-lg--co { gap: 4px 14px; margin-bottom: 6px; }
+.pt-lg--co .pt-lg__i { color: var(--text); }
+.pt-lg--co .pt-lg__i i { width: 11px; height: 11px; border-radius: 3px; }
+/* 이 기간에 0건인 회사 — 범례에 남기되 물러나 있게 */
+.pt-lg__i.is-zero { opacity: .55; }
+.pt-lg__i.is-zero u { text-decoration: none; color: var(--muted); font-weight: 700; }

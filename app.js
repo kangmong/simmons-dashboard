@@ -10794,20 +10794,63 @@ function ptKpiCards(cur, prev) {
   }).join('') + '</div>';
 }
 
-/* ── 2) 연도별 추이 — 누적 막대(경쟁사 + 시몬스) ─────────────────────────
-   ★ 월 단위로 20년을 그리면 240개 칸이 되어 선이 톱니처럼 튀고 추세가 안 보인다.
+/* ── 2) 연도별 추이 — 회사별 누적 막대 ──────────────────────────────────
+   ★ 월 단위로 20년을 그리면 240칸이 되어 선이 톱니처럼 튀고 추세가 안 보인다.
      연 단위로 묶는다.
-   ★★ 시몬스와 경쟁사를 나란히 세우지 않고 쌓는다 — 20년 합계가 시몬스 11건 대
-     경쟁사 177건이라, 나란히 두면 시몬스 막대가 보이지 않는다. 쌓으면 막대
-     높이가 '그 해 전체'가 되어 업계 흐름이 먼저 읽히고, 그 안에서 자사 몫도 보인다. */
+   ★★ '경쟁사'를 회색 한 덩어리로 묶지 않는다 — 그러면 그 회색이 누구 것인지
+     알 수 없다. 회사별로 색을 나눠 쌓아, 막대 높이는 그 해 전체가 되고 안에서
+     구성까지 읽히게 한다.
+   ★★★ 색은 '회사'에 붙인다(그 해 순위가 아니다). 기간을 좁혀 어떤 회사가
+     빠져도 남은 회사의 색이 바뀌지 않는다.
+   ★★★★ 팔레트는 검증기(dataviz validate_palette)를 통과한 조합이다 —
+     명도대·채도 하한·색약 분리(ΔE 8.9)·정상시야 분리(ΔE 23.8) 전부 PASS.
+     대비 WARN 은 범례의 회사명과 툴팁 수치로 해소한다(색만으로 식별하지 않는다). */
+const PT_CO_COLORS = {
+  simmons: '#C8102E',       // 자사 — 브랜드 크림슨
+  tempur: '#3B82F6',
+  ace: '#F59E0B',
+  sealy: '#12B981',
+  fursys: '#8B5CF6',
+  coway: '#06B6D4',
+  tempursealy: '#EC4899',
+};
+const PT_CO_FALLBACK = ['#3B82F6', '#F59E0B', '#12B981', '#8B5CF6', '#06B6D4', '#EC4899'];
+
+/** 막대에 쌓을 회사 목록 — 설정 순서를 그대로 쓴다(색이 순위에 흔들리지 않게).
+ *  자사를 맨 아래에 두어 해마다 같은 자리에서 비교된다. */
+function ptStackOrder(rows) {
+  const cfg = (_ptData && _ptData.companies) || [];
+  const out = [];
+  const seen = {};
+  cfg.filter((c) => c.isOurs).concat(cfg.filter((c) => !c.isOurs)).forEach((c, i) => {
+    seen[c.label] = 1;
+    out.push({
+      key: c.key, label: c.label, isOurs: !!c.isOurs,
+      color: PT_CO_COLORS[c.key] || PT_CO_FALLBACK[i % PT_CO_FALLBACK.length],
+    });
+  });
+  // 설정에 없는 이름이 데이터에 있으면 뒤에 붙인다(조용히 빠뜨리지 않는다)
+  rows.forEach((r) => {
+    const k = r.company || '미표기';
+    if (!seen[k]) {
+      seen[k] = 1;
+      out.push({ key: 'x' + out.length, label: k, isOurs: false,
+        color: PT_CO_FALLBACK[out.length % PT_CO_FALLBACK.length] });
+    }
+  });
+  return out;
+}
+
 function ptYearly(rows) {
+  const cos = ptStackOrder(rows);
   const by = {};
   rows.forEach((r) => {
     const y = (r.date || '').slice(0, 4);
     if (!y) return;
-    if (!by[y]) by[y] = { y, total: 0, ours: 0, comp: 0 };
+    if (!by[y]) by[y] = { y: y, total: 0, per: {} };
     by[y].total += 1;
-    if (r.isOurs) by[y].ours += 1; else by[y].comp += 1;
+    const k = r.company || '미표기';
+    by[y].per[k] = (by[y].per[k] || 0) + 1;
   });
   const years = Object.keys(by).sort();
   if (years.length < 2) {
@@ -10818,9 +10861,9 @@ function ptYearly(rows) {
   const y0 = Number(years[0]), y1 = Number(years[years.length - 1]);
   const pts = [];
   for (let y = y0; y <= y1; y += 1) {
-    pts.push(by[String(y)] || { y: String(y), total: 0, ours: 0, comp: 0 });
+    pts.push(by[String(y)] || { y: String(y), total: 0, per: {} });
   }
-  const W = VIZ_W, H = 260, padL = 40, padR = 14, padT = 30, padB = 42;
+  const W = VIZ_W, H = 268, padL = 40, padR = 14, padT = 30, padB = 42;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const hi = gsNiceTop(Math.max.apply(null, pts.map((p) => p.total)) || 1, VIZ_Y_TICKS);
   const n = pts.length, slot = plotW / n, bw = Math.min(30, slot * 0.62);
@@ -10838,49 +10881,68 @@ function ptYearly(rows) {
 
   const bars = pts.map((p, i2) => {
     const x = X(i2) - bw / 2;
-    const tip = p.y + '년 · 전체 ' + p.total + '건 (시몬스 ' + p.ours
-      + '건 / 경쟁사 ' + p.comp + '건)';
+    // 툴팁 — 그 해에 실제로 낸 회사만, 많은 순으로. 0건은 적지 않는다(줄만 길어진다).
+    const parts = cos.filter((c) => p.per[c.label])
+      .map((c) => ({ label: c.label, n: p.per[c.label] }))
+      .sort((a, b) => b.n - a.n)
+      .map((c) => c.label + ' ' + c.n);
+    const tip = p.y + '년 · 총 ' + p.total + '건'
+      + (parts.length ? ' — ' + parts.join(' / ') : ' (출원 없음)');
     if (!p.total) {
-      // 0건인 해도 집을 수 있게 얇은 투명 막대를 둔다(툴팁만 뜬다)
       return '<rect x="' + x.toFixed(1) + '" y="' + (base - 3).toFixed(1) + '" width="'
         + bw.toFixed(1) + '" height="3" fill="var(--line)" data-tip="'
         + escapeHtml(tip) + '" tabindex="0"><title>' + escapeHtml(tip) + '</title></rect>';
     }
-    const yComp = Y(p.comp), hComp = Math.max(0, base - yComp);
-    const yTot = Y(p.total), hOurs = Math.max(0, yComp - yTot);
-    const g = ['<g data-tip="' + escapeHtml(tip) + '" tabindex="0">'];
-    g.push('<title>' + escapeHtml(tip) + '</title>');
-    if (hComp > 0) {
-      g.push('<rect x="' + x.toFixed(1) + '" y="' + yComp.toFixed(1) + '" width="'
-        + bw.toFixed(1) + '" height="' + hComp.toFixed(1) + '" fill="var(--slate)"'
-        + ' opacity=".62"/>');
-    }
-    if (hOurs > 0) {
-      g.push('<rect x="' + x.toFixed(1) + '" y="' + yTot.toFixed(1) + '" width="'
-        + bw.toFixed(1) + '" height="' + hOurs.toFixed(1) + '" fill="var(--accent)"/>');
-    }
-    g.push('</g>');
-    return g.join('');
+    /* 아래에서 위로 쌓는다. 세그먼트 사이 2px 는 카드 배경을 드러내 경계가 된다
+       (마크 규격: 채움 사이 2px 여백). */
+    let acc = 0;
+    const segs = [];
+    cos.forEach((c) => {
+      const v = p.per[c.label] || 0;
+      if (!v) return;
+      const yTop = Y(acc + v), yBot = Y(acc);
+      const h = Math.max(1, yBot - yTop - 2);
+      segs.push('<rect x="' + x.toFixed(1) + '" y="' + yTop.toFixed(1) + '" width="'
+        + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + c.color + '"/>');
+      acc += v;
+    });
+    return '<g data-tip="' + escapeHtml(tip) + '" tabindex="0">'
+      + '<title>' + escapeHtml(tip) + '</title>' + segs.join('') + '</g>';
   }).join('');
 
-  // X축 — 20년이면 라벨이 겹치므로 공용 헬퍼가 고른 해만 적는다
-  const idx = vizTickIdx(n, plotW, 40);
+  /* X축 라벨 — 균등 간격으로 고른다. 공용 vizTickIdx 는 간격이 고르지 않아
+     2007·2009·2010·2012 처럼 띄엄띄엄 섞여 축이 임의로 보였다.
+     첫 해와 마지막 해는 항상 적는다(기간의 양끝은 알아야 한다). */
+  const maxLab = Math.max(2, Math.floor(plotW / 54));
+  const step = Math.max(1, Math.ceil(n / maxLab));
+  const idx = [];
+  for (let k = 0; k < n; k += step) idx.push(k);
+  if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);
   const xlab = idx.map((i2) => '<text x="' + X(i2).toFixed(1) + '" y="' + (base + 15)
     + '" text-anchor="middle" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
     + escapeHtml(pts[i2].y) + '</text>').join('');
 
-  const lg = [['시몬스(자사)', 'var(--accent)', 1], ['경쟁사', 'var(--slate)', .62]];
+  // 범례 — 모든 회사를 적는다. 이 기간에 0건인 회사는 흐리게 두고 0건임을 밝힌다.
+  const tot = {};
+  rows.forEach((r) => { const k = r.company || '미표기'; tot[k] = (tot[k] || 0) + 1; });
+  const legend = cos.map((c) => {
+    const n2 = tot[c.label] || 0;
+    return '<span class="pt-lg__i' + (n2 ? '' : ' is-zero') + '" tabindex="0" data-tip="'
+      + escapeHtml(c.label + (c.isOurs ? '(자사)' : '') + ' · 이 기간 ' + n2 + '건') + '">'
+      + '<i style="background:' + c.color + '"></i>'
+      + escapeHtml(c.label) + (c.isOurs ? '(자사)' : '')
+      + (n2 ? '' : ' <u>0건</u>') + '</span>';
+  }).join('');
+
   return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (연도별)'
     + ' <span class="sm-h__u">(단위: 건 · 막대 높이 = 그 해 전체)</span></div>'
-    + '<div class="pt-lg">' + lg.map((l) => '<span class="pt-lg__i">'
-      + '<i style="background:' + l[1] + ';opacity:' + l[2] + '"></i>'
-      + escapeHtml(l[0]) + '</span>').join('') + '</div>'
+    + '<div class="pt-lg pt-lg--co">' + legend + '</div>'
     + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
-    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 특허 출원 추이">'
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 회사별 특허 출원 추이">'
     + grid + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
     + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg>'
-    + '<div class="sm-foot">막대에 마우스를 올리거나 탭하면 그 해의 값이 표시됩니다.</div>'
+    + '<div class="sm-foot">막대에 마우스를 올리거나 탭하면 그 해의 회사별 건수가 표시됩니다.</div>'
     + '</div>';
 }
 
