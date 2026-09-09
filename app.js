@@ -10830,6 +10830,24 @@ const PT_CO_COLORS = {
   tempursealy: '#EC4899',
 };
 const PT_CO_FALLBACK = ['#3B82F6', '#F59E0B', '#12B981', '#8B5CF6', '#06B6D4', '#EC4899'];
+// 이 높이(viewBox 단위) 아래로는 세그먼트 안에 숫자를 적지 않는다
+const PT_SEG_MIN_H = 11;
+
+/** 배경색 위에 얹을 글자색 — 밝은 채움에는 어두운 글자, 진한 채움에는 흰 글자.
+ *  ★ 색마다 손으로 정하지 않는다. 팔레트를 바꾸면 그 표가 조용히 틀어진다.
+ *    상대휘도를 재서 고른다(WCAG 계산식). */
+function ptInkOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  });
+  const L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  // 흰 글자와 검은 글자의 대비를 견줘 더 잘 보이는 쪽을 쓴다
+  return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.05) ? '#fff' : '#0B1220';
+}
 
 /** 막대에 쌓을 회사 목록 — 설정 순서를 그대로 쓴다(색이 순위에 흔들리지 않게).
  *  자사를 맨 아래에 두어 해마다 같은 자리에서 비교된다. */
@@ -10893,6 +10911,9 @@ function ptYearly(rows) {
       + ' font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
       + Math.round(val).toLocaleString('ko-KR') + '</text>';
   }).join('');
+  // Y축이 무엇을 세는지 축 머리에 적는다
+  const yUnit = '<text x="' + (padL - 6) + '" y="' + (padT - 10) + '" text-anchor="end"'
+    + ' font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">(건)</text>';
 
   const bars = pts.map((p, i2) => {
     const x = X(i2) - bw / 2;
@@ -10919,6 +10940,16 @@ function ptYearly(rows) {
       const h = Math.max(1, yBot - yTop - 2);
       segs.push('<rect x="' + x.toFixed(1) + '" y="' + yTop.toFixed(1) + '" width="'
         + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="1.5" fill="' + c.color + '"/>');
+      /* 세그먼트 안에 건수를 직접 적는다 — 마우스를 올려야만 보이는 값은
+         종이로 뽑거나 스치듯 볼 때 없는 값과 같다.
+         ★ 글자가 들어갈 높이·폭이 안 되면 적지 않는다. 억지로 넣으면 서로
+           겹쳐 오히려 못 읽는다(작은 값은 툴팁이 받는다). */
+      if (h >= PT_SEG_MIN_H && bw >= 14) {
+        segs.push('<text x="' + (x + bw / 2).toFixed(1) + '" y="'
+          + (yTop + h / 2 + 3.2).toFixed(1) + '" text-anchor="middle" font-size="9"'
+          + ' font-weight="800" fill="' + ptInkOn(c.color) + '" pointer-events="none">'
+          + v + '</text>');
+      }
       acc += v;
     });
     return '<g data-tip="' + escapeHtml(tip) + '" tabindex="0">'
@@ -10954,10 +10985,10 @@ function ptYearly(rows) {
     + '<div class="pt-lg pt-lg--co">' + legend + '</div>'
     + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
     + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 회사별 특허 출원 추이">'
-    + grid + bars
+    + grid + yUnit + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
     + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg>'
-    + '<div class="sm-foot">막대에 마우스를 올리거나 탭하면 그 해의 회사별 건수가 표시됩니다.</div>'
+    + '<div class="sm-foot">작은 값은 마우스를 올려(모바일은 탭) 확인하세요.</div>'
     + '</div>';
 }
 
@@ -11486,11 +11517,12 @@ function renderPatent() {
       // + ptCountries(cur)
       + ptRecent(cur)
       + '</div>'
-      + (_ptData.foreignNote ? '<div class="sm-foot pt-note">'
-        + escapeHtml(_ptData.foreignNote) + '</div>' : '')
-      + '<div class="sm-foot pt-note">' + escapeHtml(_ptData.techNote
-        || '기술분야 분류는 자동 키워드 매칭 기준이며 완전히 정확하지 않을 수 있습니다.')
-      + '</div>'
+      /* ★ 주황 안내 박스를 걷어냈다.
+         - 해외특허 대기 안내: 해외 위젯(지도·비율 KPI)을 다 뺐으니 화면에서
+           설명할 대상이 없다. 수집기의 foreignNote 는 그대로 두어 로그·JSON 에는
+           남는다(왜 해외가 비었는지는 데이터 쪽에서 추적할 수 있어야 한다).
+         - 자동 분류 정확도 안내: 내용은 유효하므로 지우지 않고 맨 아래 각주로
+           옮긴다(경고 박스만큼 크게 말할 일은 아니다). */
       + ((_ptData.filteredOut && Object.keys(_ptData.filteredOut).length)
         ? '<div class="sm-foot">출원인 검색이 부분일치라 다른 기업이 섞여 옵니다 — '
           + escapeHtml(Object.keys(_ptData.filteredOut)
@@ -11501,7 +11533,10 @@ function renderPatent() {
         + ' — kipris_patent.py --max-calls 로 조정하세요.</div>' : '')
       + '<div class="comp-caption">데이터 출처: KIPRIS (특허정보검색서비스)' + scope
       + ' ※ 기간 및 항목은 설정에 따라 변경 가능합니다.'
-      + (_ptData.lastUpdated ? ' · 수집 ' + escapeHtml(_ptData.lastUpdated) : '') + '</div>';
+      + (_ptData.lastUpdated ? ' · 수집 ' + escapeHtml(_ptData.lastUpdated) : '') + '</div>'
+      + '<div class="comp-caption pt-fine">' + escapeHtml(_ptData.techNote
+        || '기술분야 분류와 키워드 추출은 자동 키워드 매칭 기준이며, 완전히 정확하지 않을 수 있습니다.')
+      + '</div>';
   }
   el.innerHTML = body;
   wirePatent();

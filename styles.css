@@ -3128,12 +3128,6 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   vertical-align: super;
 }
 
-/* 자동 분류 안내 */
-.pt-note {
-  margin-top: 10px; padding: 7px 10px; border-radius: var(--radius-sm);
-  background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent);
-  color: var(--amber-ink); font-weight: 600;
-}
 
 
 /* 오류 — 조용히 비지 않게, 무엇을 고쳐야 하는지 적는다 */
@@ -3292,3 +3286,6 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .ptd__btn:hover { border-color: var(--slate); }
 .ptd__btn--go { background: var(--navy); border-color: var(--navy); color: #fff; }
 .ptd__hint { flex: 1 1 220px; font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+
+/* 맨 아래 잔주 — 자동 분류 정확도 같은 단서를 작게 남긴다 */
+.pt-fine { margin-top: 2px; font-size: 10.5px; color: var(--muted); line-height: 1.55; }
