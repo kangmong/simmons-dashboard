@@ -10703,7 +10703,52 @@ const PT_DATA_URL = 'public/data/kipris-patents.json';
 let _ptData = null;          // {status:'ok'|'error', rows:[…], …}
 let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 수집 기간 전체
 let _ptTo = '';
-let _ptCo = '';           // 목록에서 골라 본 출원인(빈 값 = 전체)
+/* ── 교차 필터 ────────────────────────────────────────────────────────────
+   ★ 차트는 '고르는 곳', 아래 목록은 '결과를 보는 곳'으로 나눈다.
+     차트까지 필터를 반영하면 등록을 고른 순간 도넛이 등록 100% 가 되어
+     다른 유형을 다시 고를 수 없다 — 차트는 기간 안 전체를 계속 보여 준다.
+   ★★ 네 축을 동시에 걸 수 있다(예: 2023년 + 등록). 서로 다른 성질이라
+     한 번에 하나만 허용할 이유가 없다. */
+let _ptCo = '';           // 출원인
+let _ptKind = '';         // 출원 유형(등록·공개…)
+let _ptYear = '';         // 연도
+let _ptCat = '';          // 기술 분야(catLabel)
+
+/** 지금 걸린 필터 목록 — 안내줄과 해제 버튼이 이것을 읽는다. */
+function ptActiveFilters() {
+  const out = [];
+  if (_ptYear) out.push({ k: 'year', v: _ptYear, label: _ptYear + '년' });
+  if (_ptKind) out.push({ k: 'kind', v: _ptKind, label: _ptKind });
+  if (_ptCat) out.push({ k: 'cat', v: _ptCat, label: _ptCat });
+  if (_ptCo) out.push({ k: 'co', v: _ptCo, label: _ptCo });
+  return out;
+}
+
+/** 걸린 필터를 모두 통과한 행만 남긴다. */
+function ptApplyFilters(rows) {
+  return rows.filter((r) => {
+    if (_ptYear && String(r.date || '').slice(0, 4) !== _ptYear) return false;
+    if (_ptKind && (r.kind || '미표기') !== _ptKind) return false;
+    if (_ptCat && (r.catLabel || '기타/미분류') !== _ptCat) return false;
+    if (_ptCo && (r.company || '미표기') !== _ptCo) return false;
+    return true;
+  });
+}
+
+/** 필터 하나를 켜고 끈다(같은 값을 다시 누르면 해제). */
+function ptToggleFilter(kind, value) {
+  const v = String(value || '');
+  if (kind === 'year') _ptYear = (_ptYear === v) ? '' : v;
+  else if (kind === 'kind') _ptKind = (_ptKind === v) ? '' : v;
+  else if (kind === 'cat') _ptCat = (_ptCat === v) ? '' : v;
+  else if (kind === 'co') _ptCo = (_ptCo === v) ? '' : v;
+  renderPatent();
+}
+
+function ptClearFilters() {
+  _ptCo = ''; _ptKind = ''; _ptYear = ''; _ptCat = '';
+  renderPatent();
+}
 
 /** 2자리 국가코드 → ISO_LONLAT 이 쓰는 3자리 코드.
  *  ★ EP(유럽특허청)·WO(WIPO)는 나라가 아니라 지도에 찍지 않는다 — 아래 목록으로 뺀다. */
@@ -10923,7 +10968,8 @@ function ptYearly(rows) {
       .sort((a, b) => b.n - a.n)
       .map((c) => c.label + ' ' + c.n);
     const tip = p.y + '년 · 총 ' + p.total + '건'
-      + (parts.length ? ' — ' + parts.join(' / ') : ' (출원 없음)');
+      + (parts.length ? ' — ' + parts.join(' / ') : ' (출원 없음)')
+      + (p.total ? ' · 눌러서 목록 보기' : '');
     if (!p.total) {
       return '<rect x="' + x.toFixed(1) + '" y="' + (base - 3).toFixed(1) + '" width="'
         + bw.toFixed(1) + '" height="3" fill="var(--line)" data-tip="'
@@ -10952,7 +10998,9 @@ function ptYearly(rows) {
       }
       acc += v;
     });
-    return '<g data-tip="' + escapeHtml(tip) + '" tabindex="0">'
+    return '<g class="pt-pick' + (_ptYear === p.y ? ' is-on' : '') + '" data-tip="'
+      + escapeHtml(tip) + '" tabindex="0" role="button" data-ptyear="'
+      + escapeHtml(p.y) + '">'
       + '<title>' + escapeHtml(tip) + '</title>' + segs.join('') + '</g>';
   }).join('');
 
@@ -10988,7 +11036,8 @@ function ptYearly(rows) {
     + grid + yUnit + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
     + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg>'
-    + '<div class="sm-foot">작은 값은 마우스를 올려(모바일은 탭) 확인하세요.</div>'
+    + '<div class="sm-foot">작은 값은 마우스를 올려(모바일은 탭) 확인하세요.'
+    + ' 막대를 누르면 아래 목록이 그 해로 걸러집니다.</div>'
     + '</div>';
 }
 
@@ -11009,17 +11058,24 @@ function ptTypes(rows) {
   let acc = 0;
   const segs = items.map((x, i) => {
     const frac = x.n / total, len = C * frac;
-    const tip = x.label + ' · ' + x.n + '건 (' + (frac * 100).toFixed(1) + '%)';
-    const s = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + COLORS[i % COLORS.length]
-      + '" stroke-width="' + SW + '" stroke-dasharray="' + len.toFixed(2) + ' '
+    const tip = x.label + ' · ' + x.n + '건 (' + (frac * 100).toFixed(1) + '%)'
+      + ' — 눌러서 목록 보기';
+    const on = _ptKind === x.label;
+    const s = '<circle class="pt-slice' + (on ? ' is-on' : '') + '" cx="70" cy="70" r="'
+      + R + '" fill="none" stroke="' + COLORS[i % COLORS.length]
+      + '" stroke-width="' + (on ? SW + 4 : SW) + '" stroke-dasharray="' + len.toFixed(2) + ' '
       + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-acc).toFixed(2)
-      + '" transform="rotate(-90 70 70)" data-tip="' + escapeHtml(tip) + '" tabindex="0">'
+      + '" transform="rotate(-90 70 70)" data-tip="' + escapeHtml(tip) + '" tabindex="0"'
+      + ' role="button" data-ptkind="' + escapeHtml(x.label) + '">'
       + '<title>' + escapeHtml(tip) + '</title></circle>';
     acc += len;
     return s;
   }).join('');
-  const legend = items.map((x, i) => '<div class="pt-dn__r" tabindex="0" data-tip="'
-    + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1) + '%)') + '">'
+  const legend = items.map((x, i) => '<div class="pt-dn__r pt-pick'
+    + (_ptKind === x.label ? ' is-on' : '') + '" tabindex="0" role="button"'
+    + ' data-ptkind="' + escapeHtml(x.label) + '" data-tip="'
+    + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1)
+      + '%) — 눌러서 목록 보기') + '">'
     + '<i style="background:' + COLORS[i % COLORS.length] + '"></i>'
     + '<span class="pt-dn__l">' + escapeHtml(x.label) + '</span>'
     + '<b>' + x.n.toLocaleString('ko-KR') + '건</b>'
@@ -11027,12 +11083,12 @@ function ptTypes(rows) {
   return '<div class="sm-card"><div class="sm-h">출원 유형별 현황'
     + ' <span class="sm-h__u">(KIPRIS 구분값 기준)</span></div>'
     + '<div class="pt-dn">'
+    /* 가운데는 비운다 — 합계는 오른쪽 범례가 이미 다 말한다 */
     + '<svg viewBox="0 0 140 140" width="140" height="140" role="img"'
-    + ' aria-label="출원 유형별 비중">' + segs
-    + '<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--muted)">전체</text>'
-    + '<text x="70" y="82" text-anchor="middle" font-size="15" font-weight="800"'
-    + ' fill="var(--ink)">' + total.toLocaleString('ko-KR') + '</text></svg>'
-    + '<div class="pt-dn__lg">' + legend + '</div></div></div>';
+    + ' aria-label="출원 유형별 비중">' + segs + '</svg>'
+    + '<div class="pt-dn__lg">' + legend + '</div></div>'
+    + '<div class="sm-foot">조각이나 항목을 누르면 아래 목록이 그 유형으로 걸러집니다.</div>'
+    + '</div>';
 }
 
 /* ── 4) 주요 기술 분야 TOP5 ────────────────────────────────────────────── */
@@ -11053,15 +11109,19 @@ function ptTech(rows) {
   return '<div class="sm-card"><div class="sm-h">주요 기술 분야 TOP5 (특허)</div>'
     + '<table class="pt-tb"><thead><tr><th>순위</th><th>기술 분야</th>'
     + '<th class="pt-tb__n">건수</th><th class="pt-tb__n">비중</th><th>분포</th></tr></thead>'
-    + '<tbody>' + items.map((x, i) => '<tr tabindex="0" data-tip="'
-      + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1) + '%)')
+    + '<tbody>' + items.map((x, i) => '<tr class="pt-pick'
+      + (_ptCat === x.label ? ' is-on' : '') + '" tabindex="0" role="button"'
+      + ' data-ptcat="' + escapeHtml(x.label) + '" data-tip="'
+      + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1)
+        + '%) — 눌러서 목록 보기')
       + '"><th scope="row">' + (i + 1) + '</th>'
       + '<td>' + escapeHtml(x.label) + '</td>'
       + '<td class="pt-tb__n"><b>' + x.n.toLocaleString('ko-KR') + '</b></td>'
       + '<td class="pt-tb__n">' + (x.n / total * 100).toFixed(1) + '%</td>'
       + '<td><span class="pt-tb__bar" style="width:' + (x.n / max * 100).toFixed(1)
       + '%"></span></td></tr>').join('')
-    + '</tbody></table></div>';
+    + '</tbody></table>'
+    + '<div class="sm-foot">행을 누르면 아래 목록이 그 분야로 걸러집니다.</div></div>';
 }
 
 /* ── 5) 주요 출원인 비교 ───────────────────────────────────────────────── */
@@ -11091,9 +11151,13 @@ function ptApplicants(rows) {
     + '시몬스(자사)</span><span class="pt-lg__i">'
     + '<i style="background:var(--slate);opacity:.5"></i>경쟁사</span></div>'
     + '<div class="sm-hbars sm-hbars--inv">' + items.map((x) => '<div class="sm-hrow'
-      + (x.ours ? ' is-mine' : '') + '" tabindex="0" data-tip="'
+      + (x.ours ? ' is-mine' : '') + (x.n ? ' pt-pick' : '')
+      + (_ptCo === x.label ? ' is-on' : '') + '" tabindex="0"'
+      + (x.n ? ' role="button" data-ptco="' + escapeHtml(x.label) + '"' : '')
+      + ' data-tip="'
       + escapeHtml(x.label + (x.ours ? '(자사)' : '') + ' · ' + x.n + '건 ('
-        + (x.n / totalN * 100).toFixed(1) + '%)') + '">'
+        + (x.n / totalN * 100).toFixed(1) + '%)'
+        + (x.n ? ' — 눌러서 목록 보기' : '')) + '">'
       + '<div class="sm-hname">' + escapeHtml(x.label)
       + (x.ours ? '<span class="pt-own">자사</span>' : '') + '</div>'
       + '<div class="sm-htrack">' + (x.n
@@ -11103,7 +11167,8 @@ function ptApplicants(rows) {
       + x.n.toLocaleString('ko-KR') + '건</div>'
       + '</div>').join('') + '</div>'
     + '<div class="sm-foot">0건은 해당 기간에 이 분야(IPC A47C) 출원이 확인되지 않은'
-    + ' 기업입니다 — 조회가 안 된 것이 아닙니다.</div></div>';
+    + ' 기업입니다 — 조회가 안 된 것이 아닙니다.'
+    + ' 막대를 누르면 아래 목록이 그 기업으로 걸러집니다.</div></div>';
 }
 
 /* ── 6) 국가별 출원 — 세계지도 ───────────────────────────────────────────
@@ -11307,17 +11372,32 @@ function ptRecent(rows) {
       + escapeHtml(c.label) + '"><i style="background:' + c.color + '"></i>'
       + escapeHtml(c.label) + ' <b>' + cnt[c.label] + '</b></button>').join('')
     + '</div>';
-  const picked = _ptCo ? rows.filter((r) => (r.company || '미표기') === _ptCo) : rows;
-  const items = picked.slice(0, 20);
+
+  const picked = ptApplyFilters(rows);
+  const act = ptActiveFilters();
+  /* ★ 필터가 걸리면 20건으로 자르지 않는다 — '등록 91건'을 눌렀는데 20건만
+     나오면 고른 것을 다 볼 수 없다. 전부 싣고 표 높이로 스크롤을 준다. */
+  const items = act.length ? picked : picked.slice(0, 20);
+  const bar = act.length
+    ? '<div class="pt-fbar">'
+      + '<span class="pt-fbar__t">'
+      + act.map((f) => '<b>' + escapeHtml(f.label) + '</b>').join(' + ')
+      + '(으)로 필터링됨 · <b>' + picked.length + '건</b></span>'
+      + act.map((f) => '<button class="pt-fbar__x" type="button" data-ptclear="'
+        + escapeHtml(f.k) + '">' + escapeHtml(f.label) + ' 해제 ✕</button>').join('')
+      + '<button class="pt-fbar__all" type="button" data-ptclear="all">전체 보기</button>'
+      + '</div>'
+    : '';
   if (!items.length) {
     return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원</div>'
-      + chips + emptyState('이 조건에 해당하는 출원이 없습니다') + '</div>';
+      + bar + chips + emptyState('이 조건에 해당하는 출원이 없습니다') + '</div>';
   }
   return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원'
     + ' <span class="sm-h__u">(최신순 ' + items.length + '건'
     + (picked.length > items.length ? ' / ' + picked.length + '건 중' : '') + ')</span></div>'
-    + chips
-    + '<div class="pt-scroll"><table class="pt-tb pt-tb--list"><thead><tr>'
+    + bar + chips
+    + '<div class="pt-scroll' + (act.length ? ' pt-scroll--tall' : '')
+    + '"><table class="pt-tb pt-tb--list"><thead><tr>'
     + '<th>번호</th><th>출원번호</th><th>출원일</th><th>출원인</th><th>국가</th>'
     + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
     + items.map((r, i) => '<tr>'
@@ -11557,6 +11637,27 @@ function wirePatent() {
       renderPatent();
       return;
     }
+    // 필터 해제 버튼
+    const clr = e.target && e.target.closest ? e.target.closest('[data-ptclear]') : null;
+    if (clr) {
+      const k = clr.getAttribute('data-ptclear');
+      if (k === 'all') ptClearFilters();
+      else if (k === 'year') { _ptYear = ''; renderPatent(); }
+      else if (k === 'kind') { _ptKind = ''; renderPatent(); }
+      else if (k === 'cat') { _ptCat = ''; renderPatent(); }
+      else if (k === 'co') { _ptCo = ''; renderPatent(); }
+      return;
+    }
+    // 차트에서 고르기 — 도넛 조각·범례 / 연도 막대 / 기술분야 행 / 출원인 막대
+    const pick = e.target && e.target.closest
+      ? e.target.closest('[data-ptkind],[data-ptyear],[data-ptcat],[data-ptco]') : null;
+    if (pick) {
+      if (pick.hasAttribute('data-ptkind')) ptToggleFilter('kind', pick.getAttribute('data-ptkind'));
+      else if (pick.hasAttribute('data-ptyear')) ptToggleFilter('year', pick.getAttribute('data-ptyear'));
+      else if (pick.hasAttribute('data-ptcat')) ptToggleFilter('cat', pick.getAttribute('data-ptcat'));
+      else ptToggleFilter('co', pick.getAttribute('data-ptco'));
+      return;
+    }
     const nob = e.target && e.target.closest ? e.target.closest('.pt-nobtn') : null;
     if (nob) ptOpenDetail(nob.getAttribute('data-appno'));
   });
@@ -11586,4 +11687,13 @@ function wirePatent() {
   };
   root.addEventListener('change', onDate);
   root.addEventListener('input', onDate);
+  /* 차트에서 고르는 요소는 role="button" + tabindex 라 키보드로도 눌려야 한다 */
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target && e.target.closest
+      ? e.target.closest('[data-ptkind],[data-ptyear],[data-ptcat],[data-ptco]') : null;
+    if (!t) return;
+    e.preventDefault();
+    t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
 }

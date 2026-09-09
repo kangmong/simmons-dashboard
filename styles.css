@@ -3289,3 +3289,41 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* 맨 아래 잔주 — 자동 분류 정확도 같은 단서를 작게 남긴다 */
 .pt-fine { margin-top: 2px; font-size: 10.5px; color: var(--muted); line-height: 1.55; }
+
+/* ── 차트에서 골라 목록 걸러 보기 ─────────────────────────────────────────
+   ★ 누를 수 있다는 것을 커서와 hover 로 먼저 알린다. */
+.pt-pick { cursor: pointer; }
+#patentRoot .pt-pick:hover { filter: brightness(1.06); }
+#patentRoot tr.pt-pick:hover { background: var(--blue-soft); }
+#patentRoot .sm-hrow.pt-pick:hover .sm-hbar { filter: brightness(1.12); }
+/* 고른 상태 — 테두리로 표시한다(색을 바꾸면 계열 색과 헷갈린다) */
+#patentRoot tr.pt-pick.is-on { background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--blue); }
+#patentRoot .pt-dn__r.is-on { background: var(--blue-soft); border-radius: 6px; }
+#patentRoot .sm-hrow.pt-pick.is-on { background: var(--blue-soft); border-radius: 6px; }
+#patentRoot g.pt-pick.is-on rect { stroke: var(--navy); stroke-width: 1.4; }
+
+/* 도넛 조각 */
+.pt-slice { cursor: pointer; transition: stroke-width .12s; }
+.pt-slice:hover { filter: brightness(1.08); }
+.pt-slice:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* 필터 안내줄 */
+.pt-fbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin: 8px 0 2px; padding: 8px 11px; border-radius: var(--radius-sm);
+  background: var(--blue-soft);
+  border: 1px solid color-mix(in srgb, var(--blue) 24%, transparent);
+  font-size: 11.5px; color: var(--text);
+}
+.pt-fbar__t { margin-right: auto; }
+.pt-fbar__t b { color: var(--blue-ink); font-weight: 800; }
+.pt-fbar__x, .pt-fbar__all {
+  padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--text);
+  font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.pt-fbar__x:hover, .pt-fbar__all:hover { border-color: var(--slate); }
+.pt-fbar__all { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+/* 필터가 걸리면 전체 건수를 다 싣고 표 높이로 스크롤한다 */
+.pt-scroll--tall { max-height: 460px; overflow-y: auto; }
