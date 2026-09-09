@@ -2246,8 +2246,8 @@ let _sideView = 'kr';           // 'kr' = 국내(기본) · 'gl' = 국외
 function applySideView() {
   const on = _sideView === 'gl' ? 'gl' : 'kr';
 
-  // 탭 버튼 — 활성 표시(아리아 + 스타일 훅)
-  document.querySelectorAll('.comp-tab').forEach((b) => {
+  // 탭 버튼 — 활성 표시(아리아 + 스타일 훅). 두 섹션의 버튼을 함께 본다.
+  document.querySelectorAll('.comp-tab, .side-tab').forEach((b) => {
     const sel = b.getAttribute('data-side') === on;
     b.setAttribute('aria-selected', sel ? 'true' : 'false');
     b.setAttribute('tabindex', sel ? '0' : '-1');
@@ -2258,7 +2258,8 @@ function applySideView() {
     el.classList.toggle('is-off', el.getAttribute('data-side') !== on);
   });
 
-  // 브랜드 섹션은 탭에서 멀리 떨어져 있어, 왜 한쪽만 보이는지 그 자리에 적어 준다.
+  /* 예전에 쓰던 '국내 보기 중' 배지가 남아 있으면 함께 갱신한다(지금은 버튼이
+     그 역할을 하므로 없어도 정상이다). */
   const note = document.getElementById('domSideNote');
   if (note) note.textContent = (on === 'gl' ? '국외' : '국내') + ' 보기 중';
 }
@@ -2285,6 +2286,21 @@ function wireCompTabs() {
     applySideView();
     const next = root.querySelector('.comp-tab[data-side="' + _sideView + '"]');
     if (next && next.focus) next.focus();
+  });
+}
+
+/** 신제품·브랜드 섹션의 국내/국외 버튼 배선. 상태는 분기 실적 탭과 공유한다. */
+function wireBrandSide() {
+  const root = document.getElementById('domesticList');
+  if (!root || root.dataset.sideWired === '1') return;
+  root.dataset.sideWired = '1';
+  root.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('.side-tab');
+    if (!b) return;
+    const side = b.getAttribute('data-side');
+    if (!side || side === _sideView) return;
+    _sideView = side;
+    applySideView();
   });
 }
 
@@ -8760,14 +8776,24 @@ function renderBrands() {
   const glo = brandGroupHtml('국외', 'Global', _globalBrands, _globalFeatured, DOM_BRAND_COLORS, '국외 브랜드 신제품 준비중', 'glo');
   const foot = '<div class="dom-note">뉴스 기사 기반으로, 상품명·사진이 정확하지 않을 수 있습니다.</div>'
     + '<div class="comp-caption">출처: Google News</div>';
-  /* 이 섹션은 탭에서 멀리 떨어져 있다 — 어느 쪽을 보고 있는지 여기서도 밝힌다.
-     ★ 구분선은 두지 않는다. 한 번에 한쪽만 보이므로 가를 것이 없다. */
-  el.innerHTML = '<div class="dom-side"><span class="dom-side__n" id="domSideNote"></span>'
-    + '<span class="dom-side__h">위 ‘국내외 경쟁사 분기 실적’ 탭을 따릅니다</span></div>'
+  /* ★ 이 섹션에도 전환 버튼을 둔다. 예전에는 국내·국외를 나란히 다 보여 줬고,
+     탭으로 바꾸면서 한쪽을 숨겼는데 조작 버튼은 분기 실적 섹션에만 있었다 —
+     여기까지 스크롤한 사람에게는 국외로 갈 방법이 사라진 셈이었다.
+     ★★ 상태(_sideView)는 분기 실적 탭과 공유한다. 두 섹션이 서로 다른 쪽을
+     보여 주면 '지금 무엇을 보고 있는지'가 흐려진다. */
+  const sideTab = (side, label, tag) => '<button class="side-tab" type="button" role="tab"'
+    + ' data-side="' + side + '">' + escapeHtml(label)
+    + (tag ? '<span class="side-tab__t">' + escapeHtml(tag) + '</span>' : '') + '</button>';
+  el.innerHTML = '<div class="dom-side" role="tablist" aria-label="신제품·브랜드 국내/국외 전환">'
+    + sideTab('kr', '국내', '')
+    + sideTab('gl', '국외', 'Global')
+    + '<span class="dom-side__h">위 ‘국내외 경쟁사 분기 실적’ 탭과 연동됩니다</span>'
+    + '</div>'
     + '<div class="brand-side" data-side="kr">' + kor + '</div>'
     + '<div class="brand-side" data-side="gl">' + glo + '</div>'
     + foot;
   wireBrandCats();
+  wireBrandSide();
   applySideView();
 }
 
