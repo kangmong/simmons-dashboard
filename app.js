@@ -916,8 +916,8 @@ function gSrcFoot(text, date, links) {
    요약 4박스 → 시장규모 막대 / 지역별 우위 / 주요 기업 3분할 → 제품유형 인사이트
    ★ 대시보드는 수집해 둔 캐시(public/data/global-mattress-market.json)만 읽는다.
      페이지를 직접 부르지 않는다 — 갱신은 GitHub Actions(월 1회)가 한다.
-   ★★ 정부 통계가 아니라 '조사기관 추정치'다. 기관마다 값이 달라서, 그 사실과
-     다른 기관 수치를 화면에 함께 적는다(caution + estimates). */
+   ★★ 정부 통계가 아니라 '조사기관 추정치'다. 기관마다 값이 다르다는 점은
+     하단 '같은 해 다른 조사기관 추정치' 표(estimates)가 숫자로 보여 준다. */
 const GMM_URL = 'public/data/global-mattress-market.json';
 let _gmm = null;
 
@@ -1089,13 +1089,14 @@ function gmmBlock() {
     + gmmProducts(d)
     + gmmEstimates(d)
     + krwNote('USD')
-    + (d.caution ? '<div class="g-note gmm-caution">※ ' + escapeHtml(d.caution) + '</div>' : '')
     + stale
-    + '<div class="sm-foot">최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—')
-    + ' · 출처: ' + (safeUrl(d.sourceUrl)
+    /* 적용 환율 줄 바로 아래 — 출처를 먼저, 최종 확인일을 뒤에 적는다.
+       확인일은 수집 스크립트가 기록한 실제 날짜(checkedAt)다. */
+    + '<div class="sm-foot">출처: ' + (safeUrl(d.sourceUrl)
       ? '<a class="src-link" href="' + escapeHtml(safeUrl(d.sourceUrl)) + '" target="_blank"'
         + ' rel="noopener noreferrer">' + escapeHtml(d.source || '') + ' ›</a>'
-      : escapeHtml(d.source || '')) + '</div>';
+      : escapeHtml(d.source || ''))
+    + ' · 최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—') + '</div>';
 }
 
 /* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (public/data/simmons-market.json) ══
@@ -1651,7 +1652,10 @@ function stCesAwards(st) {
         + x.byYear.map((y, i) => '<span class="ces-seg" title="'
           + escapeHtml(y.year + '년 ' + y.n + unit) + '" style="flex:' + y.n
           + ';background:' + base + ';opacity:' + (0.45 + i * 0.275).toFixed(3) + '">'
-          + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2)) + '·' + y.n + '</i>'
+          /* 1건짜리 구간은 연도만 적는다 — '20·1' 보다 '20' 이 읽기 쉽다.
+             2건 이상이면 '24·3' 처럼 건수를 붙인다(세라젬). */
+          + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2))
+          + (y.n > 1 ? '·' + y.n : '') + '</i>'
           + '</span>').join('')
         + '</div>'
       : '<div class="sm-hbar" style="width:' + w.toFixed(1) + '%;background:' + base

@@ -145,10 +145,8 @@ def build(parsed: dict, now: str) -> dict:
         'updatedAt': now,
         'title': '글로벌 매트리스 시장 규모',
         'subtitle': '시장조사기관 GMInsights 의 공개 요약 기준',
-        'caution': ('본 수치는 GMInsights 시장조사 추정치이며, 조사기관에 따라 다른 '
-                    '수치가 존재할 수 있습니다 (GMInsights $458억, MRFR $577억, '
-                    'Grand View Research $492억 등, 2025년 기준 서로 다름). '
-                    '국내 PPI 차트(정부 공식 통계)와 달리 조사기관 추정치입니다.'),
+        # 안내 배너는 만들지 않는다 — 같은 내용이 아래 estimates(조사기관 대조표)에
+        # 이미 있어 화면에서 뺐다. 여기서 다시 쓰면 다음 수집 때 배너가 되살아난다.
         'estimates': OTHER_ESTIMATES,
         **parsed,
     }
