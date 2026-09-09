@@ -10568,6 +10568,8 @@ function initUpdate() {
     fetchGlobalSleepTech();
     // 순수 추가: 글로벌 매트리스 시장 규모 — 월 1회 수집해 둔 캐시를 읽는다.
     fetchMattressMarket();
+    // 순수 추가: KIPRIS 특허 — 하루 1회 수집해 둔 정적 JSON (위와 같은 이유로 await 안 한다)
+    fetchPatents();
     // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchInstagram();
@@ -10618,5 +10620,473 @@ function initUpdate() {
       btn.disabled = false;
       btn.textContent = orig;
     }
+  });
+}
+
+
+/* ══ 특허 · 신소재 동향 (KIPRIS) ═════════════════════════════════════════
+   public/data/kipris-patents.json — kipris_patent.py 가 하루 1회 수집한다.
+   ★ 화면에서 KIPRIS API 를 직접 부르지 않는다(무료 티어 월 1,000회).
+   ★★ 집계는 여기 한 곳에서만 한다. 기간 필터가 화면에 있으므로 수집기에
+     같은 집계를 두면 두 곳이 어긋난다 — 수집기는 '행'만 준다.
+   ★★★ 실패를 조용히 넘기지 않는다. 수집기가 남긴 resultCode/resultMsg 를
+     화면에 그대로 띄워 '왜 비었는지'를 말한다. */
+const PT_DATA_URL = 'public/data/kipris-patents.json';
+let _ptData = null;          // {status:'ok'|'error', rows:[…], …}
+let _ptTab = 'patent';      // 'patent' | 'material'
+let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 수집 기간 전체
+let _ptTo = '';
+
+/** 2자리 국가코드 → ISO_LONLAT 이 쓰는 3자리 코드.
+ *  ★ EP(유럽특허청)·WO(WIPO)는 나라가 아니라 지도에 찍지 않는다 — 아래 목록으로 뺀다. */
+const PT_ISO2 = {
+  KR: 'KOR', US: 'USA', JP: 'JPN', CN: 'CHN', DE: 'DEU', GB: 'GBR', FR: 'FRA',
+  CA: 'CAN', AU: 'AUS', IN: 'IND', TW: 'TWN', RU: 'RUS', BR: 'BRA', IT: 'ITA',
+  ES: 'ESP', NL: 'NLD', SE: 'SWE', CH: 'CHE', AT: 'AUT', BE: 'BEL', DK: 'DNK',
+  FI: 'FIN', NO: 'NOR', PL: 'POL', MX: 'MEX', ID: 'IDN', VN: 'VNM', TH: 'THA',
+  SG: 'SGP', MY: 'MYS', PH: 'PHL', TR: 'TUR', IL: 'ISR', ZA: 'ZAF', NZ: 'NZL',
+};
+const PT_NONCOUNTRY = { EP: '유럽특허청(EPO)', WO: 'WIPO 국제출원', EA: '유라시아특허청' };
+
+async function fetchPatents() {
+  try {
+    const res = await fetch(PT_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + PT_DATA_URL + ') — python kipris_patent.py 를 먼저 실행하세요');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    /* ★ status:'error' 도 정상 응답이다 — 수집기가 남긴 이유를 화면이 보여줘야 하니
+       여기서 예외로 바꾸지 않고 그대로 넘긴다. */
+    _ptData = d;
+  } catch (e) {
+    _ptData = { status: 'error', reason: (e && e.message) || String(e), _loadFailed: true };
+    console.warn('[kipris] 로드 실패:', e);
+  }
+  renderPatent();
+}
+
+/* ── 집계 헬퍼 ─────────────────────────────────────────────────────────── */
+
+/** 수집 기간 안에서 필터가 고른 구간. 필터가 비면 수집 기간 그대로. */
+function ptRange() {
+  const p = (_ptData && _ptData.period) || {};
+  return { from: _ptFrom || p.from || '', to: _ptTo || p.to || '' };
+}
+
+/** 구간과 '같은 길이의 직전 1년' 구간(전년 동기 비교용). */
+function ptPrevRange(r) {
+  const shift = (s) => {
+    if (!s) return '';
+    const y = Number(s.slice(0, 4));
+    return isFinite(y) ? (y - 1) + s.slice(4) : '';
+  };
+  return { from: shift(r.from), to: shift(r.to) };
+}
+
+function ptRows(range) {
+  const rows = (_ptData && Array.isArray(_ptData.rows)) ? _ptData.rows : [];
+  if (!range || !range.from || !range.to) return rows;
+  return rows.filter((r) => r.date >= range.from && r.date <= range.to);
+}
+
+function ptCount(rows, fn) { return rows.filter(fn).length; }
+
+/** 증감 배지 — 전년 동기 대비. 기준이 0이면 비율을 만들지 않는다. */
+function ptDelta(now, before, isPct) {
+  if (before == null) return '';
+  if (!isPct && !before) {
+    return '<span class="pt-kpi__d pt-kpi__d--flat">전년 동기 0건</span>';
+  }
+  const v = isPct ? (now - before) : ((now - before) / before * 100);
+  const up = v > 0, flat = Math.abs(v) < 0.05;
+  const cls = flat ? 'flat' : (up ? 'up' : 'down');
+  const arrow = flat ? '–' : (up ? '▲' : '▼');
+  const num = Math.abs(v).toFixed(1) + (isPct ? '%p' : '%');
+  return '<span class="pt-kpi__d pt-kpi__d--' + cls + '">' + arrow + ' ' + num
+    + '<i>전년 동기</i></span>';
+}
+
+/* ── 1) KPI 5장 ────────────────────────────────────────────────────────── */
+function ptKpiCards(cur, prev) {
+  const pct = (rows) => (rows.length
+    ? (ptCount(rows, (r) => r.scope === 'abroad') / rows.length * 100) : 0);
+  const defs = [
+    ['전체 특허 출원', cur.length, prev.length, '건', false],
+    ['시몬스 출원', ptCount(cur, (r) => r.isOurs), ptCount(prev, (r) => r.isOurs), '건', false],
+    ['경쟁사 출원(합계)', ptCount(cur, (r) => !r.isOurs), ptCount(prev, (r) => !r.isOurs), '건', false],
+    ['신소재 관련', ptCount(cur, (r) => r.newMaterial), ptCount(prev, (r) => r.newMaterial), '건', false],
+    ['해외 출원 비율', pct(cur), pct(prev), '%', true],
+  ];
+  return '<div class="pt-kpis">' + defs.map(([label, now, before, unit, isPct]) => {
+    const shown = isPct ? now.toFixed(1) : now.toLocaleString('ko-KR');
+    return '<div class="pt-kpi">'
+      + '<div class="pt-kpi__l">' + escapeHtml(label) + '</div>'
+      + '<div class="pt-kpi__v">' + shown + '<span>' + unit + '</span></div>'
+      + ptDelta(now, before, isPct)
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+/* ── 2) 월별 추이 — 막대(전체) + 선(시몬스·경쟁사) ─────────────────────── */
+function ptMonthly(rows) {
+  const by = {};
+  rows.forEach((r) => {
+    const m = (r.date || '').slice(0, 7);
+    if (!m) return;
+    if (!by[m]) by[m] = { m, total: 0, ours: 0, comp: 0 };
+    by[m].total += 1;
+    if (r.isOurs) by[m].ours += 1; else by[m].comp += 1;
+  });
+  const pts = Object.keys(by).sort().map((k) => by[k]);
+  if (pts.length < 2) {
+    return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (월별)</div>'
+      + emptyState('추이를 그릴 만큼 기간이 넓지 않습니다(2개월 이상 필요)') + '</div>';
+  }
+  const W = VIZ_W, H = 250, padL = 40, padR = 14, padT = 26, padB = 40;
+  const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
+  const hi = gsNiceTop(Math.max.apply(null, pts.map((p) => p.total)) || 1, VIZ_Y_TICKS);
+  const n = pts.length, slot = plotW / n, bw = Math.min(28, slot * 0.5);
+  const X = (i) => padL + slot * i + slot / 2;
+  const Y = (v) => padT + (1 - v / (hi || 1)) * plotH;
+
+  const grid = vizYFractions().map((t) => {
+    const val = hi * t, y = Y(val);
+    return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW)
+      + '" y2="' + y.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="' + (padL - 6) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end"'
+      + ' font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
+      + Math.round(val).toLocaleString('ko-KR') + '</text>';
+  }).join('');
+
+  const bars = pts.map((p, i) => '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="'
+    + Y(p.total).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="'
+    + Math.max(0, base - Y(p.total)).toFixed(1) + '" rx="2" fill="var(--blue)"'
+    + ' opacity=".28"><title>' + escapeHtml(p.m) + ' 전체 ' + p.total + '건</title></rect>').join('');
+
+  const line = (key, color) => {
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ');
+    const dots = pts.map((p, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="'
+      + Y(p[key]).toFixed(1) + '" r="2.6" fill="' + color + '"><title>'
+      + escapeHtml(p.m) + ' ' + p[key] + '건</title></circle>').join('');
+    return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2"'
+      + ' stroke-linejoin="round"/>' + dots;
+  };
+
+  // X축 — 라벨이 겹치지 않을 만큼만 고른다(공용 헬퍼 재사용)
+  const idx = vizTickIdx(n, plotW, 52);
+  const xlab = idx.map((i) => '<text x="' + X(i).toFixed(1) + '" y="' + (base + 15)
+    + '" text-anchor="middle" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
+    + escapeHtml(pts[i].m) + '</text>').join('');
+
+  const lg = [['전체(막대)', 'var(--blue)', .28], ['시몬스', 'var(--accent)', 1],
+    ['경쟁사', 'var(--slate)', 1]];
+  return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (월별)'
+    + ' <span class="sm-h__u">(단위: 건)</span></div>'
+    + '<div class="pt-lg">' + lg.map((l) => '<span class="pt-lg__i">'
+      + '<i style="background:' + l[1] + ';opacity:' + l[2] + '"></i>'
+      + escapeHtml(l[0]) + '</span>').join('') + '</div>'
+    + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="월별 특허 출원 추이">'
+    + grid + bars + line('comp', 'var(--slate)') + line('ours', 'var(--accent)')
+    + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
+    + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg></div>';
+}
+
+/* ── 3) 출원 유형별 — 도넛 ─────────────────────────────────────────────── */
+function ptTypes(rows) {
+  const c = {};
+  rows.forEach((r) => { const k = r.kind || '미표기'; c[k] = (c[k] || 0) + 1; });
+  const items = Object.keys(c).map((k) => ({ label: k, n: c[k] }))
+    .sort((a, b) => b.n - a.n).slice(0, 6);
+  const total = items.reduce((s, x) => s + x.n, 0);
+  if (!total) {
+    return '<div class="sm-card"><div class="sm-h">출원 유형별 현황</div>'
+      + emptyState('유형 정보가 없습니다') + '</div>';
+  }
+  const COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--violet)',
+    'var(--slate)', 'var(--navy-2)'];
+  const R = 54, SW = 20, C = 2 * Math.PI * R;
+  let acc = 0;
+  const segs = items.map((x, i) => {
+    const frac = x.n / total, len = C * frac;
+    const s = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + COLORS[i % COLORS.length]
+      + '" stroke-width="' + SW + '" stroke-dasharray="' + len.toFixed(2) + ' '
+      + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-acc).toFixed(2)
+      + '" transform="rotate(-90 70 70)"><title>' + escapeHtml(x.label) + ' '
+      + x.n + '건 (' + (frac * 100).toFixed(1) + '%)</title></circle>';
+    acc += len;
+    return s;
+  }).join('');
+  const legend = items.map((x, i) => '<div class="pt-dn__r">'
+    + '<i style="background:' + COLORS[i % COLORS.length] + '"></i>'
+    + '<span class="pt-dn__l">' + escapeHtml(x.label) + '</span>'
+    + '<b>' + x.n.toLocaleString('ko-KR') + '건</b>'
+    + '<u>' + (x.n / total * 100).toFixed(1) + '%</u></div>').join('');
+  return '<div class="sm-card"><div class="sm-h">출원 유형별 현황'
+    + ' <span class="sm-h__u">(KIPRIS 구분값 기준)</span></div>'
+    + '<div class="pt-dn">'
+    + '<svg viewBox="0 0 140 140" width="140" height="140" role="img"'
+    + ' aria-label="출원 유형별 비중">' + segs
+    + '<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--muted)">전체</text>'
+    + '<text x="70" y="82" text-anchor="middle" font-size="15" font-weight="800"'
+    + ' fill="var(--ink)">' + total.toLocaleString('ko-KR') + '</text></svg>'
+    + '<div class="pt-dn__lg">' + legend + '</div></div></div>';
+}
+
+/* ── 4) 주요 기술 분야 TOP5 ────────────────────────────────────────────── */
+function ptTech(rows) {
+  const c = {};
+  rows.forEach((r) => {
+    const k = r.catLabel || '기타/미분류';
+    c[k] = (c[k] || 0) + 1;
+  });
+  const items = Object.keys(c).map((k) => ({ label: k, n: c[k] }))
+    .sort((a, b) => b.n - a.n).slice(0, 5);
+  const max = items.length ? items[0].n : 1;
+  const total = rows.length || 1;
+  if (!items.length) {
+    return '<div class="sm-card"><div class="sm-h">주요 기술 분야 TOP5</div>'
+      + emptyState('분류할 특허가 없습니다') + '</div>';
+  }
+  return '<div class="sm-card"><div class="sm-h">주요 기술 분야 TOP5 (특허)</div>'
+    + '<table class="pt-tb"><thead><tr><th>순위</th><th>기술 분야</th>'
+    + '<th class="pt-tb__n">건수</th><th class="pt-tb__n">비중</th><th>분포</th></tr></thead>'
+    + '<tbody>' + items.map((x, i) => '<tr><th scope="row">' + (i + 1) + '</th>'
+      + '<td>' + escapeHtml(x.label) + '</td>'
+      + '<td class="pt-tb__n"><b>' + x.n.toLocaleString('ko-KR') + '</b></td>'
+      + '<td class="pt-tb__n">' + (x.n / total * 100).toFixed(1) + '%</td>'
+      + '<td><span class="pt-tb__bar" style="width:' + (x.n / max * 100).toFixed(1)
+      + '%"></span></td></tr>').join('')
+    + '</tbody></table></div>';
+}
+
+/* ── 5) 주요 출원인 비교 ───────────────────────────────────────────────── */
+function ptApplicants(rows) {
+  const c = {};
+  rows.forEach((r) => {
+    const k = r.company || '미표기';
+    if (!c[k]) c[k] = { label: k, n: 0, ours: !!r.isOurs };
+    c[k].n += 1;
+  });
+  const items = Object.keys(c).map((k) => c[k]).sort((a, b) => b.n - a.n);
+  if (!items.length) {
+    return '<div class="sm-card"><div class="sm-h">주요 출원인 비교</div>'
+      + emptyState('출원인 정보가 없습니다') + '</div>';
+  }
+  const max = items[0].n || 1;
+  return '<div class="sm-card"><div class="sm-h">주요 출원인(기업) 비교'
+    + ' <span class="sm-h__u">(단위: 건)</span></div>'
+    + '<div class="sm-hbars sm-hbars--inv">' + items.map((x) => '<div class="sm-hrow'
+      + (x.ours ? ' is-mine' : '') + '">'
+      + '<div class="sm-hname">' + escapeHtml(x.label) + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar" style="width:'
+      + Math.max(2, x.n / max * 100).toFixed(1) + '%"></div></div>'
+      + '<div class="sm-hval">' + x.n.toLocaleString('ko-KR') + '건</div>'
+      + '</div>').join('') + '</div>'
+    + '<div class="sm-foot">시몬스는 강조색으로 표시했습니다.</div></div>';
+}
+
+/* ── 6) 국가별 출원 — 세계지도 ─────────────────────────────────────────── */
+function ptCountries(rows) {
+  const c = {};
+  rows.forEach((r) => { const k = (r.country || '').toUpperCase() || '미표기'; c[k] = (c[k] || 0) + 1; });
+  const keys = Object.keys(c);
+  if (!keys.length) {
+    return '<div class="sm-card"><div class="sm-h">국가별 출원 현황</div>'
+      + emptyState('국가 정보가 없습니다') + '</div>';
+  }
+  const max = Math.max.apply(null, keys.map((k) => c[k])) || 1;
+  const R_MAX = 22, R_MIN = 6;
+  const dots = keys.map((k) => {
+    const iso3 = PT_ISO2[k];
+    const ll = iso3 && ISO_LONLAT[iso3];
+    if (!ll) return '';                     // 좌표 없거나 나라가 아니면 지도에 찍지 않는다
+    const left = (ll[0] + 180) / 360 * 100;
+    const top = (90 - ll[1]) / 180 * 100;
+    const r = Math.max(R_MIN, R_MAX * Math.sqrt(c[k] / max));
+    return '<div class="gsl-mk gsl-mk--r" style="left:' + left.toFixed(2) + '%;top:'
+      + top.toFixed(2) + '%">'
+      + '<span class="gsl-dot" style="width:' + (r * 2).toFixed(1) + 'px;height:'
+      + (r * 2).toFixed(1) + 'px;margin:-' + r.toFixed(1) + 'px 0 0 -' + r.toFixed(1) + 'px"></span>'
+      + '<span class="gsl-lb"><b>' + escapeHtml(k) + '</b><i>' + c[k] + '건</i></span></div>';
+  }).join('');
+  /* 지도에 찍을 수 없는 코드(지역 특허청·국제출원·미표기)는 표로 따로 밝힌다.
+     ★ EP·WO 를 억지로 한 나라 위에 올리면 그 나라 실적처럼 읽힌다. */
+  const off = keys.filter((k) => !(PT_ISO2[k] && ISO_LONLAT[PT_ISO2[k]]))
+    .sort((a, b) => c[b] - c[a]);
+  const rowsHtml = keys.slice().sort((a, b) => c[b] - c[a]).map((k) => '<tr>'
+    + '<th scope="row">' + escapeHtml(PT_NONCOUNTRY[k] ? k + ' · ' + PT_NONCOUNTRY[k] : k) + '</th>'
+    + '<td class="pt-tb__n"><b>' + c[k].toLocaleString('ko-KR') + '</b>건</td></tr>').join('');
+  return '<div class="sm-card"><div class="sm-h">국가별 출원 현황'
+    + ' <span class="sm-h__u">(단위: 건)</span></div>'
+    + '<div class="gsl-map"><img class="gsl-map__img" src="world-map.svg" alt=""'
+    + ' aria-hidden="true"><div class="gsl-marks">' + dots + '</div></div>'
+    + '<table class="pt-tb pt-tb--ctry"><thead><tr><th>국가·청</th>'
+    + '<th class="pt-tb__n">건수</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>'
+    + (off.length ? '<div class="sm-foot">' + escapeHtml(off.join(', '))
+      + ' 은 특정 국가 좌표가 없어 지도에 표시하지 않고 표에만 넣었습니다.</div>' : '')
+    + '</div>';
+}
+
+/* ── 7) 신소재 키워드 TOP10 — 워드클라우드 ─────────────────────────────── */
+function ptWords(rows) {
+  const c = {};
+  rows.forEach((r) => (r.words || []).forEach((w) => { c[w] = (c[w] || 0) + 1; }));
+  const items = Object.keys(c).map((k) => ({ w: k, n: c[k] }))
+    .sort((a, b) => b.n - a.n).slice(0, 10);
+  if (!items.length) {
+    return '<div class="sm-card"><div class="sm-h">신소재 관련 특허 키워드 TOP10</div>'
+      + emptyState('사전에 걸린 키워드가 없습니다') + '</div>';
+  }
+  const max = items[0].n, min = items[items.length - 1].n;
+  const size = (n) => (max === min ? 20 : 13 + (n - min) / (max - min) * 17);
+  const shade = (n) => (max === min ? 0.85 : 0.5 + (n - min) / (max - min) * 0.5);
+  return '<div class="sm-card"><div class="sm-h">신소재 관련 특허 키워드 TOP10</div>'
+    + '<div class="pt-cloud">' + items.map((x) => '<span class="pt-cloud__w"'
+      + ' style="font-size:' + size(x.n).toFixed(1) + 'px;opacity:' + shade(x.n).toFixed(2)
+      + '" title="' + escapeHtml(x.w + ' · ' + x.n + '건') + '">'
+      + escapeHtml(x.w) + '<i>' + x.n + '</i></span>').join('') + '</div>'
+    + '<div class="sm-foot">형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
+    + ' 사전과 맞춰 센 결과입니다.</div></div>';
+}
+
+/* ── 8) 최근 주요 출원 목록 ────────────────────────────────────────────── */
+function ptRecent(rows) {
+  const items = rows.slice(0, 20);
+  if (!items.length) {
+    return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원</div>'
+      + emptyState('이 기간에 해당하는 출원이 없습니다') + '</div>';
+  }
+  return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원'
+    + ' <span class="sm-h__u">(최신순 ' + items.length + '건)</span></div>'
+    + '<div class="pt-scroll"><table class="pt-tb pt-tb--list"><thead><tr>'
+    + '<th>번호</th><th>출원번호</th><th>출원일</th><th>출원인</th><th>국가</th>'
+    + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
+    + items.map((r, i) => '<tr>'
+      + '<th scope="row">' + (i + 1) + '</th>'
+      + '<td class="pt-tb__mono">' + escapeHtml(r.appNo || '—') + '</td>'
+      + '<td class="pt-tb__mono">' + escapeHtml(r.date || '—') + '</td>'
+      + '<td>' + escapeHtml(r.company || '—') + (r.isOurs ? ' <span class="pt-mine">시몬스</span>' : '') + '</td>'
+      + '<td>' + escapeHtml(r.country || '—') + '</td>'
+      + '<td class="pt-tb__t">' + escapeHtml(r.title || '—') + '</td>'
+      + '<td>' + escapeHtml(r.catLabel || '—') + '</td>'
+      + '<td class="pt-tb__s">' + escapeHtml(r.summary || '—') + '</td>'
+      + '</tr>').join('') + '</tbody></table></div></div>';
+}
+
+/* ── 9) 기간 필터 ──────────────────────────────────────────────────────── */
+function ptRangeUi() {
+  const p = (_ptData && _ptData.period) || {};
+  const r = ptRange();
+  const inp = (id, val, min, max) => '<input class="pt-date" type="date" id="' + id
+    + '" value="' + escapeHtml(val || '') + '"'
+    + (min ? ' min="' + escapeHtml(min) + '"' : '')
+    + (max ? ' max="' + escapeHtml(max) + '"' : '') + '>';
+  return '<div class="pt-filter">'
+    + '<span class="pt-filter__l">조회 기간</span>'
+    + inp('ptFrom', r.from, p.from, p.to)
+    + '<span class="pt-filter__t">~</span>'
+    + inp('ptTo', r.to, p.from, p.to)
+    + '<button class="pt-btn" type="button" id="ptReset">수집 기간 전체</button>'
+    + (p.from ? '<span class="pt-filter__h">수집 범위 ' + escapeHtml(p.from) + ' ~ '
+      + escapeHtml(p.to) + '</span>' : '')
+    + '</div>';
+}
+
+/* ── 오류 화면 ─────────────────────────────────────────────────────────── */
+function ptErrorBox() {
+  const d = _ptData || {};
+  const probe = (d.probe && Array.isArray(d.probe.tries)) ? d.probe.tries : [];
+  return '<div class="pt-err">'
+    + '<div class="pt-err__h">특허 데이터를 불러오지 못했습니다</div>'
+    + '<div class="pt-err__m">' + escapeHtml(d.reason || '알 수 없는 오류') + '</div>'
+    + (probe.length ? '<div class="pt-err__d"><b>API 응답</b><ul>'
+      + probe.map((t) => '<li><code>' + escapeHtml((t.keyParam || '') + ' · '
+        + (t.path || '')) + '</code> — ' + escapeHtml(t.error || 'OK') + '</li>').join('')
+      + '</ul></div>' : '')
+    + ((d.errors && d.errors.length) ? '<div class="pt-err__d"><b>검색 오류</b><ul>'
+      + d.errors.slice(0, 6).map((e) => '<li>' + escapeHtml((e.company || '') + ' / '
+        + (e.variant || '') + ' (' + (e.scope || '') + '): ' + (e.error || '')) + '</li>').join('')
+      + '</ul></div>' : '')
+    + '<div class="pt-err__f">해결 순서 — ① .env 에 <code>KIPRIS_API_KEY</code> 설정'
+    + ' ② <code>python kipris_patent.py --probe</code> 로 인증 확인'
+    + ' ③ <code>python kipris_patent.py</code> 로 수집</div>'
+    + '</div>';
+}
+
+/* ── 렌더 ──────────────────────────────────────────────────────────────── */
+function renderPatent() {
+  const el = document.getElementById('patentRoot');
+  if (!el) return;
+  const tabs = [['patent', '특허', '📄'], ['material', '신소재', '🧪']];
+  const tabHtml = '<div class="pt-tabs" role="tablist" aria-label="특허/신소재 전환">'
+    + tabs.map((t) => '<button class="pt-tab" type="button" role="tab" data-pttab="' + t[0]
+      + '" aria-selected="' + (_ptTab === t[0] ? 'true' : 'false')
+      + '" tabindex="' + (_ptTab === t[0] ? '0' : '-1') + '">'
+      + '<span class="pt-tab__i" aria-hidden="true">' + t[2] + '</span>'
+      + escapeHtml(t[1]) + '</button>').join('') + '</div>';
+
+  let body;
+  if (_ptTab === 'material') {
+    body = '<div class="pt-todo"><div class="pt-todo__h">신소재 탭 — 준비 중</div>'
+      + '<div class="pt-todo__m">신소재 관련 지표는 아직 준비 중입니다.'
+      + ' 현재 신소재 관련 특허 건수와 키워드는 <b>특허</b> 탭에서 볼 수 있습니다.</div></div>';
+  } else if (!_ptData) {
+    body = '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
+      + ' 특허 데이터를 불러오는 중입니다</div>';
+  } else if (_ptData.status !== 'ok') {
+    body = ptErrorBox();
+  } else {
+    const r = ptRange();
+    const cur = ptRows(r);
+    const prev = ptRows(ptPrevRange(r));
+    body = ptRangeUi()
+      + ptKpiCards(cur, prev)
+      + '<div class="sm-wrap">'
+      + ptMonthly(cur)
+      + '<div class="sm-grid2">' + ptTypes(cur) + ptTech(cur) + '</div>'
+      + '<div class="sm-grid2">' + ptApplicants(cur) + ptWords(cur) + '</div>'
+      + ptCountries(cur)
+      + ptRecent(cur)
+      + '</div>'
+      + '<div class="sm-foot pt-note">' + escapeHtml(_ptData.techNote
+        || '기술분야 분류는 자동 키워드 매칭 기준이며 완전히 정확하지 않을 수 있습니다.')
+      + '</div>'
+      + (_ptData.truncated ? '<div class="sm-foot">호출 상한에 걸려 일부 기업만 수집됐습니다'
+        + ' — kipris_patent.py --max-calls 로 조정하세요.</div>' : '')
+      + '<div class="comp-caption">데이터 출처: KIPRIS (특허정보검색서비스)'
+      + ' ※ 기간 및 항목은 설정에 따라 변경 가능합니다.'
+      + (_ptData.lastUpdated ? ' · 수집 ' + escapeHtml(_ptData.lastUpdated) : '') + '</div>';
+  }
+  el.innerHTML = tabHtml + body;
+  wirePatent();
+}
+
+function wirePatent() {
+  const root = document.getElementById('patentRoot');
+  if (!root || root.dataset.wired === '1') return;
+  root.dataset.wired = '1';
+  root.addEventListener('click', (e) => {
+    const t = e.target && e.target.closest && e.target.closest('.pt-tab');
+    if (t) {
+      const k = t.getAttribute('data-pttab');
+      if (k && k !== _ptTab) { _ptTab = k; renderPatent(); }
+      return;
+    }
+    if (e.target && e.target.id === 'ptReset') {
+      _ptFrom = ''; _ptTo = ''; renderPatent();
+    }
+  });
+  root.addEventListener('change', (e) => {
+    const id = e.target && e.target.id;
+    if (id !== 'ptFrom' && id !== 'ptTo') return;
+    const v = e.target.value || '';
+    if (id === 'ptFrom') _ptFrom = v; else _ptTo = v;
+    /* from 이 to 보다 늦으면 조용히 뒤집지 않는다 — 사용자가 고른 값을 두고
+       빈 결과를 보여 주면 왜 비었는지 알 수 없으니, 여기서 맞바꿔 준다. */
+    if (_ptFrom && _ptTo && _ptFrom > _ptTo) {
+      const t = _ptFrom; _ptFrom = _ptTo; _ptTo = t;
+    }
+    renderPatent();
   });
 }

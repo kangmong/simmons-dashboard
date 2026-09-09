@@ -1,0 +1,96 @@
+name: KIPRIS 특허 수집 (하루 1회)
+
+# KIPRIS Open API 로 시몬스·경쟁사 특허를 받아 public/data/kipris-patents.json 으로
+# 커밋한다. 화면은 이 파일만 읽는다(브라우저에서 KIPRIS 호출 0회).
+#
+# ★ 무료 티어가 월 1,000회다. 그래서 하루 1회만 돌리고, 한 번 실행의 호출 수를
+#   --max-calls 로 잠근다(기본 30회 → 30회 × 31일 ≈ 930회로 한도 안에 든다).
+#   수동 실행(workflow_dispatch)으로 여러 번 돌리면 한도를 잠식하니 주의.
+# ★★ 키가 없으면 status=error 로 조용히 끝난다(빌드가 깨지지 않는다). 화면은
+#   그 이유를 그대로 띄운다.
+on:
+  schedule:
+    - cron: '30 18 * * *'    # UTC 18:30 = KST 03:30
+  workflow_dispatch:
+    inputs:
+      max_calls:
+        description: '이번 실행의 최대 API 호출 수(무료 월 1,000회 주의)'
+        required: false
+        default: '30'
+      years:
+        description: '조회 기간(년)'
+        required: false
+        default: '3'
+
+permissions:
+  contents: write            # 결과 JSON 커밋용
+
+concurrency:
+  group: collect-kipris
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: KIPRIS 특허 수집
+        env:
+          KIPRIS_API_KEY: ${{ secrets.KIPRIS_API_KEY }}
+        run: |
+          python kipris_patent.py \
+            --years "${{ inputs.years || '3' }}" \
+            --max-calls "${{ inputs.max_calls || '30' }}"
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/kipris-patents.json; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/kipris-patents.json
+          git commit -m "자동 수집: KIPRIS 특허 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'))"
+          git push
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/kipris-patents.json"
+          if not os.path.isfile(p):
+              print("::warning::kipris-patents.json 이 없습니다"); raise SystemExit(0)
+          d = json.load(io.open(p, encoding="utf-8"))
+          ok = d.get("status") == "ok"
+          txt = ["## %s KIPRIS 특허" % ("✅" if ok else "⚠️"), "",
+                 "- 상태: `%s`" % d.get("status"),
+                 "- API 호출: %s회 · 키 파라미터 `%s`" % (d.get("calls"), d.get("keyParamUsed")),
+                 "- 수집 행수: %s" % d.get("totalRows", 0)]
+          if d.get("endpoints"):
+              txt.append("- 사용 엔드포인트: %s" % ", ".join("`%s`" % e for e in d["endpoints"]))
+          if not ok:
+              txt.append("- 이유: %s" % d.get("reason"))
+              print("::warning::KIPRIS 수집 실패 — %s" % d.get("reason"))
+          for e in (d.get("errors") or [])[:6]:
+              txt.append("  - `%s/%s` (%s): %s" % (e.get("company"), e.get("variant"),
+                                                   e.get("scope"), e.get("error")))
+          if d.get("truncated"):
+              txt.append("- ⚠️ 호출 상한에 걸려 일부만 수집됨")
+          print("\n".join(txt))
+          s = os.environ.get("GITHUB_STEP_SUMMARY")
+          if s:
+              io.open(s, "a", encoding="utf-8").write("\n".join(txt) + "\n")
+          PY

@@ -1,0 +1,10 @@
+{
+  "status": "error",
+  "reason": "환경변수 KIPRIS_API_KEY 가 설정되지 않았습니다. .env 에 KIPRIS_API_KEY=발급받은키 를 넣고 python kipris_patent.py 를 다시 실행하세요.",
+  "lastUpdated": "2026-09-09",
+  "source": "KIPRIS (특허정보검색서비스)",
+  "techNote": "기술분야 분류와 키워드 추출은 제목·초록의 자동 키워드 매칭 기준이며, 완전히 정확하지 않을 수 있습니다.",
+  "keyParamUsed": null,
+  "calls": 0,
+  "probe": null
+}
