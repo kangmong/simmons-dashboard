@@ -10701,7 +10701,6 @@ function initUpdate() {
      화면에 그대로 띄워 '왜 비었는지'를 말한다. */
 const PT_DATA_URL = 'public/data/kipris-patents.json';
 let _ptData = null;          // {status:'ok'|'error', rows:[…], …}
-let _ptTab = 'patent';      // 'patent' | 'material'
 let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 수집 기간 전체
 let _ptTo = '';
 
@@ -10795,26 +10794,37 @@ function ptKpiCards(cur, prev) {
   }).join('') + '</div>';
 }
 
-/* ── 2) 월별 추이 — 막대(전체) + 선(시몬스·경쟁사) ─────────────────────── */
-function ptMonthly(rows) {
+/* ── 2) 연도별 추이 — 누적 막대(경쟁사 + 시몬스) ─────────────────────────
+   ★ 월 단위로 20년을 그리면 240개 칸이 되어 선이 톱니처럼 튀고 추세가 안 보인다.
+     연 단위로 묶는다.
+   ★★ 시몬스와 경쟁사를 나란히 세우지 않고 쌓는다 — 20년 합계가 시몬스 11건 대
+     경쟁사 177건이라, 나란히 두면 시몬스 막대가 보이지 않는다. 쌓으면 막대
+     높이가 '그 해 전체'가 되어 업계 흐름이 먼저 읽히고, 그 안에서 자사 몫도 보인다. */
+function ptYearly(rows) {
   const by = {};
   rows.forEach((r) => {
-    const m = (r.date || '').slice(0, 7);
-    if (!m) return;
-    if (!by[m]) by[m] = { m, total: 0, ours: 0, comp: 0 };
-    by[m].total += 1;
-    if (r.isOurs) by[m].ours += 1; else by[m].comp += 1;
+    const y = (r.date || '').slice(0, 4);
+    if (!y) return;
+    if (!by[y]) by[y] = { y, total: 0, ours: 0, comp: 0 };
+    by[y].total += 1;
+    if (r.isOurs) by[y].ours += 1; else by[y].comp += 1;
   });
-  const pts = Object.keys(by).sort().map((k) => by[k]);
-  if (pts.length < 2) {
-    return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (월별)</div>'
-      + emptyState('추이를 그릴 만큼 기간이 넓지 않습니다(2개월 이상 필요)') + '</div>';
+  const years = Object.keys(by).sort();
+  if (years.length < 2) {
+    return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (연도별)</div>'
+      + emptyState('추이를 그릴 만큼 기간이 넓지 않습니다(2년 이상 필요)') + '</div>';
   }
-  const W = VIZ_W, H = 250, padL = 40, padR = 14, padT = 26, padB = 40;
+  /* 빈 해도 축에 남긴다 — 건너뛰면 '그 해에 출원이 없었다'는 사실이 사라진다 */
+  const y0 = Number(years[0]), y1 = Number(years[years.length - 1]);
+  const pts = [];
+  for (let y = y0; y <= y1; y += 1) {
+    pts.push(by[String(y)] || { y: String(y), total: 0, ours: 0, comp: 0 });
+  }
+  const W = VIZ_W, H = 260, padL = 40, padR = 14, padT = 30, padB = 42;
   const plotW = W - padL - padR, plotH = H - padT - padB, base = padT + plotH;
   const hi = gsNiceTop(Math.max.apply(null, pts.map((p) => p.total)) || 1, VIZ_Y_TICKS);
-  const n = pts.length, slot = plotW / n, bw = Math.min(28, slot * 0.5);
-  const X = (i) => padL + slot * i + slot / 2;
+  const n = pts.length, slot = plotW / n, bw = Math.min(30, slot * 0.62);
+  const X = (i2) => padL + slot * i2 + slot / 2;
   const Y = (v) => padT + (1 - v / (hi || 1)) * plotH;
 
   const grid = vizYFractions().map((t) => {
@@ -10826,38 +10836,52 @@ function ptMonthly(rows) {
       + Math.round(val).toLocaleString('ko-KR') + '</text>';
   }).join('');
 
-  const bars = pts.map((p, i) => '<rect x="' + (X(i) - bw / 2).toFixed(1) + '" y="'
-    + Y(p.total).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="'
-    + Math.max(0, base - Y(p.total)).toFixed(1) + '" rx="2" fill="var(--blue)"'
-    + ' opacity=".28"><title>' + escapeHtml(p.m) + ' 전체 ' + p.total + '건</title></rect>').join('');
+  const bars = pts.map((p, i2) => {
+    const x = X(i2) - bw / 2;
+    const tip = p.y + '년 · 전체 ' + p.total + '건 (시몬스 ' + p.ours
+      + '건 / 경쟁사 ' + p.comp + '건)';
+    if (!p.total) {
+      // 0건인 해도 집을 수 있게 얇은 투명 막대를 둔다(툴팁만 뜬다)
+      return '<rect x="' + x.toFixed(1) + '" y="' + (base - 3).toFixed(1) + '" width="'
+        + bw.toFixed(1) + '" height="3" fill="var(--line)" data-tip="'
+        + escapeHtml(tip) + '" tabindex="0"><title>' + escapeHtml(tip) + '</title></rect>';
+    }
+    const yComp = Y(p.comp), hComp = Math.max(0, base - yComp);
+    const yTot = Y(p.total), hOurs = Math.max(0, yComp - yTot);
+    const g = ['<g data-tip="' + escapeHtml(tip) + '" tabindex="0">'];
+    g.push('<title>' + escapeHtml(tip) + '</title>');
+    if (hComp > 0) {
+      g.push('<rect x="' + x.toFixed(1) + '" y="' + yComp.toFixed(1) + '" width="'
+        + bw.toFixed(1) + '" height="' + hComp.toFixed(1) + '" fill="var(--slate)"'
+        + ' opacity=".62"/>');
+    }
+    if (hOurs > 0) {
+      g.push('<rect x="' + x.toFixed(1) + '" y="' + yTot.toFixed(1) + '" width="'
+        + bw.toFixed(1) + '" height="' + hOurs.toFixed(1) + '" fill="var(--accent)"/>');
+    }
+    g.push('</g>');
+    return g.join('');
+  }).join('');
 
-  const line = (key, color) => {
-    const d = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p[key]).toFixed(1)).join(' ');
-    const dots = pts.map((p, i) => '<circle cx="' + X(i).toFixed(1) + '" cy="'
-      + Y(p[key]).toFixed(1) + '" r="2.6" fill="' + color + '"><title>'
-      + escapeHtml(p.m) + ' ' + p[key] + '건</title></circle>').join('');
-    return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2"'
-      + ' stroke-linejoin="round"/>' + dots;
-  };
-
-  // X축 — 라벨이 겹치지 않을 만큼만 고른다(공용 헬퍼 재사용)
-  const idx = vizTickIdx(n, plotW, 52);
-  const xlab = idx.map((i) => '<text x="' + X(i).toFixed(1) + '" y="' + (base + 15)
+  // X축 — 20년이면 라벨이 겹치므로 공용 헬퍼가 고른 해만 적는다
+  const idx = vizTickIdx(n, plotW, 40);
+  const xlab = idx.map((i2) => '<text x="' + X(i2).toFixed(1) + '" y="' + (base + 15)
     + '" text-anchor="middle" font-size="' + VIZ_FS_AXIS + '" fill="var(--muted)">'
-    + escapeHtml(pts[i].m) + '</text>').join('');
+    + escapeHtml(pts[i2].y) + '</text>').join('');
 
-  const lg = [['전체(막대)', 'var(--blue)', .28], ['시몬스', 'var(--accent)', 1],
-    ['경쟁사', 'var(--slate)', 1]];
-  return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (월별)'
-    + ' <span class="sm-h__u">(단위: 건)</span></div>'
+  const lg = [['시몬스(자사)', 'var(--accent)', 1], ['경쟁사', 'var(--slate)', .62]];
+  return '<div class="sm-card"><div class="sm-h">특허 출원 동향 (연도별)'
+    + ' <span class="sm-h__u">(단위: 건 · 막대 높이 = 그 해 전체)</span></div>'
     + '<div class="pt-lg">' + lg.map((l) => '<span class="pt-lg__i">'
       + '<i style="background:' + l[1] + ';opacity:' + l[2] + '"></i>'
       + escapeHtml(l[0]) + '</span>').join('') + '</div>'
     + '<svg class="sm-mktsvg" viewBox="0 0 ' + W + ' ' + H + '"'
-    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="월별 특허 출원 추이">'
-    + grid + bars + line('comp', 'var(--slate)') + line('ours', 'var(--accent)')
+    + ' preserveAspectRatio="xMidYMid meet" role="img" aria-label="연도별 특허 출원 추이">'
+    + grid + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
-    + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg></div>';
+    + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg>'
+    + '<div class="sm-foot">막대에 마우스를 올리거나 탭하면 그 해의 값이 표시됩니다.</div>'
+    + '</div>';
 }
 
 /* ── 3) 출원 유형별 — 도넛 ─────────────────────────────────────────────── */
@@ -10877,15 +10901,17 @@ function ptTypes(rows) {
   let acc = 0;
   const segs = items.map((x, i) => {
     const frac = x.n / total, len = C * frac;
+    const tip = x.label + ' · ' + x.n + '건 (' + (frac * 100).toFixed(1) + '%)';
     const s = '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + COLORS[i % COLORS.length]
       + '" stroke-width="' + SW + '" stroke-dasharray="' + len.toFixed(2) + ' '
       + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-acc).toFixed(2)
-      + '" transform="rotate(-90 70 70)"><title>' + escapeHtml(x.label) + ' '
-      + x.n + '건 (' + (frac * 100).toFixed(1) + '%)</title></circle>';
+      + '" transform="rotate(-90 70 70)" data-tip="' + escapeHtml(tip) + '" tabindex="0">'
+      + '<title>' + escapeHtml(tip) + '</title></circle>';
     acc += len;
     return s;
   }).join('');
-  const legend = items.map((x, i) => '<div class="pt-dn__r">'
+  const legend = items.map((x, i) => '<div class="pt-dn__r" tabindex="0" data-tip="'
+    + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1) + '%)') + '">'
     + '<i style="background:' + COLORS[i % COLORS.length] + '"></i>'
     + '<span class="pt-dn__l">' + escapeHtml(x.label) + '</span>'
     + '<b>' + x.n.toLocaleString('ko-KR') + '건</b>'
@@ -10919,7 +10945,9 @@ function ptTech(rows) {
   return '<div class="sm-card"><div class="sm-h">주요 기술 분야 TOP5 (특허)</div>'
     + '<table class="pt-tb"><thead><tr><th>순위</th><th>기술 분야</th>'
     + '<th class="pt-tb__n">건수</th><th class="pt-tb__n">비중</th><th>분포</th></tr></thead>'
-    + '<tbody>' + items.map((x, i) => '<tr><th scope="row">' + (i + 1) + '</th>'
+    + '<tbody>' + items.map((x, i) => '<tr tabindex="0" data-tip="'
+      + escapeHtml(x.label + ' · ' + x.n + '건 (' + (x.n / total * 100).toFixed(1) + '%)')
+      + '"><th scope="row">' + (i + 1) + '</th>'
       + '<td>' + escapeHtml(x.label) + '</td>'
       + '<td class="pt-tb__n"><b>' + x.n.toLocaleString('ko-KR') + '</b></td>'
       + '<td class="pt-tb__n">' + (x.n / total * 100).toFixed(1) + '%</td>'
@@ -10942,16 +10970,23 @@ function ptApplicants(rows) {
       + emptyState('출원인 정보가 없습니다') + '</div>';
   }
   const max = items[0].n || 1;
+  const totalN = items.reduce((a, b) => a + b.n, 0) || 1;
   return '<div class="sm-card"><div class="sm-h">주요 출원인(기업) 비교'
     + ' <span class="sm-h__u">(단위: 건)</span></div>'
+    /* ★ 색이 무슨 뜻인지 범례로 먼저 밝힌다 — 강조색만 두면 왜 빨간지 알 수 없다 */
+    + '<div class="pt-lg"><span class="pt-lg__i"><i style="background:var(--accent)"></i>'
+    + '시몬스(자사)</span><span class="pt-lg__i">'
+    + '<i style="background:var(--slate);opacity:.5"></i>경쟁사</span></div>'
     + '<div class="sm-hbars sm-hbars--inv">' + items.map((x) => '<div class="sm-hrow'
-      + (x.ours ? ' is-mine' : '') + '">'
-      + '<div class="sm-hname">' + escapeHtml(x.label) + '</div>'
+      + (x.ours ? ' is-mine' : '') + '" tabindex="0" data-tip="'
+      + escapeHtml(x.label + (x.ours ? '(자사)' : '') + ' · ' + x.n + '건 ('
+        + (x.n / totalN * 100).toFixed(1) + '%)') + '">'
+      + '<div class="sm-hname">' + escapeHtml(x.label)
+      + (x.ours ? '<span class="pt-own">자사</span>' : '') + '</div>'
       + '<div class="sm-htrack"><div class="sm-hbar" style="width:'
       + Math.max(2, x.n / max * 100).toFixed(1) + '%"></div></div>'
       + '<div class="sm-hval">' + x.n.toLocaleString('ko-KR') + '건</div>'
-      + '</div>').join('') + '</div>'
-    + '<div class="sm-foot">시몬스는 강조색으로 표시했습니다.</div></div>';
+      + '</div>').join('') + '</div></div>';
 }
 
 /* ── 6) 국가별 출원 — 세계지도 ─────────────────────────────────────────── */
@@ -10972,8 +11007,9 @@ function ptCountries(rows) {
     const left = (ll[0] + 180) / 360 * 100;
     const top = (90 - ll[1]) / 180 * 100;
     const r = Math.max(R_MIN, R_MAX * Math.sqrt(c[k] / max));
-    return '<div class="gsl-mk gsl-mk--r" style="left:' + left.toFixed(2) + '%;top:'
-      + top.toFixed(2) + '%">'
+    return '<div class="gsl-mk gsl-mk--r" tabindex="0" data-tip="'
+      + escapeHtml(k + (PT_NONCOUNTRY[k] ? ' · ' + PT_NONCOUNTRY[k] : '') + ' · ' + c[k] + '건')
+      + '" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%">'
       + '<span class="gsl-dot" style="width:' + (r * 2).toFixed(1) + 'px;height:'
       + (r * 2).toFixed(1) + 'px;margin:-' + r.toFixed(1) + 'px 0 0 -' + r.toFixed(1) + 'px"></span>'
       + '<span class="gsl-lb"><b>' + escapeHtml(k) + '</b><i>' + c[k] + '건</i></span></div>';
@@ -10982,7 +11018,8 @@ function ptCountries(rows) {
      ★ EP·WO 를 억지로 한 나라 위에 올리면 그 나라 실적처럼 읽힌다. */
   const off = keys.filter((k) => !(PT_ISO2[k] && ISO_LONLAT[PT_ISO2[k]]))
     .sort((a, b) => c[b] - c[a]);
-  const rowsHtml = keys.slice().sort((a, b) => c[b] - c[a]).map((k) => '<tr>'
+  const rowsHtml = keys.slice().sort((a, b) => c[b] - c[a]).map((k) => '<tr tabindex="0"'
+    + ' data-tip="' + escapeHtml(k + ' · ' + c[k] + '건') + '">'
     + '<th scope="row">' + escapeHtml(PT_NONCOUNTRY[k] ? k + ' · ' + PT_NONCOUNTRY[k] : k) + '</th>'
     + '<td class="pt-tb__n"><b>' + c[k].toLocaleString('ko-KR') + '</b>건</td></tr>').join('');
   return '<div class="sm-card"><div class="sm-h">국가별 출원 현황'
@@ -11012,10 +11049,27 @@ function ptWords(rows) {
   return '<div class="sm-card"><div class="sm-h">신소재 관련 특허 키워드 TOP10</div>'
     + '<div class="pt-cloud">' + items.map((x) => '<span class="pt-cloud__w"'
       + ' style="font-size:' + size(x.n).toFixed(1) + 'px;opacity:' + shade(x.n).toFixed(2)
+      + '" tabindex="0" data-tip="' + escapeHtml(x.w + ' · ' + x.n + '건')
       + '" title="' + escapeHtml(x.w + ' · ' + x.n + '건') + '">'
       + escapeHtml(x.w) + '<i>' + x.n + '</i></span>').join('') + '</div>'
     + '<div class="sm-foot">형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
     + ' 사전과 맞춰 센 결과입니다.</div></div>';
+}
+
+/** 출원번호 → KIPRIS 검색 결과 링크.
+ *  ★ KIPRIS 는 상세 화면이 로그인·세션에 묶인 SPA 라 상세 URL 을 바로 열 수 없다.
+ *    출원번호로 검색하는 주소는 열리고 그 번호가 그대로 담긴다 — 확인된 경로만 쓴다.
+ *  ★★ 번호가 없으면 링크를 만들지 않는다(빈 링크를 눌러 보게 두지 않는다). */
+function ptKiprisLink(appNo) {
+  const no = String(appNo || '').trim();
+  if (!no) return '—';
+  const q = no.replace(/[^0-9A-Za-z-]/g, '');
+  if (!q) return escapeHtml(no);
+  const url = 'https://www.kipris.or.kr/khome/search/searchResult.do?tab=patent&query='
+    + encodeURIComponent(q);
+  return '<a class="pt-link" href="' + escapeHtml(url) + '" target="_blank"'
+    + ' rel="noopener noreferrer" data-tip="KIPRIS에서 이 출원번호로 검색합니다">'
+    + escapeHtml(no) + '</a>';
 }
 
 /* ── 8) 최근 주요 출원 목록 ────────────────────────────────────────────── */
@@ -11032,9 +11086,10 @@ function ptRecent(rows) {
     + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
     + items.map((r, i) => '<tr>'
       + '<th scope="row">' + (i + 1) + '</th>'
-      + '<td class="pt-tb__mono">' + escapeHtml(r.appNo || '—') + '</td>'
+      + '<td class="pt-tb__mono">' + ptKiprisLink(r.appNo) + '</td>'
       + '<td class="pt-tb__mono">' + escapeHtml(r.date || '—') + '</td>'
-      + '<td>' + escapeHtml(r.company || '—') + (r.isOurs ? ' <span class="pt-mine">시몬스</span>' : '') + '</td>'
+      + '<td>' + escapeHtml(r.company || '—')
+      + (r.isOurs ? ' <span class="pt-own">자사</span>' : '') + '</td>'
       + '<td>' + escapeHtml(r.country || '—') + '</td>'
       + '<td class="pt-tb__t">' + escapeHtml(r.title || '—') + '</td>'
       + '<td>' + escapeHtml(r.catLabel || '—') + '</td>'
@@ -11059,6 +11114,75 @@ function ptRangeUi() {
     + (p.from ? '<span class="pt-filter__h">수집 범위 ' + escapeHtml(p.from) + ' ~ '
       + escapeHtml(p.to) + '</span>' : '')
     + '</div>';
+}
+
+/* ── 값 툴팁 ───────────────────────────────────────────────────────────────
+   ★ SVG <title> 만 쓰면 브라우저 기본 툴팁에 맡기게 되어 늦게 뜨고, 모바일에서는
+     아예 뜨지 않는다. data-tip 을 읽어 우리가 직접 띄운다.
+   ★★ mouseover 뿐 아니라 click(탭)·focus 에도 반응한다 — 손가락으로도 값을 본다. */
+function ptTipEl() {
+  let t = document.getElementById('ptTip');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'ptTip';
+    t.className = 'pt-tip';
+    t.setAttribute('role', 'status');
+    document.body.appendChild(t);
+  }
+  return t;
+}
+
+function ptTipShow(target, x, y) {
+  const msg = target.getAttribute('data-tip');
+  if (!msg) return;
+  const t = ptTipEl();
+  t.textContent = msg;          // 한 줄 문구 — ' · ' 로 항목을 가른다
+  t.classList.add('is-on');
+  /* 화면 밖으로 나가지 않게 가둔다 — 오른쪽 끝 막대는 왼쪽으로 눕는다 */
+  const w = t.offsetWidth, h = t.offsetHeight, pad = 10;
+  let left = x + 14, top = y - h - 12;
+  if (left + w + pad > window.innerWidth) left = x - w - 14;
+  if (left < pad) left = pad;
+  if (top < pad) top = y + 18;
+  t.style.left = left + 'px';
+  t.style.top = top + 'px';
+}
+
+function ptTipHide() {
+  const t = document.getElementById('ptTip');
+  if (t) t.classList.remove('is-on');
+}
+
+/** 카드 안의 [data-tip] 요소에 툴팁을 붙인다. 다시 그려도 한 번만 배선된다. */
+function wirePtTips(root) {
+  if (!root || root.dataset.tipWired === '1') return;
+  root.dataset.tipWired = '1';
+  const near = (e) => (e.target && e.target.closest ? e.target.closest('[data-tip]') : null);
+  root.addEventListener('mousemove', (e) => {
+    const t = near(e);
+    if (t) ptTipShow(t, e.clientX, e.clientY); else ptTipHide();
+  });
+  root.addEventListener('mouseleave', ptTipHide);
+  // 탭(모바일)·클릭: 같은 것을 다시 누르면 닫는다
+  root.addEventListener('click', (e) => {
+    const t = near(e);
+    if (!t) { ptTipHide(); return; }
+    const tip = document.getElementById('ptTip');
+    if (tip && tip.classList.contains('is-on') && tip.dataset.for === t.getAttribute('data-tip')) {
+      ptTipHide(); return;
+    }
+    const r = t.getBoundingClientRect();
+    ptTipShow(t, r.left + r.width / 2, r.top + r.height / 2);
+    ptTipEl().dataset.for = t.getAttribute('data-tip');
+  });
+  root.addEventListener('focusin', (e) => {
+    const t = near(e);
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    ptTipShow(t, r.left + r.width / 2, r.top);
+  });
+  root.addEventListener('focusout', ptTipHide);
+  window.addEventListener('scroll', ptTipHide, { passive: true });
 }
 
 /* ── 추세 안내 — 데이터가 말하게 한다 ─────────────────────────────────────
@@ -11128,20 +11252,8 @@ function ptErrorBox() {
 function renderPatent() {
   const el = document.getElementById('patentRoot');
   if (!el) return;
-  const tabs = [['patent', '특허', '📄'], ['material', '신소재', '🧪']];
-  const tabHtml = '<div class="pt-tabs" role="tablist" aria-label="특허/신소재 전환">'
-    + tabs.map((t) => '<button class="pt-tab" type="button" role="tab" data-pttab="' + t[0]
-      + '" aria-selected="' + (_ptTab === t[0] ? 'true' : 'false')
-      + '" tabindex="' + (_ptTab === t[0] ? '0' : '-1') + '">'
-      + '<span class="pt-tab__i" aria-hidden="true">' + t[2] + '</span>'
-      + escapeHtml(t[1]) + '</button>').join('') + '</div>';
-
   let body;
-  if (_ptTab === 'material') {
-    body = '<div class="pt-todo"><div class="pt-todo__h">신소재 탭 — 준비 중</div>'
-      + '<div class="pt-todo__m">신소재 관련 지표는 아직 준비 중입니다.'
-      + ' 현재 신소재 관련 특허 건수와 키워드는 <b>특허</b> 탭에서 볼 수 있습니다.</div></div>';
-  } else if (!_ptData) {
+  if (!_ptData) {
     body = '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
       + ' [업데이트]를 눌러 데이터를 불러오세요</div>';
   } else if (_ptData.status !== 'ok') {
@@ -11151,29 +11263,25 @@ function renderPatent() {
     const cur = ptRows(r);
     const prev = ptRows(ptPrevRange(r));
     const ipcf = _ptData.ipcFilter || {};
-    body = (ipcf.enabled
-        ? '<div class="pt-scope">집계 범위: <b>' + escapeHtml(ipcf.label
-            || ipcf.codes.join(', ')) + '</b> 분야 특허만 — 이 업계와 무관한 출원'
-          + '(예: 정수기·공기청정기)을 빼기 위해 IPC 코드로 한정했습니다.</div>'
-        : '')
-      + ptRangeUi()
+    /* 집계 범위는 위쪽 안내 박스가 아니라 맨 아래 각주에서 한 줄로 밝힌다 */
+    const scope = ipcf.enabled
+      ? ' · 집계 범위: ' + (ipcf.label || ipcf.codes.join(', ')) + ' 분야'
+      : '';
+    body = ptRangeUi()
       + ptKpiCards(cur, prev)
       + ptTrendNote(cur)
       + '<div class="sm-wrap">'
-      + ptMonthly(cur)
+      + ptYearly(cur)
       + '<div class="sm-grid2">' + ptTypes(cur) + ptTech(cur) + '</div>'
       + '<div class="sm-grid2">' + ptApplicants(cur) + ptWords(cur) + '</div>'
       + ptCountries(cur)
       + ptRecent(cur)
       + '</div>'
-      /* ★ 해외특허 API 를 못 쓰면 '해외 출원 비율 0%'가 사실처럼 읽힌다.
-         수집되지 않았다는 것을 그 자리에서 밝힌다. */
       + (_ptData.foreignNote ? '<div class="sm-foot pt-note">'
         + escapeHtml(_ptData.foreignNote) + '</div>' : '')
       + '<div class="sm-foot pt-note">' + escapeHtml(_ptData.techNote
         || '기술분야 분류는 자동 키워드 매칭 기준이며 완전히 정확하지 않을 수 있습니다.')
       + '</div>'
-      /* 부분일치로 섞여 왔다가 걸러진 건수 — 숫자가 왜 적은지 설명해 준다 */
       + ((_ptData.filteredOut && Object.keys(_ptData.filteredOut).length)
         ? '<div class="sm-foot">출원인 검색이 부분일치라 다른 기업이 섞여 옵니다 — '
           + escapeHtml(Object.keys(_ptData.filteredOut)
@@ -11182,12 +11290,13 @@ function renderPatent() {
         : '')
       + (_ptData.truncated ? '<div class="sm-foot">호출 상한에 걸려 일부 기업만 수집됐습니다'
         + ' — kipris_patent.py --max-calls 로 조정하세요.</div>' : '')
-      + '<div class="comp-caption">데이터 출처: KIPRIS (특허정보검색서비스)'
+      + '<div class="comp-caption">데이터 출처: KIPRIS (특허정보검색서비스)' + scope
       + ' ※ 기간 및 항목은 설정에 따라 변경 가능합니다.'
       + (_ptData.lastUpdated ? ' · 수집 ' + escapeHtml(_ptData.lastUpdated) : '') + '</div>';
   }
-  el.innerHTML = tabHtml + body;
+  el.innerHTML = body;
   wirePatent();
+  wirePtTips(el);
 }
 
 function wirePatent() {
@@ -11195,12 +11304,6 @@ function wirePatent() {
   if (!root || root.dataset.wired === '1') return;
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
-    const t = e.target && e.target.closest && e.target.closest('.pt-tab');
-    if (t) {
-      const k = t.getAttribute('data-pttab');
-      if (k && k !== _ptTab) { _ptTab = k; renderPatent(); }
-      return;
-    }
     if (e.target && e.target.id === 'ptReset') {
       _ptFrom = ''; _ptTo = ''; renderPatent();
     }
