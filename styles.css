@@ -3177,9 +3177,14 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   font-size: 9.5px; font-weight: 800; vertical-align: 1px; white-space: nowrap;
 }
 
-/* 출원번호 링크 */
-.pt-link { color: var(--blue-ink); text-decoration: underline; text-underline-offset: 2px; }
-.pt-link:hover { color: var(--accent); }
+/* 출원번호 — 눌러서 상세를 펼치는 버튼(KIPRIS 링크가 아니다) */
+.pt-nobtn {
+  padding: 0; border: 0; background: none; font: inherit;
+  color: var(--blue-ink); text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.pt-nobtn:hover { color: var(--accent); }
+.pt-nobtn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* 값 툴팁 — hover/포커스/탭 공통 */
 .pt-tip {
@@ -3209,3 +3214,81 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 이 기간에 0건인 회사 — 범례에 남기되 물러나 있게 */
 .pt-lg__i.is-zero { opacity: .55; }
 .pt-lg__i.is-zero u { text-decoration: none; color: var(--muted); font-weight: 700; }
+
+/* 출원인 골라 보기 칩 — 최신순 목록이 한 회사로만 차는 것을 막는다 */
+.pt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.pt-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--muted);
+  font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.pt-chip i { width: 9px; height: 9px; border-radius: 50%; }
+.pt-chip b { color: var(--ink); font-weight: 800; }
+.pt-chip:hover { border-color: var(--slate); color: var(--text); }
+.pt-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pt-chip.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.pt-chip.is-on b { color: #fff; }
+
+/* 출원 상세 — 이미 받아 둔 데이터로 채우는 패널 */
+.ptd-back {
+  position: fixed; inset: 0; z-index: 100; display: none;
+  align-items: center; justify-content: center; padding: 20px;
+  background: rgba(11, 18, 32, .45);
+}
+.ptd-back.is-on { display: flex; }
+.ptd {
+  width: 100%; max-width: 620px; max-height: 86vh; overflow: auto;
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, .3);
+}
+.ptd__hd {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 16px 18px 12px; border-bottom: 1px solid var(--line);
+}
+.ptd__no { font-size: 11.5px; font-weight: 800; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+.ptd__t { margin: 4px 0 0; font-size: 15px; font-weight: 800; color: var(--ink);
+  line-height: 1.45; word-break: keep-all; }
+.ptd__x {
+  flex: none; width: 30px; height: 30px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--card); color: var(--muted);
+  font-size: 13px; cursor: pointer;
+}
+.ptd__x:hover { border-color: var(--slate); color: var(--ink); }
+.ptd__bd { padding: 12px 18px 4px; }
+.ptd__r {
+  display: grid; grid-template-columns: 84px 1fr; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px;
+}
+.ptd__r:last-child { border-bottom: 0; }
+.ptd__k { color: var(--muted); font-weight: 700; }
+.ptd__v { color: var(--text); line-height: 1.6; word-break: break-word; }
+.ptd__abs { color: var(--text); word-break: keep-all; }
+.ptd__ipc {
+  display: inline-block; margin: 0 3px 3px 0; padding: 1px 6px;
+  border-radius: 4px; background: var(--field); border: 1px solid var(--line);
+  font-size: 10.5px; color: var(--blue-ink);
+}
+.ptd__w {
+  display: inline-block; margin: 0 4px 3px 0; padding: 1px 7px; border-radius: 999px;
+  background: var(--blue-soft); color: var(--blue-ink); font-size: 10.5px; font-weight: 700;
+}
+.ptd__tag {
+  margin-left: 5px; padding: 0 6px; border-radius: 999px;
+  background: var(--green-soft); color: var(--green-ink);
+  font-size: 9.5px; font-weight: 800;
+}
+.ptd__ft {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 12px 18px 16px; border-top: 1px solid var(--line);
+}
+.ptd__btn {
+  padding: 7px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  text-decoration: none;
+}
+.ptd__btn:hover { border-color: var(--slate); }
+.ptd__btn--go { background: var(--navy); border-color: var(--navy); color: #fff; }
+.ptd__hint { flex: 1 1 220px; font-size: 10.5px; color: var(--muted); line-height: 1.5; }

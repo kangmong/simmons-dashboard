@@ -10703,6 +10703,7 @@ const PT_DATA_URL = 'public/data/kipris-patents.json';
 let _ptData = null;          // {status:'ok'|'error', rows:[…], …}
 let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 수집 기간 전체
 let _ptTo = '';
+let _ptCo = '';           // 목록에서 골라 본 출원인(빈 값 = 전체)
 
 /** 2자리 국가코드 → ISO_LONLAT 이 쓰는 3자리 코드.
  *  ★ EP(유럽특허청)·WO(WIPO)는 나라가 아니라 지도에 찍지 않는다 — 아래 목록으로 뺀다. */
@@ -10775,14 +10776,28 @@ function ptDelta(now, before, isPct) {
 
 /* ── 1) KPI 5장 ────────────────────────────────────────────────────────── */
 function ptKpiCards(cur, prev) {
-  const pct = (rows) => (rows.length
-    ? (ptCount(rows, (r) => r.scope === 'abroad') / rows.length * 100) : 0);
+  /* ★ '해외 출원 비율'을 뺐다 — 해외특허 API 권한이 없어 늘 0% 여서, 측정한
+     값처럼 보이면서 아무것도 말해 주지 않았다.
+     대신 '최근 3년 출원'을 둔다. 고른 기간의 끝에서 3년을 세고 그 앞 3년과
+     비교하므로, 기간 필터를 움직이면 함께 따라오고 추세를 바로 읽을 수 있다. */
+  const yEnd = (rowsIn) => {
+    const ds = rowsIn.map((r) => r.date).filter(Boolean).sort();
+    return ds.length ? Number(ds[ds.length - 1].slice(0, 4)) : null;
+  };
+  const last3 = (rowsIn, endY) => (endY == null ? 0
+    : ptCount(rowsIn, (r) => Number((r.date || '0').slice(0, 4)) > endY - 3));
+  const prior3 = (rowsIn, endY) => (endY == null ? 0
+    : ptCount(rowsIn, (r) => {
+      const y = Number((r.date || '0').slice(0, 4));
+      return y > endY - 6 && y <= endY - 3;
+    }));
+  const eY = yEnd(cur);
   const defs = [
     ['전체 특허 출원', cur.length, prev.length, '건', false],
     ['시몬스 출원', ptCount(cur, (r) => r.isOurs), ptCount(prev, (r) => r.isOurs), '건', false],
     ['경쟁사 출원(합계)', ptCount(cur, (r) => !r.isOurs), ptCount(prev, (r) => !r.isOurs), '건', false],
     ['신소재 관련', ptCount(cur, (r) => r.newMaterial), ptCount(prev, (r) => r.newMaterial), '건', false],
-    ['해외 출원 비율', pct(cur), pct(prev), '%', true],
+    ['최근 3년 출원', last3(cur, eY), prior3(cur, eY), '건', false],
   ];
   return '<div class="pt-kpis">' + defs.map(([label, now, before, unit, isPct]) => {
     const shown = isPct ? now.toFixed(1) : now.toLocaleString('ko-KR');
@@ -11060,7 +11075,11 @@ function ptApplicants(rows) {
     + ' 기업입니다 — 조회가 안 된 것이 아닙니다.</div></div>';
 }
 
-/* ── 6) 국가별 출원 — 세계지도 ─────────────────────────────────────────── */
+/* ── 6) 국가별 출원 — 세계지도 ───────────────────────────────────────────
+   ★ 지금은 화면에서 부르지 않는다(renderPatent 에서 주석 처리). 해외특허 API
+     권한이 열려 country 가 KR 이외로 채워지면 그 줄만 되살리면 된다.
+     지우지 않고 두는 이유 — 좌표 매핑(PT_ISO2)과 지역 특허청 처리(PT_NONCOUNTRY)를
+     다시 만들 필요가 없게. */
 function ptCountries(rows) {
   const c = {};
   rows.forEach((r) => { const k = (r.country || '').toUpperCase() || '미표기'; c[k] = (c[k] || 0) + 1; });
@@ -11127,37 +11146,152 @@ function ptWords(rows) {
     + ' 사전과 맞춰 센 결과입니다.</div></div>';
 }
 
-/** 출원번호 → KIPRIS 검색 결과 링크.
- *  ★ KIPRIS 는 상세 화면이 로그인·세션에 묶인 SPA 라 상세 URL 을 바로 열 수 없다.
- *    출원번호로 검색하는 주소는 열리고 그 번호가 그대로 담긴다 — 확인된 경로만 쓴다.
- *  ★★ 번호가 없으면 링크를 만들지 않는다(빈 링크를 눌러 보게 두지 않는다). */
-function ptKiprisLink(appNo) {
+/** 출원번호 셀 — 눌러서 상세를 펼친다(KIPRIS 링크가 아니다).
+ *  ★ KIPRIS 검색 화면은 전부 method="post" 인 SPA 라 ?query= 로는 검색이
+ *    실행되지 않는다 — 링크를 누르면 빈 초기 화면만 뜬다(실측).
+ *    그래서 이미 받아 둔 데이터로 우리가 상세를 보여 주고, KIPRIS 로 가야 할
+ *    때는 번호를 복사해 붙여넣게 한다. */
+function ptNoButton(appNo) {
   const no = String(appNo || '').trim();
   if (!no) return '—';
-  const q = no.replace(/[^0-9A-Za-z-]/g, '');
-  if (!q) return escapeHtml(no);
-  const url = 'https://www.kipris.or.kr/khome/search/searchResult.do?tab=patent&query='
-    + encodeURIComponent(q);
-  return '<a class="pt-link" href="' + escapeHtml(url) + '" target="_blank"'
-    + ' rel="noopener noreferrer" data-tip="KIPRIS에서 이 출원번호로 검색합니다">'
-    + escapeHtml(no) + '</a>';
+  return '<button class="pt-nobtn" type="button" data-appno="' + escapeHtml(no) + '"'
+    + ' data-tip="눌러서 이 출원의 상세를 봅니다">' + escapeHtml(no) + '</button>';
+}
+
+/* ── 출원 상세 — 이미 받아 둔 데이터를 그 자리에서 펼친다 ──────────────────
+   ★ KIPRIS 로 링크를 걸 수 없다. 검색 화면이 전부 method="post" 인 SPA 라
+     ?query= 로는 검색이 실행되지 않고 초기 화면만 뜬다(실측).
+   ★★ 그래서 상세는 우리가 보여 준다 — 수집 때 제목·초록·IPC·출원인·분류를
+     이미 받아 뒀으므로 API 를 다시 부르지 않는다.
+   ★★★ KIPRIS 로 가야 할 때를 위해 '번호 복사'를 둔다. 붙여넣어 검색하는 것이
+     열리지 않는 링크보다 확실하다. */
+function ptRowByNo(appNo) {
+  const rows = (_ptData && Array.isArray(_ptData.rows)) ? _ptData.rows : [];
+  return rows.find((r) => String(r.appNo) === String(appNo)) || null;
+}
+
+function ptDetailHtml(r) {
+  const row = (k, v, cls) => (v
+    ? '<div class="ptd__r"><span class="ptd__k">' + escapeHtml(k) + '</span>'
+      + '<span class="ptd__v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>'
+    : '');
+  /* IPC 는 '|' 로 붙어 오므로 조각으로 끊어 보여 준다 */
+  const ipc = String(r.ipc || '').split('|').map((x) => x.trim()).filter(Boolean);
+  const ipcHtml = ipc.length
+    ? ipc.map((x) => '<code class="ptd__ipc">' + escapeHtml(x) + '</code>').join(' ')
+    : '';
+  const words = (r.words || []).length
+    ? r.words.map((x) => '<span class="ptd__w">' + escapeHtml(x) + '</span>').join('')
+    : '';
+  return '<div class="ptd" role="dialog" aria-modal="true" aria-labelledby="ptdTitle">'
+    + '<div class="ptd__hd">'
+    + '<div><div class="ptd__no">' + escapeHtml(r.appNo || '—')
+    + (r.isOurs ? ' <span class="pt-own">자사</span>' : '') + '</div>'
+    + '<h4 class="ptd__t" id="ptdTitle">' + escapeHtml(r.title || '(제목 없음)') + '</h4></div>'
+    + '<button class="ptd__x" type="button" id="ptdClose" aria-label="닫기">✕</button>'
+    + '</div>'
+    + '<div class="ptd__bd">'
+    + row('출원인', escapeHtml(r.applicantRaw || r.company || '—'))
+    + row('출원일', escapeHtml(r.date || '—'))
+    + row('상태', escapeHtml(r.kind || '—'))
+    + row('국가', escapeHtml(r.country || '—'))
+    + row('기술 분야', escapeHtml(r.catLabel || '—')
+        + (r.newMaterial ? ' <span class="ptd__tag">신소재 관련</span>' : ''))
+    + row('IPC', ipcHtml)
+    + row('키워드', words)
+    + row('요약', escapeHtml(r.summary || '(초록 없음)'), 'ptd__abs')
+    + '</div>'
+    + '<div class="ptd__ft">'
+    + '<button class="ptd__btn ptd__btn--go" type="button" id="ptdCopy"'
+    + ' data-no="' + escapeHtml(r.appNo || '') + '">출원번호 복사</button>'
+    + '<a class="ptd__btn" href="https://www.kipris.or.kr/khome/search/searchResult.do?tab=patent"'
+    + ' target="_blank" rel="noopener noreferrer">KIPRIS 열기</a>'
+    + '<span class="ptd__hint">KIPRIS 검색은 주소로 바로 실행되지 않습니다 —'
+    + ' 번호를 복사해 검색창에 붙여넣어 주세요.</span>'
+    + '</div></div>';
+}
+
+function ptOpenDetail(appNo) {
+  const r = ptRowByNo(appNo);
+  if (!r) return;
+  let wrap = document.getElementById('ptModal');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'ptModal';
+    wrap.className = 'ptd-back';
+    document.body.appendChild(wrap);
+    // 배경 클릭으로 닫기(패널 안쪽 클릭은 통과시키지 않는다)
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) ptCloseDetail(); });
+  }
+  wrap.innerHTML = ptDetailHtml(r);
+  wrap.classList.add('is-on');
+  ptCloseDetail._last = document.activeElement;
+  const x = document.getElementById('ptdClose');
+  if (x && x.focus) x.focus();
+  wrap.addEventListener('click', (e) => {
+    const t = e.target && e.target.closest ? e.target.closest('#ptdClose, #ptdCopy') : null;
+    if (!t) return;
+    if (t.id === 'ptdClose') { ptCloseDetail(); return; }
+    const no = t.getAttribute('data-no') || '';
+    const done = () => { t.textContent = '복사했습니다'; setTimeout(() => {
+      t.textContent = '출원번호 복사'; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(no).then(done, () => { /* 권한 거부 시 조용히 */ });
+    } else {
+      /* 구형 브라우저 — 임시 입력칸을 만들어 복사한다 */
+      const ta = document.createElement('textarea');
+      ta.value = no; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch (err) { /* 무시 */ }
+      ta.remove();
+    }
+  });
+  document.addEventListener('keydown', ptDetailKey);
+}
+
+function ptCloseDetail() {
+  const wrap = document.getElementById('ptModal');
+  if (wrap) { wrap.classList.remove('is-on'); wrap.innerHTML = ''; }
+  document.removeEventListener('keydown', ptDetailKey);
+  const back = ptCloseDetail._last;
+  if (back && back.focus) back.focus();
+}
+
+function ptDetailKey(e) {
+  if (e.key === 'Escape') ptCloseDetail();
 }
 
 /* ── 8) 최근 주요 출원 목록 ────────────────────────────────────────────── */
 function ptRecent(rows) {
-  const items = rows.slice(0, 20);
+  /* ★ 최신순 20건만 보여 주면 최근에 몰아 낸 회사(코웨이)로 목록이 다 차고,
+     에이스침대(최신 2019년)처럼 예전에 낸 회사는 화면에서 사라진다 —
+     '데이터가 없다'로 잘못 읽힌다. 회사를 골라 볼 수 있게 한다. */
+  const cos = ptStackOrder(rows);
+  const cnt = {};
+  rows.forEach((r) => { const k = r.company || '미표기'; cnt[k] = (cnt[k] || 0) + 1; });
+  const chips = '<div class="pt-chips" role="group" aria-label="출원인 골라 보기">'
+    + '<button class="pt-chip' + (_ptCo ? '' : ' is-on') + '" type="button"'
+    + ' data-ptco="">전체 <b>' + rows.length + '</b></button>'
+    + cos.filter((c) => cnt[c.label]).map((c) => '<button class="pt-chip'
+      + (_ptCo === c.label ? ' is-on' : '') + '" type="button" data-ptco="'
+      + escapeHtml(c.label) + '"><i style="background:' + c.color + '"></i>'
+      + escapeHtml(c.label) + ' <b>' + cnt[c.label] + '</b></button>').join('')
+    + '</div>';
+  const picked = _ptCo ? rows.filter((r) => (r.company || '미표기') === _ptCo) : rows;
+  const items = picked.slice(0, 20);
   if (!items.length) {
     return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원</div>'
-      + emptyState('이 기간에 해당하는 출원이 없습니다') + '</div>';
+      + chips + emptyState('이 조건에 해당하는 출원이 없습니다') + '</div>';
   }
   return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원'
-    + ' <span class="sm-h__u">(최신순 ' + items.length + '건)</span></div>'
+    + ' <span class="sm-h__u">(최신순 ' + items.length + '건'
+    + (picked.length > items.length ? ' / ' + picked.length + '건 중' : '') + ')</span></div>'
+    + chips
     + '<div class="pt-scroll"><table class="pt-tb pt-tb--list"><thead><tr>'
     + '<th>번호</th><th>출원번호</th><th>출원일</th><th>출원인</th><th>국가</th>'
     + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
     + items.map((r, i) => '<tr>'
       + '<th scope="row">' + (i + 1) + '</th>'
-      + '<td class="pt-tb__mono">' + ptKiprisLink(r.appNo) + '</td>'
+      + '<td class="pt-tb__mono">' + ptNoButton(r.appNo) + '</td>'
       + '<td class="pt-tb__mono">' + escapeHtml(r.date || '—') + '</td>'
       + '<td>' + escapeHtml(r.company || '—')
       + (r.isOurs ? ' <span class="pt-own">자사</span>' : '') + '</td>'
@@ -11345,7 +11479,11 @@ function renderPatent() {
       + ptYearly(cur)
       + '<div class="sm-grid2">' + ptTypes(cur) + ptTech(cur) + '</div>'
       + '<div class="sm-grid2">' + ptApplicants(cur) + ptWords(cur) + '</div>'
-      + ptCountries(cur)
+      /* ★ 국가별 지도·표는 잠시 뺀다 — 해외특허 API 권한이 열리기 전에는
+         국내(KR) 하나만 찍혀 지도가 아무것도 말해 주지 않는다.
+         ptCountries() 는 지우지 않고 남겨 뒀다. 해외 데이터가 들어오면
+         이 줄의 주석을 풀기만 하면 된다. */
+      // + ptCountries(cur)
       + ptRecent(cur)
       + '</div>'
       + (_ptData.foreignNote ? '<div class="sm-foot pt-note">'
@@ -11376,8 +11514,16 @@ function wirePatent() {
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'ptReset') {
-      _ptFrom = ''; _ptTo = ''; renderPatent();
+      _ptFrom = ''; _ptTo = ''; renderPatent(); return;
     }
+    const chip = e.target && e.target.closest ? e.target.closest('.pt-chip') : null;
+    if (chip) {
+      _ptCo = chip.getAttribute('data-ptco') || '';
+      renderPatent();
+      return;
+    }
+    const nob = e.target && e.target.closest ? e.target.closest('.pt-nobtn') : null;
+    if (nob) ptOpenDetail(nob.getAttribute('data-appno'));
   });
   /* ★ change 만 듣지 않는다 — 날짜 입력기는 값을 고르는 순간 input 을 쏘고
      change 는 포커스가 빠질 때야 온다. change 만 걸어 두면 '날짜를 바꿨는데

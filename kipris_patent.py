@@ -581,12 +581,10 @@ def collect(years=None, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     out["years"] = years
     out["foreignAvailable"] = bool(pr.get("foreignOp"))
     out["foreignNote"] = (None if pr.get("foreignOp") else
-                          "해외특허 데이터 수집 대기 중 — 호출 경로는 확인했고"
-                          "(ForeignPatentAdvencedSearchService/applicantSearch),"
-                          " KIPRIS 자체 테스트베드에서는 같은 파라미터로 실데이터가"
-                          " 나오지만 현재 키로는 resultCode 10 이 떠 수집되지 않습니다."
-                          " 아래 수치는 국내 출원만 집계한 것이며, 해외 출원 비율은"
-                          " 0%로 표시됩니다.")
+                          "해외특허 데이터 수집 대기 중 — 호출 경로는 확인했고(ForeignPatentAdvencedSearchServ"
+                          "ice/applicantSearch), KIPRIS 자체 테스트베드에서는 같은 파라미터로 실데이터가 나오지만 현"
+                          "재 키로는 resultCode 10 이 떠 수집되지 않습니다. 아래 수치는 국내(KR) 출원만 집계한 것이며, "
+                          "국가별 지도는 표시할 국가가 하나뿐이라 잠시 빼 두었습니다.")
     out["companies"] = [{"key": c["key"], "label": c["label"],
                          "isOurs": bool(c.get("isOurs")),
                          "matchedName": c.get("_matched")} for c in tax["companies"]]
