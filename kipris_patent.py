@@ -220,7 +220,7 @@ def _dmy(iso):
 
 
 def search_domestic(applicant, key, key_param, budget, period=None, rows=ROWS_PER_CALL,
-                    max_pages=MAX_PAGES, raw_sink=None):
+                    max_pages=MAX_PAGES, raw_sink=None, ipc=None):
     """국내 특허·실용 — 출원인명 + 출원일 범위로 찾는다.
 
     ★ 날짜를 API 에 걸어야 한다 — 걸지 않으면 오래된 건부터 채워져, 3년 창을
@@ -233,12 +233,18 @@ def search_domestic(applicant, key, key_param, budget, period=None, rows=ROWS_PE
     dr = None
     if period and period.get("from") and period.get("to"):
         dr = "%s~%s" % (_dmy(period["from"]), _dmy(period["to"]))
+    # ★ IPC 도 API 에서 거른다 — 실측으로 코웨이 4,382건이 99건으로 줄어, 페이지
+    #   상한에 잘리지 않고 그 분야를 온전히 받을 수 있다.
+    #   와일드카드('A47C*')는 0건이 되므로 접두 코드를 그대로 넘긴다.
+    ipc_q = " ".join(ipc) if isinstance(ipc, (list, tuple)) else (ipc or "")
 
     def adv(page):
         q = {"applicant": applicant, "patent": "true", "utility": "true",
              "numOfRows": rows, "pageNo": page, "sortSpec": "AD", "descSort": "true"}
         if dr:
             q["applicationDate"] = dr
+        if ipc_q:
+            q["ipcNumber"] = ipc_q
         return ("%s/getAdvancedSearch" % SVC_DOMESTIC, q)
 
     def word(page):
@@ -246,6 +252,8 @@ def search_domestic(applicant, key, key_param, budget, period=None, rows=ROWS_PE
              "numOfRows": rows, "pageNo": page}
         if dr:
             q["applicationDate"] = dr
+        if ipc_q:
+            q["ipcNumber"] = ipc_q
         return ("%s/getWordSearch" % SVC_DOMESTIC, q)
 
     last = None
@@ -412,8 +420,12 @@ def row_out(r):
 
 
 # ── 수집 본체 ────────────────────────────────────────────────────────────
-def collect(years=3, max_calls=CALL_BUDGET, raw=False, probe_only=False):
+def collect(years=None, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     tax = load_taxonomy()
+    ipcf = tax.get("ipcFilter") or {}
+    ipc = (ipcf.get("codes") or []) if ipcf.get("enabled") else []
+    if years is None:
+        years = int(tax.get("defaultYears") or 3)
     key = api_key()
     now = datetime.date.today()
     out = OrderedDict([
@@ -480,7 +492,8 @@ def collect(years=3, max_calls=CALL_BUDGET, raw=False, probe_only=False):
             if budget.stopped:
                 break
             items, path, err = search_domestic(variant, key, pr["keyParam"], budget,
-                                               period=fetch_period, raw_sink=raw_sink)
+                                               period=fetch_period, raw_sink=raw_sink,
+                                               ipc=ipc)
             if err:
                 errors.append({"company": co["label"], "variant": variant,
                                "scope": "kr", "error": err})
@@ -544,10 +557,15 @@ def collect(years=3, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     out["period"] = period
     out["prevPeriod"] = prev_period
     out["fetchPeriod"] = fetch_period
+    out["ipcFilter"] = {"enabled": bool(ipc), "codes": ipc,
+                        "label": ipcf.get("label") or ""}
+    out["years"] = years
     out["foreignAvailable"] = bool(pr.get("foreignOp"))
     out["foreignNote"] = (None if pr.get("foreignOp") else
-                          "해외특허 API 에 이 키로 접근할 수 없어 해외 출원은 수집되지 "
-                          "않았습니다(해외 출원 비율은 국내 기준 0%로 표시됩니다).")
+                          "해외특허 데이터 수집 대기 중 — API 는 승인된 상태이나 호출 "
+                          "경로가 확인되지 않아(resultCode 31) 아직 수집되지 않았습니다. "
+                          "현재 수치는 국내 출원만 집계한 것이며, 해외 출원 비율은 "
+                          "0%로 표시됩니다.")
     out["companies"] = [{"key": c["key"], "label": c["label"],
                          "isOurs": bool(c.get("isOurs")),
                          "matchedName": c.get("_matched")} for c in tax["companies"]]
@@ -586,7 +604,8 @@ def _dump_raw(sink):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--years", type=int, default=3)
+    ap.add_argument("--years", type=int, default=None,
+                    help="조회 기간(년). 생략하면 설정의 defaultYears")
     ap.add_argument("--max-calls", type=int, default=CALL_BUDGET)
     ap.add_argument("--out", default=None)
     ap.add_argument("--raw", action="store_true")

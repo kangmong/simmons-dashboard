@@ -10993,6 +10993,48 @@ function ptRangeUi() {
     + '</div>';
 }
 
+/* ── 추세 안내 — 데이터가 말하게 한다 ─────────────────────────────────────
+   ★ '2015년 이후 급감' 같은 문장을 코드에 박지 않는다. 수집 결과가 바뀌면
+     그 문장이 거짓이 된다. 정점·최근 합계를 세어 그때그때 만든다.
+   ★★ 최근 1~2년이 적은 것을 '급감'이라고만 쓰지 않는다 — 특허는 출원 뒤
+     약 1년 6개월이 지나 공개되므로, 최근 연도는 아직 덜 잡힌다. 그 사실을
+     같이 적지 않으면 없는 추세를 만들어 보여 주는 셈이 된다. */
+function ptTrendNote(rows) {
+  const yc = {};
+  rows.forEach((r) => {
+    const y = (r.date || '').slice(0, 4);
+    if (y) yc[y] = (yc[y] || 0) + 1;
+  });
+  const years = Object.keys(yc).sort();
+  if (years.length < 3) return '';
+  let peak = years[0];
+  years.forEach((y) => { if (yc[y] > yc[peak]) peak = y; });
+  const thisYear = new Date().getFullYear();
+  // 공개 지연이 걸리는 최근 2년은 '덜 잡힌 구간'으로 따로 말한다
+  const LAG = 2;
+  const settled = years.filter((y) => Number(y) <= thisYear - LAG);
+  const pending = years.filter((y) => Number(y) > thisYear - LAG);
+  const last3 = settled.slice(-3);
+  const avg = (ys) => (ys.length
+    ? (ys.reduce((s2, y) => s2 + yc[y], 0) / ys.length) : 0);
+  const early = settled.slice(0, Math.max(1, settled.length - 3));
+  const dir = avg(last3) < avg(early) ? '줄어드는' : '늘어나는';
+  const pendTxt = pending.length
+    ? pending.map((y) => y + '년 ' + yc[y] + '건').join(' · ')
+    : '';
+  return '<div class="pt-trend">'
+    + '<div class="pt-trend__h">특허 출원 흐름 — 있는 그대로</div>'
+    + '<ul class="pt-trend__l">'
+    + '<li>가장 많았던 해는 <b>' + peak + '년 ' + yc[peak] + '건</b>입니다.</li>'
+    + '<li>공개가 마무리된 최근 3년(' + last3.join('·') + ')은 연평균 <b>'
+    + avg(last3).toFixed(1) + '건</b>으로, 그 이전 평균(' + avg(early).toFixed(1)
+    + '건)보다 ' + dir + ' 추세입니다.</li>'
+    + (pendTxt ? '<li><b>' + escapeHtml(pendTxt) + '</b>은 아직 집계가 덜 된 구간입니다 — '
+      + '특허는 출원 뒤 약 1년 6개월이 지나 공개되므로, 최근 연도의 낮은 수치를 '
+      + '출원 감소로 읽으면 안 됩니다.</li>' : '')
+    + '</ul></div>';
+}
+
 /* ── 오류 화면 ─────────────────────────────────────────────────────────── */
 function ptErrorBox() {
   const d = _ptData || {};
@@ -11040,8 +11082,15 @@ function renderPatent() {
     const r = ptRange();
     const cur = ptRows(r);
     const prev = ptRows(ptPrevRange(r));
-    body = ptRangeUi()
+    const ipcf = _ptData.ipcFilter || {};
+    body = (ipcf.enabled
+        ? '<div class="pt-scope">집계 범위: <b>' + escapeHtml(ipcf.label
+            || ipcf.codes.join(', ')) + '</b> 분야 특허만 — 이 업계와 무관한 출원'
+          + '(예: 정수기·공기청정기)을 빼기 위해 IPC 코드로 한정했습니다.</div>'
+        : '')
+      + ptRangeUi()
       + ptKpiCards(cur, prev)
+      + ptTrendNote(cur)
       + '<div class="sm-wrap">'
       + ptMonthly(cur)
       + '<div class="sm-grid2">' + ptTypes(cur) + ptTech(cur) + '</div>'
