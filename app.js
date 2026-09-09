@@ -90,7 +90,8 @@ function sourceDistribution(rows) {
 /* ============================================================
    섹션 탭 전환
    ============================================================ */
-const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic', 'fx', 'worldclock'];
+const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic',
+  'patent', 'fx', 'worldclock'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -2240,7 +2241,9 @@ function wireGtControls() {
    ★ 다시 그릴 때마다 상태를 잃지 않게, 보기 상태는 DOM 이 아니라 이 변수가 갖는다.
    ★★ 숨김은 [hidden] 대신 .is-off 로 한다 — 숨길 대상이 CSS 에서 display 를
      지정받고 있으면 hidden 속성이 그 display 에 밀려 그대로 보인다. */
-let _sideView = 'kr';           // 분기 실적 섹션: 'kr' = 국내(기본) · 'gl' = 국외
+/* ★ 초기값은 null = 아직 아무 쪽도 고르지 않은 상태. 업데이트 직후 국내가
+   저절로 열리면 '내가 고른 것'과 '기본값'을 구분할 수 없다 — 눌러서 고르게 한다. */
+let _sideView = null;           // 분기 실적 섹션: null(미선택) · 'kr' · 'gl'
 /* ★ 신제품·브랜드 섹션은 자기 상태를 따로 갖는다. 두 섹션을 한 변수로 묶었더니
    위에서 국외를 보면 아래도 강제로 국외가 되어, 아래 섹션에서 국내를 볼 수 없었다.
    두 섹션은 다루는 내용이 달라 서로를 끌고 다니지 않아야 한다. */
@@ -2248,19 +2251,23 @@ let _brandSide = 'kr';          // 신제품·브랜드 섹션: 'kr'(기본) · 
 
 /** 현재 보기 상태를 화면에 반영한다. 경쟁사 섹션과 브랜드 섹션 양쪽을 함께 본다. */
 function applySideView() {
-  const on = _sideView === 'gl' ? 'gl' : 'kr';
+  const on = _sideView;            // null 이면 어느 쪽도 고르지 않은 상태
   /* ★ 분기 실적 섹션만 본다. 셀렉터를 문서 전체로 넓히면 아래 신제품·브랜드
      섹션까지 함께 끌려가 두 섹션이 같은 쪽만 보게 된다. */
   const root = document.getElementById('compRoot');
   if (!root) return;
-  root.querySelectorAll('.comp-tab').forEach((b) => {
-    const sel = b.getAttribute('data-side') === on;
+  root.querySelectorAll('.comp-tab').forEach((b, i) => {
+    const sel = on != null && b.getAttribute('data-side') === on;
     b.setAttribute('aria-selected', sel ? 'true' : 'false');
-    b.setAttribute('tabindex', sel ? '0' : '-1');
+    /* 미선택이면 첫 버튼만 탭 순서에 남긴다 — 키보드로 들어올 자리가 있어야 한다 */
+    b.setAttribute('tabindex', (on == null ? (i === 0) : sel) ? '0' : '-1');
   });
   root.querySelectorAll('.comp-panel').forEach((el) => {
-    el.classList.toggle('is-off', el.getAttribute('data-side') !== on);
+    el.classList.toggle('is-off', on == null || el.getAttribute('data-side') !== on);
   });
+  // 미선택 안내는 아무 쪽도 안 골랐을 때만 보인다
+  const ask = root.querySelector('.comp-ask');
+  if (ask) ask.classList.toggle('is-off', on != null);
 }
 
 /** 신제품·브랜드 섹션의 국내/국외 적용. 분기 실적과 완전히 별개다. */
@@ -2296,7 +2303,7 @@ function wireCompTabs() {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     if (!(e.target && e.target.closest && e.target.closest('.comp-tab'))) return;
     e.preventDefault();
-    _sideView = _sideView === 'kr' ? 'gl' : 'kr';
+    _sideView = (_sideView === 'kr') ? 'gl' : (_sideView === 'gl' ? 'kr' : 'kr');
     applySideView();
     const next = root.querySelector('.comp-tab[data-side="' + _sideView + '"]');
     if (next && next.focus) next.focus();
@@ -2391,7 +2398,8 @@ function renderCompetitor() {
     </div>
     <div class="comp-panel comp-group" data-side="gl" id="compPanel-gl" role="tabpanel">
       ${globalHtml}
-    </div>`;
+    </div>
+    <div class="comp-ask">위 <b>국내</b> 또는 <b>국외</b> 탭을 선택해 주세요.</div>`;
   wireGtControls();
   wireCompTabs();
   applySideView();
@@ -10452,6 +10460,7 @@ function refreshSections() {
   renderInstagram();      // 순수 추가: SIMMONS IG (소식 카드 바로 아래)
   renderCompetitor();
   renderBrands();
+  renderPatent();         // ★ 빠져 있었다 — 초기화해도 특허 카드가 그대로 남았다
   renderMaterial();
   renderFx();
   updateDashHeader();
@@ -10521,6 +10530,15 @@ function resetDashboard() {
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
+  /* ★ 여기까지만 비우면 화면에 데이터가 남는다 — 국내 실적·해외 슬립테크·
+     글로벌 매트리스·특허는 정적 JSON 에서 온 별도 상태라 STORE 를 지워도
+     그대로 남아 있었다. 초기화는 '화면이 비는 것'까지가 초기화다. */
+  _smData = null;           // 국내 시몬스·경쟁사 실적·점유율 비우기
+  _gsData = null;           // 해외 슬립테크 시장·기업 비우기
+  _gmm = null;              // 글로벌 매트리스 시장 규모 비우기
+  _ptData = null;           // KIPRIS 특허 비우기
+  _sideView = null;         // 분기 실적 탭 미선택으로
+  _brandSide = 'kr';        // 신제품·브랜드는 기본(국내)으로
   _fx = null;           // 환율 비우기
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
@@ -10604,6 +10622,9 @@ function initUpdate() {
     const orig = btn.textContent;
     btn.disabled = true;
     btn.textContent = '불러오는 중…';
+    /* ★ 업데이트 직후에는 탭만 보이고 콘텐츠는 비운다 — 어느 쪽을 볼지는
+       사용자가 고른다(자동 선택하지 않는다). */
+    _sideView = null;
     updateWorldWeather();  // 세계 시간: Open-Meteo 날씨(서버 /api/update와 독립) → 마커 표시
     // 순수 추가: KOIMA 일일가격 — 미리 수집해 둔 정적 JSON 로드(즉시 완료).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
@@ -11122,7 +11143,7 @@ function renderPatent() {
       + ' 현재 신소재 관련 특허 건수와 키워드는 <b>특허</b> 탭에서 볼 수 있습니다.</div></div>';
   } else if (!_ptData) {
     body = '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
-      + ' 특허 데이터를 불러오는 중입니다</div>';
+      + ' [업데이트]를 눌러 데이터를 불러오세요</div>';
   } else if (_ptData.status !== 'ok') {
     body = ptErrorBox();
   } else {
