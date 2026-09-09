@@ -11070,6 +11070,25 @@ function ptYearly(rows) {
 }
 
 /* ── 3) 출원 유형별 — 도넛 ─────────────────────────────────────────────── */
+/** 도넛 조각 하나를 '진짜 도형'으로 그린다 — 채워진 부채꼴(고리 조각).
+ *  ★ 예전에는 <circle> 에 stroke-dasharray 로 조각을 만들었다. 눈에는 조각으로
+ *    보이지만 도형 자체는 '원 전체'다. 브라우저가 점선 stroke 를 히트테스트할 때
+ *    칠해진 구간만 잡아 주지 않으면, DOM 에서 가장 나중에 그려진 조각이 고리
+ *    전체의 클릭을 가로챈다 — 어느 조각을 눌러도 같은 곳이 눌리거나 아무 일도
+ *    일어나지 않는다. 조각마다 닫힌 path 를 만들면 클릭 영역이 보이는 그대로다.
+ *  ★★ fill 로 칠하고 stroke 는 쓰지 않는다(히트 영역이 면이 된다). */
+function ptArcPath(cx, cy, rOut, rIn, a0, a1) {
+  const pt = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const big = (a1 - a0) > Math.PI ? 1 : 0;
+  const o0 = pt(rOut, a0), o1 = pt(rOut, a1);
+  const i1 = pt(rIn, a1), i0 = pt(rIn, a0);
+  const f = (v) => v.toFixed(2);
+  return 'M' + f(o0[0]) + ' ' + f(o0[1])
+    + ' A' + rOut + ' ' + rOut + ' 0 ' + big + ' 1 ' + f(o1[0]) + ' ' + f(o1[1])
+    + ' L' + f(i1[0]) + ' ' + f(i1[1])
+    + ' A' + rIn + ' ' + rIn + ' 0 ' + big + ' 0 ' + f(i0[0]) + ' ' + f(i0[1]) + ' Z';
+}
+
 function ptTypes(rows) {
   const c = {};
   rows.forEach((r) => { const k = r.kind || '미표기'; c[k] = (c[k] || 0) + 1; });
@@ -11082,22 +11101,25 @@ function ptTypes(rows) {
   }
   const COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--violet)',
     'var(--slate)', 'var(--navy-2)'];
-  const R = 54, SW = 20, C = 2 * Math.PI * R;
-  let acc = 0;
+  const CX = 70, CY = 70, R_OUT = 64, R_IN = 44;
+  const GAP = 0.014;                 // 조각 사이 틈(라디안) — 경계가 보이게
+  let a = -Math.PI / 2;              // 12시부터 시계방향
   const segs = items.map((x, i) => {
-    const frac = x.n / total, len = C * frac;
+    const frac = x.n / total;
+    const span = frac * Math.PI * 2;
+    const a0 = a + (span > GAP * 2 ? GAP : 0);
+    const a1 = a + span - (span > GAP * 2 ? GAP : 0);
+    a += span;
+    const on = _ptKind === x.label;
     const tip = x.label + ' · ' + x.n + '건 (' + (frac * 100).toFixed(1) + '%)'
       + ' — 눌러서 목록 보기';
-    const on = _ptKind === x.label;
-    const s = '<circle class="pt-slice' + (on ? ' is-on' : '') + '" cx="70" cy="70" r="'
-      + R + '" fill="none" stroke="' + COLORS[i % COLORS.length]
-      + '" stroke-width="' + (on ? SW + 4 : SW) + '" stroke-dasharray="' + len.toFixed(2) + ' '
-      + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-acc).toFixed(2)
-      + '" transform="rotate(-90 70 70)" data-tip="' + escapeHtml(tip) + '" tabindex="0"'
-      + ' role="button" data-ptkind="' + escapeHtml(x.label) + '">'
-      + '<title>' + escapeHtml(tip) + '</title></circle>';
-    acc += len;
-    return s;
+    /* 고른 조각은 살짝 두껍게(안쪽으로 더 파고들게) 해서 눈에 띈다 */
+    const d = ptArcPath(CX, CY, on ? R_OUT + 3 : R_OUT, on ? R_IN - 3 : R_IN, a0, a1);
+    return '<path class="pt-slice' + (on ? ' is-on' : '') + '" d="' + d + '"'
+      + ' fill="' + COLORS[i % COLORS.length] + '" stroke="none"'
+      + ' tabindex="0" role="button" data-ptkind="' + escapeHtml(x.label) + '"'
+      + ' data-tip="' + escapeHtml(tip) + '">'
+      + '<title>' + escapeHtml(tip) + '</title></path>';
   }).join('');
   const legend = items.map((x, i) => '<div class="pt-dn__r pt-pick'
     + (_ptKind === x.label ? ' is-on' : '') + '" tabindex="0" role="button"'
@@ -11112,7 +11134,7 @@ function ptTypes(rows) {
     + ' <span class="sm-h__u">(KIPRIS 구분값 기준)</span></div>'
     + '<div class="pt-dn">'
     /* 가운데는 비운다 — 합계는 오른쪽 범례가 이미 다 말한다 */
-    + '<svg viewBox="0 0 140 140" width="140" height="140" role="img"'
+    + '<svg class="pt-dnsvg" viewBox="0 0 140 140" width="146" height="146" role="img"'
     + ' aria-label="출원 유형별 비중">' + segs + '</svg>'
     + '<div class="pt-dn__lg">' + legend + '</div></div>'
     + '<div class="sm-foot">조각이나 항목을 누르면 아래 목록이 그 유형으로 걸러집니다.</div>'
@@ -11392,9 +11414,9 @@ function ptRecent(rows) {
   const cos = ptStackOrder(rows);
   const cnt = {};
   rows.forEach((r) => { const k = r.company || '미표기'; cnt[k] = (cnt[k] || 0) + 1; });
+  /* ★ '전체 N' 칩은 두지 않는다 — 합계는 카드 제목과 KPI 가 이미 말하고,
+     해제는 필터가 걸릴 때만 나오는 [전체 보기] 버튼이 맡는다. */
   const chips = '<div class="pt-chips" role="group" aria-label="출원인 골라 보기">'
-    + '<button class="pt-chip' + (_ptCo ? '' : ' is-on') + '" type="button"'
-    + ' data-ptco="">전체 <b>' + rows.length + '</b></button>'
     + cos.filter((c) => cnt[c.label]).map((c) => '<button class="pt-chip'
       + (_ptCo === c.label ? ' is-on' : '') + '" type="button" data-ptco="'
       + escapeHtml(c.label) + '"><i style="background:' + c.color + '"></i>'

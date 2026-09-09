@@ -3305,8 +3305,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 #patentRoot g.pt-pick.is-on rect { stroke: var(--navy); stroke-width: 1.4; }
 
 /* 도넛 조각 */
-.pt-slice { cursor: pointer; transition: stroke-width .12s; }
-.pt-slice:hover { filter: brightness(1.08); }
+/* 도넛 조각 — 채워진 부채꼴 path 라 보이는 면이 곧 클릭 영역이다 */
+.pt-dnsvg { flex: none; overflow: visible; }
+.pt-slice { cursor: pointer; transition: opacity .12s; }
+.pt-slice:hover { opacity: .82; }
 .pt-slice:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* 필터 안내줄 */
