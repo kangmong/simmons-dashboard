@@ -64,12 +64,20 @@ RESULT_HINTS = {
     "10": " → 요청 파라미터 이름이 맞지 않습니다(키 파라미터명 포함).",
     "20": " → 이 API 사용 권한이 없습니다. KIPRIS Plus 에서 해당 API 신청·승인 상태를 확인하세요.",
     "30": " → 키가 등록되지 않았거나 잘못되었습니다. .env 의 KIPRIS_API_KEY 값을 확인하세요.",
-    "31": " → 키 사용 기간이 만료되었습니다.",
+    # ★ 실측: 유효한 키로 존재하지 않는 서비스를 불러도 31 이 온다. 즉 31 은
+    #   '만료'만 뜻하지 않고 '이 키로 이 서비스에 접근할 수 없다'는 뜻이다.
+    #   (국내 API 는 같은 키로 정상 동작 → 키 자체가 만료된 것이 아니다)
+    "31": (" → 이 키로 해당 API 에 접근할 수 없습니다(미승인·기간만료, 또는 서비스명이"
+           " 틀린 경우도 같은 코드). KIPRIS Plus 마이페이지에서 해당 API 신청·승인"
+           " 상태와 사용기간을 확인하세요."),
     "32": " → 이번 달 무료 호출 한도(1,000회)를 넘었습니다.",
 }
 
-# 한 번 실행에서 쓸 기본 호출 상한. 월 1,000회 / 30일 ≈ 33회.
+# 한 번 실행에서 쓸 기본 호출 상한. 월 1,000회 / 31일 ≈ 32회.
 CALL_BUDGET = 30
+ROWS_PER_CALL = 100      # 한 호출에 받을 건수
+MAX_PAGES = 3            # 출원인당 최대 페이지(호출 절약 — 최신순이라 앞쪽이 중요)
+VARIANTS_PER_CO = 3      # 출원인당 시도할 표기 수(합쳐서 중복 제거한다)
 TIMEOUT = 25
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")
@@ -206,30 +214,70 @@ def probe(key, budget, raw_sink=None):
 
 
 # ── 검색 ─────────────────────────────────────────────────────────────────
-def search_domestic(applicant, key, key_param, budget, rows=100, raw_sink=None):
-    """국내 특허·실용 — 출원인명으로 찾는다.
-    ★ getAdvancedSearch(applicant=…) 를 먼저 쓰고, 파라미터를 거부하면
-      applicantNameSearchInfo → getWordSearch(word=출원인) 로 물러난다.
-      어느 경로로 얻었는지는 호출부가 기록한다."""
-    attempts = [
-        ("%s/getAdvancedSearch" % SVC_DOMESTIC,
-         {"applicant": applicant, "patent": "true", "utility": "true",
-          "numOfRows": rows, "pageNo": 1, "sortSpec": "AD", "descSort": "true"}),
-        ("%s/applicantNameSearchInfo" % SVC_DOMESTIC,
-         {"applicant": applicant, "patent": "true", "utility": "true",
-          "numOfRows": rows, "pageNo": 1}),
-        ("%s/getWordSearch" % SVC_DOMESTIC,
-         {"word": applicant, "patent": "true", "utility": "true",
-          "numOfRows": rows, "pageNo": 1}),
-    ]
+def _dmy(iso):
+    """YYYY-MM-DD → YYYYMMDD (KIPRIS 날짜 표기)."""
+    return re.sub(r"[^0-9]", "", str(iso or ""))
+
+
+def search_domestic(applicant, key, key_param, budget, period=None, rows=ROWS_PER_CALL,
+                    max_pages=MAX_PAGES, raw_sink=None):
+    """국내 특허·실용 — 출원인명 + 출원일 범위로 찾는다.
+
+    ★ 날짜를 API 에 걸어야 한다 — 걸지 않으면 오래된 건부터 채워져, 3년 창을
+      화면에서 잘라 봐야 남는 것이 없다. 실측으로 확인한 문법:
+        applicationDate=YYYYMMDD~YYYYMMDD
+      (시몬스침대 1999~2010 → 22건 / 2011~2026 → 0건 으로 정확히 걸러졌다)
+    ★★ applicantNameSearchInfo 는 실측에서 resultCode 10 이다(존재하지 않음).
+      호출만 낭비하므로 체인에서 뺐다. getAdvancedSearch → getWordSearch 순.
+    ★★★ totalCount 를 보고 필요한 만큼만 페이지를 넘긴다(무료 호출 절약)."""
+    dr = None
+    if period and period.get("from") and period.get("to"):
+        dr = "%s~%s" % (_dmy(period["from"]), _dmy(period["to"]))
+
+    def adv(page):
+        q = {"applicant": applicant, "patent": "true", "utility": "true",
+             "numOfRows": rows, "pageNo": page, "sortSpec": "AD", "descSort": "true"}
+        if dr:
+            q["applicationDate"] = dr
+        return ("%s/getAdvancedSearch" % SVC_DOMESTIC, q)
+
+    def word(page):
+        q = {"word": applicant, "patent": "true", "utility": "true",
+             "numOfRows": rows, "pageNo": page}
+        if dr:
+            q["applicationDate"] = dr
+        return ("%s/getWordSearch" % SVC_DOMESTIC, q)
+
     last = None
-    for path, params in attempts:
+    for build in (adv, word):
+        path, params = build(1)
         root, err = _get(path, params, key, key_param, budget, raw_sink)
-        if err is None:
-            return _items(root), path, None
-        last = err
-        if budget.stopped:
-            break
+        if err:
+            last = err
+            if budget.stopped:
+                break
+            continue
+        got = _items(root)
+        total = 0
+        try:
+            total = int((root.findtext(".//totalCount") or "0").strip() or 0)
+        except ValueError:
+            total = 0
+        # 남은 페이지는 totalCount 가 알려 준 만큼만 넘긴다
+        pages = min(max_pages, (total + rows - 1) // rows if total else 1)
+        for pg in range(2, pages + 1):
+            if budget.stopped:
+                break
+            p2, q2 = build(pg)
+            r2, e2 = _get(p2, q2, key, key_param, budget, raw_sink)
+            if e2:
+                last = e2
+                break
+            more = _items(r2)
+            if not more:
+                break
+            got.extend(more)
+        return got, path, (None if got else last)
     return [], None, last
 
 
@@ -254,6 +302,26 @@ ABST_KEYS = ("astrtCont", "abstract", "abstractContent", "astrtContEng")
 APPL_KEYS = ("applicantName", "applicant", "applicantNameEng")
 KIND_KEYS = ("registerStatus", "applicationStatus", "documentKind", "patentUtility")
 COUNTRY_KEYS = ("nationCode", "countryCode", "nation", "country")
+IPC_KEYS = ("ipcNumber", "ipcCode", "ipc")
+
+
+def accepts(applicant_name, co):
+    """응답의 실제 출원인명이 '그 회사'인지 검증한다.
+    ★ KIPRIS 출원인 검색은 부분일치라 무관한 기업이 섞여 온다(실측):
+        '템퍼'   → 주식회사 템퍼스 · 비티알 뉴 머티리얼(배터리 소재)
+        '씰리'   → 씰리아떼끄
+        '퍼시스' → 코니퍼 시스템즈 · 넥스젠 웨이퍼 시스템즈
+      검색 결과를 그대로 세면 남의 특허가 우리 그래프에 올라간다.
+    ★★ 공백을 지우고 비교하지 않는다 — '코니퍼 시스템즈'에서 공백을 지우면
+      '퍼시스'를 품게 되어 오히려 오탐이 생긴다. 원문 그대로 부분일치를 본다."""
+    nm = str(applicant_name or "")
+    if not nm:
+        return False
+    for bad in (co.get("reject") or []):
+        if bad and bad in nm:
+            return False
+    acc = co.get("accept") or [co.get("label") or ""]
+    return any(a and a in nm for a in acc)
 
 
 def _pick(d, keys, default=""):
@@ -281,12 +349,14 @@ def normalize(raw, company, scope):
         ("date", d),
         ("company", company["label"]),
         ("companyKey", company["key"]),
+        ("applicantRaw", _pick(raw, APPL_KEYS)),   # 실제 출원인명 — 매칭 검증용
         ("isOurs", bool(company.get("isOurs"))),
         ("scope", scope),                                  # 'kr' | 'abroad'
         ("country", (_pick(raw, COUNTRY_KEYS) or ("KR" if scope == "kr" else "")).upper()),
         ("title", title),
         ("abstract", abst[:400]),
         ("kind", _pick(raw, KIND_KEYS)),
+        ("ipc", _pick(raw, IPC_KEYS)),
     ])
 
 
@@ -330,8 +400,10 @@ def row_out(r):
     return OrderedDict([
         ("appNo", r["appNo"]), ("date", r["date"]),
         ("company", r["company"]), ("companyKey", r["companyKey"]),
+        ("applicantRaw", r["applicantRaw"]),
         ("isOurs", r["isOurs"]), ("scope", r["scope"]), ("country", r["country"]),
         ("kind", r["kind"] or "미표기"),
+        ("ipc", r["ipc"]),
         ("catKey", r["_catKey"]), ("catLabel", r["_catLabel"]),
         ("newMaterial", r["_newMaterial"]),
         ("title", r["title"]), ("summary", (r["abstract"] or "")[:200]),
@@ -382,31 +454,53 @@ def collect(years=3, max_calls=CALL_BUDGET, raw=False, probe_only=False):
             _dump_raw(raw_sink)
         return out
 
-    # 조회 기간과 전년 동기
+    # 화면 기본 기간(period)과, 전년 동기 비교분까지 담는 수집 기간(fetch_period).
+    # ★ API 에 날짜를 걸면 그 범위 밖은 아예 오지 않는다. 화면이 '전년 동기'를
+    #   계산하려면 한 해 더 앞까지 받아 둬야 한다 — 안 받으면 증감이 늘 0 이 된다.
     frm = now.replace(year=now.year - years)
     period = {"from": frm.isoformat(), "to": now.isoformat()}
+    ffrm = now.replace(year=now.year - years - 1)
+    fetch_period = {"from": ffrm.isoformat(), "to": now.isoformat()}
     pfrm = frm.replace(year=frm.year - 1)
     pto = now.replace(year=now.year - 1)
     prev_period = {"from": pfrm.isoformat(), "to": pto.isoformat()}
 
     rows, errors, paths = [], [], set()
+    dropped = {}          # 부분일치로 섞여 왔다가 걸러진 건수(회사별)
     for co in tax["companies"]:
         got = []
         used_variant = None
-        for variant in co["variants"]:
+        # ★ 표기별 결과를 '합친다'. 첫 표기에서 멈추면 안 된다 — 실측에서 시몬스는
+        #   '시몬스침대'(1999~2010)와 '주식회사 시몬스'(최근)가 서로 다른 표기로
+        #   등록돼 있어, 먼저 맞은 하나에서 멈추면 최근 건이 통째로 빠졌다.
+        #   accept 검증이 남의 특허를 걸러 주므로 합쳐도 안전하다.
+        seen_no = set()
+        matched = []
+        for variant in co["variants"][:VARIANTS_PER_CO]:
+            if budget.stopped:
+                break
             items, path, err = search_domestic(variant, key, pr["keyParam"], budget,
-                                               raw_sink=raw_sink)
+                                               period=fetch_period, raw_sink=raw_sink)
             if err:
                 errors.append({"company": co["label"], "variant": variant,
                                "scope": "kr", "error": err})
             if path:
                 paths.add(path)
-            if items:
-                got = items
-                used_variant = variant
-                break          # ★ 결과가 나온 첫 표기를 쓴다(변형을 계속 뒤지지 않는다)
-            if budget.stopped:
-                break
+            # ★ 검색이 물어 온 것 중 '그 회사'만 남긴다
+            kept = [it for it in items if accepts(_pick(it, APPL_KEYS), co)]
+            dropped[co["label"]] = dropped.get(co["label"], 0) + (len(items) - len(kept))
+            fresh = 0
+            for it in kept:
+                no = _pick(it, NUM_KEYS)
+                if no and no in seen_no:
+                    continue          # 표기가 달라도 같은 출원은 한 번만 센다
+                if no:
+                    seen_no.add(no)
+                got.append(it)
+                fresh += 1
+            if fresh:
+                matched.append(variant)
+        used_variant = ", ".join(matched) if matched else None
         for it in got:
             rows.append(normalize(it, co, "kr"))
         if used_variant:
@@ -444,9 +538,16 @@ def collect(years=3, max_calls=CALL_BUDGET, raw=False, probe_only=False):
     out["calls"] = budget.used
     out["endpoints"] = sorted(paths)
     out["errors"] = errors[:20]
+    # 부분일치로 섞여 온 뒤 걸러진 건수 — 0 이 아니면 accept/reject 를 손볼 신호다.
+    out["filteredOut"] = {k: v for k, v in dropped.items() if v}
     out["truncated"] = budget.stopped
     out["period"] = period
     out["prevPeriod"] = prev_period
+    out["fetchPeriod"] = fetch_period
+    out["foreignAvailable"] = bool(pr.get("foreignOp"))
+    out["foreignNote"] = (None if pr.get("foreignOp") else
+                          "해외특허 API 에 이 키로 접근할 수 없어 해외 출원은 수집되지 "
+                          "않았습니다(해외 출원 비율은 국내 기준 0%로 표시됩니다).")
     out["companies"] = [{"key": c["key"], "label": c["label"],
                          "isOurs": bool(c.get("isOurs")),
                          "matchedName": c.get("_matched")} for c in tax["companies"]]

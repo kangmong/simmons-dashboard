@@ -11049,9 +11049,20 @@ function renderPatent() {
       + ptCountries(cur)
       + ptRecent(cur)
       + '</div>'
+      /* ★ 해외특허 API 를 못 쓰면 '해외 출원 비율 0%'가 사실처럼 읽힌다.
+         수집되지 않았다는 것을 그 자리에서 밝힌다. */
+      + (_ptData.foreignNote ? '<div class="sm-foot pt-note">'
+        + escapeHtml(_ptData.foreignNote) + '</div>' : '')
       + '<div class="sm-foot pt-note">' + escapeHtml(_ptData.techNote
         || '기술분야 분류는 자동 키워드 매칭 기준이며 완전히 정확하지 않을 수 있습니다.')
       + '</div>'
+      /* 부분일치로 섞여 왔다가 걸러진 건수 — 숫자가 왜 적은지 설명해 준다 */
+      + ((_ptData.filteredOut && Object.keys(_ptData.filteredOut).length)
+        ? '<div class="sm-foot">출원인 검색이 부분일치라 다른 기업이 섞여 옵니다 — '
+          + escapeHtml(Object.keys(_ptData.filteredOut)
+            .map((k) => k + ' ' + _ptData.filteredOut[k] + '건').join(', '))
+          + ' 을 실제 출원인명 검증으로 제외했습니다.</div>'
+        : '')
       + (_ptData.truncated ? '<div class="sm-foot">호출 상한에 걸려 일부 기업만 수집됐습니다'
         + ' — kipris_patent.py --max-calls 로 조정하세요.</div>' : '')
       + '<div class="comp-caption">데이터 출처: KIPRIS (특허정보검색서비스)'
