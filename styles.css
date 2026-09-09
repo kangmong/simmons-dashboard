@@ -2283,20 +2283,26 @@ body {
 /* ── 국내 · 수면 시장 규모 추이 ─────────────────────────────────────────── */
 /* 한줄 요약 — 다른 리포트 헤드라인과 같은 결(크고 굵게, 핵심 배수만 강조색) */
 /* ── CES 혁신상 수상 이력 · 매출 규모 비교 ────────────────────────────────
-   막대는 투자 유치액 비교(.sm-hbars--inv)와 같은 마크업을 그대로 쓴다. */
-/* 연도별 구간을 나눈 막대 — 한 막대 안에서 연도가 왼→오로 읽힌다 */
-.ces-hbar { display: flex; height: 100%; border-radius: 3px; overflow: hidden; }
+   막대는 .ces-list / .ces-item 전용 마크업을 쓴다(투자 유치액 비교와 구조가 다르다). */
+/* 한 기업 = 이름+배지 한 줄 / 스택 막대 한 줄. 막대는 최댓값 기준 정규화 */
+.ces-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.ces-item__h { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.ces-item__nm { font-size: 12px; font-weight: 700; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ces-item__b { display: grid; grid-template-columns: 1fr auto;
+  align-items: center; gap: 10px; }
+.ces-track { background: var(--field); border-radius: 3px;
+  height: 24px; min-width: 0; }
+/* 세그먼트 사이 1px — 트랙 배경이 그 틈으로 보여 경계선이 된다 */
+.ces-hbar { display: flex; gap: 1px; height: 100%;
+  border-radius: 3px; overflow: hidden; }
 .ces-seg {
-  display: flex; align-items: center; justify-content: center; min-width: 0;
-  border-right: 1px solid var(--card, #fff);
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0; padding: 0 3px; overflow: hidden;
 }
-.ces-seg:last-child { border-right: 0; }
-/* 하단 안내 — 그냥 각주보다 눈에 띄게 */
-/* 국내/해외 범례 — 막대 색과 같은 색을 쓴다 */
-.ces-legend { margin-left: auto; display: inline-flex; gap: 10px; }
-.ces-lg { display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10.5px; font-weight: 700; color: var(--slate); }
-.ces-lg__sw { width: 13px; height: 10px; border-radius: 2px; }
+/* 총 건수 — 막대 오른쪽 끝에 굵게 */
+.ces-total { font-size: 13px; font-weight: 800; color: var(--ink);
+  white-space: nowrap; text-align: right; min-width: 40px; }
 /* 원화 병기 — 달러 옆 작은 글씨 */
 .gmm-krw { margin-left: 5px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .gmm-sum .sr-sum__krw { color: var(--muted); }
@@ -2305,18 +2311,21 @@ body {
   display: inline-block; margin-right: 5px; padding: 0 6px; border-radius: 999px;
   font-size: 9.5px; font-weight: 800; vertical-align: 1px;
 }
-.ces-conf--exact { background: var(--blue-soft); color: var(--blue-ink); }
-.ces-conf--partial { background: var(--amber-soft); color: var(--amber-ink); }
+.ces-conf--exact { background: var(--green-soft); color: var(--green-ink); }
+.ces-conf--partial,
+.ces-conf--period { background: var(--amber-soft); color: var(--amber-ink); }
 .ces-conf--unknown { background: var(--slate-soft); color: var(--slate); }
-.ces-years { font-weight: 700; color: var(--text); }
-.ces-detail { color: var(--muted); }
+.ces-detail { margin-top: 3px; font-size: 10.5px; color: var(--muted);
+  line-height: 1.4; }
+/* 하단 안내 — 그냥 각주보다 눈에 띄게 */
 .ces-foot {
   margin-top: 10px; padding: 7px 10px; border-radius: var(--radius-sm);
   background: var(--field); border: 1px solid var(--line); color: var(--text);
 }
 .ces-seg__t {
-  font-style: normal; font-size: 9px; font-weight: 800; color: #fff;
-  white-space: nowrap; overflow: hidden; text-shadow: 0 0 2px rgba(0,0,0,.35);
+  font-style: normal; font-size: 9.5px; font-weight: 800; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 0 2px rgba(0,0,0,.35);
 }
 
 

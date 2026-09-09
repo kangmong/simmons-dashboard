@@ -1622,10 +1622,28 @@ function stMechFlow(c) {
     + '</div>';
 }
 
-/** 기업별 누적 수상 건수 — CES 수상 이력이 확인된 기업만 막대로 그린다.
+/** 기업별 누적 수상 건수 — CES 수상 이력이 확인된 기업만 가로 스택 막대로 그린다.
  *  ★ 확인 안 된 기업은 데이터에 넣지 않는다(0건으로 그리지 않는다). 어떤 기업을
  *    왜 뺐는지는 그래프 아래 foot 문구가 밝힌다.
- *  ★★ 막대 색은 국내(kr)/해외(gl)로만 나눈다 — 범례와 색이 어긋나지 않게. */
+ *  ★★ 한 줄에 기업명+신뢰도 배지, 그 아래 스택 막대 — 이름과 배지를 붙여 두면
+ *    '이 숫자를 어디까지 믿을 수 있는지'가 총 건수와 같은 눈높이에서 읽힌다.
+ *  ★★★ 세그먼트 라벨은 연도가 확인된 곳만 연도를 적고, 확인되지 않은 곳은
+ *    실제로 확인된 정보(기간·카테고리)를 적는다 — '미상' 같은 빈 말을 쓰지 않는다. */
+
+/* 세그먼트 색 — 진한 파랑 계열 그라데이션. 오른쪽(최근)으로 갈수록 진해진다.
+   ★ 두 끝점을 섞어 만든다. 색을 개수만큼 손으로 적어 두면 세그먼트가 하나
+     늘어날 때 색이 모자라 조용히 반복된다. */
+const CES_C0 = [90, 134, 216];    // 옅은 쪽(가장 이른 구간)
+const CES_C1 = [22, 38, 74];      // 진한 쪽(가장 최근 구간) — var(--navy)
+function cesSegColor(i, k) {
+  /* 구간이 하나뿐이면 t=0 이라 가장 옅은 색이 되어 버린다. 비교 대상이 없으니
+     옅을 이유도 없다 — 충분히 진한 쪽으로 고정한다. */
+  const t = (k <= 1) ? 0.72 : (i / (k - 1));
+  const ch = (a, b) => Math.round(a + (b - a) * t);
+  return 'rgb(' + ch(CES_C0[0], CES_C1[0]) + ',' + ch(CES_C0[1], CES_C1[1])
+    + ',' + ch(CES_C0[2], CES_C1[2]) + ')';
+}
+
 function stCesAwards(st) {
   const c = st && st.cesAwards;
   const items = (c && Array.isArray(c.items))
@@ -1633,56 +1651,46 @@ function stCesAwards(st) {
   if (!items.length) return '';
   const unit = c.unit || '건';
   const sorted = items.slice().sort((a, b) => b.total - a.total);
-  const max = sorted[0].total || 1;
-  const col = (o) => (o === 'kr' ? 'var(--blue-ink)' : 'var(--slate)');
+  const max = sorted[0].total || 1;          // 막대 길이는 최댓값 기준으로 정규화
   const cl = c.confLabels || {};
 
   const rows = sorted.map((x) => {
     const w = Math.max(2, (x.total / max) * 100);
-    const base = col(x.origin);
-    const track = (Array.isArray(x.byYear) && x.byYear.length)
-      ? '<div class="sm-hbar ces-hbar" style="width:' + w.toFixed(1) + '%">'
-        + x.byYear.map((y, i) => '<span class="ces-seg" title="'
-          + escapeHtml(y.year + '년 ' + y.n + unit) + '" style="flex:' + y.n
-          + ';background:' + base + ';opacity:' + (0.45 + i * 0.275).toFixed(3) + '">'
-          /* 1건짜리 구간은 연도만 적는다 — '20·1' 보다 '20' 이 읽기 쉽다.
-             2건 이상이면 '24·3' 처럼 건수를 붙인다(세라젬). */
-          + '<i class="ces-seg__t">' + escapeHtml(String(y.year).slice(2))
-          + (y.n > 1 ? '·' + y.n : '') + '</i>'
-          + '</span>').join('')
-        + '</div>'
-      : '<div class="sm-hbar" style="width:' + w.toFixed(1) + '%;background:' + base
-        + ';opacity:1"></div>';
-    return '<div class="sm-hrow">'
-      + '<div class="sm-hname" title="' + escapeHtml(x.name) + '">'
-      + escapeHtml(x.name) + '</div>'
-      + '<div class="sm-htrack">' + track + '</div>'
-      + '<div class="sm-hval">' + x.total.toLocaleString('ko-KR') + unit
-      + (x.period ? '<span class="sm-hkrw">' + escapeHtml(x.period) + '</span>' : '')
+    /* segs 가 없으면 총 건수 하나를 통째로 한 구간으로 둔다 — 데이터가 덜
+       채워졌다고 막대가 사라지지는 않게. */
+    const segs = (Array.isArray(x.segs) && x.segs.length)
+      ? x.segs : [{ label: x.period || '', n: x.total }];
+    const k = segs.length;
+    const bar = segs.map((s, i) => {
+      const txt = (s.label ? s.label + ' · ' : '') + s.n + unit;
+      return '<span class="ces-seg" style="flex:' + s.n
+        + ';background:' + cesSegColor(i, k) + '" title="' + escapeHtml(txt) + '">'
+        + '<i class="ces-seg__t">' + escapeHtml(txt) + '</i></span>';
+    }).join('');
+    const badge = x.conf
+      ? '<span class="ces-conf ces-conf--' + escapeHtml(x.conf) + '">'
+        + escapeHtml(cl[x.conf] || x.conf) + '</span>'
+      : '';
+    return '<div class="ces-item">'
+      + '<div class="ces-item__h">'
+      + '<span class="ces-item__nm" title="' + escapeHtml(x.name) + '">'
+      + escapeHtml(x.name) + '</span>' + badge
       + '</div>'
-      /* 연도는 확인된 만큼만 적고, 어느 수준까지 확인했는지 배지로 밝힌다 */
-      + ((x.years || x.detail)
-        ? '<div class="sm-hmemo">'
-          + (x.conf ? '<span class="ces-conf ces-conf--' + escapeHtml(x.conf) + '">'
-            + escapeHtml((cl[x.conf] || x.conf)) + '</span>' : '')
-          + (x.years ? '<b class="ces-years">' + escapeHtml(x.years) + '</b>' : '')
-          + (x.detail ? ' <span class="ces-detail">' + escapeHtml(x.detail) + '</span>' : '')
-          + '</div>'
-        : '')
+      + '<div class="ces-item__b">'
+      + '<div class="ces-track"><div class="ces-hbar" style="width:' + w.toFixed(1)
+      + '%">' + bar + '</div></div>'
+      + '<div class="ces-total">' + x.total.toLocaleString('ko-KR') + unit + '</div>'
+      + '</div>'
+      + (x.detail ? '<div class="ces-detail">' + escapeHtml(x.detail) + '</div>' : '')
       + '</div>';
   }).join('');
 
-  const legend = (Array.isArray(c.legend) && c.legend.length)
-    ? '<div class="ces-legend">' + c.legend.map((l) =>
-      '<span class="ces-lg"><i class="ces-lg__sw" style="background:' + col(l.origin)
-      + '"></i>' + escapeHtml(l.label || '') + '</span>').join('') + '</div>'
-    : '';
   const head = escapeHtml(c.heading || '기업별 누적 수상 건수')
     + ' <span class="sm-h__u">(' + escapeHtml(c.subject || 'CES 혁신상')
     + ' · 단위: ' + escapeHtml(unit) + ')</span>';
-  return '<h3 class="subhead sm-st__ih">' + head + legend + '</h3>'
+  return '<h3 class="subhead sm-st__ih">' + head + '</h3>'
     + (c.note ? '<div class="sm-othfoot">※ ' + escapeHtml(c.note) + '</div>' : '')
-    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + '<div class="ces-list">' + rows + '</div>'
     + (c.foot ? '<div class="sm-foot ces-foot">' + escapeHtml(c.foot) + '</div>' : '')
     + (c.source ? '<div class="sm-foot">' + escapeHtml(c.source) + '</div>' : '');
 }
