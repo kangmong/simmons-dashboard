@@ -10713,6 +10713,8 @@ let _ptCo = '';           // 출원인
 let _ptKind = '';         // 출원 유형(등록·공개…)
 let _ptYear = '';         // 연도
 let _ptCat = '';          // 기술 분야(catLabel)
+let _ptPage = 1;          // 목록 페이지(1부터)
+const PT_PAGE_SIZE = 20;  // 한 페이지에 보여 줄 건수
 
 /** 지금 걸린 필터 목록 — 안내줄과 해제 버튼이 이것을 읽는다. */
 function ptActiveFilters() {
@@ -10742,11 +10744,13 @@ function ptToggleFilter(kind, value) {
   else if (kind === 'kind') _ptKind = (_ptKind === v) ? '' : v;
   else if (kind === 'cat') _ptCat = (_ptCat === v) ? '' : v;
   else if (kind === 'co') _ptCo = (_ptCo === v) ? '' : v;
+  _ptPage = 1;              // 조건이 바뀌면 첫 페이지부터
   renderPatent();
 }
 
 function ptClearFilters() {
   _ptCo = ''; _ptKind = ''; _ptYear = ''; _ptCat = '';
+  _ptPage = 1;
   renderPatent();
 }
 
@@ -11425,11 +11429,16 @@ function ptRecent(rows) {
 
   const picked = ptApplyFilters(rows);
   const act = ptActiveFilters();
-  /* ★ 조건을 좁힌 상태에서는 20건으로 자르지 않는다 — '등록 91건'을 눌렀는데
-     20건만 나오면 고른 것을 다 볼 수 없다. 전부 싣고 표 높이로 스크롤을 준다.
-     ★★ 날짜로 좁힌 것도 같은 '고른 상태'다(차트 클릭만 특별할 이유가 없다). */
-  const narrowed = act.length > 0 || !!(_ptFrom || _ptTo);
-  const items = narrowed ? picked : picked.slice(0, 20);
+  /* ★ 고른 결과를 전부 볼 수 있어야 한다. 예전에는 필터가 걸리면 전 건을 싣고
+     표에 460px 세로 스크롤을 줬는데, 페이지 안에 또 스크롤 영역이 생겨
+     '95건이라는데 12건만 보인다'로 읽혔다 — 스크롤이 있다는 걸 알아채기 어렵다.
+     페이지로 나눈다: 몇 건 중 어디를 보고 있는지 숫자로 드러나고,
+     페이지 안에서는 페이지 자체만 스크롤하면 된다. */
+  const total = picked.length;
+  const pages = Math.max(1, Math.ceil(total / PT_PAGE_SIZE));
+  const page = Math.min(Math.max(1, _ptPage), pages);   // 조건이 좁아져 범위를 넘으면 당긴다
+  const from = (page - 1) * PT_PAGE_SIZE;
+  const items = picked.slice(from, from + PT_PAGE_SIZE);
   const bar = act.length
     ? '<div class="pt-fbar">'
       + '<span class="pt-fbar__t">'
@@ -11444,16 +11453,46 @@ function ptRecent(rows) {
     return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원</div>'
       + bar + chips + emptyState('이 조건에 해당하는 출원이 없습니다') + '</div>';
   }
+  /* 페이지 번호 — 많아지면 현재 쪽 주변만 남기고 양 끝을 … 로 줄인다 */
+  const nums = [];
+  if (pages <= 9) {
+    for (let k = 1; k <= pages; k += 1) nums.push(k);
+  } else {
+    /* 현재 쪽 앞뒤 2쪽 + 양 끝을 남긴다 — 1쪽에서 가운데로 건너뛸 길이 있어야 한다 */
+    const near = [1, 2, page - 2, page - 1, page, page + 1, page + 2, pages - 1, pages]
+      .filter((k) => k >= 1 && k <= pages);
+    const uniq = Array.from(new Set(near)).sort((a, b) => a - b);
+    uniq.forEach((k, idx) => {
+      if (idx && k - uniq[idx - 1] > 1) nums.push(0);   // 0 = 생략 표시
+      nums.push(k);
+    });
+  }
+  const pager = (pages > 1)
+    ? '<div class="pt-pager" role="group" aria-label="목록 페이지">'
+      + '<button class="pt-pg" type="button" data-ptpage="' + (page - 1) + '"'
+      + (page <= 1 ? ' disabled' : '') + ' aria-label="이전 페이지">‹</button>'
+      + nums.map((k) => (k === 0
+        ? '<span class="pt-pg__gap">…</span>'
+        : '<button class="pt-pg' + (k === page ? ' is-on' : '') + '" type="button"'
+          + ' data-ptpage="' + k + '"' + (k === page ? ' aria-current="page"' : '')
+          + '>' + k + '</button>')).join('')
+      + '<button class="pt-pg" type="button" data-ptpage="' + (page + 1) + '"'
+      + (page >= pages ? ' disabled' : '') + ' aria-label="다음 페이지">›</button>'
+      + '</div>'
+    : '';
+  const rangeNote = '<div class="pt-range">' + total.toLocaleString('ko-KR') + '건 중 '
+    + (from + 1).toLocaleString('ko-KR') + '~' + (from + items.length).toLocaleString('ko-KR')
+    + '건 표시' + (pages > 1 ? ' · ' + page + '/' + pages + ' 페이지' : '') + '</div>';
+
   return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원'
-    + ' <span class="sm-h__u">(최신순 ' + items.length + '건'
-    + (picked.length > items.length ? ' / ' + picked.length + '건 중' : '') + ')</span></div>'
+    + ' <span class="sm-h__u">(최신순 · 전체 ' + total.toLocaleString('ko-KR')
+    + '건)</span></div>'
     + bar + chips
-    + '<div class="pt-scroll' + (narrowed ? ' pt-scroll--tall' : '')
-    + '"><table class="pt-tb pt-tb--list"><thead><tr>'
+    + '<div class="pt-scroll"><table class="pt-tb pt-tb--list"><thead><tr>'
     + '<th>번호</th><th>출원번호</th><th>출원일</th><th>출원인</th><th>국가</th>'
     + '<th>기술명</th><th>분류</th><th>요약</th></tr></thead><tbody>'
     + items.map((r, i) => '<tr>'
-      + '<th scope="row">' + (i + 1) + '</th>'
+      + '<th scope="row">' + (from + i + 1) + '</th>'
       + '<td class="pt-tb__mono">' + ptNoButton(r.appNo) + '</td>'
       + '<td class="pt-tb__mono">' + escapeHtml(r.date || '—') + '</td>'
       + '<td>' + escapeHtml(r.company || '—')
@@ -11462,7 +11501,8 @@ function ptRecent(rows) {
       + '<td class="pt-tb__t">' + escapeHtml(r.title || '—') + '</td>'
       + '<td>' + escapeHtml(r.catLabel || '—') + '</td>'
       + '<td class="pt-tb__s">' + escapeHtml(r.summary || '—') + '</td>'
-      + '</tr>').join('') + '</tbody></table></div></div>';
+      + '</tr>').join('') + '</tbody></table></div>'
+    + rangeNote + pager + '</div>';
 }
 
 /* ── 9) 기간 필터 ──────────────────────────────────────────────────────── */
@@ -11688,11 +11728,18 @@ function wirePatent() {
   root.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'ptApply') { applyDates(); return; }
     if (e.target && e.target.id === 'ptReset') {
-      _ptFrom = ''; _ptTo = ''; renderPatent(); return;
+      _ptFrom = ''; _ptTo = ''; _ptPage = 1; renderPatent(); return;
+    }
+    const pg = e.target && e.target.closest ? e.target.closest('.pt-pg') : null;
+    if (pg && !pg.disabled) {
+      const k = parseInt(pg.getAttribute('data-ptpage'), 10);
+      if (k >= 1) { _ptPage = k; renderPatent(); }
+      return;
     }
     const chip = e.target && e.target.closest ? e.target.closest('.pt-chip') : null;
     if (chip) {
       _ptCo = chip.getAttribute('data-ptco') || '';
+      _ptPage = 1;
       renderPatent();
       return;
     }
@@ -11700,6 +11747,7 @@ function wirePatent() {
     const clr = e.target && e.target.closest ? e.target.closest('[data-ptclear]') : null;
     if (clr) {
       const k = clr.getAttribute('data-ptclear');
+      _ptPage = 1;
       if (k === 'all') ptClearFilters();
       else if (k === 'year') { _ptYear = ''; renderPatent(); }
       else if (k === 'kind') { _ptKind = ''; renderPatent(); }
@@ -11718,6 +11766,7 @@ function wirePatent() {
       if (py != null && pc != null) {
         if (_ptYear === py && _ptCo === pc) { _ptYear = ''; _ptCo = ''; }
         else { _ptYear = py; _ptCo = pc; }
+        _ptPage = 1;
         renderPatent();
         return;
       }
@@ -11741,6 +11790,7 @@ function wirePatent() {
     const sp = ptDataSpan();
     _ptFrom = (a && a !== sp.from) ? a : '';
     _ptTo = (b && b !== sp.to) ? b : '';
+    _ptPage = 1;
     renderPatent();
   };
   root.addEventListener('keydown', (e) => {
