@@ -2410,6 +2410,75 @@ body {
   .stm3-ar { width: auto; height: 9px; transform: rotate(90deg); }
 }
 
+/* -- 해외 시장: 좌우 2단(기기 시장 막대 / 수면부족 손실 지도) ------------
+   컨테이너는 이미 있는 .sm-grid2(1fr 1fr, <=900px 1열)를 그대로 쓴다.
+   좌우 카드가 같은 높이로 끝나도록 stretch 만 얹는다. */
+.gs-grid2 { align-items: stretch; }
+.gs-grid2 > .gs-card { display: flex; flex-direction: column; }
+.gs-sub { margin: -4px 0 10px; font-size: 11.5px; color: var(--muted); }
+
+/* 전망 막대 — 실적과 헷갈리지 않게 빗금을 얹는다 */
+.gsd-bar--fc {
+  background-image: repeating-linear-gradient(135deg,
+    rgba(255,255,255,.55) 0 5px, rgba(255,255,255,0) 5px 10px);
+}
+.gsd-tag {
+  margin-left: 5px; padding: 0 5px; border-radius: 999px;
+  background: var(--blue-soft); color: var(--blue-ink);
+  font-size: 9.5px; font-weight: 700;
+}
+.gsd-basis { margin-top: 12px; }
+.gsd-basis__h { margin-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--ink); }
+
+/* 세계지도 버블 — 지도/투영은 세계 시간 카드와 같은 것을 쓴다 */
+.gsl-map {
+  position: relative; width: 100%; aspect-ratio: 2 / 1; margin-bottom: 10px;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.gsl-map__img {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  pointer-events: none; user-select: none; opacity: .85;
+}
+.gsl-marks { position: absolute; inset: 0; }
+.gsl-mk { position: absolute; width: 0; height: 0; }
+.gsl-dot {
+  position: absolute; left: 0; top: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 42%, transparent);
+  border: 1.5px solid var(--accent);
+}
+.gsl-lb {
+  position: absolute; left: 0; top: 0; display: block; white-space: nowrap;
+  font-size: 9.5px; line-height: 1.25;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff;
+}
+.gsl-lb b { display: block; font-weight: 800; color: var(--ink); }
+.gsl-lb i { display: block; font-style: normal; font-weight: 700; color: var(--accent); }
+.gsl-lb u { display: block; text-decoration: none; color: var(--muted); font-size: 9px; }
+/* 라벨을 버블 어느 쪽에 둘지 — 가까운 나라끼리 반대쪽으로 밀어 겹침을 막는다 */
+.gsl-mk--r .gsl-lb { transform: translate(16px, -14px); }
+.gsl-mk--l .gsl-lb { transform: translate(-16px, -14px); text-align: right; right: 0; left: auto; }
+.gsl-mk--t .gsl-lb { transform: translate(-50%, -46px); text-align: center; }
+.gsl-mk--b .gsl-lb { transform: translate(-50%, 26px); text-align: center; }
+
+/* 지도 아래 표 — 겹쳐서 안 보이는 값도 여기서는 정확히 읽힌다 */
+.gsl-t { width: 100%; border-collapse: collapse; font-size: 12px; }
+.gsl-t thead th {
+  padding: 5px 7px; text-align: right; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line);
+}
+.gsl-t thead th:first-child { text-align: left; }
+.gsl-t tbody th {
+  padding: 6px 7px; text-align: left; background: transparent;
+  font-weight: 700; color: var(--ink); border-bottom: 1px solid var(--line);
+}
+.gsl-t td { padding: 6px 7px; text-align: right; border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums; }
+.gsl-t tbody tr:last-child th, .gsl-t tbody tr:last-child td { border-bottom: 0; }
+.gsl-t tbody tr:hover { background: var(--row-hover); }
+.gsl-t__v { font-weight: 700; color: var(--ink); }
+.gsl-t__p { color: var(--muted); }
+
 /* -- 글로벌 매트리스 시장 규모 -------------------------------------------
    요약박스는 .sr-sum 을 재사용하고, 3분할 카드와 칩만 여기서 정의한다. */
 .gmm-sum { grid-template-columns: repeat(4, 1fr); }

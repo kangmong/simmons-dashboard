@@ -13,56 +13,6 @@
   ],
   "lastUpdated": "2026-08-26",
   "dataEntry": "manual",
-
-  "sleepMarket": {
-    "title": "해외 수면·슬립테크 시장 규모 추이",
-    "unit": "억 달러",
-    "mixNote": "두 선은 조사기관과 조사 범위(글로벌 / 북미)가 서로 다릅니다. 이어 붙여 하나의 흐름으로 읽으면 안 됩니다.",
-    "gapNote": "실측 시점 → 전망 시점(조사기관 예측치로 이은 선이며 실측이 아닙니다)",
-    "series": [
-      {
-        "key": "global",
-        "label": "글로벌 (Global Market Insights)",
-        "scope": "전 세계 슬립테크 시장",
-        "headSubject": "글로벌 슬립테크 시장",
-        "color": "#3B82F6",
-        "points": [
-          { "year": 2023, "usdEok": 211, "label": "211억 달러", "kind": "actual", "krw": "약 29조원" },
-          { "year": 2032, "usdEok": 952, "label": "952억 달러", "kind": "forecast", "krw": "약 130조원" }
-        ]
-      },
-      {
-        "key": "northAmerica",
-        "label": "북미 (Graphical Research)",
-        "scope": "북미 슬립테크 기기 시장",
-        "headSubject": "북미 슬립테크 시장",
-        "color": "#F59E0B",
-        "points": [
-          { "year": 2021, "usdEok": 65.79, "label": "65.79억 달러", "kind": "actual" },
-          { "year": 2030, "usdEok": 174.33, "label": "174.33억 달러", "kind": "forecast", "note": "연평균 17.6% 성장 전망" }
-        ]
-      }
-    ],
-    "source": "출처: Global Market Insights(글로벌 슬립테크 시장), Graphical Research(북미 슬립테크 시장). 전망치는 각 조사기관의 예측이며 실제와 다를 수 있습니다.",
-    "sourceLinks": [
-      {
-        "text": "Global Market Insights",
-        "url": "https://v.daum.net/v/HJRv5JIiWq"
-      },
-      {
-        "text": "Graphical Research",
-        "url": "https://dream.kotra.or.kr/user/extra/kotranews/bbs/linkView/jsp/Page.do?dataIdx=200089"
-      }
-    ],
-    "revisionNote": "Global Market Insights는 이후 보고서를 개정했습니다. 2026년 7월판 기준으로는 2025년 293억 달러 → 2035년 1,606억 달러(연평균 18.6%)로 제시합니다. 위 그래프는 2023년·2032년 시점을 제시한 보고서를 인용한 것이며, 두 판을 섞지 않았습니다.",
-    "revisionLinks": [
-      {
-        "text": "2026년 7월판",
-        "url": "https://www.gminsights.com/industry-analysis/sleep-tech-devices-market"
-      }
-    ]
-  },
-
   "sleepTech": {
     "title": "해외 슬립테크 시장 주요 6개 기업",
     "note": "비상장사는 매출이 공시되지 않아, 확인된 경우에만 회사가 공개한 수치를 적었습니다. 확인되지 않은 항목은 '비공개'로 두었고 추정치를 만들지 않았습니다.",
@@ -79,9 +29,18 @@
         "funding": "누적 3억 2,300만 달러(10라운드). 2026년 3월 테더(Tether Investments) 주도로 5,000만 달러를 유치하며 기업가치 15억 달러를 인정받았다. 직전 2025년 8월 시리즈D는 1억 달러(기업가치 약 10억 달러)였다.",
         "revenue": "2025년 매출 약 2억 6,400만 달러 — 회사 공시가 아니라 제3자 추정치이고, 회사는 이 추정에 이견을 밝히며 Pod 출시(2019년) 이후 매출이 '약 30배' 늘었다고 반박했다. 2025년 흑자 전환 및 잉여현금흐름 흑자는 회사가 밝힌 내용이다.",
         "sources": [
-          { "label": "TechCrunch — Eight Sleep raises $50M at $1.5B valuation (2026-03-04)", "url": "https://techcrunch.com/2026/03/04/eight-sleep-raises-50m-at-1-5b-valuation" },
-          { "label": "Fortune — Eight Sleep의 수면무호흡 사업 확장 (2026-08-24, 매출 추정치·회사 반박)", "url": "https://fortune.com/2026/08/24/eight-sleep-fda-tether-longevity-mattress-cover-pod-billionaires-zuckerberg-musk-healthcare-apnea-sleep/" },
-          { "label": "Tracxn — Eight Sleep 누적 투자액 집계", "url": "https://tracxn.com/d/companies/eight-sleep/__ES61NxOdtnaTPJG1gRZ86OKdaWqyKWGA6Vfecz3FolE" }
+          {
+            "label": "TechCrunch — Eight Sleep raises $50M at $1.5B valuation (2026-03-04)",
+            "url": "https://techcrunch.com/2026/03/04/eight-sleep-raises-50m-at-1-5b-valuation"
+          },
+          {
+            "label": "Fortune — Eight Sleep의 수면무호흡 사업 확장 (2026-08-24, 매출 추정치·회사 반박)",
+            "url": "https://fortune.com/2026/08/24/eight-sleep-fda-tether-longevity-mattress-cover-pod-billionaires-zuckerberg-musk-healthcare-apnea-sleep/"
+          },
+          {
+            "label": "Tracxn — Eight Sleep 누적 투자액 집계",
+            "url": "https://tracxn.com/d/companies/eight-sleep/__ES61NxOdtnaTPJG1gRZ86OKdaWqyKWGA6Vfecz3FolE"
+          }
         ],
         "color": "#111827",
         "investVal": 323,
@@ -97,9 +56,18 @@
         "funding": "누적 12억 5,000만 달러. 2025년 10월 시리즈E로 9억 달러 이상을 유치(피델리티 주도, ICONIQ·Whale Rock·Atreides 참여)하며 기업가치 110억 달러를 인정받았다. 직전 2024년 12월 시리즈D 때는 52억 달러였다.",
         "revenue": "2025년 매출 약 10억 달러 — 2년 연속 두 배로 늘었다고 CEO가 밝혔다(2025년 11월). 2026년 회사 자체 전망은 약 15억 달러다. 비상장사라 공시된 확정 수치는 아니다.",
         "sources": [
-          { "label": "CNBC — Oura reaches $11 billion valuation with new $900 million fundraise (2025-10-14)", "url": "https://www.cnbc.com/2025/10/14/oura-ringmaker-valuation-fundraise.html" },
-          { "label": "CNBC — Oura expects close to $2 billion in 2026 sales: CEO (2025-11-11)", "url": "https://www.cnbc.com/2025/11/11/smart-ring-maker-oura-expects-close-to-2-billion-in-2026-sales-ceo.html" },
-          { "label": "Crunchbase News — 누적 투자액 12.5억 달러 집계", "url": "https://news.crunchbase.com/ai/wearable-technology-startup-funding-oura/" }
+          {
+            "label": "CNBC — Oura reaches $11 billion valuation with new $900 million fundraise (2025-10-14)",
+            "url": "https://www.cnbc.com/2025/10/14/oura-ringmaker-valuation-fundraise.html"
+          },
+          {
+            "label": "CNBC — Oura expects close to $2 billion in 2026 sales: CEO (2025-11-11)",
+            "url": "https://www.cnbc.com/2025/11/11/smart-ring-maker-oura-expects-close-to-2-billion-in-2026-sales-ceo.html"
+          },
+          {
+            "label": "Crunchbase News — 누적 투자액 12.5억 달러 집계",
+            "url": "https://news.crunchbase.com/ai/wearable-technology-startup-funding-oura/"
+          }
         ],
         "color": "#3B82F6",
         "investVal": 1250,
@@ -115,8 +83,14 @@
         "funding": "해당 없음 (상장사, NYSE: RMD)",
         "revenue": "2026 회계연도(2026년 6월 30일 종료) 매출 56억 5,300만 달러, 전년 대비 +10%(고정환율 기준 +8%). 4분기 매출은 분기 최대인 15억 달러였다.",
         "sources": [
-          { "label": "ResMed IR — FY2026 4분기 실적 발표 (2026-08-06)", "url": "https://investor.resmed.com/news-events/press-releases/detail/427/resmed-inc-announces-results-for-the-fourth-quarter-of-fiscal-year-2026" },
-          { "label": "ResMed — 회사 연혁(1989년 창업)", "url": "https://www.resmed.com.au/about-us/the-resmed-story" }
+          {
+            "label": "ResMed IR — FY2026 4분기 실적 발표 (2026-08-06)",
+            "url": "https://investor.resmed.com/news-events/press-releases/detail/427/resmed-inc-announces-results-for-the-fourth-quarter-of-fiscal-year-2026"
+          },
+          {
+            "label": "ResMed — 회사 연혁(1989년 창업)",
+            "url": "https://www.resmed.com.au/about-us/the-resmed-story"
+          }
         ],
         "color": "#0080FF",
         "investExcluded": "상장사 — 벤처 투자 유치 해당 없음",
@@ -131,8 +105,14 @@
         "funding": "해당 없음 (상장사, NASDAQ: SNBR)",
         "revenue": "2025 회계연도(2026년 1월 3일 종료) 순매출 14억 달러, 전년 대비 -16%. 매출총이익 8억 3,300만 달러(총이익률 59.0%), 순손실 1억 3,200만 달러(전년 순손실 2,000만 달러).",
         "sources": [
-          { "label": "Sleep Number IR — 2025년 4분기·연간 실적 발표 (2026-03-11)", "url": "https://ir.sleepnumber.com/news/news-details/2026/Sleep-Number-Announces-Fourth-Quarter-and-Full-Year-2025-Results/default.aspx" },
-          { "label": "StockTitan — SNBR 2025 연간 실적 요약(순매출·총이익·순손실)", "url": "https://www.stocktitan.net/news/SNBR/sleep-number-announces-fourth-quarter-and-full-year-2025-x0nnw7h6fn1r.html" }
+          {
+            "label": "Sleep Number IR — 2025년 4분기·연간 실적 발표 (2026-03-11)",
+            "url": "https://ir.sleepnumber.com/news/news-details/2026/Sleep-Number-Announces-Fourth-Quarter-and-Full-Year-2025-Results/default.aspx"
+          },
+          {
+            "label": "StockTitan — SNBR 2025 연간 실적 요약(순매출·총이익·순손실)",
+            "url": "https://www.stocktitan.net/news/SNBR/sleep-number-announces-fourth-quarter-and-full-year-2025-x0nnw7h6fn1r.html"
+          }
         ],
         "color": "#1B3A6B",
         "investExcluded": "상장사 — 벤처 투자 유치 해당 없음",
@@ -147,9 +127,18 @@
         "funding": "누적 9억 7,900만 달러(11라운드). 2026년 3월 시리즈G로 5억 7,500만 달러를 유치하며 기업가치 101억 달러를 인정받았다. 별도로 무바달라(Mubadala)가 7,500만 달러를 투자하며 UAE 예방의료·수면 연구 협력(WHOOP–Mubadala Health Research Initiative)을 맺었다.",
         "revenue": "비공개 (비상장)",
         "sources": [
-          { "label": "Crunchbase News — WHOOP 시리즈G 5.75억 달러, 기업가치 101억 달러 (2026-03)", "url": "https://news.crunchbase.com/venture/wearable-fitness-tech-ai-whoop-seriesg-funding/" },
-          { "label": "WHOOP 보도자료 — 무바달라 7,500만 달러 투자·UAE 연구 협력", "url": "https://www.whoop.com/us/en/press-center/mubadala-partners-with-whoop-to-strengthen-preventative-health-and-research-capabilities-in-the-uae/" },
-          { "label": "Tracxn — WHOOP 누적 투자액 집계(9.79억 달러·11라운드)", "url": "https://tracxn.com/d/companies/whoop/__mG8pDMm_crUH9HckmN4Kw7ZEHu-NiVNU_cywdWMo-aA/funding-and-investors" }
+          {
+            "label": "Crunchbase News — WHOOP 시리즈G 5.75억 달러, 기업가치 101억 달러 (2026-03)",
+            "url": "https://news.crunchbase.com/venture/wearable-fitness-tech-ai-whoop-seriesg-funding/"
+          },
+          {
+            "label": "WHOOP 보도자료 — 무바달라 7,500만 달러 투자·UAE 연구 협력",
+            "url": "https://www.whoop.com/us/en/press-center/mubadala-partners-with-whoop-to-strengthen-preventative-health-and-research-capabilities-in-the-uae/"
+          },
+          {
+            "label": "Tracxn — WHOOP 누적 투자액 집계(9.79억 달러·11라운드)",
+            "url": "https://tracxn.com/d/companies/whoop/__mG8pDMm_crUH9HckmN4Kw7ZEHu-NiVNU_cywdWMo-aA/funding-and-investors"
+          }
         ],
         "color": "#6B7280",
         "investVal": 979,
@@ -166,9 +155,18 @@
         "revenue": "비공개 (비상장)",
         "extra": "Sleep Analyzer는 중등도~중증 수면무호흡(AHI≥15) 검출에서 민감도 88.0%·특이도 88.6%로 임상 검증 논문이 발표됐다(Journal of Clinical Sleep Medicine, 2021).",
         "sources": [
-          { "label": "Withings 공식 회사 소개", "url": "https://www.withings.com/us/en/pages/about-us" },
-          { "label": "FinSMEs — Withings, 시리즈B 6,000만 달러 유치 (2020-07)", "url": "https://www.finsmes.com/2020/07/withings-raises-60m-in-series-b-funding.html" },
-          { "label": "Journal of Clinical Sleep Medicine — Sleep Analyzer 임상 검증 (2021)", "url": "https://jcsm.aasm.org/doi/10.5664/jcsm.9168" }
+          {
+            "label": "Withings 공식 회사 소개",
+            "url": "https://www.withings.com/us/en/pages/about-us"
+          },
+          {
+            "label": "FinSMEs — Withings, 시리즈B 6,000만 달러 유치 (2020-07)",
+            "url": "https://www.finsmes.com/2020/07/withings-raises-60m-in-series-b-funding.html"
+          },
+          {
+            "label": "Journal of Clinical Sleep Medicine — Sleep Analyzer 임상 검증 (2021)",
+            "url": "https://jcsm.aasm.org/doi/10.5664/jcsm.9168"
+          }
         ],
         "color": "#0F0F0F",
         "investVal": 93.8,
@@ -177,5 +175,101 @@
         "logoSource": "withings.com 공식 로고(Logo-black.svg)"
       }
     ]
+  },
+  "deviceMarket": {
+    "title": "글로벌 슬립테크 기기 시장 규모",
+    "subtitle": "Global Market Insights · 2024년 실적~2034년 전망",
+    "unit": "억 달러",
+    "points": [
+      {
+        "year": 2024,
+        "usdEok": 249,
+        "label": "249억 달러",
+        "kind": "actual"
+      },
+      {
+        "year": 2025,
+        "usdEok": 293,
+        "label": "293억 달러",
+        "kind": "actual"
+      },
+      {
+        "year": 2034,
+        "usdEok": 1347,
+        "label": "1,347억 달러",
+        "kind": "forecast"
+      }
+    ],
+    "cagrPct": 18.5,
+    "summary": "글로벌 슬립테크 기기 시장은 2024년 249억 달러에서 2025년 293억 달러로 커졌고, 2034년에는 1,347억 달러까지 연평균 18.5%씩 자랄 전망입니다. 기관마다 추정치가 달라, 같은 기관이 가장 최근에 낸 수치로 통일했습니다.",
+    "basisTitle": "출처",
+    "basis": [
+      {
+        "year": 2024,
+        "value": "249억 달러",
+        "org": "Global Market Insights"
+      },
+      {
+        "year": 2025,
+        "value": "293억 달러",
+        "org": "Global Market Insights"
+      },
+      {
+        "year": 2034,
+        "value": "1,347억 달러",
+        "org": "Global Market Insights",
+        "note": "전망"
+      }
+    ],
+    "foot": "2020년 발표된 옛 전망(2026년 321억 달러)은 같은 기관의 최신 자료로 갱신"
+  },
+  "sleepLoss": {
+    "title": "주요 선진국의 수면 부족으로 인한 경제 손실 규모",
+    "subtitle": "GDP 대비 손실 비율 · 2016년 기준",
+    "unit": "억 달러",
+    "items": [
+      {
+        "iso": "USA",
+        "ko": "미국",
+        "usdEok": 4110,
+        "label": "4,110억 달러",
+        "gdpPct": 2.28,
+        "dir": "b"
+      },
+      {
+        "iso": "JPN",
+        "ko": "일본",
+        "usdEok": 1380,
+        "label": "1,380억 달러",
+        "gdpPct": 2.92,
+        "dir": "r"
+      },
+      {
+        "iso": "DEU",
+        "ko": "독일",
+        "usdEok": 600,
+        "label": "600억 달러",
+        "gdpPct": 1.56,
+        "dir": "r"
+      },
+      {
+        "iso": "GBR",
+        "ko": "영국",
+        "usdEok": 500,
+        "label": "500억 달러",
+        "gdpPct": 1.86,
+        "dir": "l"
+      },
+      {
+        "iso": "CAN",
+        "ko": "캐나다",
+        "usdEok": 214,
+        "label": "214억 달러",
+        "gdpPct": 1.35,
+        "dir": "t"
+      }
+    ],
+    "legendNote": "원의 크기는 손실 금액에 비례합니다(면적 기준).",
+    "source": "출처: 2016년 기준, 자료 - 미국 수면리서치협회"
   }
 }

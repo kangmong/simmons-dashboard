@@ -905,13 +905,6 @@ function gLinkify(text, links) {
   return out;
 }
 
-/** 차트 하단 출처 각주. 국내 카드 각주와 같은 클래스(.sm-foot)를 써서 스타일이 동일하다.
-    links 를 주면 문구 중 그 토막만 원본 링크가 된다(문구 자체는 그대로). */
-function gSrcFoot(text, date, links) {
-  return '<div class="sm-foot">' + gLinkify(text, links)
-    + (date ? ' · 최종 업데이트: ' + escapeHtml(date) : '') + '</div>';
-}
-
 /* ══ 글로벌 매트리스 시장 규모 (Global Market Insights) ═══════════════════
    요약 4박스 → 시장규모 막대 / 지역별 우위 / 주요 기업 3분할 → 제품유형 인사이트
    ★ 대시보드는 수집해 둔 캐시(public/data/global-mattress-market.json)만 읽는다.
@@ -1835,147 +1828,88 @@ function gsJosa(word, withJong, without) {
   const s = String(word == null ? '' : word);
   return (s && gsJong(s.charAt(s.length - 1)) === true) ? withJong : without;
 }
-
-/** 억 달러 → 조원 문구('약 29.2조원'). 환율이 없으면 null 을 돌려 달러만 남긴다.
-    ★ 계산: 억 달러 × 환율 ÷ 10,000 = 조원
-      (211억 달러 × 1,384원 ÷ 10,000 = 29.2조원)
-    ★ 환율은 국제유가 카드가 쓰는 공용 헬퍼(krwRate)에서 그대로 가져온다 —
-      매일 자동 갱신되는 무료 환율이고, 이 카드가 따로 받아 오지 않는다. */
-function gsKrwJo(usdEok, rate) {
-  if (rate == null || usdEok == null || !isFinite(usdEok)) return null;
-  const jo = (Number(usdEok) * rate) / 10000;
-  return '약 ' + (Math.round(jo * 10) / 10).toLocaleString('ko-KR',
-    { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '조원';
+/** [왼쪽] 글로벌 슬립테크 기기 시장 규모 — 막대 3개(실적 2 + 전망 1).
+ *  ★ 전망 막대는 실적과 눈에 띄게 구분한다(빗금 + '전망' 꼬리표).
+ *    같은 색 농도만 다르면 실적과 전망이 같은 무게로 읽힌다. */
+function gsDeviceMarket(m) {
+  const pts = (m && Array.isArray(m.points)) ? m.points.filter((p) => p.usdEok > 0) : [];
+  if (pts.length < 2) return '';
+  const max = Math.max.apply(null, pts.map((p) => p.usdEok));
+  const rows = pts.map((p, i) => {
+    const w = Math.max(3, (p.usdEok / max) * 100);
+    const fc = p.kind === 'forecast';
+    return '<div class="sm-hrow">'
+      + '<div class="sm-hname">' + p.year + '년'
+      + (fc ? '<span class="gsd-tag">전망</span>' : '') + '</div>'
+      + '<div class="sm-htrack"><div class="sm-hbar' + (fc ? ' gsd-bar--fc' : '')
+      + '" style="width:' + w.toFixed(1) + '%;background:var(--blue);opacity:'
+      + (fc ? '1' : (0.45 + i * 0.2).toFixed(2)) + '"></div></div>'
+      + '<div class="sm-hval">' + escapeHtml(p.label || '')
+      + gmmKrwTag(p.usdEok / 10, 'sm-hkrw') + '</div>'
+      + '</div>';
+  }).join('');
+  const basis = (Array.isArray(m.basis) && m.basis.length)
+    ? '<div class="gsd-basis"><div class="gsd-basis__h">'
+      + escapeHtml(m.basisTitle || '출처') + '</div>'
+      + '<table class="smb-tb"><thead><tr><th>연도</th><th>규모</th><th>출처</th></tr></thead>'
+      + '<tbody>' + m.basis.map((b) => '<tr><th scope="row">' + escapeHtml(String(b.year))
+        + '년' + (b.note ? ' ' + escapeHtml(b.note) : '') + '</th>'
+        + '<td class="smb-tb__v">' + escapeHtml(b.value || '') + '</td>'
+        + '<td>' + escapeHtml(b.org || '') + '</td></tr>').join('')
+      + '</tbody></table></div>'
+    : '';
+  return '<div class="sm-card gs-card">'
+    + '<div class="sm-h">' + escapeHtml(m.title || '글로벌 슬립테크 기기 시장 규모')
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '억 달러') + ')</span></div>'
+    + (m.subtitle ? '<div class="gs-sub">' + escapeHtml(m.subtitle) + '</div>' : '')
+    + '<div class="sm-hbars sm-hbars--inv">' + rows + '</div>'
+    + (m.summary ? '<div class="smb-note">' + escapeHtml(m.summary) + '</div>' : '')
+    + basis
+    + (m.foot ? '<div class="sm-foot">※ ' + escapeHtml(m.foot) + '</div>' : '')
+    + '</div>';
 }
 
-/** 해외 수면·슬립테크 시장 규모 추이 — 시리즈 여러 개를 한 축 위에 따로 그린다. */
-function gsSleepMarket(m) {
-  const series = (m.series || []).map((s) => Object.assign({}, s, {
-    pts: (s.points || []).slice().sort((a, b) => a.year - b.year),
-  })).filter((s) => s.pts.length >= 2);
-  if (!series.length) return '';
-
-  // 축 범위 — 두 시리즈를 함께 담기만 한다(값을 합치거나 섞어 계산하지 않는다).
-  const years = [], vals = [];
-  series.forEach((s) => s.pts.forEach((p) => { years.push(p.year); vals.push(p.usdEok); }));
-  const y0 = Math.min.apply(null, years), y1 = Math.max.apply(null, years);
-  const lo = 0, hi = Math.max.apply(null, vals) * 1.3;
-
-  /* 여백·글자 크기는 이 차트에서만 쓴다(다른 차트의 VIZ_* 는 건드리지 않는다).
-     ★ 아래 여백(padB)을 넉넉히 둬서 X축 연도 라벨이 축선 '아래 고정 자리'에
-       놓이게 한다 — 값 라벨과 자리를 다투지 않는다.
-     ★ 좌우 여백은 양 끝 라벨('65.79억 달러' / '952억 달러')이 카드 경계를
-       넘지 않도록 잡은 값이다. */
-  /* 원화 병기 — 국제유가·제품가 카드에서 쓰던 공용 헬퍼를 그대로 쓴다.
-     ★ 저장값은 달러(억 달러)로 그대로 두고, 그릴 때만 환율을 곱한다.
-       환율을 못 읽으면 rate 가 null 이라 달러만 나온다(카드가 깨지지 않는다). */
-  const rate = krwRate('USD');
-  const W = VIZ_W, H = 234, padL = 52, padR = 34, padT = 44, padB = 40;
-  const FS_VAL = 11.5;          // 값 라벨(작게 줄면 못 읽으므로 축 눈금보다 크게)
-  const FS_AX = 9.5;            // 축 눈금·연도 라벨
-  const FS_KRW = 9.5;           // 값 라벨 아래 원화 둘째 줄
-  // 원화 줄이 한 줄 더 들어가므로 달러 라벨을 그만큼 더 올린다(겹치지 않게).
-  const LAB_UP = rate != null ? 27 : 13;
-  const KRW_UP = 14;            // 점 위로 띄우는 거리(달러 라벨 바로 아래 자리)
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (yr) => padL + ((yr - y0) / ((y1 - y0) || 1)) * plotW;
-  const Y = (v) => padT + (1 - (v - lo) / ((hi - lo) || 1)) * plotH;
-
-  const grid = vizYFractions().map((t) => {
-    const val = lo + (hi - lo) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>`
-      + `<text x="${padL - 7}" y="${(y + 3.4).toFixed(1)}" text-anchor="end" font-size="${FS_AX}" fill="var(--muted)">${Math.round(val).toLocaleString('ko-KR')}</text>`;
+/** [오른쪽] 수면 부족으로 인한 경제 손실 — 세계지도 위 버블.
+ *  ★ 나라 위치는 이미 있는 ISO_LONLAT 을 쓴다(좌표를 여기서 새로 적지 않는다).
+ *  ★★ 원 크기는 '면적'이 금액에 비례하도록 반지름을 √값으로 잡는다.
+ *    반지름을 금액에 그대로 비례시키면 큰 나라가 실제보다 훨씬 커 보인다.
+ *  ★★★ 지도·투영은 세계 시간 카드와 같은 것을 재사용한다
+ *    (world-map.svg · 등장방형도법 x=(lon+180)/360, y=(90-lat)/180). */
+function gsSleepLoss(s) {
+  const items = (s && Array.isArray(s.items)) ? s.items.filter((x) => x.usdEok > 0) : [];
+  if (!items.length) return '';
+  const max = Math.max.apply(null, items.map((x) => x.usdEok));
+  const R_MAX = 26, R_MIN = 7;
+  const dots = items.map((x) => {
+    const ll = ISO_LONLAT[x.iso];
+    if (!ll) return '';                       // 좌표가 없으면 지도에 찍지 않는다
+    const left = (ll[0] + 180) / 360 * 100;
+    const top = (90 - ll[1]) / 180 * 100;
+    const r = Math.max(R_MIN, R_MAX * Math.sqrt(x.usdEok / max));
+    return '<div class="gsl-mk gsl-mk--' + escapeHtml(x.dir || 'r') + '"'
+      + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%">'
+      + '<span class="gsl-dot" style="width:' + (r * 2).toFixed(1) + 'px;height:'
+      + (r * 2).toFixed(1) + 'px;margin:-' + r.toFixed(1) + 'px 0 0 -'
+      + r.toFixed(1) + 'px"></span>'
+      + '<span class="gsl-lb"><b>' + escapeHtml(x.ko) + '</b>'
+      + '<i>' + escapeHtml(x.label || '') + '</i>'
+      + (x.gdpPct != null ? '<u>GDP ' + x.gdpPct + '%</u>' : '') + '</span>'
+      + '</div>';
   }).join('');
-
-  const body = series.map((s) => {
-    const col = s.color || 'var(--accent)';
-    let seg = '';
-    for (let i = 1; i < s.pts.length; i += 1) {
-      const a = s.pts[i - 1], b = s.pts[i];
-      seg += `<line x1="${X(a.year).toFixed(1)}" y1="${Y(a.usdEok).toFixed(1)}"`
-        + ` x2="${X(b.year).toFixed(1)}" y2="${Y(b.usdEok).toFixed(1)}"`
-        + ` stroke="${escapeHtml(col)}" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round" opacity=".8"/>`;
-    }
-    const dots = s.pts.map((p, i) => {
-      const x = X(p.year), y = Y(p.usdEok);
-      // 실측 = 꽉 찬 점 / 전망 = 속 빈 점. 눈으로 바로 갈리게 한다.
-      const dot = (p.kind === 'forecast')
-        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--card)" stroke="${escapeHtml(col)}" stroke-width="2.5"/>`
-        : `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${escapeHtml(col)}" stroke="var(--card)" stroke-width="2"/>`;
-      // ★ 값 라벨은 언제나 점 '위'에 둔다. 예전엔 값이 작은 시리즈만 점 아래로
-      //   내렸는데, 그 자리가 X축 연도 라벨 자리와 겹쳐 '2021년'이 잘렸다.
-      const anchor = i === 0 ? 'start' : (i === s.pts.length - 1 ? 'end' : 'middle');
-      const krw = gsKrwJo(p.usdEok, rate);   // 달러 라벨 아래 원화 둘째 줄
-      return dot + `<text x="${x.toFixed(1)}" y="${(y - LAB_UP).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_VAL}" font-weight="800"`
-        + ` paint-order="stroke" stroke="var(--card)" stroke-width="3.5" fill="var(--ink)">${escapeHtml(p.label)}</text>`
-        + (krw
-          ? `<text x="${x.toFixed(1)}" y="${(y - KRW_UP).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_KRW}" font-weight="600"`
-            + ` paint-order="stroke" stroke="var(--card)" stroke-width="3" fill="var(--muted)">${escapeHtml(krw)}</text>`
-          : '');
-    }).join('');
-    return seg + dots;
-  }).join('');
-
-  // X축 — 발표된 연도만 찍는다(사이 연도는 값이 없으므로 눈금도 만들지 않는다).
-  // ★ 축선 아래 고정된 자리에 놓는다. 값 라벨은 모두 점 위에 있으므로 부딪히지 않는다.
-  const yrs = years.filter((v, i) => years.indexOf(v) === i).sort((a, b) => a - b);
-  const xlab = yrs.map((yr, i) => {
-    const anchor = i === 0 ? 'start' : (i === yrs.length - 1 ? 'end' : 'middle');
-    return `<text x="${X(yr).toFixed(1)}" y="${(padT + plotH + 20).toFixed(1)}" text-anchor="${anchor}" font-size="${FS_AX}" fill="var(--muted)">${yr}년</text>`;
-  }).join('');
-
-  // 한줄 요약 — 시리즈마다 한 문장. 배수·기간 모두 계산값이고 하드코딩이 없다.
-  const heads = series.map((s) => {
-    const a = s.pts[0], b = s.pts[s.pts.length - 1];
-    const times = Math.round((b.usdEok / a.usdEok) * 10) / 10;
-    const span = b.year - a.year;
-    // 문장 주어는 범례 문구와 따로 둔다 — 범례는 '글로벌 (Global Market Insights)',
-    // 문장은 '글로벌 슬립테크 시장은…' 처럼 읽혀야 자연스럽다.
-    const subj = s.headSubject || s.scope || s.label;
-    // 끝점이 전망이면 '성장할 전망입니다', 실측이면 '성장했습니다'.
-    const verb = (b.kind === 'forecast') ? '성장할 전망입니다' : '성장했습니다';
-    // 금액 뒤에 원화를 괄호로 덧붙인다. 환율이 없으면 달러만 남는다.
-    const amt = (p) => {
-      const k = gsKrwJo(p.usdEok, rate);
-      return p.year + '년 ' + p.label + (k ? '(' + k + ')' : '');
-    };
-    const endTxt = amt(b);
-    return '<div class="sm-mkthead">'
-      + '<i class="gs-hdot" style="background:' + escapeHtml(s.color || 'var(--accent)') + '"></i>'
-      + escapeHtml(subj) + gsJosa(subj, '은', '는') + ' '
-      + escapeHtml(amt(a)) + '에서 '
-      // 조사는 마지막 글자로 판정한다 — 원화가 붙으면 '…조원)'으로 끝나므로
-      // '달러로'가 아니라 '…)으로'가 맞다. 괄호를 뺀 실제 끝 글자로 본다.
-      + escapeHtml(endTxt) + gsJosa(endTxt.replace(/[)\s]+$/, ''), '으로', '로') + ' '
-      + escapeHtml(span + '년간') + ' <b>약 ' + times.toFixed(1) + '배</b> ' + verb + '.</div>';
-  }).join('');
-
-  const lg = series.map((s) => '<span class="gs-lg">'
-    + '<i class="gs-lg__i" style="background:' + escapeHtml(s.color || 'var(--accent)') + '"></i>'
-    + escapeHtml(s.label)
-    + (s.scope ? '<span class="gs-lg__s">' + escapeHtml(s.scope) + '</span>' : '')
-    + '</span>').join('');
-
-  return '<div class="sm-card sm-card--full"><div class="sm-h">' + escapeHtml(m.title)
-    + ' <span class="sm-h__u">(단위: ' + escapeHtml(m.unit || '억 달러') + ')</span></div>'
-    + heads
-    + (m.mixNote ? '<div class="gs-mixnote">※ ' + escapeHtml(m.mixNote) + '</div>' : '')
-    // 좁은 화면에서 라벨이 못 읽을 만큼 작아지지 않게, 아래 폭부터는 줄이는 대신
-    // 이 그래프 안에서만 좌우로 밀어 볼 수 있게 한다(.kp-t__wrap 과 같은 방식).
-    + '<div class="gs-svgwrap">'
-    + `<svg class="sm-mktsvg gs-mktsvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"`
-    + ' aria-label="' + escapeHtml(m.title) + '">'
-    + grid + xlab + body
-    + `<line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/></svg></div>`
-    + '<div class="gs-mktlg">' + lg + '</div>'
-    + '<div class="sm-mktlg"><span class="sm-mktlg__dot"></span>실측(조사기관이 발표한 값)'
-    + '<span class="sm-mktlg__hollow"></span>전망(조사기관 예측)'
-    + '<span class="sm-mktlg__dash"></span>' + escapeHtml(m.gapNote || '') + '</div>'
-    // 적용 환율 — 국제유가·제품가 카드와 같은 공용 문구(.viz-fxnote)
-    + krwNote('USD')
-    + gSrcFoot(m.source, null, m.sourceLinks)
-    + (m.revisionNote
-      ? '<div class="sm-foot">※ ' + gLinkify(m.revisionNote, m.revisionLinks) + '</div>' : '')
+  /* 지도에서 겹쳐 읽기 어려운 값은 아래 표가 그대로 받아 준다 */
+  const rows = items.map((x) => '<tr><th scope="row">' + escapeHtml(x.ko) + '</th>'
+    + '<td class="gsl-t__v">' + escapeHtml(x.label || '') + '</td>'
+    + '<td class="gsl-t__p">' + (x.gdpPct != null ? x.gdpPct + '%' : '—') + '</td></tr>').join('');
+  return '<div class="sm-card gs-card">'
+    + '<div class="sm-h">' + escapeHtml(s.title || '수면 부족으로 인한 경제 손실')
+    + ' <span class="sm-h__u">(단위: ' + escapeHtml(s.unit || '억 달러') + ')</span></div>'
+    + (s.subtitle ? '<div class="gs-sub">' + escapeHtml(s.subtitle) + '</div>' : '')
+    + '<div class="gsl-map"><img class="gsl-map__img" src="world-map.svg" alt=""'
+    + ' aria-hidden="true"><div class="gsl-marks">' + dots + '</div></div>'
+    + '<table class="gsl-t"><thead><tr><th>국가</th><th>손실 규모</th>'
+    + '<th>GDP 대비</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + (s.legendNote ? '<div class="sm-foot">' + escapeHtml(s.legendNote) + '</div>' : '')
+    + (s.source ? '<div class="sm-foot">' + escapeHtml(s.source) + '</div>' : '')
     + '</div>';
 }
 
@@ -1983,8 +1917,12 @@ function gsSleepMarket(m) {
     ★ 로드 전이거나 실패했으면 빈 문자열을 돌려, 기존 PPI 카드만 그대로 나오게 한다. */
 function gsBlocksHtml() {
   if (!_gsData || _gsData.status !== 'ok') return '';
+  /* 좌우 반반 — 좁은 화면(≤900px)에서는 .sm-grid2 가 1열로 접혀 세로로 쌓인다 */
   return '<div class="sm-wrap gs-wrap">'
-    + gsSleepMarket(_gsData.sleepMarket || {})
+    + '<div class="sm-grid2 gs-grid2">'
+    + gsDeviceMarket(_gsData.deviceMarket || {})
+    + gsSleepLoss(_gsData.sleepLoss || {})
+    + '</div>'
     + stCardsHtml(_gsData.sleepTech)
     + '</div>';
 }
