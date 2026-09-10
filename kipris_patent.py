@@ -621,6 +621,18 @@ def _dump_raw(sink):
     print("[raw] %s (%d건)" % (p, len(sink)))
 
 
+def _existing_ok(path):
+    """이미 있는 결과 파일이 '쓸 만한 데이터'인지 본다(status ok + 행 있음)."""
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:  # noqa: BLE001 — 없거나 깨졌으면 지킬 것도 없다
+        return None
+    if d.get("status") == "ok" and (d.get("totalRows") or 0) > 0:
+        return d
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=int, default=None,
@@ -629,15 +641,13 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--raw", action="store_true")
     ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="수집이 실패해도 기존 결과 파일을 덮어쓴다")
     a = ap.parse_args()
 
     res = collect(years=a.years, max_calls=a.max_calls, raw=a.raw, probe_only=a.probe)
-    out = a.out or os.path.join(BASE, OUT_REL)
-    d = os.path.dirname(out)
-    if d and not os.path.isdir(d):
-        os.makedirs(d)
-    with io.open(out, "w", encoding="utf-8") as f:
-        f.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+    default_out = os.path.join(BASE, OUT_REL)
+    out = a.out or default_out
 
     print("status : %s" % res["status"])
     print("calls  : %s" % res.get("calls"))
@@ -646,6 +656,32 @@ def main():
         for t in res["probe"].get("tries", []):
             print("  probe %-14s %-52s %s"
                   % (t.get("keyParam"), t.get("path"), t.get("error") or "OK"))
+
+    # ★ --probe 는 진단이다. 기본 결과 파일에 쓰지 않는다 —
+    #   행이 없는 결과로 화면 데이터를 지워 버린 적이 있다(--out 을 주면 그때만 쓴다).
+    if a.probe and not a.out:
+        print("probe  : 진단만 수행 — %s 는 건드리지 않았습니다" % OUT_REL)
+        return 0 if res["status"] == "ok" else 1
+
+    # ★★ 수집이 실패했으면 이미 있는 정상 데이터를 덮지 않는다.
+    #   키가 없거나 한도를 넘긴 '한 번의 실패'가 배포된 화면의 데이터를 지우면,
+    #   고칠 때까지 대시보드가 빈 채로 서비스된다(실제로 그렇게 한 번 비었다).
+    #   실패는 종료코드로 알리고, 파일은 그대로 둔다.
+    if res["status"] != "ok" and not a.force:
+        keep = _existing_ok(out)
+        if keep:
+            print("reason : %s" % res.get("reason"))
+            print("keep   : 기존 정상 데이터(%s건, %s)를 유지했습니다 — 덮어쓰지 않음"
+                  % (keep.get("totalRows"), keep.get("lastUpdated")))
+            print("         덮어쓰려면 --force")
+            return 1
+
+    d = os.path.dirname(out)
+    if d and not os.path.isdir(d):
+        os.makedirs(d)
+    with io.open(out, "w", encoding="utf-8") as f:
+        f.write(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+
     if res["status"] != "ok":
         print("reason : %s" % res.get("reason"))
         for e in (res.get("errors") or [])[:8]:
