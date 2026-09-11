@@ -14,13 +14,11 @@ on:
   workflow_dispatch:
     inputs:
       max_calls:
-        description: '이번 실행의 최대 API 호출 수(무료 월 1,000회 주의)'
+        description: '최대 API 호출 수 (비우면 수집기 기본값. 무료 월 1,000회 주의)'
         required: false
-        default: '30'
       years:
-        description: '조회 기간(년)'
+        description: '조회 기간(년) (비우면 kipris_taxonomy.json 의 defaultYears)'
         required: false
-        default: '3'
 
 permissions:
   contents: write            # 결과 JSON 커밋용
@@ -48,9 +46,19 @@ jobs:
         env:
           KIPRIS_API_KEY: ${{ secrets.KIPRIS_API_KEY }}
         run: |
-          python kipris_patent.py \
-            --years "${{ inputs.years || '3' }}" \
-            --max-calls "${{ inputs.max_calls || '30' }}"
+          # ★ 값을 준 것만 넘긴다. 예전에는 `inputs.years || '3'` 으로 기본값을
+          #   박아 둬서, 일정 실행(inputs 가 빈 값)마다 --years 3 이 들어가
+          #   설정의 defaultYears(20)를 덮었다 — 20년치가 3년치로 줄어
+          #   배포된 화면이 214건에서 37건이 됐다. 비우면 설정값을 쓴다.
+          ARGS=""
+          if [ -n "${{ inputs.years }}" ]; then
+            ARGS="$ARGS --years ${{ inputs.years }}"
+          fi
+          if [ -n "${{ inputs.max_calls }}" ]; then
+            ARGS="$ARGS --max-calls ${{ inputs.max_calls }}"
+          fi
+          echo "실행: python kipris_patent.py $ARGS"
+          python kipris_patent.py $ARGS
 
       - name: 변경 있을 때만 커밋·푸시
         if: always()

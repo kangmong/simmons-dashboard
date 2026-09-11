@@ -10701,7 +10701,7 @@ function initUpdate() {
      화면에 그대로 띄워 '왜 비었는지'를 말한다. */
 const PT_DATA_URL = 'public/data/kipris-patents.json';
 let _ptData = null;          // {status:'ok'|'error', rows:[…], …}
-let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 수집 기간 전체
+let _ptFrom = '';           // 기간 필터(YYYY-MM-DD). 빈 값이면 기본 기간
 let _ptTo = '';
 /* ── 교차 필터 ────────────────────────────────────────────────────────────
    ★ 차트는 '고르는 곳', 아래 목록은 '결과를 보는 곳'으로 나눈다.
@@ -10804,7 +10804,8 @@ function ptToday() {
 
 /** 처음 열었을 때의 조회 기간 — 2020-01-01 ~ 오늘.
  *  ★ 전체 데이터(2007년~)를 기본으로 두면 20년 치가 한 화면에 눌려 최근 흐름이
- *    안 보인다. 최근 몇 해를 기본으로 하고, 더 과거는 [수집 기간 전체]로 넓힌다.
+ *    안 보인다. 최근 몇 해를 기본으로 하고, 더 과거는 달력에서 시작일을
+ *    직접 당겨 고른다(min 이 데이터 최초 출원일이다).
  *  ★★ 오늘 날짜는 실행 시점에 만든다(하드코딩하지 않는다).
  *  ★★★ 데이터가 2020년 이후에만 있으면 시작일을 데이터 시작으로 당긴다 —
  *    데이터가 없는 구간을 기본값으로 들고 있을 이유가 없다. */
@@ -11538,8 +11539,6 @@ function ptRangeUi() {
     + '" value="' + escapeHtml(val || '') + '"'
     + (sp.from ? ' min="' + escapeHtml(sp.from) + '"' : '')
     + ' max="' + escapeHtml(today) + '">';
-  // 이미 전체 범위를 보고 있으면 [전체]로 더 넓힐 것이 없다
-  const isFull = sp.from && r.from <= sp.from && r.to >= (sp.to || today);
   return '<div class="pt-filter">'
     + '<span class="pt-filter__l">조회 기간</span>'
     + inp('ptFrom', r.from)
@@ -11548,10 +11547,12 @@ function ptRangeUi() {
     /* ★ 날짜를 고를 때마다 다시 그리지 않는다 — 입력칸이 새로 만들어져 포커스가
        튀고, 시작일만 고른 중간 상태로 화면이 한 번 바뀐다. [조회]로 확정한다. */
     + '<button class="pt-btn pt-btn--go" type="button" id="ptApply">조회</button>'
-    + '<button class="pt-btn" type="button" id="ptReset"'
-    + (isFull ? ' disabled' : '') + '>수집 기간 전체</button>'
-    + (sp.from ? '<span class="pt-filter__h">데이터 범위 ' + escapeHtml(sp.from) + ' ~ '
-      + escapeHtml(sp.to) + ' · 기본 ' + escapeHtml(PT_DEFAULT_FROM) + '부터</span>' : '')
+    /* ★ 별도의 '전체 범위' 버튼은 두지 않는다 — 달력의 min 이 데이터 최초
+       출원일이라, 과거까지 보고 싶으면 시작일을 직접 당겨 고르면 된다.
+       안내에 고를 수 있는 범위를 적어 두는 것으로 갈음한다. */
+    + (sp.from ? '<span class="pt-filter__h">' + escapeHtml(sp.from) + ' ~ '
+      + escapeHtml(today) + ' 사이에서 고를 수 있습니다 (기본 '
+      + escapeHtml(PT_DEFAULT_FROM) + '부터)</span>' : '')
     + '</div>';
 }
 
@@ -11752,17 +11753,6 @@ function wirePatent() {
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'ptApply') { applyDates(); return; }
-    if (e.target && e.target.id === 'ptReset') {
-      /* ★ 기본값(2020~오늘)보다 넓게 = 수집된 전체 범위로 벌린다.
-         빈 값으로 되돌리면 기본값으로 돌아가 버려 '더 과거를 보고 싶다'는
-         이 버튼의 뜻과 반대가 된다. */
-      const sp = ptDataSpan();
-      _ptFrom = sp.from || '';
-      _ptTo = sp.to || ptToday();
-      _ptPage = 1;
-      renderPatent();
-      return;
-    }
     const pg = e.target && e.target.closest ? e.target.closest('.pt-pg') : null;
     if (pg && !pg.disabled) {
       const k = parseInt(pg.getAttribute('data-ptpage'), 10);

@@ -3032,7 +3032,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 }
 .pt-filter__l { font-size: 12px; font-weight: 700; color: var(--ink); }
 .pt-filter__t { color: var(--muted); }
-.pt-filter__h { margin-left: auto; font-size: 11px; color: var(--muted); }
+/* 안내는 남는 자리를 채우며 오른쪽으로 붙는다 — 버튼이 줄어도 빈 칸이
+   남지 않게 한다. 좁은 화면에서는 아래 줄로 접힌다. */
+.pt-filter__h { margin-left: auto; font-size: 11px; color: var(--muted);
+  flex: 1 1 auto; text-align: right; min-width: 180px; }
 .pt-date {
   padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--card); color: var(--ink); font: inherit; font-size: 12px;
