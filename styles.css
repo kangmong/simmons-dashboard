@@ -3364,3 +3364,82 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .pt-pg:disabled { opacity: .4; cursor: default; }
 .pt-pg.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
 .pt-pg__gap { padding: 0 2px; color: var(--muted); font-size: 11px; }
+
+/* ── 환율 현황 카드 + AI 해석 (.fxa-*) ─────────────────────────────────────
+   ★ 안내·주의사항은 본문에 박스로 넣지 않는다. 전부 맨 아래 .fxa-foot 에
+     작은 회색 글씨로 모은다. */
+.fxa-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fxa-c { border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px 10px; background: var(--card); }
+.fxa-c__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.fxa-c__cur { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink); }
+.fxa-c__cur i { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.fxa-c__cur b { font-weight: 700; letter-spacing: .01em; }
+.fxa-c__nm { color: var(--muted); font-size: 11.5px; }
+.fxa-c__bd { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.fxa-badge { font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px; white-space: nowrap; cursor: help; }
+.fxa-badge.is-up { color: var(--accent); background: var(--accent-soft); }
+.fxa-badge.is-down { color: var(--blue-ink); background: var(--blue-soft); }
+.fxa-badge.is-flat { color: var(--muted); background: var(--slate-soft); }
+.fxa-c__now { margin-top: 8px; font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fxa-c__u { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+.fxa-c__chg { margin-top: 4px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fxa-c__chg.up { color: var(--accent); }      /* 오름: 빨강 ▲ — 시세표와 같은 규칙 */
+.fxa-c__chg.down { color: var(--blue); }      /* 내림: 파랑 ▼ */
+.fxa-c__chg.fx-flat { color: var(--muted); }
+.fxa-c__pct { font-weight: 700; }
+.fxa-c__lbl { font-size: 11px; font-weight: 500; color: var(--muted); }
+.fxa-spark { display: block; margin-top: 6px; width: 100%; height: auto; }
+.fxa-c__rng { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 거시지표 칩 — 해석의 근거가 된 숫자를 눈으로 확인하는 줄 */
+.fxa-macro { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.fxa-m { display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 9px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--field); text-decoration: none; font-size: 11.5px; color: var(--text); }
+.fxa-m:hover { border-color: var(--slate); background: var(--card); }
+.fxa-m__l { color: var(--muted); }
+.fxa-m b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.fxa-m u { text-decoration: none; color: var(--accent); font-weight: 700; font-size: 11px; }
+
+/* 해석 블록 */
+.fxa-wrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 14px 15px 15px; background: var(--card); }
+.fxa-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.fxa-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.fxa-sub { margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+.fxa-stale { font-size: 10.5px; font-weight: 700; color: var(--amber-ink); background: var(--amber-soft);
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap; cursor: help; }
+.fxa-cur { border-left: 3px solid var(--slate); padding: 2px 0 2px 10px; margin-bottom: 12px; }
+.fxa-cur__h { font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+.fxa-cur p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--text); }
+
+.fxa-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fxa-fac { border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; background: var(--field); }
+.fxa-fac.is-down { border-top: 2px solid var(--blue); }
+.fxa-fac.is-up { border-top: 2px solid var(--accent); }
+.fxa-fac__h { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.fxa-fac__s { margin-top: 2px; font-size: 10.5px; color: var(--muted); line-height: 1.45; }
+.fxa-fac__l { margin: 9px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+.fxa-fac__l li { display: grid; gap: 2px; }
+.fxa-fac__l b { font-size: 12px; font-weight: 700; color: var(--ink); }
+.fxa-fac__l span { font-size: 12px; line-height: 1.6; color: var(--text); }
+.fxa-fac__e { margin-top: 9px; font-size: 11.5px; color: var(--muted); }
+.fxa-src { font-size: 11px; font-weight: 600; color: var(--blue-ink); text-decoration: none; white-space: nowrap; }
+.fxa-src:hover { text-decoration: underline; }
+
+.fxa-out { margin-top: 11px; border-radius: 11px; padding: 11px 12px; background: var(--slate-soft); }
+.fxa-out.is-up { background: var(--accent-soft); }
+.fxa-out.is-down { background: var(--blue-soft); }
+.fxa-out__h { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.fxa-out__d { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--card); color: var(--ink); }
+.fxa-out__c { margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.fxa-out p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+
+/* 하단 각주 — 신뢰성 안내는 전부 여기 작은 글씨로 */
+.fxa-foot { margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--line); }
+.fxa-foot p { margin: 0 0 5px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.fxa-foot p:last-child { margin-bottom: 0; }
+
+@media (max-width: 900px) {
+  .fxa-cards { grid-template-columns: 1fr; }
+  .fxa-two { grid-template-columns: 1fr; }
+}
+.fxa-nosrc { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; cursor: help; }

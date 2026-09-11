@@ -3524,7 +3524,7 @@ function buildIcisChart(periods, series, ext) {
  *  ★ 환율 값·원화 환산 계산에는 관여하지 않는다(표기용). 없으면 null. */
 function fxAsOfDate() {
   try {
-    const s = _fx && _fx.series;
+    const s = (typeof fxSeries === 'function') ? fxSeries() : (_fx && _fx.series);
     if (!s || !Array.isArray(s.dates) || !Array.isArray(s.USD)) return null;
     for (let i = s.USD.length - 1; i >= 0; i--) {
       if (s.USD[i] != null) return s.dates[i] || null;
@@ -8860,36 +8860,238 @@ function fxNum(v) {
   return (v == null) ? '—' : Number(v).toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** 환율 섹션 렌더: 상단 시세표 + 기간 버튼 + 추이 그래프 */
+/* ── 환율 현황 카드 + AI 해석 (fx-analysis.json) ───────────────────────────
+   fx_analysis.py 가 하루 1회 만들어 커밋한 정적 JSON 만 읽는다.
+   ★ 브라우저는 Gemini 를 부르지 않는다 — API 키가 브라우저로 내려가는 경로를
+     아예 만들지 않는다. 여기서 하는 일은 '커밋된 파일 읽기'뿐이다.
+   ★★ 이 파일이 없어도 섹션이 비지 않는다. 카드는 _fxa 가 있으면 그걸 쓰고,
+     없으면 기존 _fx(시세)에서 직접 만든다 — 예전에 로더가 없어진 키 하나를
+     요구해서 블록 전체가 조용히 비어 버린 적이 있다. 같은 실수를 막는다. */
+const FXA_DATA_URL = 'public/data/fx-analysis.json';
+let _fxa = null;
+
+async function fetchFxAnalysis() {
+  try {
+    const res = await fetch(FXA_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + FXA_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || typeof d !== 'object') throw new Error('형식이 올바르지 않습니다');
+    _fxa = d;
+  } catch (e) {
+    _fxa = null;
+    console.warn('[fx-analysis] 로드 실패:', e);
+  }
+  renderFx();
+}
+
+/** 화면에 그릴 통화 카드 목록. fx-analysis.json 우선, 없으면 기존 시세에서 만든다. */
+function fxaCardList() {
+  if (_fxa && Array.isArray(_fxa.cards) && _fxa.cards.length) return _fxa.cards;
+  if (!_fx || !Array.isArray(_fx.rows)) return [];
+  const series = (_fx.series || {});
+  return FX_CURS.map((cur) => {
+    const r = _fx.rows.find((x) => x.cur === cur);
+    if (!r || r.now == null) return null;
+    const m = FX_META[cur];
+    const vals = (series[cur] || []).filter((v) => v != null && isFinite(v));
+    const pct = (r.prev) ? ((r.now - r.prev) / r.prev * 100) : null;
+    return {
+      cur: cur, name: m.name, unit: m.sub, color: m.color, status: 'ok',
+      now: r.now, prev: r.prev, change: r.change,
+      changePct: (pct == null) ? null : Number(pct.toFixed(2)),
+      asOf: fxAsOfDate() || null,
+      spark: vals.slice(-63),
+      /* 배지는 계산 결과만 쓴다. 시세만 있을 때는 등락 배지 하나면 충분하다 —
+         3개월 최고/최저 판정은 수집기가 같은 기준으로 이미 하고 있다. */
+      badges: (pct == null) ? [] : [{
+        text: (Math.abs(pct) >= 0.6) ? (pct > 0 ? '급등' : '급락')
+          : (Math.abs(pct) >= 0.3) ? (pct > 0 ? '상승' : '하락') : '보합',
+        tone: (Math.abs(pct) < 0.3) ? 'flat' : (pct > 0 ? 'up' : 'down'),
+        why: '전일대비 ' + (pct > 0 ? '+' : '') + pct.toFixed(2) + '%',
+      }],
+    };
+  }).filter(Boolean);
+}
+
+/** 미니 추이(스파크라인). 값이 2개 미만이면 그리지 않는다. */
+function fxaSparkSvg(card) {
+  const vals = (card.spark || []).filter((v) => v != null && isFinite(v));
+  if (vals.length < 2) return '';
+  const W = 132, H = 40, P = 4;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const rng = (max - min) || 1;
+  const xf = (i) => P + i * (W - P * 2) / (vals.length - 1);
+  const yf = (v) => P + (H - P * 2) * (1 - (v - min) / rng);
+  const pts = vals.map((v, i) => xf(i).toFixed(1) + ',' + yf(v).toFixed(1)).join(' ');
+  const last = vals[vals.length - 1];
+  const rising = last >= vals[0];
+  const col = card.color || 'var(--slate)';
+  const gid = 'fxaSpark' + card.cur;
+  return '<svg class="fxa-spark" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '"'
+    + ' role="img" aria-label="' + escapeHtml(card.name + ' 최근 추이 ' + (rising ? '상승' : '하락')) + '">'
+    + '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0%" stop-color="' + col + '" stop-opacity=".22"/>'
+    + '<stop offset="100%" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>'
+    + '<polygon fill="url(#' + gid + ')" points="' + P + ',' + (H - P) + ' ' + pts
+    + ' ' + (W - P).toFixed(1) + ',' + (H - P) + '"/>'
+    + '<polyline fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linejoin="round"'
+    + ' stroke-linecap="round" points="' + pts + '"/>'
+    + '<circle cx="' + xf(vals.length - 1).toFixed(1) + '" cy="' + yf(last).toFixed(1) + '"'
+    + ' r="2.4" fill="' + col + '"/></svg>';
+}
+
+/** 통화 카드 3장 */
+function fxaCardsHtml() {
+  const cards = fxaCardList();
+  if (!cards.length) return '';
+  const html = cards.map((c) => {
+    const pct = c.changePct, chg = c.change;
+    const tone = (pct == null || Math.abs(pct) < 0.005) ? 'fx-flat' : (pct > 0 ? 'up' : 'down');
+    const arrow = (pct == null || Math.abs(pct) < 0.005) ? '' : (pct > 0 ? '▲' : '▼');
+    const badges = (c.badges || []).map((b) => '<span class="fxa-badge is-' + (b.tone || 'flat') + '"'
+      + (b.why ? ' title="' + escapeHtml(b.why) + '"' : '') + '>' + escapeHtml(b.text) + '</span>').join('');
+    const st = c.stats;
+    const range = st ? '<div class="fxa-c__rng">3개월 ' + fxNum(st.low3m) + ' ~ ' + fxNum(st.high3m) + '</div>' : '';
+    return '<div class="fxa-c">'
+      + '<div class="fxa-c__top">'
+      + '<span class="fxa-c__cur"><i style="background:' + c.color + '"></i><b>' + escapeHtml(c.cur) + '</b>'
+      + '<span class="fxa-c__nm">' + escapeHtml(c.name) + '</span></span>'
+      + '<span class="fxa-c__bd">' + badges + '</span></div>'
+      + '<div class="fxa-c__now">' + fxNum(c.now) + '<span class="fxa-c__u">원 / ' + escapeHtml(c.unit || '') + '</span></div>'
+      + '<div class="fxa-c__chg ' + tone + '">' + arrow + ' ' + fxNum(chg == null ? null : Math.abs(chg))
+      + (pct == null ? '' : ' <span class="fxa-c__pct">(' + (pct > 0 ? '+' : '') + pct.toFixed(2) + '%)</span>')
+      + ' <span class="fxa-c__lbl">전일대비</span></div>'
+      + fxaSparkSvg(c) + range
+      + '</div>';
+  }).join('');
+  return '<div class="fxa-cards">' + html + '</div>';
+}
+
+/** 요인 묶음 하나(상승 제한 / 하락 지지) */
+function fxaFactorsHtml(title, sub, items, tone) {
+  const list = (items || []).map((f) => {
+    /* 근거 링크. title 에 출처 제목을 넣어 누르기 전에 어디로 가는지 알 수 있게 한다.
+       링크가 없는 요인은 '출처 미확인'으로 표시한다 — 검증에서 떨어진 링크를
+       조용히 없애면 근거가 있는 것처럼 보인다. */
+    const link = f.sourceUrl
+      ? ' <a class="fxa-src" href="' + escapeHtml(f.sourceUrl) + '" target="_blank" rel="noopener noreferrer"'
+        + (f.sourceLabel ? ' title="' + escapeHtml(f.sourceLabel) + '"' : '') + '>근거 ↗</a>'
+      : ' <span class="fxa-nosrc" title="출처 링크를 검증하지 못해 표시하지 않았습니다">출처 미확인</span>';
+    return '<li><b>' + escapeHtml(f.point) + '</b><span>' + escapeHtml(f.evidence) + link + '</span></li>';
+  }).join('');
+  return '<div class="fxa-fac is-' + tone + '">'
+    + '<div class="fxa-fac__h">' + escapeHtml(title) + '</div>'
+    + '<div class="fxa-fac__s">' + escapeHtml(sub) + '</div>'
+    + (list ? '<ul class="fxa-fac__l">' + list + '</ul>'
+      : '<div class="fxa-fac__e">제시된 요인이 없습니다</div>')
+    + '</div>';
+}
+
+/** 중단 해석 블록. 해석이 없으면 '왜 없는지'를 말한다(조용히 비우지 않는다). */
+function fxaAnalysisHtml() {
+  const a = _fxa && _fxa.analysis;
+  if (!a || a.status !== 'ok') {
+    const why = (a && a.reason) ? a.reason
+      : (_fxa ? '해석 데이터가 아직 없습니다' : '해석 데이터를 불러오지 못했습니다');
+    return '<div class="fxa-wrap"><div class="fxa-head">'
+      + '<div class="fxa-title">환율 해석</div>'
+      + '<div class="fxa-sub">공개 데이터 기반 정리</div></div>'
+      + emptyState(why) + '</div>';
+  }
+  const dirTone = (a.outlook.direction === '상승') ? 'up'
+    : (a.outlook.direction === '하락') ? 'down' : 'flat';
+  const gen = _fxa.generatedAt ? String(_fxa.generatedAt).replace('T', ' ').slice(0, 16) : null;
+  const stale = a.stale
+    ? '<span class="fxa-stale" title="' + escapeHtml(a.staleReason || '최신 생성 실패')
+      + '">이전 분석 유지</span>' : '';
+  return '<div class="fxa-wrap">'
+    + '<div class="fxa-head"><div>'
+    + '<div class="fxa-title">환율 해석</div>'
+    + '<div class="fxa-sub">AI가 공개 데이터를 바탕으로 정리한 참고 자료입니다'
+    + (gen ? ' · ' + escapeHtml(gen) + ' 기준' : '') + '</div></div>' + stale + '</div>'
+    + (a.current ? '<div class="fxa-cur"><div class="fxa-cur__h">현황</div>'
+      + '<p>' + escapeHtml(a.current) + '</p></div>' : '')
+    + '<div class="fxa-two">'
+    + fxaFactorsHtml('환율 상승 제한 요인', '원/달러 상단을 누르는 재료 (원화 강세 쪽)',
+      a.upsideLimiters, 'down')
+    + fxaFactorsHtml('환율 하락 지지 요인', '원/달러 하단을 받치는 재료 (원화 약세 쪽)',
+      a.downsideSupports, 'up')
+    + '</div>'
+    + '<div class="fxa-out is-' + dirTone + '">'
+    + '<div class="fxa-out__h">전망 <span class="fxa-out__d">' + escapeHtml(a.outlook.direction) + '</span>'
+    + '<span class="fxa-out__c">확신 ' + escapeHtml(a.outlook.confidence) + '</span></div>'
+    + '<p>' + escapeHtml(a.outlook.rationale) + '</p></div>'
+    + '</div>';
+}
+
+/** 하단 각주 — 신뢰성 안내는 전부 여기 작은 글씨로 모은다(본문 안내 박스 금지). */
+function fxaFootnote() {
+  const a = _fxa && _fxa.analysis;
+  const parts = [];
+  const br = (_fxa && _fxa.badgeRule) || { spikePct: 0.6, movePct: 0.3, window: 63 };
+  parts.push('배지 기준: 전일대비 ±' + br.spikePct + '% 이상 급등·급락, ±' + br.movePct
+    + '% 이상 상승·하락, 그 안은 보합. 최고·최저는 최근 ' + br.window + '영업일 기준.');
+  if (a && a.status === 'ok') {
+    parts.push('‘환율 해석’의 현황·요인·전망 문장은 Google Gemini'
+      + (a.model ? '(' + a.model + ')' : '') + '가 위 시세·거시지표·뉴스 헤드라인만을 '
+      + '근거로 생성한 것입니다. 숫자는 모두 수집된 원자료에서 계산했고, 근거 링크는 '
+      + '수집된 출처와 대조해 확인되지 않은 링크는 제거했습니다.');
+    parts.push('AI가 생성한 해석이므로 사실과 다를 수 있습니다. '
+      + '투자 판단의 근거로 사용하지 마십시오.');
+    if (a.stale) {
+      parts.push('최신 분석 생성이 실패해 이전 분석을 그대로 두었습니다'
+        + (a.staleReason ? ' (' + a.staleReason + ')' : '') + '.');
+    }
+  }
+  const macroSrc = (_fxa && _fxa.macro && _fxa.macro.items) || [];
+  if (macroSrc.length) {
+    const uniq = [];
+    macroSrc.forEach((m) => { if (uniq.indexOf(m.source) < 0) uniq.push(m.source); });
+    parts.push('거시지표 출처: ' + uniq.join(' · ') + '.');
+  }
+  parts.push('시세 출처: ' + escapeHtml((_fxa && _fxa.rateSource) || 'Frankfurter (ECB 기반)')
+    + '. 매매기준율이 아니라 참고용 기준환율입니다.');
+  return '<div class="fxa-foot">' + parts.map((p) => '<p>' + p + '</p>').join('') + '</div>';
+}
+
+/** 거시지표 한 줄 요약 — 해석의 근거가 된 숫자를 눈으로 확인할 수 있게. */
+function fxaMacroHtml() {
+  const items = (_fxa && _fxa.macro && _fxa.macro.items) || [];
+  if (!items.length) return '';
+  const chips = items.map((m) => {
+    const v = (typeof m.value === 'number')
+      ? m.value.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) : m.value;
+    /* 전년동월비는 단위에 맞는 것만 쓴다 — 금리·실업률처럼 이미 %인 값에
+       변화율(%)을 붙이면 오해를 부른다(수집기가 %p 로 따로 계산해 둔다). */
+    const extra = (m.yoyPct != null)
+      ? ' <u title="전년 동월 대비">' + (m.yoyPct > 0 ? '+' : '') + m.yoyPct.toFixed(2) + '%</u>'
+      : (m.yoyPp != null)
+        ? ' <u title="전년 동월 대비 (퍼센트포인트)">' + (m.yoyPp > 0 ? '+' : '') + m.yoyPp.toFixed(2) + '%p</u>'
+        : '';
+    return '<a class="fxa-m" href="' + escapeHtml(m.url) + '" target="_blank" rel="noopener noreferrer"'
+      + ' title="' + escapeHtml(m.label + ' · 기준 ' + m.asOf + ' · ' + m.source) + '">'
+      + '<span class="fxa-m__l">' + escapeHtml(m.label) + '</span>'
+      + '<b>' + escapeHtml(String(v)) + escapeHtml(m.unit || '') + '</b>' + extra + '</a>';
+  }).join('');
+  return '<div class="fxa-macro">' + chips + '</div>';
+}
+
+/** 환율 섹션 렌더: 통화 카드 + 해석 + 기간 버튼 + 추이 그래프 */
 function renderFx() {
   const el = document.getElementById('body-fx');
   if (!el) return;
   const note = '<div class="fx-note">원/달러·원/유로·원/엔 시세. 수입 원자재·설비 결제 시 원가 부담을 가늠할 수 있습니다.</div>';
-  if (!_fx || !Array.isArray(_fx.rows) || !_fx.rows.length) {
+  /* ★ 카드는 _fxa(커밋된 JSON) 또는 _fx(실시간) 중 있는 쪽으로 만든다.
+     둘 다 없을 때만 비운다 — 한 소스가 없다고 섹션 전체가 조용히 비면 안 된다. */
+  const cardsHtml = fxaCardsHtml();
+  if (!cardsHtml && !fxSeries()) {
     el.innerHTML = emptyState('환율 데이터 준비중') + note;
     return;
   }
 
-  // 1) 상단 시세표
-  const rowByCur = {};
-  _fx.rows.forEach((r) => { rowByCur[r.cur] = r; });
-  const trs = FX_CURS.map((cur) => {
-    const r = rowByCur[cur]; if (!r) return '';
-    const m = FX_META[cur], c = r.change;
-    const chg = (c == null)
-      ? '<span class="fxr-flat">—</span>'
-      : `<span class="fxr-chg ${c > 0 ? 'up' : c < 0 ? 'down' : 'fxr-flat'}">${c > 0 ? '▲' : c < 0 ? '▼' : ''} ${fxNum(Math.abs(c))}</span>`;
-    return `<tr>
-      <td class="fxr-cur"><span class="fxr-dot" style="background:${m.color}"></span><b>${m.label}</b> <span class="fxr-sub">${m.sub}</span></td>
-      <td class="fxr-now">${fxNum(r.now)}</td>
-      <td>${chg}</td>
-      <td class="fxr-prev">${fxNum(r.prev)}</td>
-    </tr>`;
-  }).join('');
-  const table = `<div class="fxr-wrap"><table class="fxr-table">
-    <thead><tr><th>통화</th><th>현재기준율</th><th>전일대비</th><th>전일기준율</th></tr></thead>
-    <tbody>${trs}</tbody>
-  </table></div>`;
+  // 1) 상단: 주요 통화 현황 카드 (현재가 · 전일대비 · 스파크라인 · 배지)
+  const table = cardsHtml;
 
   // 2) 통화 칩(1줄) + 기간 칩(2줄) — 두 값을 조합해 단일 통화 추이를 그림
   // 통화 칩 — 여러 개를 함께 고를 수 있다(누를 때마다 켜짐/꺼짐).
@@ -8923,9 +9125,13 @@ function renderFx() {
       + (sel.indexOf('JPY') >= 0 ? '<div class="fx-jpy-note">* JPY는 100엔 단위</div>' : '');
   }
 
+  /* 화면 흐름: [1] 통화 현황 카드 → [2] 해석(현황·상단제한·하단지지·전망)
+     → [3] 기존 추이 차트(통화·기간 선택 그대로) → 하단 각주 */
   el.innerHTML = `
     ${table}
     ${note}
+    ${fxaMacroHtml()}
+    ${fxaAnalysisHtml()}
     <div class="viz-root viz-figure fx-figure">
       <div class="viz-head"><div>
         <div class="viz-title">원화 환율 추이</div>
@@ -8936,7 +9142,8 @@ function renderFx() {
       ${chartBody}${_fxReport ? fxrReportHtml() : ''}
       <div class="viz-tooltip" id="fxTooltip"></div>
       <div class="comp-caption">${fxAsOfDate() ? `기준일 ${escapeHtml(fxAsOfDate())} · ` : ''}출처: Frankfurter (ECB 기반)</div>
-    </div>`;
+    </div>
+    ${fxaFootnote()}`;
 
   const curEl = el.querySelector('.fx-curs');
   if (curEl) curEl.addEventListener('click', (e) => {
@@ -9317,9 +9524,19 @@ function fxrReportHtml() {
 }
 
 /** series를 최근 N개월로 슬라이스 */
+/** 추이 시계열. 실시간 수집(_fx)이 먼저고, 없으면 커밋된 fx-analysis.json 을 쓴다.
+ *  ★ 한쪽이 없다고 차트가 비지 않게 한다 — 두 소스 모두 같은 모양(dates + 통화별 배열)이다. */
+function fxSeries() {
+  const a = _fx && _fx.series;
+  if (a && Array.isArray(a.dates) && a.dates.length) return a;
+  const b = _fxa && _fxa.series;
+  if (b && Array.isArray(b.dates) && b.dates.length) return b;
+  return null;
+}
+
 function fxSlice(months) {
   const empty = { dates: [], USD: [], EUR: [], JPY: [] };
-  const s = _fx && _fx.series;
+  const s = fxSeries();
   if (!s || !Array.isArray(s.dates) || !s.dates.length) return empty;
   const dates = s.dates;
   const last = new Date(dates[dates.length - 1] + 'T00:00:00');
@@ -10540,6 +10757,7 @@ function resetDashboard() {
   _sideView = null;         // 분기 실적 탭 미선택으로
   _brandSide = 'kr';        // 신제품·브랜드는 기본(국내)으로
   _fx = null;           // 환율 비우기
+  _fxa = null;          // 환율 현황 카드·AI 해석 비우기(카드가 남아 있으면 초기화가 아니다)
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
@@ -10638,6 +10856,10 @@ function initUpdate() {
     fetchMattressMarket();
     // 순수 추가: KIPRIS 특허 — 하루 1회 수집해 둔 정적 JSON (위와 같은 이유로 await 안 한다)
     fetchPatents();
+    // 순수 추가: 환율 현황 카드 + AI 해석 — 하루 1회 수집해 둔 정적 JSON.
+    // await 하지 않는다(다른 카드가 기다리지 않게). 실패하면 카드는 실시간
+    // 시세로 그려지고 해석 자리만 이유를 띄운다 — 섹션이 비지는 않는다.
+    fetchFxAnalysis();
     // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchInstagram();
