@@ -5,7 +5,7 @@
   "source": "KIPRIS (특허정보검색서비스)",
   "techNote": "기술분야 분류와 키워드 추출은 제목·초록의 자동 키워드 매칭 기준이며, 완전히 정확하지 않을 수 있습니다.",
   "keyParamUsed": "ServiceKey",
-  "calls": 14,
+  "calls": 17,
   "probe": {
     "keyParam": "ServiceKey",
     "domesticOp": "getWordSearch",
@@ -24,12 +24,13 @@
     ]
   },
   "endpoints": [
-    "patUtiModInfoSearchSevice/getAdvancedSearch"
+    "patUtiModInfoSearchSevice/getAdvancedSearch",
+    "patUtiModInfoSearchSevice/getWordSearch"
   ],
   "errors": [],
   "filteredOut": {
     "시몬스": 1,
-    "씰리": 18,
+    "씰리": 318,
     "퍼시스": 2
   },
   "truncated": false,
