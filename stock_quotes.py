@@ -1,32 +1,38 @@
 # -*- coding: utf-8 -*-
-"""경쟁사 주가 수집 — public/data/stock-quotes.json.
+"""경쟁사 주가 + 환율 캔들 수집.
 
-화면(환율 섹션의 2단계 목록/상세)은 이 JSON 만 읽는다. 브라우저에서 Yahoo 를
-직접 부르지 않는다.
+출력 2종:
+  public/data/stock-quotes.json   목록용 — 현재가·등락·스파크라인 (작다)
+  public/data/stocks/<key>.json   상세용 — 캔들 OHLCV 3종 + 종목정보 + 뉴스
+                                  (브라우저는 상세를 열 때만 읽는다)
 
-소스: Yahoo Finance chart API (키 불필요)
-  https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=..&interval=..
+소스: Yahoo Finance (키 불필요)
+  · 캔들   /v8/finance/chart/{symbol}?range=..&interval=..   (무인증)
+  · 종목정보 /v10/finance/quoteSummary/{symbol}?modules=..     (쿠키→crumb 필요)
 
-★ 비공식 엔드포인트다. 키는 없지만 문서화된 약관도 보장된 한도도 없고 언젠가
-  막힐 수 있다. 그래서 하루 1회만 돌리고, 실패하면 기존 정상 데이터를 유지하며,
-  화면이 조용히 비지 않게 status/reason 을 남긴다.
-  (공공 API 는 대안이 못 된다 — 금융위 주식시세정보는 T+1 이라 '현재가'를
-   못 주고 미국 상장 SGI 를 커버하지 않는다.)
+★ 비공식 엔드포인트다. 문서화된 약관도 보장된 한도도 없고 언젠가 막힐 수 있다.
+  그래서 하루 1회만 돌리고, 실패하면 기존 정상 데이터를 유지하며, 화면이
+  조용히 비지 않게 status/reason 을 남긴다.
 
-★★ 심볼은 stocks_taxonomy.json 에서 읽는다. 코드에 박지 않는다.
-  접미사를 틀리면 '조용히 틀린 숫자'가 나온다 — 에이스침대를 003800.KS 로
-  조회하면 값은 나오는데 전일대비가 -19% 로 엉터리였다(장중 데이터 없는 유령
-  심볼). 실제로는 코스닥이라 003800.KQ 다. --resolve 로 확인할 수 있다.
+★★ 종목정보(quoteSummary)는 crumb 이 필요해서 러너 환경에서 막힐 수 있다
+  (FRED 가 Actions IP 에서 통째로 막힌 전례가 있다). 막히면 그 종목의
+  profile 만 비우고 캔들·시세는 그대로 저장한다 — 화면에서는 '종목정보' 탭만
+  빠지고 차트는 정상 동작한다.
 
-★★★ meta.chartPreviousClose 는 쓰지 않는다. '전일 종가'가 아니라 '조회 구간
-  직전 종가'다(코웨이가 range 에 따라 97600/99400 로 달랐다). 등락률은
-  meta.regularMarketChangePercent 와 일봉 시계열 계산을 교차검증해서 쓴다.
+★★★ 심볼은 stocks_taxonomy.json 에서 읽는다. 접미사를 틀리면 '조용히 틀린
+  숫자'가 나온다(에이스침대 003800.KS → 전일대비 -19%). --resolve 로 확인.
+
+★★★★ meta.chartPreviousClose 는 쓰지 않는다. '전일 종가'가 아니라 '조회 구간
+  직전 종가'다. 등락률은 meta.regularMarketChangePercent 와 일봉 계산을
+  교차검증해서 쓴다.
 
 단독 실행:
-    python stock_quotes.py                  # 수집 → public/data/stock-quotes.json
+    python stock_quotes.py                  # 전체 수집
     python stock_quotes.py --probe          # 진단만(파일 안 건드림)
-    python stock_quotes.py --resolve 003800 # 심볼 확인(코스피/코스닥 접미사)
-    python stock_quotes.py --no-news        # 뉴스 수집 생략
+    python stock_quotes.py --resolve 003800 # 심볼 확인
+    python stock_quotes.py --no-news        # 뉴스 생략
+    python stock_quotes.py --no-profile     # 종목정보 생략(crumb 안 씀)
+    python stock_quotes.py --only coway     # 한 종목만
     python stock_quotes.py --fail-all       # 전부 실패시켜 화면 방어 테스트
 """
 import os
@@ -63,11 +69,12 @@ def load_cfg():
         return json.load(f)
 
 
-def _get(url, params=None, timeout=25, tries=3, headers=None):
+def _get(url, params=None, timeout=25, tries=3, session=None, headers=None):
     last = None
+    g = (session or requests).get
     for i in range(tries):
         try:
-            r = requests.get(url, params=params, headers=headers or HDR, timeout=timeout)
+            r = g(url, params=params, headers=headers or HDR, timeout=timeout)
             r.raise_for_status()
             return r
         except Exception as e:  # noqa: BLE001
@@ -77,25 +84,40 @@ def _get(url, params=None, timeout=25, tries=3, headers=None):
     raise last
 
 
+# ── crumb 세션 (종목정보 전용) ────────────────────────────────────────────
+def make_crumb_session():
+    """쿠키를 받고 crumb 을 얻는다. 실패하면 (None, 이유)."""
+    s = requests.Session()
+    s.headers.update(HDR)
+    try:
+        try:
+            s.get("https://fc.yahoo.com", timeout=20)
+        except Exception:  # noqa: BLE001 — 404 여도 쿠키는 심긴다
+            pass
+        if not s.cookies:
+            s.get("https://finance.yahoo.com/", timeout=25)
+        r = s.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=25)
+        crumb = (r.text or "").strip()
+        if r.status_code != 200 or not crumb or len(crumb) > 64 or "<" in crumb:
+            return None, "crumb 획득 실패 (HTTP %s)" % r.status_code
+        return (s, crumb), None
+    except Exception as e:  # noqa: BLE001
+        return None, "crumb 획득 실패: %s" % str(e)[:110]
+
+
 # ── 심볼 확인 ─────────────────────────────────────────────────────────────
 def resolve_symbol(cfg, q):
-    """Yahoo 검색으로 심볼을 찾는다. 코스피/코스닥 접미사 확인용."""
     r = _get(cfg["yahoo"]["searchBase"], params={"q": q, "quotesCount": 8})
-    out = []
-    for x in r.json().get("quotes", []):
-        if x.get("quoteType") != "EQUITY":
-            continue
-        out.append({"symbol": x.get("symbol"), "exchange": x.get("exchange"),
-                    "name": x.get("longname") or x.get("shortname") or ""})
-    return out
+    return [{"symbol": x.get("symbol"), "exchange": x.get("exchange"),
+             "name": x.get("longname") or x.get("shortname") or ""}
+            for x in r.json().get("quotes", []) if x.get("quoteType") == "EQUITY"]
 
 
-# ── 시세 ──────────────────────────────────────────────────────────────────
+# ── 캔들 ──────────────────────────────────────────────────────────────────
 def _chart(cfg, symbol, rng, interval):
     r = _get(cfg["yahoo"]["chartBase"] + symbol,
              params={"range": rng, "interval": interval})
-    j = r.json()
-    ch = j.get("chart") or {}
+    ch = r.json().get("chart") or {}
     if ch.get("error"):
         raise ValueError(str((ch["error"] or {}).get("description") or ch["error"])[:140])
     res = ch.get("result")
@@ -104,141 +126,101 @@ def _chart(cfg, symbol, rng, interval):
     return res[0]
 
 
-def _rows(node, intraday):
-    """차트 노드 → [{d|t, c, o, h, l, v}]. 값이 없는 구간은 버린다."""
+def _candles(node, scale=1):
+    """[[날짜, 시, 고, 저, 종, 거래량], ...]. 종가가 없는 봉은 버린다.
+       ★ 배열로 저장한다 — 봉마다 키 이름이 반복되지 않아 파일이 절반 이하다."""
     ts = node.get("timestamp") or []
     q = ((node.get("indicators") or {}).get("quote") or [{}])[0]
-    close = q.get("close") or []
+    cl = q.get("close") or []
+    op, hi, lo, vo = (q.get("open") or []), (q.get("high") or []), \
+                     (q.get("low") or []), (q.get("volume") or [])
+
+    def at(arr, i, mul=True):
+        v = arr[i] if i < len(arr) else None
+        if v is None:
+            return None
+        return round(v * scale, 4) if mul else int(v)
+
     out = []
     for i, t in enumerate(ts):
-        c = close[i] if i < len(close) else None
+        c = at(cl, i)
         if c is None:
             continue
-        dt = datetime.datetime.fromtimestamp(t)
-        row = {"t" if intraday else "d":
-               dt.strftime("%Y-%m-%dT%H:%M") if intraday else dt.strftime("%Y-%m-%d"),
-               "c": round(c, 4)}
-        for k, src in (("o", "open"), ("h", "high"), ("l", "low")):
-            v = (q.get(src) or [None] * len(ts))[i] if i < len(q.get(src) or []) else None
-            if v is not None:
-                row[k] = round(v, 4)
-        v = (q.get("volume") or [None] * len(ts))[i] if i < len(q.get("volume") or []) else None
-        if v is not None:
-            row["v"] = int(v)
-        out.append(row)
+        d = datetime.datetime.fromtimestamp(t).strftime("%Y-%m-%d")
+        out.append([d, at(op, i), at(hi, i), at(lo, i), c, at(vo, i, mul=False)])
     return out
 
 
-def fetch_one(cfg, co, want_news=True, force_fail=False):
-    """한 종목의 시세 + 구간별 시계열 + 뉴스. 실패는 이 종목 안에서 격리한다."""
-    sym = co.get("symbol")
-    base = {"key": co["key"], "name": co["name"], "symbol": sym,
-            "market": co.get("market"), "note": co.get("note"),
-            "listed": bool(co.get("listed")), "own": bool(co.get("own"))}
-    if co.get("aka"):
-        base["aka"] = co["aka"]
-    if not co.get("listed") or not sym:
-        base.update({"status": "unlisted"})
-        return base
-    if force_fail:                       # --fail-all : 화면 방어 테스트용
-        base.update({"status": "error", "reason": "강제 실패(--fail-all 테스트)"})
-        return base
+# ── 종목정보 ──────────────────────────────────────────────────────────────
+def _raw(o):
+    if isinstance(o, dict) and o and set(o.keys()) <= {"raw", "fmt", "longFmt"}:
+        return o.get("raw")
+    return o
 
-    gap = cfg.get("requestGapSec", 0.8)
-    series, errors = {}, []
-    meta = None
-    for rg in cfg["ranges"]:
-        if rg.get("deriveFrom"):
-            continue                     # 1개월·3개월은 1년 일봉에서 잘라 쓴다(요청 절약)
-        try:
-            node = _chart(cfg, sym, rg["range"], rg["interval"])
-            if meta is None:
-                meta = node.get("meta") or {}
-            series[rg["key"]] = _rows(node, rg.get("intraday"))
-        except Exception as e:  # noqa: BLE001
-            errors.append({"range": rg["key"], "error": str(e)[:140]})
-            print("   [%s] %s 구간 실패: %s" % (sym, rg["key"], str(e)[:90]))
-        time.sleep(gap)
 
-    daily = series.get("1y") or series.get("3mo") or series.get("1mo") or []
-    if meta is None or not daily:
-        base.update({"status": "error",
-                     "reason": "시세를 받지 못했습니다"
-                               + (" (%s)" % errors[0]["error"] if errors else ""),
-                     "errors": errors[:4]})
-        return base
+def _dig(res, path):
+    cur = res
+    for part in path.split("."):
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(part)
+    return _raw(cur)
 
-    now = meta.get("regularMarketPrice")
-    if now is None:
-        now = daily[-1]["c"]
-    # ── 등락률 교차검증 ──────────────────────────────────────────────────
-    # (a) meta 값, (b) 일봉 시계열에서 직접 계산. chartPreviousClose 는 안 쓴다.
-    closes = [r["c"] for r in daily]
-    prev_series = None
-    if len(closes) >= 2:
-        # 마지막 일봉이 '오늘(장중)'이면 그 직전이 전일 종가다.
-        last_d = daily[-1].get("d")
-        today = datetime.date.today().isoformat()
-        prev_series = closes[-2] if last_d == today else closes[-1]
-        if last_d != today and len(closes) >= 2 and abs(closes[-1] - now) < 1e-9:
-            prev_series = closes[-2]
-    pct_series = (round((now - prev_series) / prev_series * 100.0, 4)
-                  if prev_series else None)
-    pct_meta = meta.get("regularMarketChangePercent")
-    pct_meta = round(pct_meta, 4) if isinstance(pct_meta, (int, float)) else None
 
-    tol = cfg.get("changeTolerancePct", 0.2)
-    warn = None
-    if pct_meta is not None and pct_series is not None:
-        if abs(pct_meta - pct_series) > tol:
-            warn = ("전일대비가 두 방식에서 다릅니다 (meta %+.2f%% vs 시계열 %+.2f%%)"
-                    % (pct_meta, pct_series))
-            print("   [%s] ★ %s" % (sym, warn))
-    pct = pct_meta if pct_meta is not None else pct_series
-    prev = None
-    if pct not in (None, 0) and now is not None:
-        prev = round(now / (1 + pct / 100.0), 4)
-    elif prev_series:
-        prev = prev_series
-    change = round(now - prev, 4) if (prev is not None and now is not None) else None
-
-    base.update({
-        "status": "ok",
-        "longName": meta.get("longName") or meta.get("shortName") or "",
-        "currency": meta.get("currency"),
-        "exchange": meta.get("exchangeName"),
-        "now": round(now, 4),
-        "prev": prev,
-        "change": change,
-        "changePct": pct,
-        "changePctMeta": pct_meta,
-        "changePctSeries": pct_series,
-        "asOf": (datetime.datetime.fromtimestamp(meta["regularMarketTime"]).strftime("%Y-%m-%d %H:%M")
-                 if meta.get("regularMarketTime") else (daily[-1].get("d") or None)),
-        "dayHigh": meta.get("regularMarketDayHigh"),
-        "dayLow": meta.get("regularMarketDayLow"),
-        "volume": meta.get("regularMarketVolume"),
-        "week52High": meta.get("fiftyTwoWeekHigh"),
-        "week52Low": meta.get("fiftyTwoWeekLow"),
-        "series": series,
-        "spark": [r["c"] for r in (series.get("3mo") or daily)][-63:],
-    })
-    if warn:
-        base["quoteWarning"] = warn
-    if errors:
-        base["errors"] = errors[:4]
-    if want_news:
-        base["news"] = _news(cfg, co)
-    return base
+def fetch_profile(cfg, sess, symbol):
+    """quoteSummary → 화이트리스트 필드만. 값이 없는 필드는 아예 담지 않는다
+       (화면에서 '자리'까지 빼려면 키가 없어야 한다)."""
+    s, crumb = sess
+    r = _get("https://query1.finance.yahoo.com/v10/finance/quoteSummary/" + symbol,
+             params={"modules": cfg["profileModules"], "crumb": crumb},
+             timeout=30, tries=2, session=s)
+    res = ((r.json().get("quoteSummary") or {}).get("result") or [{}])[0]
+    if not res:
+        raise ValueError("quoteSummary 결과가 비어 있습니다")
+    out = {}
+    for group, fields in cfg["profileFields"].items():
+        g = {}
+        for name, path, kind in fields:
+            v = _dig(res, path)
+            if v is None or v == "":
+                continue                      # ★ 없는 항목은 키를 만들지 않는다
+            if kind == "int":
+                try:
+                    v = int(v)
+                except (TypeError, ValueError):
+                    continue
+            elif kind == "num":
+                try:
+                    v = round(float(v), 6)
+                except (TypeError, ValueError):
+                    continue
+            else:
+                v = str(v).strip()
+                if not v:
+                    continue
+            g[name] = v
+        if g:
+            out[group] = g
+    # 대표이사만 따로 — 임원 전체를 늘어놓지 않는다
+    offs = _dig(res, "assetProfile.companyOfficers")
+    if isinstance(offs, list):
+        heads = [o for o in offs
+                 if isinstance(o, dict) and o.get("name")
+                 and re.search(r"CEO|Chief Executive|대표", str(o.get("title") or ""), re.I)
+                 # ★ President 만으로 잡으면 'Vice President'(부사장)까지 걸린다.
+                 #   실제로 코웨이에서 마케팅 부사장이 대표이사로 나왔다.
+                 and not re.search(r"Vice\s*President", str(o.get("title") or ""), re.I)]
+        if heads:
+            out.setdefault("identity", {})["ceo"] = ", ".join(
+                "%s (%s)" % (h["name"].strip(), (h.get("title") or "").strip()) for h in heads[:2])
+    return out
 
 
 # ── 뉴스 ──────────────────────────────────────────────────────────────────
-def _news(cfg, co):
-    """종목별 관련 뉴스(구글 뉴스 RSS, 무키). 실패하면 빈 배열."""
+def _news(cfg, name):
     try:
         from urllib.parse import quote
-        q = quote(co["name"] + " 주가")
-        url = cfg["newsFeedTemplate"].replace("{q}", q)
+        url = cfg["newsFeedTemplate"].replace("{q}", quote(name + " 주가"))
         r = _get(url, tries=2)
         root = ET.fromstring(r.text.encode("utf-8"))
         out = []
@@ -250,60 +232,246 @@ def _news(cfg, co):
             media = (it.findtext("source") or "").strip()
             if " - " in t:
                 t, media = t.rsplit(" - ", 1)
-            out.append({"title": t.strip()[:160], "link": link,
-                        "media": media.strip(), "published": (it.findtext("pubDate") or "").strip()})
+            out.append({"title": t.strip()[:160], "link": link, "media": media.strip(),
+                        "published": (it.findtext("pubDate") or "").strip()})
             if len(out) >= cfg.get("newsPerCompany", 4):
                 break
-        time.sleep(cfg.get("requestGapSec", 0.8))
         return out
     except Exception as e:  # noqa: BLE001
-        print("   [%s] 뉴스 실패: %s" % (co["name"], str(e)[:80]))
+        print("   뉴스 실패: %s" % str(e)[:80])
         return []
 
 
+# ── 한 종목 ───────────────────────────────────────────────────────────────
+def _quote_from(meta, daily, cfg, sym):
+    """현재가·전일대비. 등락률을 두 방식으로 구해 교차검증한다."""
+    now = meta.get("regularMarketPrice")
+    if now is None:
+        now = daily[-1][4]
+    closes = [c[4] for c in daily]
+    last_d = daily[-1][0]
+    today = datetime.date.today().isoformat()
+    prev_series = None
+    if len(closes) >= 2:
+        prev_series = closes[-2] if last_d == today else closes[-1]
+        if last_d != today and abs(closes[-1] - now) < 1e-9:
+            prev_series = closes[-2]
+    pct_series = (round((now - prev_series) / prev_series * 100.0, 4)
+                  if prev_series else None)
+    pm = meta.get("regularMarketChangePercent")
+    pct_meta = round(pm, 4) if isinstance(pm, (int, float)) else None
+    warn = None
+    tol = cfg.get("changeTolerancePct", 0.2)
+    if pct_meta is not None and pct_series is not None and abs(pct_meta - pct_series) > tol:
+        warn = ("전일대비가 두 방식에서 다릅니다 (meta %+.2f%% vs 시계열 %+.2f%%)"
+                % (pct_meta, pct_series))
+        print("   [%s] ★ %s" % (sym, warn))
+    pct = pct_meta if pct_meta is not None else pct_series
+    prev = None
+    if pct not in (None, 0) and now is not None:
+        prev = round(now / (1 + pct / 100.0), 4)
+    elif prev_series:
+        prev = prev_series
+    return {
+        "now": round(now, 4), "prev": prev,
+        "change": round(now - prev, 4) if prev is not None else None,
+        "changePct": pct, "changePctMeta": pct_meta, "changePctSeries": pct_series,
+        "asOf": (datetime.datetime.fromtimestamp(meta["regularMarketTime"]).strftime("%Y-%m-%d %H:%M")
+                 if meta.get("regularMarketTime") else last_d),
+    }, warn
+
+
+def fetch_one(cfg, co, sess=None, want_news=True, force_fail=False):
+    """한 종목 → (목록행, 상세dict). 실패는 이 종목 안에서 격리한다."""
+    sym = co.get("symbol")
+    row = {"key": co["key"], "name": co["name"], "symbol": sym,
+           "market": co.get("market"), "note": co.get("note"),
+           "listed": bool(co.get("listed")), "own": bool(co.get("own"))}
+    if co.get("aka"):
+        row["aka"] = co["aka"]
+    if not co.get("listed") or not sym:
+        row["status"] = "unlisted"
+        return row, None
+    if force_fail:
+        row.update({"status": "error", "reason": "강제 실패(--fail-all 테스트)"})
+        return row, None
+
+    gap = cfg.get("requestGapSec", 0.8)
+    scale = co.get("scale", 1) or 1
+    candles, meta, errors = {}, None, []
+    for rg in cfg["candleRanges"]:
+        try:
+            node = _chart(cfg, sym, rg["range"], rg["interval"])
+            if meta is None:
+                meta = node.get("meta") or {}
+            candles[rg["key"]] = _candles(node, scale)
+        except Exception as e:  # noqa: BLE001
+            errors.append({"range": rg["key"], "error": str(e)[:140]})
+            print("   [%s] %s 실패: %s" % (sym, rg["key"], str(e)[:85]))
+        time.sleep(gap)
+
+    daily = candles.get("1d") or candles.get("1wk") or candles.get("1mo") or []
+    if meta is None or not daily:
+        row.update({"status": "error",
+                    "reason": "시세를 받지 못했습니다"
+                              + (" (%s)" % errors[0]["error"] if errors else ""),
+                    "errors": errors[:4]})
+        return row, None
+
+    q, warn = _quote_from(meta, daily, cfg, sym)
+    row.update({"status": "ok", "currency": meta.get("currency"),
+                "exchange": meta.get("exchangeName"),
+                "longName": meta.get("longName") or meta.get("shortName") or "",
+                "week52High": meta.get("fiftyTwoWeekHigh"),
+                "week52Low": meta.get("fiftyTwoWeekLow")})
+    row.update(q)
+    row["spark"] = [c[4] for c in daily][-63:]
+    if warn:
+        row["quoteWarning"] = warn
+
+    detail = {"key": co["key"], "name": co["name"], "symbol": sym,
+              "market": co.get("market"), "note": co.get("note"),
+              "generatedAt": datetime.datetime.now(KST).isoformat(timespec="seconds"),
+              "currency": meta.get("currency"), "exchange": meta.get("exchangeName"),
+              "candles": candles, "candleFormat": cfg["candleFormat"],
+              "maPeriods": cfg["maPeriods"], "ranges": cfg["candleRanges"],
+              "quote": q, "source": "Yahoo Finance"}
+    if co.get("aka"):
+        detail["aka"] = co["aka"]
+    if warn:
+        detail["quoteWarning"] = warn
+    if errors:
+        detail["candleErrors"] = errors[:4]
+
+    if sess:
+        try:
+            prof = fetch_profile(cfg, sess, sym)
+            if prof:
+                detail["profile"] = prof
+                print("   [%s] 종목정보 %d개 그룹" % (sym, len(prof)))
+        except Exception as e:  # noqa: BLE001
+            # ★ 종목정보만 실패 — 캔들·시세는 그대로 둔다(화면은 탭만 빠진다)
+            detail["profileError"] = str(e)[:160]
+            print("   [%s] 종목정보 실패(캔들은 정상): %s" % (sym, str(e)[:90]))
+        time.sleep(gap)
+    if want_news:
+        detail["news"] = _news(cfg, co["name"])
+        time.sleep(gap)
+    return row, detail
+
+
+def fetch_currency(cfg, cu, force_fail=False):
+    """환율 캔들. Frankfurter 는 종가만 줘서 캔들이 안 되므로 Yahoo FX 를 쓴다."""
+    if force_fail:
+        return {"key": cu["key"], "status": "error",
+                "reason": "강제 실패(--fail-all 테스트)"}
+    gap = cfg.get("requestGapSec", 0.8)
+    scale = cu.get("scale", 1) or 1
+    candles, meta, errors = {}, None, []
+    for rg in cfg["candleRanges"]:
+        try:
+            node = _chart(cfg, cu["symbol"], rg["range"], rg["interval"])
+            if meta is None:
+                meta = node.get("meta") or {}
+            candles[rg["key"]] = _candles(node, scale)
+        except Exception as e:  # noqa: BLE001
+            errors.append({"range": rg["key"], "error": str(e)[:140]})
+            print("   [%s] %s 실패: %s" % (cu["symbol"], rg["key"], str(e)[:85]))
+        time.sleep(gap)
+    if not candles.get("1d"):
+        return {"key": cu["key"], "status": "error",
+                "reason": "환율 캔들을 받지 못했습니다", "errors": errors[:3]}
+    return {
+        "key": cu["key"], "status": "ok", "name": cu["name"], "unit": cu["unit"],
+        "symbol": cu["symbol"], "scale": scale,
+        "generatedAt": datetime.datetime.now(KST).isoformat(timespec="seconds"),
+        "candles": candles, "candleFormat": cfg["candleFormat"],
+        "maPeriods": cfg["maPeriods"], "ranges": cfg["candleRanges"],
+        "source": "Yahoo Finance (지연 시세)",
+        "sourceNote": ("캔들은 Yahoo 지연 시세입니다. 카드·일별 시세·AI 해석의 "
+                       "ECB 기준환율과는 값이 조금 다를 수 있습니다."),
+        "errors": errors[:3] or None,
+    }
+
+
 # ── 조립 ──────────────────────────────────────────────────────────────────
-def collect(want_news=True, force_fail=False):
+def collect(want_news=True, want_profile=True, force_fail=False, only=None):
     cfg = load_cfg()
     now = datetime.datetime.now(KST)
-    rows = []
+    sess, sess_err = (None, None)
+    if want_profile and not force_fail:
+        sess, sess_err = make_crumb_session()
+        print("[stock] 종목정보 세션: %s" % ("준비됨" if sess else sess_err))
+
+    rows, details = [], {}
     for co in cfg["companies"]:
+        if only and co["key"] not in only:
+            continue
         print("[stock] %s (%s)" % (co["name"], co.get("symbol") or "비상장"))
-        rows.append(fetch_one(cfg, co, want_news=want_news, force_fail=force_fail))
+        row, det = fetch_one(cfg, co, sess=sess, want_news=want_news, force_fail=force_fail)
+        rows.append(row)
+        if det:
+            details[co["key"]] = det
+
+    curs = []
+    for cu in cfg["currencies"]:
+        if only and cu["key"] not in only:
+            continue
+        print("[stock] 환율 %s (%s)" % (cu["name"], cu["symbol"]))
+        c = fetch_currency(cfg, cu, force_fail=force_fail)
+        curs.append(c)
+        if c.get("status") == "ok":
+            details["cur-" + cu["key"]] = c
 
     listed = [r for r in rows if r.get("listed")]
     ok = [r for r in listed if r.get("status") == "ok"]
-    # ★ 상장 종목이 하나도 안 들어오면 '수집 실패'다. 일부만 실패면 ok 로 두고
-    #   그 종목만 화면에서 사유를 보여 준다(전체를 버리지 않는다).
     status = "ok" if ok else "error"
     res = {
         "status": status,
         "generatedAt": now.isoformat(timespec="seconds"),
         "items": rows,
-        "ranges": cfg["ranges"],
+        "currencies": [{"key": c["key"], "status": c.get("status"),
+                        "reason": c.get("reason")} for c in curs],
+        "ranges": cfg["candleRanges"],
         "dailyTableRows": cfg.get("dailyTableRows", 30),
+        "detailDir": cfg["detailDirRel"],
         "counts": {"total": len(rows), "listed": len(listed), "ok": len(ok),
                    "failed": len(listed) - len(ok),
                    "unlisted": len(rows) - len(listed)},
+        "profileSession": "ok" if sess else (sess_err or "생략"),
         "source": "Yahoo Finance",
         "sourceNote": "지연 시세 — 실시간이 아닙니다",
     }
     if status != "ok":
         res["reason"] = ("주가 조회 일시 불가 — 상장 종목 %d개 모두 시세를 받지 못했습니다"
                          % len(listed))
-    return res
+    return res, details
 
 
 def _existing_ok(path):
-    """기존 결과가 '쓸 만한 데이터'인지(status ok + 정상 종목 1개 이상)."""
     try:
         with io.open(path, encoding="utf-8") as f:
             d = json.load(f)
     except Exception:  # noqa: BLE001
         return None
-    if d.get("status") == "ok" and any(
-            i.get("status") == "ok" for i in (d.get("items") or [])):
+    if d.get("status") == "ok" and any(i.get("status") == "ok" for i in (d.get("items") or [])):
         return d
     return None
+
+
+def _write(path, obj, compact_lists=True):
+    d = os.path.dirname(path)
+    if d and not os.path.isdir(d):
+        os.makedirs(d)
+    txt = json.dumps(obj, ensure_ascii=False, indent=1)
+    if compact_lists:
+        # 캔들 배열 한 줄로 — 봉마다 6줄씩 늘어나는 것을 막는다
+        txt = re.sub(r"\[\s+(\"20\d\d-\d\d-\d\d\",)\s+([^\[\]]*?)\s+\]",
+                     lambda m: "[" + m.group(1) + " " + re.sub(r"\s+", " ", m.group(2)) + "]",
+                     txt)
+    with io.open(path, "w", encoding="utf-8") as f:
+        f.write(txt + "\n")
+    return os.path.getsize(path)
 
 
 def main():
@@ -311,14 +479,15 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--resolve", default=None, help="심볼 확인(종목코드/이름)")
     ap.add_argument("--no-news", action="store_true")
+    ap.add_argument("--no-profile", action="store_true", help="종목정보 생략(crumb 안 씀)")
+    ap.add_argument("--only", default=None, help="쉼표로 구분한 key 만 수집")
     ap.add_argument("--probe", action="store_true", help="진단만 — 결과 파일을 쓰지 않는다")
-    ap.add_argument("--fail-all", action="store_true",
-                    help="전부 실패시켜 화면 방어를 테스트한다")
+    ap.add_argument("--fail-all", action="store_true", help="전부 실패시켜 화면 방어 테스트")
     ap.add_argument("--force", action="store_true", help="실패해도 기존 파일을 덮어쓴다")
     a = ap.parse_args()
+    cfg = load_cfg()
 
     if a.resolve:
-        cfg = load_cfg()
         try:
             hits = resolve_symbol(cfg, a.resolve)
         except Exception as e:  # noqa: BLE001
@@ -330,12 +499,14 @@ def main():
         print("'%s' 검색 결과:" % a.resolve)
         for h in hits:
             print("  %-12s %-8s %s" % (h["symbol"], h["exchange"], h["name"]))
-        print("  ※ 코스피는 .KS, 코스닥은 .KQ 다. 접미사를 틀리면 값은 나오는데")
+        print("  ※ 코스피 .KS / 코스닥 .KQ. 접미사를 틀리면 값은 나오는데")
         print("    전일대비가 엉터리로 나온다(유령 심볼).")
         return 0
 
     out = a.out or os.path.join(HERE, *OUT_REL.split("/"))
-    res = collect(want_news=not a.no_news, force_fail=a.fail_all)
+    only = set(x.strip() for x in a.only.split(",")) if a.only else None
+    res, details = collect(want_news=not a.no_news, want_profile=not a.no_profile,
+                           force_fail=a.fail_all, only=only)
 
     print()
     print("status : %s" % res["status"])
@@ -344,21 +515,29 @@ def main():
           % (c["total"], c["ok"], c["failed"], c["unlisted"]))
     for i in res["items"]:
         if i.get("status") == "ok":
-            print("  %-12s %-10s %12s %-4s %+8.2f (%+.2f%%)%s"
+            det = details.get(i["key"]) or {}
+            pf = "정보O" if det.get("profile") else "정보X"
+            nb = sum(len(v) for v in (det.get("candles") or {}).values())
+            print("  %-12s %-10s %12s %-4s %+8.2f (%+.2f%%)  캔들%4d  %s%s"
                   % (i["name"], i["symbol"], i["now"], i.get("currency") or "",
-                     i.get("change") or 0, i.get("changePct") or 0,
+                     i.get("change") or 0, i.get("changePct") or 0, nb, pf,
                      "  ★검증경고" if i.get("quoteWarning") else ""))
         elif i.get("status") == "unlisted":
             print("  %-12s %-10s %12s" % (i["name"], "-", "비상장"))
         else:
             print("  %-12s %-10s %s" % (i["name"], i.get("symbol") or "-",
                                         i.get("reason") or "실패"))
+    for cc in res["currencies"]:
+        det = details.get("cur-" + cc["key"]) or {}
+        nb = sum(len(v) for v in (det.get("candles") or {}).values())
+        print("  환율 %-8s %s  캔들 %d봉" % (cc["key"], cc.get("status"), nb))
+    print("종목정보 세션: %s" % res.get("profileSession"))
 
     if a.probe and not a.out:
         print("probe  : 진단만 수행 — %s 는 건드리지 않았습니다" % OUT_REL)
         return 0 if res["status"] == "ok" else 1
 
-    # ★ 수집 실패가 배포된 정상 데이터를 덮지 않는다(KIPRIS·환율과 같은 규칙).
+    # ★ 수집 실패가 배포된 정상 데이터를 덮지 않는다.
     if res["status"] != "ok" and not a.force:
         keep = _existing_ok(out)
         if keep:
@@ -368,12 +547,22 @@ def main():
             print("         덮어쓰려면 --force")
             return 1
 
-    d = os.path.dirname(out)
-    if d and not os.path.isdir(d):
-        os.makedirs(d)
-    with io.open(out, "w", encoding="utf-8") as f:
-        f.write(json.dumps(res, ensure_ascii=False, indent=1) + "\n")
-    print("saved  : %s (%.1f KB)" % (out, os.path.getsize(out) / 1024.0))
+    # ★ --only 는 개발용이다. 일부 종목만 담긴 결과로 목록 파일을 덮으면
+    #   배포 화면의 리스트가 그 종목만 남는다(실제로 9개가 1개로 줄었다).
+    #   --only 일 때는 상세 파일만 쓰고 목록 파일은 건드리지 않는다.
+    if only:
+        print("only   : 목록 파일(%s)은 건드리지 않았습니다 — 상세만 씁니다" % OUT_REL)
+    else:
+        sz = _write(out, res, compact_lists=False)
+        print("saved  : %s (%.1f KB)" % (out, sz / 1024.0))
+    ddir = os.path.join(HERE, *cfg["detailDirRel"].split("/"))
+    tot = 0
+    for key, det in sorted(details.items()):
+        p = os.path.join(ddir, key + ".json")
+        tot += _write(p, det)
+    if details:
+        print("detail : %s/ 에 %d개 파일 (%.1f KB)"
+              % (cfg["detailDirRel"], len(details), tot / 1024.0))
     return 0 if res["status"] == "ok" else 1
 
 

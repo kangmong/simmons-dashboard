@@ -72,6 +72,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/stocks/*.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/global-mattress-market.json",
       "use": "@vercel/static"
     },

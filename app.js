@@ -9140,10 +9140,12 @@ async function fetchStockQuotes() {
   renderFx();
 }
 
-/** 숫자 포맷 — 통화별로 소수 자리를 달리한다(원화는 정수, 달러는 2자리) */
+/** 숫자 포맷 — 소수 자리를 대상에 맞게 고른다.
+ *  주식 원화는 정수(95,400), 달러는 2자리($66.11), 환율은 2자리(1,343.80).
+ *  ★ 환율을 정수로 굴리면 1,343.80 이 1,344 로 보여 카드와 어긋난다. */
 function sqNum(v, cur) {
   if (v == null || !isFinite(v)) return '—';
-  const dec = (cur === 'USD') ? 2 : 0;
+  const dec = (cur === 'USD' || cur === 'FX') ? 2 : 0;
   return Number(v).toLocaleString('ko-KR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 function sqPct(v) {
@@ -9267,14 +9269,18 @@ function fxdPoints(stage, rangeKey) {
  *    으로 나왔다(장 초반 분봉). 표는 일별로 고정하고, 칩은 차트만 바꾼다. */
 function fxdDailyPoints(stage) {
   if (stage.kind === 'cur') {
+    /* 통화 일별표는 Frankfurter(ECB 기준환율)를 쓴다 — 카드·AI 해석과 같은
+       숫자여야 한다. 캔들만 Yahoo 다(차트 아래에 출처를 밝혀 둔다). */
     const s = fxSeries();
     if (!s || !Array.isArray(s.dates)) return [];
     const arr = s[stage.key] || [];
     return s.dates.map((d, i) => ({ x: d, v: arr[i] })).filter((p) => p.v != null);
   }
-  const it = sqItem(stage.key);
-  const base = (it && it.series && (it.series['1y'] || it.series['3mo'] || it.series['1mo'])) || [];
-  return base.map((r) => ({ x: r.d, v: r.c, row: r }));
+  /* 종목 일별표는 상세 파일의 일봉에서 만든다(목록 파일에는 캔들이 없다). */
+  const k = stage.key;
+  const det = (_sqd[k] && _sqd[k].status === 'ok') ? _sqd[k].data : null;
+  if (!det) return [];
+  return sqCandleRows(det, '1d').map((r) => ({ x: r.d, v: r.c, row: r }));
 }
 
 /** 큰 선차트. 세로 눈금 3개 + 첫/중간/끝 날짜 라벨 + 마지막 점 강조. */
@@ -9357,13 +9363,361 @@ function fxdNewsHtml(news) {
     + '<ul class="fxd-news">' + li + '</ul></div>';
 }
 
+/* ── 상세용 데이터(캔들 + 종목정보) 지연 로드 ─────────────────────────────
+   목록은 stock-quotes.json(12KB)만 읽고, 캔들·종목정보는 상세를 열 때
+   public/data/stocks/<key>.json 을 그때 받는다. 한 번 받으면 캐시한다. */
+const SQD_DIR = 'public/data/stocks/';
+const _sqd = {};            // key -> {status:'ok'|'error', data|reason}
+const _sqdBusy = {};
+let _fxdTab = 'chart';      // 'chart' | 'info'
+let _fxdCandle = '1d';      // 캔들 기간 키
+
+async function fetchStockDetail(key) {
+  if (_sqd[key] || _sqdBusy[key]) return;
+  _sqdBusy[key] = true;
+  try {
+    const res = await fetch(SQD_DIR + encodeURIComponent(key) + '.json', { cache: 'no-store' });
+    if (res.status === 404) throw new Error('상세 데이터 파일이 아직 없습니다');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !d.candles) throw new Error('형식이 올바르지 않습니다');
+    _sqd[key] = { status: 'ok', data: d };
+  } catch (e) {
+    _sqd[key] = { status: 'error', reason: String(e.message || e) };
+    console.warn('[stock-detail]', key, '로드 실패:', e);
+  }
+  _sqdBusy[key] = false;
+  if (_fxStage) renderFx();
+}
+
+/** 캔들 배열 → 객체. candleFormat(['d','o','h','l','c','v']) 순서를 따른다. */
+function sqCandleRows(det, rangeKey) {
+  const arr = (det.candles || {})[rangeKey] || [];
+  const f = det.candleFormat || ['d', 'o', 'h', 'l', 'c', 'v'];
+  const ix = {};
+  f.forEach((k, i) => { ix[k] = i; });
+  return arr.map((r) => ({
+    d: r[ix.d], o: r[ix.o], h: r[ix.h], l: r[ix.l], c: r[ix.c], v: r[ix.v],
+  })).filter((x) => x.c != null);
+}
+
+/** 이동평균. 구간이 모자란 앞부분은 null(선을 그리지 않는다). */
+function sqMA(rows, n) {
+  const out = new Array(rows.length).fill(null);
+  let sum = 0;
+  for (let i = 0; i < rows.length; i += 1) {
+    sum += rows[i].c;
+    if (i >= n) sum -= rows[i - n].c;
+    if (i >= n - 1) out[i] = sum / n;
+  }
+  return out;
+}
+
+const SQ_MA_COLORS = { 5: '#C8102E', 20: '#F59E0B', 60: '#12B981', 120: '#8B5CF6' };
+
+/** 캔들스틱 + 이동평균 + 거래량 패널. 전부 직접 만든 SVG다
+ *  (이 프로젝트의 다른 차트 10여 개와 같은 방식 — 외부 라이브러리 0개).
+ *  ★ 색은 한국식: 상승 빨강, 하락 파랑. */
+function sqCandleSvg(rows, opts) {
+  const o = opts || {};
+  if (!rows || rows.length < 2) {
+    return '<div class="chart-empty">이 기간의 캔들 데이터가 없습니다.</div>';
+  }
+  const W = 1000, H = o.hasVol ? 430 : 340;
+  const L = 60, R = 74, T = 14;
+  const PB = o.hasVol ? 250 : 290;      // 가격 패널 아래쪽
+  const VT = o.hasVol ? 286 : 0;        // 거래량 패널 위쪽
+  const VB = o.hasVol ? 386 : 0;
+  const XL = H - 12;
+  const n = rows.length;
+  const lows = rows.map((r) => (r.l != null ? r.l : r.c));
+  const highs = rows.map((r) => (r.h != null ? r.h : r.c));
+  const mas = (o.maPeriods || []).map((p) => ({ p: p, vals: sqMA(rows, p) }));
+  let min = Math.min(...lows), max = Math.max(...highs);
+  mas.forEach((m) => m.vals.forEach((v) => {
+    if (v != null) { if (v < min) min = v; if (v > max) max = v; }
+  }));
+  const pad = (max - min) * 0.08 || (Math.abs(max) * 0.01 || 1);
+  min -= pad; max += pad;
+  const plotW = W - L - R;
+  const cw = plotW / n;
+  const bw = Math.max(1, Math.min(11, cw * 0.62));
+  const xf = (i) => L + cw * (i + 0.5);
+  const yf = (v) => T + (PB - T) * (1 - (v - min) / (max - min));
+
+  // 가격 눈금
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+    const v = min + (max - min) * (1 - f);
+    const y = T + (PB - T) * f;
+    return '<line class="sqc-grid" x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R)
+      + '" y2="' + y.toFixed(1) + '"/>'
+      + '<text class="sqc-ylab" x="' + (L - 7) + '" y="' + (y + 3.5).toFixed(1) + '">'
+      + escapeHtml(sqNum(v, o.cur)) + '</text>';
+  }).join('');
+
+  // 캔들 — 시가<종가면 상승(빨강)
+  const candles = rows.map((r, i) => {
+    const up = (r.o == null) ? (i > 0 && r.c >= rows[i - 1].c) : (r.c >= r.o);
+    const cls = up ? 'is-up' : 'is-down';
+    const x = xf(i);
+    const hi = (r.h != null) ? r.h : Math.max(r.c, r.o == null ? r.c : r.o);
+    const lo = (r.l != null) ? r.l : Math.min(r.c, r.o == null ? r.c : r.o);
+    const yO = yf(r.o == null ? r.c : r.o), yC = yf(r.c);
+    const top = Math.min(yO, yC);
+    const hgt = Math.max(0.8, Math.abs(yC - yO));
+    return '<g class="sqc-c ' + cls + '">'
+      + '<line x1="' + x.toFixed(1) + '" y1="' + yf(hi).toFixed(1)
+      + '" x2="' + x.toFixed(1) + '" y2="' + yf(lo).toFixed(1) + '"/>'
+      + '<rect x="' + (x - bw / 2).toFixed(1) + '" y="' + top.toFixed(1)
+      + '" width="' + bw.toFixed(1) + '" height="' + hgt.toFixed(1) + '"/></g>';
+  }).join('');
+
+  // 이동평균선
+  const maLines = mas.map((m) => {
+    const pts = [];
+    m.vals.forEach((v, i) => { if (v != null) pts.push(xf(i).toFixed(1) + ',' + yf(v).toFixed(1)); });
+    if (pts.length < 2) return '';
+    return '<polyline class="sqc-ma" fill="none" stroke="' + (SQ_MA_COLORS[m.p] || 'var(--slate)')
+      + '" stroke-width="1.1" points="' + pts.join(' ') + '"/>';
+  }).join('');
+
+  // 기간 내 최고·최저 마커
+  let hi = 0, lo = 0;
+  highs.forEach((v, i) => { if (v > highs[hi]) hi = i; });
+  lows.forEach((v, i) => { if (v < lows[lo]) lo = i; });
+  const nowV = o.now != null ? o.now : rows[n - 1].c;
+  const mk = (i, v, isHigh) => {
+    const x = xf(i), y = yf(v);
+    const pct = (v ? (nowV - v) / v * 100 : null);
+    const lab = sqNum(v, o.cur) + (o.cur === 'USD' ? '' : '원')
+      + (pct == null ? '' : ' (' + (pct > 0 ? '+' : '') + pct.toFixed(2) + '%, '
+        + String(rows[i].d).slice(2) + ')');
+    /* 라벨이 잘리지 않게 좌우 끝에서는 안쪽으로 붙인다 */
+    const anchor = (x < L + 90) ? 'start' : (x > W - R - 90) ? 'end' : 'middle';
+    const dy = isHigh ? -9 : 15;
+    return '<g class="sqc-mk ' + (isHigh ? 'is-hi' : 'is-lo') + '">'
+      + '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.6"/>'
+      + '<text x="' + x.toFixed(1) + '" y="' + (y + dy).toFixed(1)
+      + '" text-anchor="' + anchor + '">' + escapeHtml((isHigh ? '최고 ' : '최저 ') + lab)
+      + '</text></g>';
+  };
+
+  // 현재가 오른쪽 축 하이라이트 박스
+  const yNow = yf(nowV);
+  const nowBox = '<g class="sqc-now">'
+    + '<line x1="' + L + '" y1="' + yNow.toFixed(1) + '" x2="' + (W - R)
+    + '" y2="' + yNow.toFixed(1) + '"/>'
+    + '<rect x="' + (W - R + 2) + '" y="' + (yNow - 9).toFixed(1) + '" width="' + (R - 6)
+    + '" height="18" rx="3"/>'
+    + '<text x="' + (W - R + (R - 6) / 2 + 2) + '" y="' + (yNow + 4).toFixed(1)
+    + '" text-anchor="middle">' + escapeHtml(sqNum(nowV, o.cur)) + '</text></g>';
+
+  // 거래량 패널
+  let vol = '';
+  if (o.hasVol) {
+    const vmax = Math.max(...rows.map((r) => r.v || 0)) || 1;
+    const vy = (v) => VB - (VB - VT) * ((v || 0) / vmax);
+    vol = '<line class="sqc-grid" x1="' + L + '" y1="' + VB + '" x2="' + (W - R) + '" y2="' + VB + '"/>'
+      + '<text class="sqc-ylab" x="' + (L - 7) + '" y="' + (VT + 9) + '">'
+      + escapeHtml(vmax.toLocaleString('ko-KR')) + '</text>'
+      + '<text class="sqc-vlab" x="' + (L + 2) + '" y="' + (VT - 4) + '">거래량</text>'
+      + rows.map((r, i) => {
+        const up = (r.o == null) ? true : (r.c >= r.o);
+        return '<rect class="sqc-v ' + (up ? 'is-up' : 'is-down') + '" x="'
+          + (xf(i) - bw / 2).toFixed(1) + '" y="' + vy(r.v).toFixed(1)
+          + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.6, VB - vy(r.v)).toFixed(1) + '"/>';
+      }).join('');
+  }
+
+  // x축 라벨 (5개)
+  const idx = [0, Math.floor((n - 1) * 0.25), Math.floor((n - 1) * 0.5),
+    Math.floor((n - 1) * 0.75), n - 1];
+  const xlab = idx.map((i, k) => '<text class="sqc-xlab" x="' + xf(i).toFixed(1) + '" y="' + XL
+    + '" text-anchor="' + (k === 0 ? 'start' : k === 4 ? 'end' : 'middle') + '">'
+    + escapeHtml(String(rows[i].d).slice(2)) + '</text>').join('');
+
+  const legend = mas.filter((m) => m.vals.some((v) => v != null)).map((m) =>
+    '<span class="sqc-lg"><i style="background:' + (SQ_MA_COLORS[m.p] || 'var(--slate)')
+    + '"></i>MA' + m.p + '</span>').join('');
+
+  return '<div class="sqc-wrap">'
+    + (legend ? '<div class="sqc-legend">' + legend
+      + '<span class="sqc-hint">캔들에 마우스를 올리면 시·고·저·종·거래량이 표시됩니다</span></div>' : '')
+    + '<svg class="sqc-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img"'
+    + ' aria-label="' + escapeHtml((o.label || '') + ' 캔들 차트') + '">'
+    + grid + vol + candles + maLines + mk(hi, highs[hi], true) + mk(lo, lows[lo], false)
+    + nowBox + xlab
+    + '<line class="sqc-cross" x1="0" y1="' + T + '" x2="0" y2="' + (o.hasVol ? VB : PB) + '" style="display:none"/>'
+    + '</svg><div class="sqc-tip" hidden></div></div>';
+}
+
+/** 캔들 hover — 마우스 x 로 봉 인덱스를 구해 크로스헤어 + 툴팁 */
+function wireSqCandle(el, rows, cur) {
+  const wrap = el.querySelector('.sqc-wrap');
+  if (!wrap || !rows || !rows.length) return;
+  const svg = wrap.querySelector('.sqc-svg');
+  const tip = wrap.querySelector('.sqc-tip');
+  const cross = wrap.querySelector('.sqc-cross');
+  const W = 1000, L = 60, R = 74;
+  const move = (ev) => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const vx = (ev.clientX - rect.left) / rect.width * W;
+    const cw = (W - L - R) / rows.length;
+    let i = Math.floor((vx - L) / cw);
+    if (i < 0) i = 0; if (i > rows.length - 1) i = rows.length - 1;
+    const r = rows[i];
+    const cx = L + cw * (i + 0.5);
+    cross.setAttribute('x1', cx.toFixed(1));
+    cross.setAttribute('x2', cx.toFixed(1));
+    cross.style.display = '';
+    const f = (v) => (v == null ? '—' : sqNum(v, cur));
+    tip.innerHTML = '<b>' + escapeHtml(r.d) + '</b>'
+      + '<span>시 ' + f(r.o) + '</span><span>고 ' + f(r.h) + '</span>'
+      + '<span>저 ' + f(r.l) + '</span><span>종 <b>' + f(r.c) + '</b></span>'
+      + (r.v == null ? '' : '<span>량 ' + Number(r.v).toLocaleString('ko-KR') + '</span>');
+    tip.hidden = false;
+    const px = (cx / W) * rect.width;
+    const tw = tip.offsetWidth || 150;
+    tip.style.left = Math.max(2, Math.min(rect.width - tw - 2, px - tw / 2)) + 'px';
+  };
+  svg.addEventListener('mousemove', move);
+  svg.addEventListener('touchmove', (e) => { if (e.touches[0]) move(e.touches[0]); });
+  const hide = () => { tip.hidden = true; cross.style.display = 'none'; };
+  svg.addEventListener('mouseleave', hide);
+  svg.addEventListener('touchend', hide);
+}
+
+/* ── 종목정보 탭 ───────────────────────────────────────────────────────── */
+/** 값이 있는 항목만 낸다. 없는 항목은 '자리'까지 뺀다(빈 칸을 두지 않는다). */
+function sqInfoRow(label, val, hint) {
+  if (val == null || val === '') return '';
+  return '<div class="sqi-r"><span' + (hint ? ' title="' + escapeHtml(hint) + '"' : '') + '>'
+    + escapeHtml(label) + '</span><b>' + val + '</b></div>';
+}
+
+function sqBigNum(v, cur) {
+  if (v == null) return null;
+  const a = Math.abs(v);
+  if (cur === 'USD') {
+    if (a >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B';
+    if (a >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+    return '$' + Number(v).toLocaleString('ko-KR');
+  }
+  if (a >= 1e12) return (v / 1e12).toFixed(2) + '조원';
+  if (a >= 1e8) return (v / 1e8).toLocaleString('ko-KR', { maximumFractionDigits: 0 }) + '억원';
+  return Number(v).toLocaleString('ko-KR') + '원';
+}
+function sqPctOf(v) { return (v == null) ? null : (v * 100).toFixed(2) + '%'; }
+/** 금액에 통화 단위를 붙인다(원/$). 비율·배수에는 쓰지 않는다. */
+function sqUnit(v, cur) {
+  if (v == null) return null;
+  return (cur === 'USD') ? ('$' + Number(v).toFixed(2)) : (sqNum(v, cur) + '원');
+}
+function sqMul(v) { return (v == null) ? null : Number(v).toFixed(2) + '배'; }
+
+/** 저가─고가 사이에서 현재가 위치를 바로 보여 준다 */
+function sqRangeBar(label, lo, hi, now, cur) {
+  if (lo == null || hi == null || now == null || hi <= lo) return '';
+  const p = Math.max(0, Math.min(100, (now - lo) / (hi - lo) * 100));
+  return '<div class="sqi-bar"><div class="sqi-bar__h">' + escapeHtml(label) + '</div>'
+    + '<div class="sqi-bar__t"><span>' + escapeHtml(sqNum(lo, cur)) + '</span>'
+    + '<span>' + escapeHtml(sqNum(hi, cur)) + '</span></div>'
+    + '<div class="sqi-bar__track"><i style="left:' + p.toFixed(1) + '%"></i></div></div>';
+}
+
+function sqInfoHtml(det, row) {
+  const p = det.profile;
+  if (!p) {
+    const why = det.profileError
+      ? '종목정보를 불러오지 못했습니다 — ' + det.profileError
+      : '종목정보가 아직 수집되지 않았습니다';
+    return '<div class="sqi">' + emptyState(why)
+      + '<div class="sqi-note">차트와 시세는 정상입니다. 종목정보만 제공처에서 받지 못했습니다.</div></div>';
+  }
+  const cur = det.currency;
+  const id = p.identity || {}, sb = p.summaryBar || {}, va = p.valuation || {}, hd = p.holding || {};
+  const now = (det.quote || {}).now != null ? det.quote.now : (row && row.now);
+
+  const head = '<div class="sqi-id">'
+    + [det.name, det.market, (det.symbol || '').replace(/\..*$/, '') || det.symbol, id.exchange]
+      .filter(Boolean).map(escapeHtml).join(' · ')
+    + '</div>'
+    + (id.longName ? '<div class="sqi-ln">' + escapeHtml(id.longName) + '</div>' : '')
+    + (det.aka ? '<div class="sqi-aka">' + escapeHtml(det.aka) + '</div>' : '');
+
+  const bars = '<div class="sqi-bars">'
+    + sqRangeBar('1일 범위', sb.dayLow, sb.dayHigh, now, cur)
+    + sqRangeBar('52주 범위', sb.week52Low, sb.week52High, now, cur)
+    + '<div class="sqi-kv">'
+    + sqInfoRow('시가총액', sqBigNum(sb.marketCap, cur))
+    + sqInfoRow('거래량', sb.volume == null ? null : Number(sb.volume).toLocaleString('ko-KR'))
+    + sqInfoRow('평균거래량(3개월)', sb.avgVolume == null ? null : Number(sb.avgVolume).toLocaleString('ko-KR'))
+    + '</div></div>';
+
+  const about = [
+    sqInfoRow('업종', [va && null, id.industry, id.sector].filter(Boolean).map(escapeHtml).join(' · ') || null),
+    sqInfoRow('본사', [id.city, id.country].filter(Boolean).map(escapeHtml).join(', ') || null),
+    sqInfoRow('대표이사', id.ceo ? escapeHtml(id.ceo) : null),
+    sqInfoRow('직원수', id.employees == null ? null : Number(id.employees).toLocaleString('ko-KR') + '명'),
+    sqInfoRow('발행주식수', id.shares == null ? null : Number(id.shares).toLocaleString('ko-KR') + '주'),
+    sqInfoRow('시세 지연', id.delayMin == null ? null : (id.delayMin === 0 ? '실시간' : id.delayMin + '분 지연')),
+    id.website ? '<div class="sqi-r"><span>홈페이지</span><b><a href="' + escapeHtml(id.website)
+      + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(id.website.replace(/^https?:\/\//, ''))
+      + ' ↗</a></b></div>' : '',
+  ].join('');
+  const aboutBlock = (about || id.summary)
+    ? '<div class="sqi-sec"><div class="sqi-sec__h">기업 개요</div>'
+      + (id.summary ? '<p class="sqi-sum">' + escapeHtml(id.summary) + '</p>' : '')
+      + (about ? '<div class="sqi-kv sqi-kv--2">' + about + '</div>' : '') + '</div>'
+    : '';
+
+  const val = [
+    sqInfoRow('PER', sqMul(va.trailingPE)),
+    sqInfoRow('PER(예상)', sqMul(va.forwardPE), '향후 12개월 예상 실적 기준'),
+    sqInfoRow('PBR', sqMul(va.pbr)),
+    sqInfoRow('EPS', va.eps == null ? null : sqUnit(va.eps, cur)),
+    sqInfoRow('BPS', va.bps == null ? null : sqUnit(va.bps, cur)),
+    sqInfoRow('PSR', sqMul(va.psr)),
+    sqInfoRow('배당수익률', sqPctOf(va.dividendYield)),
+    sqInfoRow('주당 배당금', va.dividendRate == null ? null : sqUnit(va.dividendRate, cur)),
+    sqInfoRow('배당성향', sqPctOf(va.payoutRatio)),
+    sqInfoRow('베타', va.beta == null ? null : Number(va.beta).toFixed(2), '시장 대비 변동성(1이면 시장과 동일)'),
+    sqInfoRow('ROE', sqPctOf(va.roe)),
+    sqInfoRow('영업이익률', sqPctOf(va.operatingMargin)),
+    sqInfoRow('매출액', sqBigNum(va.revenue, cur)),
+    sqInfoRow('매출성장률', sqPctOf(va.revenueGrowth)),
+    sqInfoRow('52주 변동률', sqPctOf(va.change52w)),
+    sqInfoRow('50일 평균가', va.ma50 == null ? null : sqUnit(va.ma50, cur)),
+  ].join('');
+  const valBlock = val
+    ? '<div class="sqi-sec"><div class="sqi-sec__h">밸류에이션 · 재무</div>'
+      + '<div class="sqi-kv sqi-kv--3">' + val + '</div>'
+      + '<div class="sqi-note">일부 지표는 데이터 제공처 사정으로 종목별로 제공 여부가 다릅니다.</div>'
+      + '</div>'
+    : '';
+
+  const hold = [
+    sqInfoRow('기관 보유비중', sqPctOf(hd.heldInstitutions), '보유 지분 비율입니다. 순매수 흐름이 아닙니다.'),
+    sqInfoRow('내부자 보유비중', sqPctOf(hd.heldInsiders), '보유 지분 비율입니다. 순매수 흐름이 아닙니다.'),
+  ].join('');
+  const holdBlock = hold
+    ? '<div class="sqi-sec"><div class="sqi-sec__h">지분 보유비중'
+      + '<span class="sqi-sec__s">순매수 흐름이 아니라 보유 지분 비율입니다</span></div>'
+      + '<div class="sqi-kv sqi-kv--2">' + hold + '</div></div>'
+    : '';
+
+  return '<div class="sqi">' + head + bars + aboutBlock + valBlock + holdBlock + '</div>';
+}
+
 /** 상세 화면 전체 */
 function fxDetailHtml() {
   const st = _fxStage;
-  const ranges = fxdRanges(st.kind);
-  if (!_fxdRange || !ranges.some((r) => r.key === _fxdRange)) {
-    _fxdRange = (st.kind === 'cur') ? '3mo' : '3mo';
-  }
+  /* 상세 데이터 파일 키: 종목은 그대로, 통화는 cur-USD 꼴 */
+  const detKey = (st.kind === 'cur') ? ('cur-' + st.key) : st.key;
+  if (!_sqd[detKey] && !_sqdBusy[detKey]) fetchStockDetail(detKey);   // 지연 로드
+  const det = (_sqd[detKey] && _sqd[detKey].status === 'ok') ? _sqd[detKey].data : null;
+  const detErr = (_sqd[detKey] && _sqd[detKey].status === 'error') ? _sqd[detKey].reason : null;
   const back = '<button type="button" class="fxd-back" data-fxback="1">‹ 목록으로 돌아가기</button>';
 
   let title, sub, now, chg, pct, cur, extra = '', body = '', color = null, hasVol = false, news = null;
@@ -9374,7 +9728,7 @@ function fxDetailHtml() {
     }
     title = card.name + ' (' + card.cur + ')';
     sub = '원 / ' + (card.unit || '') + ' · ' + escapeHtml((_fxa && _fxa.rateSource) || 'Frankfurter (ECB 기반)');
-    now = card.now; chg = card.change; pct = card.changePct; cur = null; color = card.color;
+    now = card.now; chg = card.change; pct = card.changePct; cur = 'FX'; color = card.color;
     const s = card.stats;
     if (s) {
       extra = '<div class="fxd-sum">'
@@ -9404,15 +9758,22 @@ function fxDetailHtml() {
         + emptyState('주가 조회 일시 불가 — ' + (it.reason || '시세를 받지 못했습니다')) + '</div>';
     }
     now = it.now; chg = it.change; pct = it.changePct; cur = it.currency; hasVol = true;
-    news = it.news;
-    extra = '<div class="fxd-sum">'
-      + '<div><span>52주 최고</span><b>' + sqNum(it.week52High, cur) + '</b></div>'
-      + '<div><span>52주 최저</span><b>' + sqNum(it.week52Low, cur) + '</b></div>'
-      + '<div><span>당일 고가</span><b>' + sqNum(it.dayHigh, cur) + '</b></div>'
-      + '<div><span>당일 저가</span><b>' + sqNum(it.dayLow, cur) + '</b></div>'
-      + '<div><span>거래량</span><b>' + (it.volume == null ? '—' : Number(it.volume).toLocaleString('ko-KR')) + '</b></div>'
-      + '<div><span>기준</span><b>' + escapeHtml(it.asOf || '—') + '</b></div>'
-      + '</div>';
+    news = det && det.news;   // 뉴스는 상세 파일에 있다(목록 행에는 없다)
+    /* 당일 고/저·거래량은 상세 파일의 종목정보에 있다. 없으면 그 칸을 빼고
+       52주 범위·기준시각만 낸다 — 빈 칸으로 자리를 차지하게 두지 않는다. */
+    const sb = (det && det.profile && det.profile.summaryBar) || {};
+    const cells = [
+      ['52주 최고', it.week52High == null ? null : sqNum(it.week52High, cur)],
+      ['52주 최저', it.week52Low == null ? null : sqNum(it.week52Low, cur)],
+      ['당일 고가', sb.dayHigh == null ? null : sqNum(sb.dayHigh, cur)],
+      ['당일 저가', sb.dayLow == null ? null : sqNum(sb.dayLow, cur)],
+      ['거래량', sb.volume == null ? null : Number(sb.volume).toLocaleString('ko-KR')],
+      ['기준', it.asOf || null],
+    ].filter((c) => c[1] != null);
+    extra = cells.length
+      ? '<div class="fxd-sum">' + cells.map((c) => '<div><span>' + escapeHtml(c[0])
+        + '</span><b>' + escapeHtml(String(c[1])) + '</b></div>').join('') + '</div>'
+      : '';
     if (it.aka) extra += '<div class="fxd-aka">' + escapeHtml(it.aka) + '</div>';
     if (it.quoteWarning) {
       extra += '<div class="fxd-warn">' + escapeHtml(it.quoteWarning)
@@ -9420,13 +9781,44 @@ function fxDetailHtml() {
     }
   }
 
-  const chips = '<div class="icis-years fxd-ranges">' + ranges.map((r) =>
-    '<button class="icis-year fxd-range' + (r.key === _fxdRange ? ' is-active' : '') + '"'
-    + ' data-fxdrange="' + escapeHtml(r.key) + '">' + escapeHtml(r.label) + '</button>').join('')
-    + (st.kind === 'cur'
-      ? '<span class="fx-curhint">기준환율은 일별 고시라 장중(1일·1주) 데이터가 없습니다</span>' : '')
-    + '</div>';
-  const pts = fxdPoints(st, _fxdRange);
+  /* ── 탭: 차트 / 종목정보 ─────────────────────────────────────────────
+     ★ 종목정보는 quoteSummary(crumb 필요)에서 온다. 그게 막히면 profile 이
+       없으므로 탭 자체를 내지 않는다 — 눌러 봤더니 빈 화면인 탭을 두지 않는다.
+       차트는 무인증 엔드포인트라 그대로 동작한다. */
+  const hasInfo = !!(det && det.profile);
+  if (_fxdTab === 'info' && !hasInfo) _fxdTab = 'chart';
+  const tabs = hasInfo
+    ? '<div class="fxd-tabs">'
+      + ['chart', 'info'].map((t) => '<button type="button" class="fxd-tab'
+        + (_fxdTab === t ? ' is-on' : '') + '" data-fxdtab="' + t + '">'
+        + (t === 'chart' ? '차트' : '종목정보') + '</button>').join('')
+      + '</div>'
+    : '';
+
+  let main = '';
+  if (_fxdTab === 'info') {
+    main = sqInfoHtml(det, st.kind === 'stock' ? sqItem(st.key) : null);
+  } else if (det) {
+    const cRanges = det.ranges || [];
+    if (!cRanges.some((r) => r.key === _fxdCandle)) _fxdCandle = (cRanges[0] || {}).key || '1d';
+    const rdef = cRanges.find((r) => r.key === _fxdCandle) || {};
+    const rows = sqCandleRows(det, _fxdCandle);
+    const chips = '<div class="icis-years fxd-ranges">' + cRanges.map((r) =>
+      '<button class="icis-year fxd-range' + (r.key === _fxdCandle ? ' is-active' : '') + '"'
+      + ' data-fxdcandle="' + escapeHtml(r.key) + '">' + escapeHtml(r.label) + '</button>').join('')
+      + '<span class="fx-curhint">' + escapeHtml(rdef.sub || '') + '</span></div>';
+    /* 환율은 거래량이 없다(FX 는 거래량 개념이 없어 전부 0) — 패널을 만들지 않는다 */
+    const hasVolPanel = (st.kind === 'stock') && rows.some((r) => r.v);
+    main = chips + sqCandleSvg(rows, {
+      cur: cur, now: now, hasVol: hasVolPanel, maPeriods: det.maPeriods, label: title,
+    })
+      + (det.sourceNote ? '<div class="sqc-src">' + escapeHtml(det.sourceNote) + '</div>' : '');
+  } else if (detErr) {
+    main = emptyState('차트를 불러오지 못했습니다 — ' + detErr);
+  } else {
+    main = '<div class="sqc-load">차트를 불러오는 중…</div>';
+  }
+
   const tone = sqTone(pct);
   body = '<div class="fxd-head">'
     + '<div><div class="fxd-title">' + escapeHtml(title) + '</div>'
@@ -9437,10 +9829,12 @@ function fxDetailHtml() {
     + '<span class="fxd-chg ' + tone + '">' + sqArrow(pct) + ' '
     + (st.kind === 'cur' ? fxNum(chg == null ? null : Math.abs(chg)) : sqNum(Math.abs(chg == null ? 0 : chg), cur))
     + ' <b>' + sqPct(pct) + '</b> <em>전일대비</em></span></div>'
-    + extra + chips + fxdChartSvg(pts, color, _fxdRange)
-    + fxdTableHtml(fxdDailyPoints(st), cur, hasVol)
-    + (news ? fxdNewsHtml(news) : '')
-    + (st.kind === 'cur' ? fxaMacroHtml() + fxaAnalysisHtml() : '');
+    + extra + tabs + main
+    + (_fxdTab === 'chart'
+      ? fxdTableHtml(fxdDailyPoints(st), cur, hasVol)
+        + (news ? fxdNewsHtml(news) : '')
+        + (st.kind === 'cur' ? fxaMacroHtml() + fxaAnalysisHtml() : '')
+      : '');
 
   return '<div class="fxd">' + back + body + fxaFootnote(st.kind) + '</div>';
 }
@@ -9449,18 +9843,23 @@ function fxDetailHtml() {
 function wireFxStage(el) {
   el.addEventListener('click', (e) => {
     const back = e.target.closest('[data-fxback]');
-    if (back) { _fxStage = null; _fxdRange = null; renderFx(); return; }
+    if (back) { _fxStage = null; _fxdRange = null; _fxdTab = 'chart'; renderFx(); return; }
     const rg = e.target.closest('[data-fxdrange]');
     if (rg) { _fxdRange = rg.dataset.fxdrange; renderFx(); return; }
+    const ck = e.target.closest('[data-fxdcandle]');
+    if (ck) { _fxdCandle = ck.dataset.fxdcandle; renderFx(); return; }
+    const tb = e.target.closest('[data-fxdtab]');
+    if (tb) { _fxdTab = tb.dataset.fxdtab; renderFx(); return; }
     const card = e.target.closest('[data-fxcur]');
-    if (card) { _fxStage = { kind: 'cur', key: card.dataset.fxcur }; _fxdRange = null; renderFx(); return; }
+    if (card) { _fxStage = { kind: 'cur', key: card.dataset.fxcur }; _fxdRange = null; _fxdTab = 'chart'; renderFx(); return; }
     const row = e.target.closest('[data-sqkey]');
-    if (row) { _fxStage = { kind: 'stock', key: row.dataset.sqkey }; _fxdRange = null; renderFx(); }
+    if (row) { _fxStage = { kind: 'stock', key: row.dataset.sqkey }; _fxdRange = null; _fxdTab = 'chart'; renderFx(); }
   });
   /* 키보드 접근성 — 카드·행이 role=button 이므로 Enter/Space 도 받는다 */
   el.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const t = e.target.closest('[data-fxcur],[data-sqkey],[data-fxback],[data-fxdrange]');
+    const t = e.target.closest('[data-fxcur],[data-sqkey],[data-fxback],[data-fxdrange],'
+      + '[data-fxdcandle],[data-fxdtab]');
     if (!t) return;
     e.preventDefault();
     t.click();
@@ -9473,6 +9872,13 @@ function renderFx() {
   if (elx && _fxStage) {
     elx.innerHTML = fxDetailHtml();
     wireFxStage(elx);
+    /* 캔들 hover(시·고·저·종·거래량 툴팁) — 그려진 뒤에 붙인다 */
+    const dk = (_fxStage.kind === 'cur') ? ('cur-' + _fxStage.key) : _fxStage.key;
+    const d = (_sqd[dk] && _sqd[dk].status === 'ok') ? _sqd[dk].data : null;
+    if (d && _fxdTab === 'chart') {
+      const it = (_fxStage.kind === 'stock') ? sqItem(_fxStage.key) : null;
+      wireSqCandle(elx, sqCandleRows(d, _fxdCandle), it ? it.currency : d.currency);
+    }
     return;
   }
   renderFxList();
@@ -11164,8 +11570,9 @@ function resetDashboard() {
   _fx = null;           // 환율 비우기
   _fxa = null;          // 환율 현황 카드·AI 해석 비우기(카드가 남아 있으면 초기화가 아니다)
   _sq = null;           // 경쟁사 주가 비우기
+  Object.keys(_sqd).forEach((k) => delete _sqd[k]);   // 상세(캔들·종목정보) 캐시도 비운다
   _fxStage = null;      // 2단계 상세에서 보고 있었다면 목록으로 되돌린다
-  _fxdRange = null;
+  _fxdRange = null; _fxdTab = 'chart'; _fxdCandle = '1d';
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
