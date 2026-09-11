@@ -9099,8 +9099,13 @@ function fxaMacroHtml() {
       : (m.yoyPp != null)
         ? ' <u title="전년 동월 대비 (퍼센트포인트)">' + (m.yoyPp > 0 ? '+' : '') + m.yoyPp.toFixed(2) + '%p</u>'
         : '';
+    /* note 가 있으면 같이 띄운다 — 달러지수는 연준 광범위 지수와 다른 지수라
+       그 설명이 숨으면 118 이 아니라 99 인 이유를 알 수 없다. */
+    const tip = m.label + ' · 기준 ' + m.asOf + ' · ' + m.source
+      + (m.note ? '\n' + m.note : '')
+      + (m.usedFallback ? '\n※ 주 소스 실패로 보조 소스에서 받았습니다' : '');
     return '<a class="fxa-m" href="' + escapeHtml(m.url) + '" target="_blank" rel="noopener noreferrer"'
-      + ' title="' + escapeHtml(m.label + ' · 기준 ' + m.asOf + ' · ' + m.source) + '">'
+      + ' title="' + escapeHtml(tip) + '">'
       + '<span class="fxa-m__l">' + escapeHtml(m.label) + '</span>'
       + '<b>' + escapeHtml(String(v)) + escapeHtml(m.unit || '') + '</b>' + extra + '</a>';
   }).join('');

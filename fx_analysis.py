@@ -6,7 +6,7 @@
 
 구성:
   [1] 시세    Frankfurter(ECB 기반, 무키) — USD/EUR/JPY 대비 원화, 약 13개월
-  [2] 거시    FRED fredgraph.csv(무키) + 미 재무부 수익률곡선 XML(무키)
+  [2] 거시    ICE DXY(Frankfurter 환율로 계산) + BLS + 뉴욕 연은 + 미 재무부 (전부 무키)
   [3] 뉴스    구글 뉴스 RSS + 연합뉴스 경제 RSS(무키)
   [4] 해석    Google Gemini generateContent — [1]~[3]을 넣어 JSON 으로 생성
 
@@ -205,69 +205,196 @@ def _badges(now, pct, stats):
     return out
 
 
-# ── [2] 거시지표 — FRED(무키) + 미 재무부(무키) ───────────────────────────
-# ★ FRED 는 키 없이 fredgraph.csv 로 받을 수 있다. 다만 짧은 시간에 여러 번
-#   때리면 막힌다(16개를 연달아 받다가 전부 타임아웃했다). 꼭 필요한 것만
-#   고르고, 사이에 간격을 두고, 실패는 그 항목만 건너뛴다.
-# ★ FRED 는 '브라우저를 자칭하는 UA' 에 응답을 주지 않는다. 브라우저 UA 로 보내면
-#   연결은 되고 응답만 오지 않아 읽기 타임아웃으로 죽는다(40초 대기 후 실패).
-#   같은 요청을 정직한 봇 UA 로 보내면 1초 안에 200 이 온다 — 재현해서 확인했다.
-#     긴 Chrome UA → ReadTimeout(40.8초) / 짧은 UA → 200(1.8초) / UA 없음 → 200(0.7초)
-#   그래서 FRED 에만 별도 헤더를 쓴다(다른 소스는 브라우저 UA 가 필요하다).
-#   ※ 헤더 값은 latin-1 로만 보낼 수 있다 — 한글을 넣으면 requests 가
-#     'latin-1 codec can't encode' 로 죽는다. ASCII 로만 적는다.
+# ── [2] 거시지표 — 무키 공식 소스 ─────────────────────────────────────────
+# ★★ FRED 를 주 소스에서 뺐다. GitHub Actions 러너에서 fredgraph.csv 가
+#   100% 읽기 타임아웃으로 막힌다(연결은 되고 응답이 없다). 내 PC 에서는
+#   0.9초에 200 이 오는데 Actions 에서는 4개 지표가 전부 실패했다 —
+#   즉 '배포되는 데이터'가 항상 3/7 로 반쪽이었다. IP 대역 차단으로 보이며
+#   같은 호스트의 다른 경로(/data/*.txt)도 HTML 을 준다.
+#   그래서 지표별로 '그 기관의 공식 무키 API' 를 주 소스로 바꿨다.
+#   값은 FRED 와 동일함을 대조해 확인했다:
+#     BLS CUSR0000SA0 → CPI 332.813 (FRED CPIAUCSL 과 동일)
+#     BLS LNS14000000 → 실업률 4.1   (FRED UNRATE 와 동일)
+#     NY Fed EFFR     → 3.63%, 1년전 4.33% → -0.70%p (FRED FEDFUNDS 와 동일)
+#   FRED 는 '보조'로만 남긴다(주 소스가 실패하면 시도. 라벨·값이 같으니 안전).
+#
+# ★ 달러지수만 대체가 아니라 '다른 지수'다. FRED DTWEXBGS 는 연준 광범위
+#   교역가중지수(2006=100, 118 수준)이고, 여기서 쓰는 것은 ICE DXY
+#   (6개 통화, 1973=100, 99 수준)다. 숫자가 다른 게 정상이므로 라벨에
+#   DXY 라고 분명히 적고 산식·구성통화를 밝힌다. FRED 로 폴백하지 않는다
+#   — 날에 따라 118 과 99 가 번갈아 나오면 해석이 망가진다.
 FRED_HDR = {"User-Agent": "simmons-dashboard/1.0 (+fx_analysis.py; daily batch)"}
 
-FRED_SERIES = [
-    ("DTWEXBGS", "달러지수(광범위)", "지수", "일"),
-    ("CPIAUCSL", "미국 CPI", "지수", "월"),
-    ("UNRATE", "미국 실업률", "%", "월"),
-    ("FEDFUNDS", "연방기금금리", "%", "월"),
-]
-FRED_STALE_DAYS = {"일": 30, "월": 120}   # 이보다 오래되면 '현재값'으로 쓰지 않는다
+# ICE 달러지수(DXY) 산식. 가중치는 ICE 가 공표한 값이다.
+DXY_K = 50.14348112
+DXY_LEGS = [("EUR", -0.576, True), ("JPY", 0.136, False), ("GBP", -0.119, True),
+            ("CAD", 0.091, False), ("SEK", 0.042, False), ("CHF", 0.036, False)]
+#            통화      지수     '달러가 분모인 쌍인가'(EURUSD·GBPUSD 는 역수를 쓴다)
+
+STALE_DAYS = {"일": 30, "월": 120}   # 이보다 오래되면 '현재값'으로 쓰지 않는다
+
+
+def _fresh(date_s, freq, label):
+    age = (datetime.date.today() - datetime.date.fromisoformat(date_s)).days
+    if age > STALE_DAYS.get(freq, 120):
+        raise ValueError("%s 자료가 %d일 지났습니다(%s)" % (label, age, date_s))
+    return age
+
+
+def _year_ago_key(date_s):
+    """'YYYY-MM-DD' → 1년 전 'YYYY-MM'."""
+    y, m = int(date_s[:4]), int(date_s[5:7])
+    return "%04d-%02d" % (y - 1, m)
+
+
+def _pick_year_ago(by_ym, date_s, label):
+    """월간 시계열에서 '정확히 같은 달, 1년 전' 값을 꺼낸다.
+       ★ 위치 인덱스(rows[-13], rows[12])로 세면 안 된다. 시계열에 빠진 달이
+         있으면 그만큼 밀린다 — 실제로 2025-10 이 비어 있어서 미국 CPI 의
+         전년동월비가 2025-06 과 비교돼 +3.54% 로 나왔다(정답 +3.30%).
+         빠진 달이 있어도 어긋나지 않게 연-월로 직접 찾는다."""
+    key = _year_ago_key(date_s)
+    v = by_ym.get(key)
+    if v is None:
+        print("[fx] %s: 1년 전(%s) 관측치가 없어 전년동월비를 생략합니다" % (label, key))
+    return v
+
+
+def _yoy(cur_v, base_v, unit):
+    """단위에 맞는 전년동월 대비. % 단위는 퍼센트포인트, 지수는 변화율.
+       ★ 금리 4.33%→3.63% 은 '-16.17%' 가 아니라 '-0.70%p' 다."""
+    if base_v in (None, 0):
+        return None, None
+    if unit == "%":
+        return None, round(cur_v - base_v, 2)
+    return round((cur_v - base_v) / base_v * 100.0, 2), None
+
+
+def _dxy_series():
+    """Frankfurter 환율로 ICE DXY 를 계산한다. 반환: [(날짜, 값)] 오름차순."""
+    today = datetime.date.today()
+    start = (today - datetime.timedelta(days=400)).isoformat()
+    to = ",".join(c for c, _, _ in DXY_LEGS)
+    r = _get("https://api.frankfurter.app/%s..%s?from=USD&to=%s" % (start, today.isoformat(), to))
+    rates = r.json().get("rates") or {}
+    out = []
+    for d in sorted(rates):
+        o = rates[d]
+        if not all(c in o and o[c] for c, _, _ in DXY_LEGS):
+            continue
+        v = DXY_K
+        for c, w, inv in DXY_LEGS:
+            v *= ((1.0 / o[c]) if inv else o[c]) ** w
+        out.append((d, round(v, 3)))
+    if len(out) < 2:
+        raise ValueError("DXY 계산에 쓸 환율이 부족합니다")
+    return out
+
+
+def _macro_dxy():
+    s = _dxy_series()
+    date_s, cur_v = s[-1]
+    prev_v = s[-2][1]
+    _fresh(date_s, "일", "달러지수")
+    # 1년 전에 가장 가까운 날
+    tgt = (datetime.date.fromisoformat(date_s) - datetime.timedelta(days=365))
+    base = min(s, key=lambda x: abs((datetime.date.fromisoformat(x[0]) - tgt).days))[1]
+    yoy_pct, yoy_pp = _yoy(cur_v, base, "지수")
+    return {
+        "key": "DXY", "label": "달러지수(DXY)", "unit": "", "value": cur_v,
+        "prev": prev_v, "change": round(cur_v - prev_v, 3),
+        "yoyPct": yoy_pct, "yoyPp": yoy_pp, "asOf": date_s, "freq": "일",
+        "source": "ICE DXY 산식 (Frankfurter 환율로 계산)",
+        "note": "EUR·JPY·GBP·CAD·SEK·CHF 6개 통화 가중. 연준 광범위 달러지수와는 다른 지수입니다.",
+        "url": "https://www.frankfurter.app/",
+    }
+
+
+def _bls_one(sid, label, unit, url):
+    """BLS 공개 API(무키). Results.series[0].data 는 최신이 먼저 온다."""
+    r = _get("https://api.bls.gov/publicAPI/v2/timeseries/data/" + sid,
+             timeout=30, tries=3, headers=FRED_HDR)
+    j = r.json()
+    if j.get("status") != "REQUEST_SUCCEEDED":
+        raise ValueError("BLS 응답 실패: %s" % str(j.get("message"))[:100])
+    ser = (j.get("Results") or {}).get("series") or []
+    if not ser:
+        raise ValueError("BLS 시계열이 비었습니다")
+    def num(x):
+        try:
+            return float(x.get("value"))
+        except (TypeError, ValueError):     # 값이 '-' 인 결측월이 실제로 있다
+            return None
+    rows = [x for x in (ser[0].get("data") or [])
+            if num(x) is not None
+            and re.match(r"^M(0[1-9]|1[0-2])$", str(x.get("period", "")))]  # M13(연평균) 제외
+    if len(rows) < 2:
+        raise ValueError("BLS 관측치가 부족합니다")
+    rows.sort(key=lambda x: (x["year"], x["period"]), reverse=True)         # 최신 먼저
+    by_ym = {"%s-%s" % (x["year"], x["period"][1:]): num(x) for x in rows}
+    cur_v = num(rows[0])
+    date_s = "%s-%s-01" % (rows[0]["year"], rows[0]["period"][1:])
+    _fresh(date_s, "월", label)
+    prev_v = num(rows[1])
+    base = _pick_year_ago(by_ym, date_s, label)
+    yoy_pct, yoy_pp = _yoy(cur_v, base, unit) if base is not None else (None, None)
+    return {"key": sid, "label": label, "unit": unit, "value": round(cur_v, 4),
+            "prev": round(prev_v, 4), "change": round(cur_v - prev_v, 4),
+            "yoyPct": yoy_pct, "yoyPp": yoy_pp, "asOf": date_s, "freq": "월",
+            "source": "미 노동통계국(BLS)", "url": url}
+
+
+def _macro_effr():
+    """뉴욕 연은 실효 연방기금금리(EFFR). 공식·무키."""
+    today = datetime.date.today()
+    start = (today - datetime.timedelta(days=400)).isoformat()
+    r = _get("https://markets.newyorkfed.org/api/rates/unsecured/effr/search.json"
+             "?startDate=%s&endDate=%s" % (start, today.isoformat()),
+             timeout=30, tries=3, headers=FRED_HDR)
+    rows = [x for x in (r.json().get("refRates") or []) if x.get("percentRate") is not None]
+    if len(rows) < 2:
+        raise ValueError("EFFR 관측치가 부족합니다")
+    rows.sort(key=lambda x: x["effectiveDate"], reverse=True)   # 최신 먼저
+    cur_v = float(rows[0]["percentRate"])
+    date_s = rows[0]["effectiveDate"]
+    _fresh(date_s, "일", "연방기금금리")
+    prev_v = float(rows[1]["percentRate"])
+    tgt = datetime.date.fromisoformat(date_s) - datetime.timedelta(days=365)
+    base = float(min(rows, key=lambda x: abs(
+        (datetime.date.fromisoformat(x["effectiveDate"]) - tgt).days))["percentRate"])
+    yoy_pct, yoy_pp = _yoy(cur_v, base, "%")
+    return {"key": "EFFR", "label": "연방기금금리(EFFR)", "unit": "%", "value": cur_v,
+            "prev": prev_v, "change": round(cur_v - prev_v, 4),
+            "yoyPct": yoy_pct, "yoyPp": yoy_pp, "asOf": date_s, "freq": "일",
+            "source": "뉴욕 연방준비은행",
+            "url": "https://www.newyorkfed.org/markets/reference-rates/effr"}
 
 
 def _fred_one(sid, label, unit, freq):
-    # ★ cosd 로 구간을 자른다. 안 자르면 2006년부터 전부 내려와 104KB 다 —
-    #   필요한 건 최근 2년이고, 8.6KB 로 줄면 응답도 훨씬 빠르다.
-    #   (전년동월비를 계산하려면 13개월 이상이 필요해서 2년으로 잡았다)
+    """보조 경로. 주 소스가 실패했을 때만 쓴다(값·라벨이 같다).
+       ★ cosd 로 구간을 자른다 — 안 자르면 2006년부터 104KB 가 내려온다.
+       ★★ 브라우저 UA 로 보내면 응답이 오지 않는다(읽기 타임아웃).
+          정직한 봇 UA 로 보내야 200 이 온다. 헤더 값은 latin-1 만 되므로 ASCII."""
     cosd = (datetime.date.today() - datetime.timedelta(days=760)).isoformat()
     r = _get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s&cosd=%s" % (sid, cosd),
-             timeout=30, tries=3, headers=FRED_HDR)
+             timeout=30, tries=2, headers=FRED_HDR)
     rows = [x for x in csv.reader(io.StringIO(r.text)) if len(x) >= 2 and x[1] not in ("", ".")]
     if len(rows) < 3:
         raise ValueError("데이터 행 부족")
-    date_s, val_s = rows[-1][0], rows[-1][1]
+    date_s, cur_v = rows[-1][0], float(rows[-1][1])
+    _fresh(date_s, freq, label)
     prev_v = float(rows[-2][1])
-    cur_v = float(val_s)
-    d = datetime.date.fromisoformat(date_s)
-    age = (datetime.date.today() - d).days
-    if age > FRED_STALE_DAYS.get(freq, 120):
-        raise ValueError("자료가 %d일 지났습니다(%s)" % (age, date_s))
-    # 전년 동월 대비 변화.
-    # ★ 단위에 따라 계산을 달리해야 한다. CPI·달러지수처럼 '지수'는 변화율(%)이
-    #   의미 있지만, 금리·실업률처럼 이미 %인 값은 변화율을 쓰면 오해를 부른다 —
-    #   연방기금금리 4.33% → 3.63% 은 '-16.17%' 가 아니라 '-0.70%p' 다.
-    #   그래서 % 단위는 퍼센트포인트(yoyPp)로, 지수는 변화율(yoyPct)로 낸다.
-    yoy_pct = yoy_pp = None
-    if freq == "월" and len(rows) >= 13:
-        try:
-            base = float(rows[-13][1])
-            if unit == "%":
-                yoy_pp = round(cur_v - base, 2)
-            elif base:
-                yoy_pct = round((cur_v - base) / base * 100.0, 2)
-        except Exception:  # noqa: BLE001
-            pass
-    return {
-        "key": sid, "label": label, "unit": unit,
-        "value": round(cur_v, 4), "prev": round(prev_v, 4),
-        "change": round(cur_v - prev_v, 4),
-        "yoyPct": yoy_pct, "yoyPp": yoy_pp,
-        "asOf": date_s, "freq": freq,
-        "source": "FRED (세인트루이스 연은)",
-        "url": "https://fred.stlouisfed.org/series/" + sid,
-    }
+    # ★ 위치로 세지 않는다(rows[-13]). 빠진 달이 있으면 어긋난다 — 위 주석 참고.
+    base = None
+    if freq == "월":
+        by_ym = {r[0][:7]: float(r[1]) for r in rows[1:]}
+        base = _pick_year_ago(by_ym, date_s, label)
+    yoy_pct, yoy_pp = _yoy(cur_v, base, unit) if base is not None else (None, None)
+    return {"key": sid, "label": label, "unit": unit, "value": round(cur_v, 4),
+            "prev": round(prev_v, 4), "change": round(cur_v - prev_v, 4),
+            "yoyPct": yoy_pct, "yoyPp": yoy_pp, "asOf": date_s, "freq": freq,
+            "source": "FRED (세인트루이스 연은)",
+            "url": "https://fred.stlouisfed.org/series/" + sid}
 
 
 def _treasury_yields():
@@ -275,7 +402,7 @@ def _treasury_yields():
     yr = datetime.date.today().year
     url = ("https://home.treasury.gov/resource-center/data-chart-center/interest-rates/"
            "pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=%d" % yr)
-    r = _get(url, timeout=30, tries=2)
+    r = _get(url, timeout=30, tries=3)
     props = re.findall(r"<m:properties>(.*?)</m:properties>", r.text, re.S)
     if not props:
         raise ValueError("수익률곡선 레코드 없음")
@@ -289,6 +416,8 @@ def _treasury_yields():
         except ValueError:
             return None
 
+    TU = ("https://home.treasury.gov/resource-center/data-chart-center/"
+          "interest-rates/TextView?type=daily_treasury_yield_curve")
     for block in reversed(props):          # 최신부터 거꾸로 — 값이 빈 날 건너뛴다
         y2, y10 = pick(block, "BC_2YEAR"), pick(block, "BC_10YEAR")
         dm = re.search(r"<d:NEW_DATE[^>]*>([^<T]*)", block)
@@ -296,44 +425,70 @@ def _treasury_yields():
             date_s = dm.group(1)
             return [
                 {"key": "UST2Y", "label": "미 국채 2년물", "unit": "%", "value": y2,
-                 "asOf": date_s, "freq": "일", "source": "미 재무부",
-                 "url": "https://home.treasury.gov/resource-center/data-chart-center/"
-                        "interest-rates/TextView?type=daily_treasury_yield_curve"},
+                 "asOf": date_s, "freq": "일", "source": "미 재무부", "url": TU},
                 {"key": "UST10Y", "label": "미 국채 10년물", "unit": "%", "value": y10,
-                 "asOf": date_s, "freq": "일", "source": "미 재무부",
-                 "url": "https://home.treasury.gov/resource-center/data-chart-center/"
-                        "interest-rates/TextView?type=daily_treasury_yield_curve"},
+                 "asOf": date_s, "freq": "일", "source": "미 재무부", "url": TU},
                 {"key": "UST10Y2Y", "label": "장단기 금리차(10Y-2Y)", "unit": "%p",
                  "value": round(y10 - y2, 2), "asOf": date_s, "freq": "일",
-                 "source": "미 재무부(계산)",
-                 "url": "https://home.treasury.gov/resource-center/data-chart-center/"
-                        "interest-rates/TextView?type=daily_treasury_yield_curve"},
+                 "source": "미 재무부(계산)", "url": TU},
             ]
     raise ValueError("2년·10년물이 모두 있는 날을 못 찾음")
 
 
+# 지표별 (주 소스, 보조 소스). 보조는 실패 시에만 시도한다.
+#   ※ 달러지수는 보조가 없다 — FRED 쪽은 아예 다른 지수라서 섞으면 안 된다.
+MACRO_JOBS = [
+    ("DXY", "달러지수(DXY)", _macro_dxy, None),
+    ("CPI", "미국 CPI",
+     lambda: _bls_one("CUSR0000SA0", "미국 CPI", "지수",
+                      "https://data.bls.gov/timeseries/CUSR0000SA0"),
+     lambda: _fred_one("CPIAUCSL", "미국 CPI", "지수", "월")),
+    ("UNRATE", "미국 실업률",
+     lambda: _bls_one("LNS14000000", "미국 실업률", "%",
+                      "https://data.bls.gov/timeseries/LNS14000000"),
+     lambda: _fred_one("UNRATE", "미국 실업률", "%", "월")),
+    ("EFFR", "연방기금금리", _macro_effr,
+     lambda: _fred_one("FEDFUNDS", "연방기금금리", "%", "월")),
+]
+
+
 def fetch_macro():
     """거시지표. 항목별로 실패를 격리한다 — 하나 실패가 전체를 막지 않는다.
-       ★ 한국은행 기준금리·무역수지는 ECOS 키가 필요해서 넣지 않았다. FRED 의
-         한국 시계열은 갱신이 늦어(수년 전에서 멈춘 것이 많다) '현재값'으로
-         쓰면 오해를 부른다 — 한국 쪽 재료는 뉴스 헤드라인으로만 다룬다."""
+       ★ 한국은행 기준금리·무역수지는 ECOS 키가 필요해서 넣지 않았다. 한국 쪽
+         재료는 뉴스 헤드라인으로만 다룬다.
+       ★★ 주 소스가 실패하면 보조 소스를 시도하고, 무엇으로 받았는지 로그와
+         결과(usedFallback)에 남긴다 — 조용히 다른 소스로 바뀌지 않게."""
     items, errors = [], []
-    for sid, label, unit, freq in FRED_SERIES:
+    for key, label, primary, fallback in MACRO_JOBS:
+        got, first_err = None, None
         try:
-            items.append(_fred_one(sid, label, unit, freq))
+            got = primary()
         except Exception as e:  # noqa: BLE001
-            errors.append({"key": sid, "label": label, "error": str(e)[:160]})
-            print("[fx] 거시 %s 실패: %s" % (sid, str(e)[:120]))
-        # ★ FRED 는 짧은 시간에 여러 번 때리면 읽기 타임아웃으로 막는다.
-        #   (16개를 연달아 받다가 전부 막혔고, 몇 분 뒤 같은 요청이 0.9초에 왔다)
-        #   하루 1회 배치라 몇 초 더 쉬는 비용은 없다.
-        time.sleep(1.0)
+            first_err = str(e)[:160]
+            print("[fx] 거시 %s 주 소스 실패: %s" % (key, first_err[:110]))
+            if fallback:
+                try:
+                    got = fallback()
+                    got["usedFallback"] = True
+                    got["primaryError"] = first_err
+                    print("[fx] 거시 %s 보조 소스(FRED)로 받았습니다" % key)
+                except Exception as e2:  # noqa: BLE001
+                    print("[fx] 거시 %s 보조 소스도 실패: %s" % (key, str(e2)[:110]))
+                    errors.append({"key": key, "label": label,
+                                   "error": first_err,
+                                   "fallbackError": str(e2)[:160]})
+            else:
+                errors.append({"key": key, "label": label, "error": first_err})
+        if got:
+            items.append(got)
+        time.sleep(0.8)
     try:
         items.extend(_treasury_yields())
     except Exception as e:  # noqa: BLE001
         errors.append({"key": "UST", "label": "미 국채 수익률", "error": str(e)[:160]})
         print("[fx] 거시 국채 실패: %s" % str(e)[:120])
     return {"status": "ok" if items else "error", "items": items, "errors": errors}
+
 
 
 # ── [3] 뉴스 헤드라인 — RSS(무키) ─────────────────────────────────────────
@@ -587,6 +742,9 @@ def build_prompt(rates, macro, news, sources):
         "특정 환율 목표치나 전망 레인지 숫자를 지어내지 마라.\n"
         "2. 'sourceId' 에는 아래 '출처 목록' 의 번호(S1, S2 …)를 그대로 하나만 적어라. "
         "URL 을 직접 쓰지 마라. 목록에 없는 번호를 쓰면 링크가 삭제된다.\n"
+        "2-1. 'evidence' 에는 그 sourceId 가 가리키는 출처에 실제로 담긴 내용만 써라. "
+        "여러 출처의 내용을 한 요인에 섞지 마라 — 링크를 눌렀을 때 그 문장의 근거가 "
+        "거기 있어야 한다. 다른 출처의 사실을 쓰고 싶으면 요인을 따로 만들어라.\n"
         "3. 'upsideLimiters' 는 원/달러 환율의 상승(원화 약세)을 제한하는 요인, 즉 "
         "환율 상단을 누르는 재료다(예: 달러 약세 재료, 외국인 자금 유입, 수출 호조).\n"
         "4. 'downsideSupports' 는 환율의 하락을 막고 하단을 지지하는 요인, 즉 "

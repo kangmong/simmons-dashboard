@@ -1,8 +1,14 @@
 name: 환율 해석 수집 (하루 1회)
 
-# 환율 시세(Frankfurter) + 거시지표(FRED·미 재무부) + 뉴스 RSS 를 모아 Google
-# Gemini 로 해석을 만들고 public/data/fx-analysis.json 으로 커밋한다.
+# 환율 시세(Frankfurter) + 거시지표 + 뉴스 RSS 를 모아 Google Gemini 로 해석을
+# 만들고 public/data/fx-analysis.json 으로 커밋한다.
 # 화면은 이 파일만 읽는다(브라우저에서 Gemini 호출 0회 — 키가 내려가지 않는다).
+#
+# ★ 거시지표는 BLS(CPI·실업률) · 뉴욕 연은(EFFR) · 미 재무부(국채) · ICE DXY
+#   산식(Frankfurter 환율로 계산)을 쓴다. 전부 무키다.
+#   FRED 를 주 소스에서 뺀 이유: 이 러너에서 fredgraph.csv 가 100% 읽기
+#   타임아웃으로 막혀 4개 지표가 매번 실패했다(로컬은 0.9초에 성공).
+#   IP 대역 차단으로 보인다. FRED 는 보조 경로로만 남겼다.
 #
 # ★ Gemini 무료 티어 한도를 아끼려고 하루 1회만 돌린다. 한 번 실행에 모델
 #   호출은 1회다(실패 시에만 다음 후보 모델로 재시도).
@@ -36,9 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip

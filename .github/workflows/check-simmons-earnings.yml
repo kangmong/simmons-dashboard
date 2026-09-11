@@ -52,13 +52,13 @@ jobs:
             echo "::notice::실적 발표 시즌(3/1~4/15)이 아니라 종료합니다. 오늘 UTC $MM-$DD"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.season.outputs.in_season == 'true'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.season.outputs.in_season == 'true'
         with:
-          node-version: '20'    # 내장 https 만 쓴다 — 의존성 설치 없음
+          node-version: '24'    # 내장 https 만 쓴다 — 의존성 설치 없음
 
       - name: 뉴스 확인 및 Issue 생성
         id: check
