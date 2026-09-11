@@ -1,6 +1,6 @@
 {
   "status": "ok",
-  "generatedAt": "2026-09-11T10:48:48+09:00",
+  "generatedAt": "2026-09-11T11:02:41+09:00",
   "asOf": "2026-09-10",
   "cards": [
     {
@@ -1708,7 +1708,7 @@
       {
         "title": "미국 인플레 우려에…원/달러 환율 1,350원 육박",
         "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9pUkVLUVRvMzNraFRySjRaOUZ3NDk5dHB3dUN1UHNfcDJmR3lMUTlLWEFKbndLNnluTkRxdXZpRTdFMUFsZnZTRmtTUlE0UzJqS2F5ZlpxS3VJaVnSAWBBVV95cUxQNG1EMkhNVjVjeEhQRFM5RVhHYUxETFdqd2JHbmN4cV9vTm1IdkZ5WEUwUXp2ZzB1ak5TQl9YdXQyMkN2WE9hTGxoQ3ExcTRlZHhaTkVSU2xPaXA0cWNPa24?oc=5",
-        "media": "yna.co.kr",
+        "media": "연합뉴스",
         "published": "Fri, 11 Sep 2026 00:44:02 GMT",
         "feed": "구글 뉴스"
       },
@@ -1722,15 +1722,8 @@
       {
         "title": "원·달러 환율, 10.4원 오른 1349.6원 - 조선비즈",
         "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxNdHZFTTQ3bVFmdEhYX0NCOHVBYXlaLVdUSTJ3Mks4TVJ6X1hqY2tqVXR0bW1Sc0FnWDNfVzJ2ZFM2NEMzcllzMUZ1RnFVdFUwOFhHVkdtT09peVhZb3VWQmYxZDNvNFlCOUtRZi1PR1NDQkJGcDRFOHcwUWZRUzRZeHNwX0tqd9IBmgFBVV95cUxPN2JzNVRzR3dQZkw0T19sdDUxMEttc3Q1d3RjZnN6bUJ2TFVoYURDVzRVYUJnMHdjd2pDTzdQZlIwMFNodGZBY2ljVXQybWxfeXJDaktkRlJBM0pWeF8tenVmbFBhYlhQaE9pbzlwbDBsdnp3X0g3T3BlUDJsSEdGUElHNE53TUFPN2MxcVg2WllfQWc3Nm9uNTdB?oc=5",
-        "media": "Chosunbiz",
+        "media": "biz.chosun.com",
         "published": "Fri, 11 Sep 2026 00:46:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "서학개미 투자열기 식고, 외국인은 돌아오고…환율 더 내릴까",
-        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFA4dEpMUGg1eHJzeDVmazlTY2s0OVBNUUdBdmlFWlNsT0x6RU5NTDFULWNiTGRzaG92SjcyNGdrbWduOFVTeFdiUTJoLUNMS2pOb1E?oc=5",
-        "media": "매일경제 마켓",
-        "published": "Fri, 11 Sep 2026 00:37:44 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1848,7 +1841,7 @@
       {
         "title": "\"연준 또 올리나\" 공포에…美 10년물 국채금리 5% 눈앞",
         "link": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE45VG9VNGpqQmRaWFhxbVNZUkhpeFRDVE1XT25nVlJrQ0ZoM0JrWjZ1VlUyRXF2bGJJMU1aVG11NWpTRUZzaV9rSzhTdENzVXpiUVZGYk1BU3kxS3RUOGd3?oc=5",
-        "media": "스마트투데이",
+        "media": "smarttoday.co.kr",
         "published": "Fri, 11 Sep 2026 01:11:00 GMT",
         "feed": "구글 뉴스"
       },
@@ -1869,7 +1862,7 @@
       {
         "title": "트럼프 \"연준 금리인하 안하면 美가 적자보는 나라와 무역 중단\"(종합2보)",
         "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5GMzgtUFVPRTFzUHNwYnNYSmp6LUVjX3pzWllGVS1RV3Y2RmRRYm52Nlpfeno0MjUxWHd6c0hLOTU2QmxxZDdFN2VsVXhxejRIbkYzQjJubXluUHPSAWBBVV95cUxNRjA1em8zemVLTzRfRDdUbWdmQmtIV0hTQ1o1bzZtSE1Ubkd5dGlhUWt2bWlzdFgyQ3F3M2otWVRBU2h2bTAxNTVoVWstMndWNVhZV2k1TTJyV2NJdkxwdWk?oc=5",
-        "media": "yna.co.kr",
+        "media": "연합뉴스",
         "published": "Fri, 04 Sep 2026 20:10:57 GMT",
         "feed": "구글 뉴스"
       },
@@ -1886,60 +1879,67 @@
         "media": "뉴시스",
         "published": "Tue, 08 Sep 2026 03:51:43 GMT",
         "feed": "구글 뉴스"
+      },
+      {
+        "title": "반도체 호황에 경상흑자 역대 최대…상반기 2천억달러 육박(종합)",
+        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5XSTA0dW1KWG9VLXpqemVIOFNxMUN0MHJRZHd4SGowalBTdzdZQ0E0ZlNaQ0dhbldjMXJfLWNMMU0taFY1YjhlTGZ6MjZKWEtLREpqQ3F6QUxlS2vSAWBBVV95cUxQQ3l5Y0Q3UmxhbUVZQjRORHN0ek5DdDB5SWw2SGowb2IyUWlKejdHM0pIMG9ZeWthOHpEMnVjVzhNT2YwVjN4VHVSRDNObEZJSlMyZ01wX1hYdzJSSnptSmM?oc=5",
+        "media": "연합뉴스",
+        "published": "Thu, 06 Aug 2026 07:00:00 GMT",
+        "feed": "구글 뉴스"
       }
     ],
     "errors": []
   },
   "analysis": {
     "status": "ok",
-    "current": "2026년 9월 10일 기준 원/달러 환율은 전일 대비 7.60원(0.57%) 상승한 1343.80원에 장을 마감했습니다. 최근 3개월 및 12개월 기준 최저 환율은 1336.20원이며 최고 환율은 1558.09원을 기록하였습니다. 같은 날 유로/원 환율은 전일 대비 4.02원 오른 1560.96원, 100엔당 엔/원 환율은 0.19원 내린 871.61원에 거래되었습니다.",
+    "current": "2026년 9월 10일 기준 원/달러 환율은 전일 대비 7.60원 올린 1343.80원에 거래를 마쳤다. 유로/원 환율은 전일 대비 4.02원 상승한 1560.96원, 100엔당 엔/원 환율은 0.19원 하락한 871.61원을 나타냈다. 최근 3개월 및 12개월 기준 원/달러 최저치는 1336.20원, 최고치는 1558.09원으로 확인된다.",
     "upsideLimiters": [
       {
-        "point": "외국인 유입 및 서학개미 둔화",
-        "evidence": "서학개미의 해외 투자 열기가 식고 외국인 자금이 국내 시장으로 돌아오면서 환율 상단을 누르는 요인으로 작용할 수 있습니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFA4dEpMUGg1eHJzeDVmazlTY2s0OVBNUUdBdmlFWlNsT0x6RU5NTDFULWNiTGRzaG92SjcyNGdrbWduOFVTeFdiUTJoLUNMS2pOb1E?oc=5",
-        "sourceLabel": "서학개미 투자열기 식고, 외국인은 돌아오고…환율 더 내릴까 — 매일경제 마켓"
+        "point": "국내 경상수지 흑자 기여",
+        "evidence": "반도체 호황에 힘입어 상반기 경상수지 흑자가 역대 최대 수준인 2천억달러에 육박하며 환율 상단을 제약하는 요소로 작용할 수 있다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5XSTA0dW1KWG9VLXpqemVIOFNxMUN0MHJRZHd4SGowalBTdzdZQ0E0ZlNaQ0dhbldjMXJfLWNMMU0taFY1YjhlTGZ6MjZKWEtLREpqQ3F6QUxlS2vSAWBBVV95cUxQQ3l5Y0Q3UmxhbUVZQjRORHN0ek5DdDB5SWw2SGowb2IyUWlKejdHM0pIMG9ZeWthOHpEMnVjVzhNT2YwVjN4VHVSRDNObEZJSlMyZ01wX1hYdzJSSnptSmM?oc=5",
+        "sourceLabel": "반도체 호황에 경상흑자 역대 최대…상반기 2천억달러 육박(종합) — 연합뉴스"
       },
       {
-        "point": "한국은행의 금리 인상 기조",
-        "evidence": "한국은행이 대내외 여건에 따라 기준금리 추가 인상 속도를 결정하겠다고 밝히며 원화 약세를 완화하는 요소로 보입니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51amx6OEtJQjN3YmpCcWlmZXFuZWw0VU81QW5lQnlhcmtQZjZqV0VJaDQ3RnJOTnByYVpUdTdaeGxVRGxPX3hlT3pOMWJEa0E?oc=5",
-        "sourceLabel": "한은 \"대내외 여건 따라 기준금리 인상 속도 결정\" — v.daum.net"
+        "point": "한국은행 금리 인상 가능성",
+        "evidence": "한국은행이 집값 상승 기대 완화와 금융불균형 해소를 위해 기준금리 추가 인상 여지를 남기면서 원화 약세를 완화할 전망이다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9VY0J5QzNpOWxrM3ZGSnR3ZVZkXzQ1TzlqbnJneDZBZ3B3LTlKZk1meFg2VzR4UGJmOTlBcXJ5STk1MmwzSm5jeXFmZ1lGZTA?oc=5",
+        "sourceLabel": "한은 “기준금리 인상, 집값 상승 기대 완화에 도움될 것” — v.daum.net"
       },
       {
-        "point": "광범위 달러지수의 소폭 하락",
-        "evidence": "광범위 달러지수가 118.0732지수를 기록하며 직전 대비 0.0538 하락하여 달러 강세 압력을 다소 낮출 수 있습니다.",
+        "point": "광범위 달러지수 소폭 하락",
+        "evidence": "광범위 달러지수가 118.0732로 직전 대비 0.0538 하락하며 글로벌 달러화 상단을 누르는 요인으로 작용할 것으로 보인다.",
         "sourceUrl": "https://fred.stlouisfed.org/series/DTWEXBGS",
         "sourceLabel": "달러지수(광범위) (FRED (세인트루이스 연은))"
       }
     ],
     "downsideSupports": [
       {
-        "point": "미 국채 10년물 금리 급등",
-        "evidence": "미 국채 10년물 금리가 4.95%에 달하고 5%선에 육박하면서 연준의 금리 인상 우려가 환율 하단을 지지할 수 있습니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE45VG9VNGpqQmRaWFhxbVNZUkhpeFRDVE1XT25nVlJrQ0ZoM0JrWjZ1VlUyRXF2bGJJMU1aVG11NWpTRUZzaV9rSzhTdENzVXpiUVZGYk1BU3kxS3RUOGd3?oc=5",
-        "sourceLabel": "\"연준 또 올리나\" 공포에…美 10년물 국채금리 5% 눈앞 — 스마트투데이"
+        "point": "미 국채 금리의 고점 진입",
+        "evidence": "미 국채 10년물 금리가 4.95%, 2년물 금리가 4.56%를 나타내며 채권 금리 상승이 환율 하단을 튼튼하게 지지할 것으로 보인다.",
+        "sourceUrl": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve",
+        "sourceLabel": "미 국채 10년물 (미 재무부)"
       },
       {
-        "point": "미국 인플레이션 지수 우려",
-        "evidence": "미국 CPI가 전년 동월 대비 3.54% 상승세를 나타내며 인플레이션 우려에 따른 원/달러 환율 상승 압력이 유지될 전망입니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9pUkVLUVRvMzNraFRySjRaOUZ3NDk5dHB3dUN1UHNfcDJmR3lMUTlLWEFKbndLNnluTkRxdXZpRTdFMUFsZnZTRmtTUlE0UzJqS2F5ZlpxS3VJaVnSAWBBVV95cUxQNG1EMkhNVjVjeEhQRFM5RVhHYUxETFdqd2JHbmN4cV9vTm1IdkZ5WEUwUXp2ZzB1ak5TQl9YdXQyMkN2WE9hTGxoQ3ExcTRlZHhaTkVSU2xPaXA0cWNPa24?oc=5",
-        "sourceLabel": "미국 인플레 우려에…원/달러 환율 1,350원 육박 — yna.co.kr"
+        "point": "미국 인플레이션 지수 부담",
+        "evidence": "미국 CPI가 전년 동월 대비 3.54% 상승세를 기록하면서 연준의 긴축 기조 장기화 우려가 환율 하강을 막아설 전망이다.",
+        "sourceUrl": "https://fred.stlouisfed.org/series/CPIAUCSL",
+        "sourceLabel": "미국 CPI (FRED (세인트루이스 연은))"
       },
       {
-        "point": "미 연준 금리 인상 재부각",
-        "evidence": "미국 연준의 9월 금리 인상 가능성이 다시 살아나면서 시장 내 긴축 경계감이 하단을 받치는 요인으로 작용할 수 있습니다.",
+        "point": "연준 금리 인상 재개 가능성",
+        "evidence": "시장에서 미 연준의 9월 금리 인상 가능성이 다시 살아나면서 환율 하락을 방어하는 재료로 소화될 가능성이 있다.",
         "sourceUrl": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE1kTkRHcHlxbHdRY2N0NFQxV05GQll6NE5nZk9Cc3JlX1ZFY3BFTmkzNV92ZEhUSXpDYTc1bUFPRUZocmx1N3pPU09zRFVsQ1o2bDlhNUFBM2ZIaGNHM0dV?oc=5",
         "sourceLabel": "[포커스] 미국 9월 금리인상 가능성, 다시 살아난다 — CEONEWS"
       }
     ],
     "outlook": {
       "direction": "박스권",
-      "rationale": "미 국채 금리 상승과 연준의 긴축 재개가 가져오는 달러 하단 지지력과 한국은행의 금리 인상 기조 및 외국인 수급 개선이 가져오는 환율 상단 제한력이 팽팽히 대립할 것으로 보입니다. 이에 따라 당분간 원/달러 환율은 상하방 요인이 교차하며 횡보 흐름을 보일 것으로 전망됩니다.",
+      "rationale": "국내 경상수지 흑자와 한국은행의 금리 인상 가능성은 원/달러 환율의 상승 폭을 제한할 것으로 보인다. 반면 미 국채 10년물 금리 상승과 연준의 금리 인상 우려는 하단을 받치고 있어 환율은 팽팽한 수급 균형 속에 박스권 흐름을 이어갈 전망이다.",
       "confidence": "중간"
     },
     "model": "gemini-3.6-flash",
-    "tokens": 6976
+    "tokens": 6749
   },
   "model": "gemini-3.6-flash",
   "badgeRule": {
