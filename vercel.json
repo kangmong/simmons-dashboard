@@ -68,6 +68,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/stock-quotes.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/global-mattress-market.json",
       "use": "@vercel/static"
     },

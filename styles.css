@@ -3443,3 +3443,100 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   .fxa-two { grid-template-columns: 1fr; }
 }
 .fxa-nosrc { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; cursor: help; }
+
+/* ── 경쟁사 주가 리스트 (.sq-*) + 2단계 상세 (.fxd-*) ──────────────────── */
+.fxa-c.is-tap { cursor: pointer; position: relative; transition: border-color .12s, box-shadow .12s; }
+.fxa-c.is-tap:hover { border-color: var(--slate); box-shadow: 0 2px 10px rgba(20,23,31,.06); }
+.fxa-c.is-tap:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.fxa-c__go { position: absolute; top: 10px; right: 11px; color: var(--muted); font-size: 15px; line-height: 1; opacity: 0; transition: opacity .12s; }
+.fxa-c.is-tap:hover .fxa-c__go { opacity: 1; }
+
+.sq-wrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
+.sq-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 13px 15px 9px; }
+.sq-h__t { font-size: 14px; font-weight: 700; color: var(--ink); }
+.sq-h__s { font-size: 11px; color: var(--muted); }
+.sq-list { border-top: 1px solid var(--line); }
+.sq-row { display: grid; grid-template-columns: minmax(0,1fr) 62px 116px 150px 14px; align-items: center; gap: 8px;
+  padding: 11px 15px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }
+.sq-row:last-child { border-bottom: 0; }
+.sq-row:hover { background: var(--row-hover); }
+.sq-row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+/* 비상장 행은 눌러도 볼 것이 없어 클릭 대상이 아니다. 실패 행은 상세에서
+   '왜 못 받았는지'를 보여 주므로 클릭 대상으로 남긴다.
+   ★ 클래스명을 is-off 로 쓰면 안 된다 — 위쪽에 전역 `.is-off{display:none
+     !important}` (탭 숨김용)이 있어서 시몬스 행이 통째로 사라졌다.
+     프로젝트 규칙대로 이 모듈은 sq- 접두사와 자체 상태명만 쓴다. */
+.sq-row.is-unlisted { cursor: default; background: var(--field); }
+.sq-row__n { font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sq-own { font-style: normal; font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 1px 5px; border-radius: 999px; }
+.sq-warn { font-style: normal; font-size: 10px; font-weight: 700; color: var(--amber-ink); background: var(--amber-soft); padding: 1px 5px; border-radius: 999px; cursor: help; }
+.sq-row__m { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.sq-row__p { font-size: 14px; font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sq-row__p u { text-decoration: none; font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.sq-na { font-size: 12px; font-weight: 600; color: var(--muted); cursor: help; }
+.sq-row__c { font-size: 12.5px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sq-row__c.up { color: var(--accent); }
+.sq-row__c.down { color: var(--blue); }
+.sq-row__c.fx-flat { color: var(--muted); }
+.sq-row__go { color: var(--muted); font-size: 15px; text-align: right; }
+.sq-fail { padding: 10px 15px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); background: var(--field); }
+
+/* 상세 화면 */
+.fxd { padding: 2px 0 0; }
+.fxd-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text); }
+.fxd-back:hover { border-color: var(--slate); color: var(--ink); }
+.fxd-back:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.fxd-head { margin-bottom: 6px; }
+.fxd-title { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
+.fxd-sub { margin-top: 3px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.fxd-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 10px 0 12px; }
+.fxd-now { font-size: 34px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.fxd-now u { text-decoration: none; font-size: 15px; font-weight: 600; color: var(--muted); margin-left: 3px; }
+.fxd-chg { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fxd-chg.up { color: var(--accent); }
+.fxd-chg.down { color: var(--blue); }
+.fxd-chg.fx-flat { color: var(--muted); }
+.fxd-chg em { font-style: normal; font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.fxd-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+.fxd-sum > div { background: var(--card); padding: 8px 11px; }
+.fxd-sum span { display: block; font-size: 10.5px; color: var(--muted); margin-bottom: 2px; }
+.fxd-sum b { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.fxd-aka { font-size: 11px; color: var(--muted); margin: -4px 0 10px; }
+.fxd-warn { font-size: 11.5px; color: var(--amber-ink); margin: -4px 0 10px; }
+.fxd-ranges { margin-bottom: 4px; }
+.fxd-chart { margin: 2px 0 6px; }
+.fxd-svg { width: 100%; height: 300px; display: block; }
+.fxd-grid { stroke: var(--line); stroke-width: 1; }
+.fxd-ylab { fill: var(--muted); font-size: 10px; text-anchor: end; font-variant-numeric: tabular-nums; }
+.fxd-xlab { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.fxd-block { margin-top: 16px; }
+.fxd-block__h { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 7px; display: flex; align-items: baseline; gap: 7px; }
+.fxd-block__s { font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.fxd-twrap { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.fxd-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fxd-table th, .fxd-table td { padding: 7px 11px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); font-size: 12px; }
+.fxd-table th { position: sticky; top: 0; background: var(--field); font-size: 11px; font-weight: 600; color: var(--muted); z-index: 1; }
+.fxd-table tr:last-child td { border-bottom: 0; }
+.fxd-table tbody tr:hover { background: var(--row-hover); }
+.fxd-t__d { text-align: left !important; color: var(--text); }
+.fxd-t__c { font-weight: 700; color: var(--ink); }
+.fxd-t__v { color: var(--text); }
+.fxd-table td.up { color: var(--accent); font-weight: 600; }
+.fxd-table td.down { color: var(--blue); font-weight: 600; }
+.fxd-table td.fx-flat { color: var(--muted); }
+.fxd-news { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.fxd-news li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fxd-news a { font-size: 12.5px; color: var(--text); text-decoration: none; line-height: 1.5; }
+.fxd-news a:hover { color: var(--ink); text-decoration: underline; }
+.fxd-news span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .sq-row { grid-template-columns: minmax(0,1fr) 96px 12px; row-gap: 2px; }
+  .sq-row__m { display: none; }
+  .sq-row__c { grid-column: 2; text-align: right; font-size: 11.5px; }
+  .fxd-now { font-size: 27px; }
+  .fxd-svg { height: 230px; }
+}

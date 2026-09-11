@@ -1,0 +1,127 @@
+{
+  "_comment": [
+    "주가 수집 설정 — stock_quotes.py 가 읽는다. 코드에 심볼을 박지 않는다.",
+    "종목을 추가/변경할 때는 이 파일의 companies 만 고치면 된다(코드 수정 불필요).",
+    "",
+    "★ symbol 은 반드시 Yahoo 검색으로 확인한 값을 넣어라. 접미사를 잘못 쓰면",
+    "  '조용히 틀린 숫자'가 나온다 — 에이스침대를 003800.KS 로 조회하면 값이",
+    "  나오지만 전일대비가 -19% 로 엉터리였다(장중 데이터가 없는 유령 심볼).",
+    "  실제로는 코스닥이라 003800.KQ 가 맞다. 코스피 .KS / 코스닥 .KQ.",
+    "  확인법:  python stock_quotes.py --resolve 003800",
+    "",
+    "★★ listed:false 인 곳은 시세를 조회하지 않고 '비상장' 으로만 표시한다.",
+    "   own:true 는 자사(시몬스) 표시용 — 화면에서 강조한다."
+  ],
+  "companies": [
+    {
+      "key": "simmons",
+      "name": "시몬스",
+      "symbol": null,
+      "listed": false,
+      "own": true,
+      "market": "비상장",
+      "note": "비상장 — 공개 시세가 없습니다"
+    },
+    {
+      "key": "acebed",
+      "name": "에이스침대",
+      "symbol": "003800.KQ",
+      "listed": true,
+      "market": "KOSDAQ",
+      "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준"
+    },
+    {
+      "key": "coway",
+      "name": "코웨이",
+      "symbol": "021240.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "정수기·매트리스 렌털(비렉스)"
+    },
+    {
+      "key": "fursys",
+      "name": "퍼시스",
+      "symbol": "016800.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "가구. 시디즈·일룸 계열"
+    },
+    {
+      "key": "zinus",
+      "name": "지누스",
+      "symbol": "013890.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "매트리스 수출. 현대백화점그룹 편입"
+    },
+    {
+      "key": "hanssem",
+      "name": "한샘",
+      "symbol": "009240.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "종합 인테리어·가구"
+    },
+    {
+      "key": "livart",
+      "name": "현대리바트",
+      "symbol": "079430.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "가구·인테리어"
+    },
+    {
+      "key": "enex",
+      "name": "에넥스",
+      "symbol": "011090.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "주방·가구"
+    },
+    {
+      "key": "somnigroup",
+      "name": "Somnigroup",
+      "symbol": "SGI",
+      "listed": true,
+      "market": "NYSE",
+      "note": "Tempur·Sealy·Mattress Firm 보유",
+      "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)"
+    }
+  ],
+  "ranges": [
+    { "key": "1d", "label": "1일", "range": "1d", "interval": "5m", "intraday": true },
+    { "key": "1w", "label": "1주", "range": "5d", "interval": "30m", "intraday": true },
+    { "key": "1mo", "label": "1개월", "deriveFrom": "1y", "days": 31, "intraday": false },
+    { "key": "3mo", "label": "3개월", "deriveFrom": "1y", "days": 93, "intraday": false },
+    { "key": "1y", "label": "1년", "range": "1y", "interval": "1d", "intraday": false }
+  ],
+  "_ranges_comment": [
+    "deriveFrom 이 있는 구간은 API 를 부르지 않는다. 1개월·3개월은 1년 일봉의",
+    "정확한 부분집합이라(코웨이 23/23, 65/65 동일 확인) 화면에서 날짜로 잘라 쓴다.",
+    "→ 종목당 요청이 5회에서 3회로 줄어 비공식 API 부담이 줄고 파일도 작아진다."
+  ],
+  "dailyTableRows": 30,
+  "newsPerCompany": 4,
+  "changeTolerancePct": 0.2,
+  "requestGapSec": 0.8,
+  "_changeTolerance_comment": [
+    "전일대비 등락률을 두 가지로 구해 비교한다:",
+    "  (a) meta.regularMarketChangePercent   (b) 일봉 시계열에서 직접 계산",
+    "두 값의 차이가 changeTolerancePct 를 넘으면 그 종목을 신뢰하지 않고",
+    "quoteWarning 을 달아 화면에 표시한다.",
+    "★ meta.chartPreviousClose 는 절대 쓰지 않는다 — '전일 종가'가 아니라",
+    "  '조회 구간 직전 종가'다. 같은 코웨이가 range=1mo 에서 97600,",
+    "  range=5d 에서 99400 으로 달랐다. 이걸로 계산하면 -0.94% 가",
+    "  -2.36% / -4.12% 로 나온다."
+  ],
+  "yahoo": {
+    "chartBase": "https://query1.finance.yahoo.com/v8/finance/chart/",
+    "searchBase": "https://query2.finance.yahoo.com/v1/finance/search",
+    "_comment": [
+      "비공식 엔드포인트다. 키는 필요 없지만 문서화된 약관도 보장된 한도도 없고",
+      "언젠가 막힐 수 있다. 그래서 (1) 하루 1회만 호출하고 (2) 실패하면 기존",
+      "정상 데이터를 유지하며 (3) 화면에 '주가 조회 일시 불가' 를 명확히 띄운다."
+    ]
+  },
+  "newsFeedTemplate": "https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
+}
