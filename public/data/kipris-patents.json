@@ -1,11 +1,11 @@
 {
   "status": "ok",
   "reason": null,
-  "lastUpdated": "2026-09-11",
+  "lastUpdated": "2026-09-12",
   "source": "KIPRIS (특허정보검색서비스)",
   "techNote": "기술분야 분류와 키워드 추출은 제목·초록의 자동 키워드 매칭 기준이며, 완전히 정확하지 않을 수 있습니다.",
   "keyParamUsed": "ServiceKey",
-  "calls": 17,
+  "calls": 14,
   "probe": {
     "keyParam": "ServiceKey",
     "domesticOp": "getWordSearch",
@@ -24,27 +24,26 @@
     ]
   },
   "endpoints": [
-    "patUtiModInfoSearchSevice/getAdvancedSearch",
-    "patUtiModInfoSearchSevice/getWordSearch"
+    "patUtiModInfoSearchSevice/getAdvancedSearch"
   ],
   "errors": [],
   "filteredOut": {
     "시몬스": 1,
-    "씰리": 318,
+    "씰리": 18,
     "퍼시스": 2
   },
   "truncated": false,
   "period": {
-    "from": "2006-09-11",
-    "to": "2026-09-11"
+    "from": "2006-09-12",
+    "to": "2026-09-12"
   },
   "prevPeriod": {
-    "from": "2005-09-11",
-    "to": "2025-09-11"
+    "from": "2005-09-12",
+    "to": "2025-09-12"
   },
   "fetchPeriod": {
-    "from": "2005-09-11",
-    "to": "2026-09-11"
+    "from": "2005-09-12",
+    "to": "2026-09-12"
   },
   "ipcFilter": {
     "enabled": true,
