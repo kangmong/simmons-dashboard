@@ -9062,8 +9062,12 @@ function fxaFootnote(kind) {
     }
   }
   if (k !== 'stock') {
+    /* ★ 기준일은 통화 상세에만 붙인다 — 목록의 '원화 환율 추이' 위젯을 걷어내며
+       그 캡션(기준일 · 출처)에 있던 기준일 표기를 여기로 옮겼다. */
+    const rateAsOf = (k === 'cur') ? fxAsOfDate() : null;
     parts.push('환율 출처: ' + escapeHtml((_fxa && _fxa.rateSource) || 'Frankfurter (ECB 기반)')
-      + '. 매매기준율이 아니라 참고용 기준환율입니다.');
+      + '. 매매기준율이 아니라 참고용 기준환율입니다.'
+      + (rateAsOf ? ' 표시된 시세의 기준일은 ' + escapeHtml(rateAsOf) + '입니다.' : ''));
   }
   /* 주가 안내 — 목록(주가 리스트가 있음)과 주가 상세에만 낸다. */
   if (k === 'list' || k === 'stock') {
@@ -9884,7 +9888,7 @@ function renderFx() {
   renderFxList();
 }
 
-/** 1단계 목록: 통화 카드 + 경쟁사 주가 리스트 + 환율 비교 추이 + 각주 */
+/** 1단계 목록: 통화 카드 + 경쟁사 주가 리스트 + 각주 */
 function renderFxList() {
   const el = document.getElementById('body-fx');
   if (!el) return;
@@ -9900,88 +9904,22 @@ function renderFxList() {
   // 1) 상단: 주요 통화 현황 카드 (현재가 · 전일대비 · 스파크라인 · 배지)
   const table = cardsHtml;
 
-  // 2) 통화 칩(1줄) + 기간 칩(2줄) — 두 값을 조합해 단일 통화 추이를 그림
-  // 통화 칩 — 여러 개를 함께 고를 수 있다(누를 때마다 켜짐/꺼짐).
-  // '전체'는 셋을 한 번에 켜고, 이미 셋 다 켜져 있으면 모두 끈다.
-  const sel = fxSel();
-  const curChips = `<div class="icis-years fx-curs">${[...FX_CURS, 'all'].map((cur) => {
-    const label = (cur === 'all') ? '전체' : `${FX_META[cur].name}(${FX_META[cur].label})`;
-    const on = (cur === 'all') ? (sel.length === FX_CURS.length) : (sel.indexOf(cur) >= 0);
-    return `<button class="icis-year fx-cur${on ? ' is-active' : ''}" data-cur="${cur}"
-        aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
-  }).join('')}<span class="fx-curhint">여러 개를 함께 고를 수 있습니다</span></div>`;
-  const months = [3, 6, 9, 12];
-  // 리포트 버튼 — 통화·기간이 모두 골라졌을 때만 낸다(원유·제품·KOIMA 카드와 같은 자리·클래스)
-  const rptBtn = (sel.length && _fxMonths)
-    ? `<button type="button" class="oc-tool or-btn fx-report${_fxReport ? ' is-on' : ''}"
-        data-fx-report="1" aria-expanded="${_fxReport ? 'true' : 'false'}">📊 리포트 분석</button>`
-    : '';
-  const monChips = `<div class="icis-years fx-months">${months.map((mm) =>
-    `<button class="icis-year fx-month${mm === _fxMonths ? ' is-active' : ''}" data-months="${mm}">${mm}개월</button>`).join('')}${rptBtn}</div>`;
-
-  let chartBody, sub;
-  if (!sel.length || !_fxMonths) {   // 통화·기간 중 하나라도 미선택 → 안내
-    _fxChart = null;
-    sub = '통화와 기간을 선택하세요';
-    chartBody = '<div class="icis-prompt">통화와 기간을 선택하세요</div>';
-  } else {
-    // 고른 통화만 그린다. 하나면 범례 없이, 둘 이상이면 범례를 붙인다.
-    sub = sel.map((c) => `${FX_META[c].name}(${FX_META[c].label})`).join(' · ')
-      + (sel.indexOf('JPY') >= 0 ? ' · 100엔 기준' : '');
-    chartBody = buildFxChart(fxSlice(_fxMonths), sel)
-      + (sel.indexOf('JPY') >= 0 ? '<div class="fx-jpy-note">* JPY는 100엔 단위</div>' : '');
-  }
-
-  /* 1단계(목록) 흐름: 통화 카드 3장 → 경쟁사 주가 리스트 → 환율 비교 추이
-       → 하단 각주.
+  /* 1단계(목록) 흐름: 통화 카드 3장 → 경쟁사 주가 리스트 → 하단 각주.
      ★ AI 해석과 거시지표는 통화 상세(2단계)로 옮겼다 — 목록은 훑어보는
        화면이라 긴 해설이 올라오면 리스트가 묻힌다.
-     ★★ '원화 환율 추이' 비교 차트는 목록에 남긴다. 상세 차트는 한 통화만
-       그리므로, 세 통화를 겹쳐 보는 기능은 여기밖에 없다. */
+     ★★ '원화 환율 추이' 비교 차트(통화 칩·기간 칩·리포트 분석 버튼)는
+       걷어냈다. 통화 상세(2단계)에서 캔들 차트로 같은 추이를 보므로 중복이었고,
+       목록은 카드 3장의 스파크라인만으로 충분하다. 캡션에 있던 기준일·환율
+       출처는 통화 상세 하단 각주(fxaFootnote('cur'))로 옮겼다.
+       ※ Frankfurter 시계열 수집·fxSeries()는 상세 화면이 계속 쓰므로 그대로 둔다. */
+  _fxChart = null;   // 목록에 추이 차트가 없으니 hover 캐시도 비워 둔다
+
   el.innerHTML = `
     ${table}
     ${note}
     ${sqListHtml()}
-    <div class="viz-root viz-figure fx-figure">
-      <div class="viz-head"><div>
-        <div class="viz-title">원화 환율 추이</div>
-        <div class="viz-sub">${escapeHtml(sub)}</div>
-      </div></div>
-      ${curChips}
-      ${monChips}
-      ${chartBody}${_fxReport ? fxrReportHtml() : ''}
-      <div class="viz-tooltip" id="fxTooltip"></div>
-      <div class="comp-caption">${fxAsOfDate() ? `기준일 ${escapeHtml(fxAsOfDate())} · ` : ''}출처: Frankfurter (ECB 기반)</div>
-    </div>
     ${fxaFootnote('list')}`;
 
-  const curEl = el.querySelector('.fx-curs');
-  if (curEl) curEl.addEventListener('click', (e) => {
-    const b = e.target.closest('.fx-cur');
-    if (!b) return;
-    const cur = b.dataset.cur;   // 기간은 유지한 채 통화만 켜고 끈다
-    const now = fxSel();
-    if (cur === 'all') {
-      _fxCur = (now.length === FX_CURS.length) ? null : FX_CURS.slice();
-    } else {
-      const next = (now.indexOf(cur) >= 0) ? now.filter((x) => x !== cur) : now.concat([cur]);
-      // FX_CURS 순서를 유지한다(고른 차례와 무관하게 항상 USD·EUR·JPY 순)
-      _fxCur = FX_CURS.filter((x) => next.indexOf(x) >= 0);
-      if (!_fxCur.length) _fxCur = null;
-    }
-    _fxReport = _fxCur ? _fxReport : false;   // 통화를 다 끄면 리포트도 접는다
-    renderFx();
-  });
-  const mEl = el.querySelector('.fx-months');
-  if (mEl) mEl.addEventListener('click', (e) => {
-    const b = e.target.closest('.fx-month');
-    if (!b) return;
-    _fxMonths = parseInt(b.dataset.months, 10);  // 통화는 유지
-    renderFx();
-  });
-  const rEl = el.querySelector('.fx-report');
-  if (rEl) rEl.addEventListener('click', () => { _fxReport = !_fxReport; renderFx(); });
-  if (sel.length && _fxMonths) wireFxInteraction();
   wireFxStage(el);   // 통화 카드·주가 행 클릭 → 2단계 상세로
 }
 
