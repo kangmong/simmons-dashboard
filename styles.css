@@ -1992,12 +1992,36 @@ body {
   /* 제목만 페이지 끝에 홀로 남지 않게 — 제목 뒤에서는 끊지 않는다
      (예: '2025년 시장 점유율' 제목만 1장 끝에 남고 도넛은 2장으로 넘어가던 것) */
   .dash-card__head, .sk-subhead, .subhead,
-  .sm-h, .viz-title, .viz-head, .pt-h, .sqi-sec__h, .fxa-h { break-after: avoid; page-break-after: avoid; }
+  .sm-h, .viz-title, .viz-head, .pt-h, .sqi-sec__h, .fxa-h,
+  .stm2-maph, .stm2-sep { break-after: avoid; page-break-after: avoid; }
+  /* ★ .sm-st__hd(기업 카드 머리)에도 break-after:avoid 를 걸어 봤지만 뺐다 —
+     제목이 본문을 따라 내려가면서 앞 장이 잉크 17% → 7% 로 비어 버렸다.
+     제목만 남는 것보다 장이 통째로 비는 쪽이 더 나쁘다. */
   h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
 
-  /* 한 장에 들어가는 작은 단위만 쪼개지지 않게 지킨다 */
+  /* 한 장에 들어가는 작은 단위만 쪼개지지 않게 지킨다.
+     ★ 아래 목록은 전 화면에서 실제 높이를 재서 고른 것이다. 가로 A4 는 한 장
+       높이가 약 718px 이고, 사용자가 브라우저 인쇄 머리글/바닥글을 켜면 더
+       줄어든다 — 그래서 '최대 높이 약 380px 이하'로 확인된 블록만 넣었다.
+     ★★ 넣으면 안 되는 것들(실측 최대 높이):
+       .dash-card 5,149px · .sm-card 3,022px · .sm-card.sm-techmap 1,049px ·
+       .sm-st 833px · .stm2-fork 515px · .viz-figure 503px
+       한 장보다 큰 블록에 avoid 를 걸면 브라우저가 통째로 다음 장으로 밀어
+       앞 장이 백지가 된다(예전에 9장 중 1장이 백지였던 그 문제). */
   .ds-card, .mk-card, .mt-card, .news-card, .comp-table-wrap,
-  .sk-card, .ig-card, .dom-item, .fxa-c, .sq-row, .gco-card {
+  .sk-card, .ig-card, .dom-item, .fxa-c, .sq-row, .gco-card,
+  /* 도넛 차트 + 범례 묶음 — 갈라지면 조각난 도넛만 한 장에 남는다(370px) */
+  .sm-donutwrap, .sm-legend,
+  /* '어느 분야에 어느 기업이 있나' 카테고리 카드 묶음(277px)과 낱장(86px)
+     ★ 기술분야 박스(.stm2-box/.stm2-tags)는 일부러 뺐다. 그것까지 묶으면
+       .sm-grid2 의 그리드 행이 통째로 다음 장으로 밀려, 앞 장 아래쪽에 빈
+       카드 껍데기 두 개만 남는다(실측 잉크 11% → 빼면 17%). 기술분야 박스는
+       목록이라 중간에서 갈라져도 읽는 데 지장이 없다. */
+  .stm2-cats, .stm2-cat,
+  /* 슬립테크 흐름도·단계 블록 */
+  .stm3, .stm3-flow, .stp, .stp-fig,
+  /* 짧은 주석·출처 줄 */
+  .smb-note, .sm-st__src, .sm-foot {
     break-inside: avoid; page-break-inside: avoid;
   }
   /* 도표는 한 장을 넘을 수 있다 — 넘칠 때는 avoid 를 포기하고 잘라 흘린다.
