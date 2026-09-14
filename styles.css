@@ -1897,10 +1897,14 @@ body {
    인쇄 (보고서 PDF)
    ============================================================ */
 @media print {
-  /* ★ 인쇄 레이아웃의 기준 폭은 화면이 아니라 '용지'다.
-     A4 + 12mm 여백이면 본문 폭이 약 700px(96dpi)라, 화면용 720px 이하
-     미디어쿼리(1단 그리드)가 그대로 적용된다 — 여기서 폭을 또 건드리지 않는다. */
-  @page { size: A4; margin: 12mm; }
+  /* ★★ 용지는 A4 '가로'다. 이유가 전부 여기에 있다 —
+     세로 A4(12mm 여백)는 본문 폭이 약 700px 밖에 안 돼서, 화면용 좁은 폭
+     미디어쿼리가 통째로 걸린다: .sm-grid2 는 900px 이하에서, .dash-grid·
+     .gco-grid·.ds-grid 는 720px 이하에서 1단으로 무너진다. 그래서 화면에서는
+     나란히 서던 '매출 비교 + 점유율'이 종이에서는 위아래로 쌓이고 장수가 배로 늘었다.
+     가로 A4(10mm 여백)는 본문 폭이 약 1,047px 라 그 분기점들을 모두 비켜간다
+     → 화면 대시보드와 같은 2단 배치가 '저절로' 나온다. 여기서 열 수를 강제하지 않는 이유다. */
+  @page { size: A4 landscape; margin: 10mm; }
   html, body { background: var(--card); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* 종이에서는 화면용 여백이 과하다 — 글자 한 단계(13→11.5px)와 카드 안쪽
      여백(22→12px)만 줄여 장수를 줄인다. 내용은 하나도 빼지 않는다. */
@@ -1909,6 +1913,10 @@ body {
 
   .tabs, .report-btn, .viz-actions, .viz-crosshair, .news-filters,
   .upload-toolbar, .hdr-photo, .focus-back, .more-link { display: none !important; }
+  /* hover 로만 뜨는 말풍선·툴팁 — 종이에서는 뜰 일이 없는데 자리는 차지한다
+     (.sm-oth__bub 는 300px 짜리라 오른쪽으로 삐져나가 폭 검사에 걸렸다) */
+  .viz-tooltip, .sm-oth__bub, .sm-info__bub, .gc-abbr__bub,
+  .wc-tip, .gt-tip, .kw-tip, .pt-tip, .sqc-tip { display: none !important; }
 
   /* 통합 헤더를 보고서 제목 줄로 사용(배경 그라데이션은 백지로) */
   .app-header {
@@ -1948,11 +1956,20 @@ body {
        그 결과가 '첫 장이 백지 + 9장'이었다 — 포커스 화면의 .dash-card 는
        4,200px(약 4장)이라 처음부터 한 장에 들어갈 수가 없었다.
      ★ avoid 는 '한 장 안에 확실히 들어가는 작은 단위'에만 남긴다. */
-  .dash-grid, .comp-grid, .stm2-grid { display: block !important; }
+  /* 섹션 컨테이너만 1단으로 편다. 섹션끼리 2단으로 나란히 두면 높이가 제각각이라
+     페이지가 넘어갈 때 한쪽 열만 붕 뜬다. 섹션 '안쪽' 그리드(.sm-grid2 등)는
+     건드리지 않는다 — 1,047px 에서 화면과 같은 2단이 이미 나온다. */
+  .dash-grid { display: block !important; }
   .dash-card, .dash-card.is-focused, .panel-body,
   .comp-panel, .comp-group, .dash-grid, .content, .layout {
     break-inside: auto !important; page-break-inside: auto !important;
   }
+  /* 각주·출처 한 줄이 홀로 다음 장으로 넘어가지 않게 — 앞에서는 끊지 않는다
+     (실제로 '출처: Open-Meteo' 14자 때문에 18번째 장이 통째로 생겼다) */
+  .comp-caption, .fxa-foot, .fxa-src, .sm-foot, .ces-foot, .pt-fine, .sqc-src,
+  .stp-src, .ds-note, .dom-note, .fx-note, .g-note, .kr-note, .oc-note,
+  .sqi-note, .smb-note, .xsii-note { break-before: avoid; page-break-before: avoid; }
+
   /* 제목만 페이지 끝에 홀로 남지 않게 — 제목 뒤에서는 끊지 않는다
      (예: '2025년 시장 점유율' 제목만 1장 끝에 남고 도넛은 2장으로 넘어가던 것) */
   .dash-card__head, .sk-subhead, .subhead,
@@ -2015,15 +2032,18 @@ body {
   .pt-tb--list th:nth-child(8), .pt-tb--list td:nth-child(8) { width: 24%; }
 
   /* ══ 장수 줄이기 ═════════════════════════════════════════════════════════
-     700px 폭에서 그리드가 1단으로 떨어지면(720px 이하 규칙) 사진 카드가
-     한 장에 하나씩 쌓여 장수가 배로 튄다. 종이에서는 2단으로 앉히고
-     사진 높이를 묶어 준다. */
-  .sk-grid, .ig-grid, .gco-grid, .ds-grid, .mat-grid {
-    display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-  }
+     ★ 열 수는 강제하지 않는다. 1,047px 에서 .sk-grid·.ig-grid·.gco-grid·
+       .ds-grid 는 이미 2단, .sm-grid2 는 1fr 1fr 로 잡힌다(화면과 동일).
+       예전처럼 여기서 열 수를 덮어쓰면 오히려 화면과 어긋난다.
+     ★ 대신 '세로로 긴 것'만 묶는다 — 가로 A4 는 한 장 높이가 약 718px 뿐이라
+       사진과 도표가 제 크기로 들어오면 한 장에 하나밖에 못 앉는다. */
   .sk-card img, .ig-card img, .news-card img, .ds-card img {
-    max-height: 118px !important; object-fit: cover; width: 100%;
+    max-height: 132px !important; object-fit: cover; width: 100%;
+  }
+  /* 도표는 한 장 높이의 절반 안쪽으로 — 한 장에 두 덩이가 앉게 한다.
+     viewBox 가 있으므로 max-height 로 줄여도 비율은 유지된다(레터박스). */
+  .viz-figure svg, .pt-ysvg, .sm-card svg, .panel-body > svg {
+    max-height: 300px !important;
   }
 
   .badge, .news-cat, .ds-origin, .app-header, .gs-mixnote, .sm-badge__prov { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
