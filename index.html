@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260914b" />
+  <link rel="stylesheet" href="styles.css?v=20260914c" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -28,44 +28,9 @@
       </button>
     </div>
 
-    <!-- 건물 일러스트 (기존 히어로의 SVG 그대로) -->
-    <svg class="hdr-art" viewBox="0 0 360 200" fill="none" aria-hidden="true">
-      <!-- 하늘/해 -->
-      <circle cx="308" cy="44" r="30" fill="var(--accent-soft)" />
-      <circle cx="308" cy="44" r="30" stroke="var(--accent)" stroke-opacity=".25" stroke-width="1.5" />
-      <!-- 지면 -->
-      <line x1="8" y1="170" x2="352" y2="170" stroke="var(--line)" stroke-width="2" />
-      <!-- 소나무 (팩토리움 숲) -->
-      <g stroke="var(--slate)" stroke-width="1.5" stroke-linejoin="round">
-        <polygon points="300,96 286,120 314,120" fill="var(--slate-soft)" />
-        <polygon points="300,112 282,140 318,140" fill="var(--slate-soft)" />
-        <polygon points="300,128 278,162 322,162" fill="var(--slate-soft)" />
-        <rect x="296" y="162" width="8" height="8" fill="var(--slate)" stroke="none" />
-      </g>
-      <g stroke="var(--slate)" stroke-width="1.5" stroke-linejoin="round">
-        <polygon points="336,120 326,138 346,138" fill="var(--slate-soft)" />
-        <polygon points="336,132 320,158 352,158" fill="var(--slate-soft)" />
-        <rect x="332" y="158" width="8" height="12" fill="var(--slate)" stroke="none" />
-      </g>
-      <!-- 낮은 본관 (유리 파사드) -->
-      <rect x="36" y="100" width="176" height="70" rx="4" fill="var(--card)" stroke="var(--slate)" stroke-width="2" />
-      <rect x="32" y="93" width="184" height="9" rx="2" fill="var(--slate)" />
-      <g stroke="var(--line)" stroke-width="1.5">
-        <line x1="60" y1="104" x2="60" y2="169" /><line x1="84" y1="104" x2="84" y2="169" />
-        <line x1="108" y1="104" x2="108" y2="169" /><line x1="156" y1="104" x2="156" y2="169" />
-        <line x1="180" y1="104" x2="180" y2="169" /><line x1="36" y1="136" x2="212" y2="136" />
-      </g>
-      <!-- 정문 -->
-      <rect x="120" y="140" width="24" height="30" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5" />
-      <!-- 타워동 (크림슨 캡) -->
-      <rect x="206" y="70" width="48" height="100" rx="4" fill="var(--ink)" />
-      <rect x="206" y="70" width="48" height="15" rx="4" fill="var(--accent)" />
-      <g fill="var(--card)" fill-opacity=".85">
-        <rect x="214" y="96" width="14" height="11" rx="1" /><rect x="232" y="96" width="14" height="11" rx="1" />
-        <rect x="214" y="116" width="14" height="11" rx="1" /><rect x="232" y="116" width="14" height="11" rx="1" />
-        <rect x="214" y="136" width="14" height="11" rx="1" /><rect x="232" y="136" width="14" height="11" rx="1" />
-      </g>
-    </svg>
+    <!-- 공장 사진 — 헤더 바 오른쪽 끝에 와이드로 붙인다(.hdr-photo 참고).
+         장식용이라 alt 는 비운다 — 헤더 자체에 aria-label 이 이미 있다. -->
+    <img class="hdr-photo" src="public/logos/simmons-factory.png" alt="" />
   </header>
 
   <div class="layout">
