@@ -1453,6 +1453,11 @@ body {
 @media (max-width: 720px) {
   .xsii-facs { grid-template-columns: 1fr; }
   .viz-hero { margin: -11px -11px 12px; }
+  /* ★ 변형(--plain/--tab)까지 음수 마진을 물려받지 않게 다시 0으로 되돌린다.
+     둘은 padding 없는 부모 안에 들어가므로 음수 마진이 붙으면 부모보다 넓어진다
+     (경쟁사 국내/국외 탭이 22px 넘쳐 인쇄에서 오른쪽이 잘렸다). */
+  .viz-hero--plain { margin: 0 0 12px; }
+  .viz-hero--tab { margin: 0; }
 }
 /* 계열별 지표 표 — 최고=파랑 / 최저=빨강 으로 그래프 강조와 색을 맞춘다 */
 .or-tbl .or-hi { display: block; color: var(--blue); font-weight: 700; }
@@ -1869,15 +1874,22 @@ body {
    인쇄 (보고서 PDF)
    ============================================================ */
 @media print {
-  @page { margin: 14mm; }
-  body { background: var(--card); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* ★ 인쇄 레이아웃의 기준 폭은 화면이 아니라 '용지'다.
+     A4 + 12mm 여백이면 본문 폭이 약 700px(96dpi)라, 화면용 720px 이하
+     미디어쿼리(1단 그리드)가 그대로 적용된다 — 여기서 폭을 또 건드리지 않는다. */
+  @page { size: A4; margin: 12mm; }
+  html, body { background: var(--card); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 종이에서는 화면용 여백이 과하다 — 글자 한 단계(13→11.5px)와 카드 안쪽
+     여백(22→12px)만 줄여 장수를 줄인다. 내용은 하나도 빼지 않는다. */
+  body { font-size: 11.5px; }
+  .ds-card, .mk-card, .mt-card, .news-card { padding: 12px !important; }
 
   .tabs, .report-btn, .viz-actions, .viz-crosshair, .news-filters,
   .upload-toolbar, .hdr-art, .focus-back, .more-link { display: none !important; }
 
   /* 통합 헤더를 보고서 제목 줄로 사용(배경 그라데이션은 백지로) */
   .app-header {
-    padding: 0 0 10px; background: var(--card) !important;
+    padding: 0 0 8px; background: var(--card) !important;
     border-bottom: 2px solid var(--accent);
   }
   .hdr-mark { color: var(--accent) !important; }
@@ -1886,7 +1898,7 @@ body {
   /* 히어로 — 잉크를 아끼기 위해 사진·네이비 면을 빼고 글자만 남긴다 */
   .hero {
     background: var(--card) !important; color: var(--ink) !important;
-    padding: 0 0 10px; margin-bottom: 10px; border-radius: 0;
+    padding: 0 0 8px; margin-bottom: 10px; border-radius: 0;
     border-bottom: 1px solid var(--line);
   }
   .hero__photo { display: none !important; }
@@ -1902,15 +1914,95 @@ body {
   .content { padding: 0; }
 
   /* 현재 화면 그대로 인쇄: 숨겨진 카드는 제외, 보이는 카드는 캡 해제 */
-  .dash-grid { display: block; }
   .dash-card.is-hidden { display: none !important; }
   .dash-card .panel-body { max-height: none !important; overflow: visible !important; }
   .dash-card .panel-body::after { display: none !important; }
 
-  .dash-card, .ds-card, .mk-card, .mt-card, .news-card, .viz-figure, .comp-table-wrap {
-    break-inside: avoid; box-shadow: none !important; transform: none !important;
-    border: 1px solid var(--line); margin-bottom: 12px;
+  /* ══ 페이지 나누기 ═══════════════════════════════════════════════════════
+     ★★ 컨테이너에는 break-inside:avoid 를 절대 걸지 않는다.
+       한 장(A4 12mm 여백 기준 약 1050px)보다 큰 요소에 avoid 를 걸면 브라우저가
+       그것을 통째로 다음 장으로 밀어내고, 그래도 안 들어가면 넘치는 대로 흘린다.
+       그 결과가 '첫 장이 백지 + 9장'이었다 — 포커스 화면의 .dash-card 는
+       4,200px(약 4장)이라 처음부터 한 장에 들어갈 수가 없었다.
+     ★ avoid 는 '한 장 안에 확실히 들어가는 작은 단위'에만 남긴다. */
+  .dash-grid, .comp-grid, .stm2-grid { display: block !important; }
+  .dash-card, .dash-card.is-focused, .panel-body,
+  .comp-panel, .comp-group, .dash-grid, .content, .layout {
+    break-inside: auto !important; page-break-inside: auto !important;
   }
+  /* 제목만 페이지 끝에 홀로 남지 않게 — 제목 뒤에서는 끊지 않는다
+     (예: '2025년 시장 점유율' 제목만 1장 끝에 남고 도넛은 2장으로 넘어가던 것) */
+  .dash-card__head, .sk-subhead, .subhead,
+  .sm-h, .viz-title, .viz-head, .pt-h, .sqi-sec__h, .fxa-h { break-after: avoid; page-break-after: avoid; }
+  h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+
+  /* 한 장에 들어가는 작은 단위만 쪼개지지 않게 지킨다 */
+  .ds-card, .mk-card, .mt-card, .news-card, .comp-table-wrap,
+  .sk-card, .ig-card, .dom-item, .fxa-c, .sq-row, .gco-card {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  /* 도표는 한 장을 넘을 수 있다 — 넘칠 때는 avoid 를 포기하고 잘라 흘린다.
+     (avoid 를 유지하면 위와 똑같이 앞 장이 통째로 비는 문제가 재발한다) */
+  .viz-figure { break-inside: auto; page-break-inside: auto; }
+
+  /* 카드 껍데기 — 종이에서는 그림자 대신 얇은 선 하나로 */
+  .dash-card, .ds-card, .mk-card, .mt-card, .news-card, .viz-figure, .comp-table-wrap {
+    box-shadow: none !important; transform: none !important;
+  }
+  .dash-card {
+    border: none; border-top: 1px solid var(--line);
+    padding: 9px 0 0; margin: 0 0 10px;
+  }
+  .ds-card, .mk-card, .mt-card, .news-card, .viz-figure, .comp-table-wrap {
+    border: 1px solid var(--line); margin-bottom: 10px;
+  }
+
+  /* ══ 가로 잘림 방지 ═══════════════════════════════════════════════════════
+     종이 폭(약 700px)을 넘으면 오른쪽이 그대로 잘려 나간다. 화면에서는
+     가로 스크롤(overflow-x:auto)로 넘겨 보던 표·도표가 여기 해당한다.
+     ★★ min-width 는 max-width 를 이긴다 — max-width:100% 만 걸면 소용이 없고,
+       반드시 min-width 를 먼저 0 으로 풀어야 한다. (.pt-ysvg 760px,
+       .pt-tb--list 900px 가 이 때문에 잘리고 있었다) */
+  .pt-scroll, .pt-chartwrap, .comp-table-wrap, .sq-wrap, .viz-scroll,
+  .panel-body, .dash-card, .viz-figure { overflow: visible !important; }
+  .icis-years, .koima-tabs { overflow-x: visible !important; flex-wrap: wrap !important; }
+
+  img, svg, canvas { min-width: 0 !important; max-width: 100% !important; }
+  /* viewBox 가 있는 도표는 height:auto 라야 비율을 지키며 종이 폭에 맞게 줄어든다 */
+  svg { height: auto !important; }
+  .pt-ysvg { height: auto !important; }
+
+  /* ★ table-layout 은 건드리지 않는다(auto 유지) — fixed 로 두면 열 폭을
+     내용과 무관하게 균등 배분해, 긴 '요약' 칸이 세로로 탑처럼 늘어난다.
+     실제로 20행짜리 특허 목록이 8,758px(행당 430px)까지 부풀었다. */
+  table { min-width: 0 !important; width: 100% !important; }
+  table td, table th { overflow-wrap: anywhere; }
+
+  /* 특허 최근 출원 목록(8열) — 열 폭을 내용에 맞게 직접 지정한다.
+     번호·국가처럼 짧은 열이 긴 열의 폭을 빼앗지 않게 하는 것이 요점. */
+  .pt-tb--list { table-layout: fixed; font-size: 9px; }
+  .pt-tb--list th, .pt-tb--list td { padding-left: 3px; padding-right: 3px; }
+  .pt-tb--list th:nth-child(1), .pt-tb--list td:nth-child(1) { width: 4%; }
+  .pt-tb--list th:nth-child(2), .pt-tb--list td:nth-child(2) { width: 11%; }
+  .pt-tb--list th:nth-child(3), .pt-tb--list td:nth-child(3) { width: 9%; }
+  .pt-tb--list th:nth-child(4), .pt-tb--list td:nth-child(4) { width: 12%; }
+  .pt-tb--list th:nth-child(5), .pt-tb--list td:nth-child(5) { width: 6%; }
+  .pt-tb--list th:nth-child(6), .pt-tb--list td:nth-child(6) { width: 24%; }
+  .pt-tb--list th:nth-child(7), .pt-tb--list td:nth-child(7) { width: 10%; }
+  .pt-tb--list th:nth-child(8), .pt-tb--list td:nth-child(8) { width: 24%; }
+
+  /* ══ 장수 줄이기 ═════════════════════════════════════════════════════════
+     700px 폭에서 그리드가 1단으로 떨어지면(720px 이하 규칙) 사진 카드가
+     한 장에 하나씩 쌓여 장수가 배로 튄다. 종이에서는 2단으로 앉히고
+     사진 높이를 묶어 준다. */
+  .sk-grid, .ig-grid, .gco-grid, .ds-grid, .mat-grid {
+    display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .sk-card img, .ig-card img, .news-card img, .ds-card img {
+    max-height: 118px !important; object-fit: cover; width: 100%;
+  }
+
   .badge, .news-cat, .ds-origin, .app-header, .gs-mixnote, .sm-badge__prov { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
