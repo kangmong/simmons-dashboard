@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260909l" />
+  <link rel="stylesheet" href="styles.css?v=20260914a" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -71,29 +71,37 @@
   <div class="layout">
     <!-- 좌측 네비게이션 + 상시 업로드 위젯 -->
     <nav class="tabs" id="tabs">
+      <!-- 브랜드 락업 — 로고 PNG 두 장 모두 배경이 불투명 흰색이라, 네이비 위에
+           흰 사각형으로 뜨지 않도록 흰 플레이트에 얹고 mix-blend-mode:multiply 로
+           흰 바탕만 지운다(파일은 손대지 않는다). -->
+      <div class="sb-brand">
+        <img class="sb-brand__logo" src="public/logos/simmons-logo.png" alt="SIMMONS" />
+        <img class="sb-brand__wm" src="public/logos/simmons-wordmark.png" alt="" />
+      </div>
+
       <button class="nav-item is-active" data-view="dashboard">
-        <span class="tab-num tab-num--home">⌂</span>대시보드
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg></span>대시보드
       </button>
       <button class="nav-item" data-view="simmons_news">
-        <span class="tab-num">2</span>시몬스 코리아 소식
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h11.5v14H5.5A1.5 1.5 0 0 1 4 17.5z"/><path d="M15.5 8.5h3A1.5 1.5 0 0 1 20 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-3"/><path d="M7 9h5.5M7 12.4h5.5M7 15.8h3.6"/></svg></span>시몬스 코리아 소식
       </button>
       <button class="nav-item" data-view="material">
-        <span class="tab-num">3</span>원자재 원가 동향
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.9 3.6 7.3v9.4L12 21.1l8.4-4.4V7.3z"/><path d="M3.6 7.3 12 11.7l8.4-4.4"/><path d="M12 11.7v9.4"/></svg></span>원자재 원가 동향
       </button>
       <button class="nav-item" data-view="competitor">
-        <span class="tab-num">4</span>국내외 경쟁사 분기 실적
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 20.6h17.2"/><rect x="5" y="10.4" width="3.6" height="7.6" rx="1.1"/><rect x="10.2" y="5.4" width="3.6" height="12.6" rx="1.1"/><rect x="15.4" y="13.4" width="3.6" height="4.6" rx="1.1"/></svg></span>국내외 경쟁사 분기 실적
       </button>
       <button class="nav-item" data-view="domestic">
-        <span class="tab-num">5</span>국내외 경쟁사 신제품·브랜드 동향
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.4 12.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.58-1.56l.46-5.6A2 2 0 0 1 5.24 3.4l5.6-.46a2 2 0 0 1 1.56.58l6.2 6.2a2 2 0 0 1 0 2.68z"/><circle cx="8.4" cy="8.4" r="1.5"/></svg></span>국내외 경쟁사 신제품·브랜드 동향
       </button>
       <button class="nav-item" data-view="patent">
-        <span class="tab-num">6</span>특허·신소재 동향
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9.1" r="5.2"/><path d="M8.2 13.5 7 21.1l5-2.7 5 2.7-1.2-7.6"/></svg></span>특허·신소재 동향
       </button>
       <button class="nav-item" data-view="fx">
-        <span class="tab-num">7</span>환율
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="m8.6 8.2 3.4 4.4 3.4-4.4"/><path d="M8.8 12.7h6.4M8.8 15.3h6.4M12 12.7v4.4"/></svg></span>환율
       </button>
       <button class="nav-item" data-view="worldclock">
-        <span class="tab-num">8</span>세계 시간
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M3.3 12h17.4"/><path d="M12 3.2a13.2 13.2 0 0 1 0 17.6 13.2 13.2 0 0 1 0-17.6z"/></svg></span>세계 시간
       </button>
 
       <div class="sidebar-fill"></div>
@@ -108,20 +116,39 @@
         <div class="uw-updated" id="lastUpdated">아직 업데이트하지 않았습니다</div>
         <div class="uw-note">World Bank 핑크시트 · 월간 원자재 가격</div>
       </div>
+
+      <!-- 사이드바 최하단 제품 사진 — 하단으로 갈수록 어두워지는 오버레이를 덮어
+           사진 위 끝이 메뉴와, 아래 끝이 사이드바 배경과 자연스럽게 이어지게 한다. -->
+      <div class="sb-shot" aria-hidden="true">
+        <img src="public/products/bed-1.png" alt="" loading="lazy" />
+      </div>
     </nav>
 
     <!-- 컨텐츠: 대시보드(그리드) ↔ 개별 섹션(포커스) -->
     <main class="content" id="content" data-view="dashboard">
       <button class="focus-back" id="focusBack" type="button">‹ 대시보드로</button>
 
-      <div class="dash-header" id="dashHeader">
-        <div class="dash-title">
-          <h2>국내외 매트리스 동향 대시보드</h2>
+      <!-- 히어로 배너 — 기존 "국내외 매트리스 동향 대시보드" 타이틀 줄을 대체한다.
+           ★ id="dashHeader" 를 유지해야 한다: setView() 가 이 요소의 display 를
+             켜고 꺼서 대시보드↔포커스 화면을 전환한다(기본값 flex).
+           ★ 히어로의 SIMMONS 는 워드마크 PNG 대신 흰색 볼드 텍스트로 쓴다 —
+             그 PNG 는 검은 글자 + 불투명 흰 배경이라 어두운 배너에 얹을 수 없다. -->
+      <header class="hero" id="dashHeader">
+        <div class="hero__photo" aria-hidden="true"></div>
+        <div class="hero__body">
+          <p class="hero__eyebrow">구매·개발을 위한 글로벌 매트리스 시장 인사이트</p>
+          <h2 class="hero__title">
+            <span class="hero__brand">SIMMONS</span>
+            <span class="hero__bar" aria-hidden="true"></span>
+            <span class="hero__what">글로벌 매트리스 산업 인사이트 플랫폼</span>
+          </h2>
+          <p class="hero__sub">원자재·시장·경쟁사·기술 트렌드를 한눈에, 더 나은 의사결정을 위한 실질적 정보 제공</p>
         </div>
-        <div class="dash-meta">
+        <div class="hero__meta">
+          <span class="hero__date" id="heroDate"></span>
           <span class="dash-ctl">마지막 업데이트 <b id="dashUpdated">—</b></span>
         </div>
-      </div>
+      </header>
 
       <div class="dash-grid" id="dashGrid">
         <section class="dash-card" data-section="simmons_news">
@@ -227,6 +254,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20260909l"></script>
+  <script src="app.js?v=20260914a"></script>
 </body>
 </html>

@@ -29,6 +29,16 @@
   /* 대시보드 머리·꼬리용 진한 남색 — 카드(흰 바탕)와 확실히 구분되는 톤 */
   --navy: #16264A;
   --navy-2: #1E3A6E;
+  /* 사이드바·상단바·히어로용 다크 네이비 팔레트.
+     ★ 어두운 면 위 글자는 전부 아래 --nav-ink/--nav-muted 만 쓴다 — 본문용
+       --text/--muted 는 밝은 배경 기준이라 네이비 위에서 대비가 모자란다.
+       (--nav-ink 14:1, --nav-muted 6.6:1 @ --nav-bg) */
+  --nav-bg: #101A33;              /* 사이드바·상단바·히어로 기본 네이비 */
+  --nav-ink: #EAEFFA;             /* 네이비 위 본문·메뉴 글자 */
+  --nav-muted: #93A2C2;           /* 네이비 위 캡션·보조 글자 */
+  --nav-hover: rgba(255,255,255,.06);   /* 메뉴 hover */
+  --nav-active: rgba(255,255,255,.12);  /* 활성 메뉴 — 요청대로 반투명 흰색 */
+  --nav-line: rgba(255,255,255,.12);    /* 네이비 면 위 구분선 */
   --navy-ink: #C7D6F0;      /* 남색 위에 얹는 보조 글자색 */
   --amber-ink: #92400E;
   --blue-ink: #1D4ED8;
@@ -58,26 +68,38 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 헤더 (검은 상단 바 + 히어로 배너를 한 겹으로 통합) ──
-   배경은 기존 히어로의 연분홍 그라데이션, 텍스트는 크림슨/진회색. 검은색은 쓰지 않는다. */
+/* ── 상단 바 ──
+   사이드바·히어로와 같은 네이비로 맞춘다. 크림슨은 아래 3px 선과 버튼에만
+   포인트로 남긴다(면 전체를 크림슨으로 칠하지 않는다). */
 .app-header {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
   padding: 10px 24px;
-  background: linear-gradient(120deg, var(--accent-soft) 0%, var(--card) 58%);
+  background: linear-gradient(110deg, var(--nav-bg) 0%, var(--navy-2) 100%);
   border-bottom: 3px solid var(--accent);
   overflow: hidden;
 }
 
-/* 로고 락업 — 기존 히어로 표기 방식 유지(SIMMONS 굵게 / FACTORIUM 자간 넓은 작은 글씨) */
+/* 로고 락업 — 기존 표기 방식 유지(SIMMONS 굵게 / FACTORIUM 자간 넓은 작은 글씨) */
 .hdr-lockup { min-width: 0; }
 .hdr-logo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.hdr-mark { font-size: 23px; font-weight: 800; letter-spacing: .16em; color: var(--accent); line-height: 1; }
-.hdr-factorium { font-size: 12px; font-weight: 700; letter-spacing: .28em; color: var(--accent); }
-/* 건물 일러스트 — 기존 히어로와 동일 크기 규칙 */
-.hdr-art { width: 132px; max-width: 20%; height: auto; flex: 0 0 auto; }
+.hdr-mark { font-size: 23px; font-weight: 800; letter-spacing: .16em; color: #FFFFFF; line-height: 1; }
+.hdr-factorium { font-size: 12px; font-weight: 700; letter-spacing: .28em; color: var(--nav-muted); }
+
+/* 건물 일러스트 — SVG 가 토큰(var)으로만 칠해져 있어, 여기서 그 토큰을 다시
+   정의하는 것만으로 네이비 위에서 읽히는 톤으로 바뀐다(마크업은 그대로). */
+.hdr-art {
+  width: 132px; max-width: 20%; height: auto; flex: 0 0 auto;
+  --card: rgba(255,255,255,.18);
+  --ink: rgba(255,255,255,.07);
+  --line: rgba(255,255,255,.26);
+  --slate: rgba(255,255,255,.38);
+  --slate-soft: rgba(255,255,255,.13);
+  --accent-soft: rgba(255,255,255,.10);
+  --accent: #E4566B;
+}
 
 /* 버튼 묶음을 우측으로 밀어냄(일러스트는 그 오른쪽 끝) */
 .header-right { display: flex; align-items: center; gap: 18px; min-width: 0; margin-left: auto; }
@@ -103,8 +125,8 @@ body {
 
 .tabs {
   flex: 0 0 210px;
-  background: var(--card);
-  border-right: 1px solid var(--line);
+  background: var(--nav-bg);
+  border-right: none;
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
@@ -112,16 +134,32 @@ body {
 }
 .sidebar-fill { flex: 1 1 auto; min-height: 16px; }
 
+/* 브랜드 락업 — 로고 PNG 두 장 모두 배경이 불투명 흰색(#F8F9FA / #FFFFFF)이라
+   네이비에 직접 얹으면 흰 사각형이 된다. 흰 플레이트 위에 놓고
+   mix-blend-mode:multiply 로 흰 바탕만 지운다(원본 파일은 건드리지 않는다).
+   ★ isolation:isolate 가 없으면 블렌딩이 플레이트를 넘어 네이비 배경까지
+     섞여 로고가 새까맣게 뭉갠다. 반드시 함께 둔다. */
+.sb-brand {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 11px 12px;
+  margin: 2px 2px 14px;
+  isolation: isolate;
+}
+.sb-brand__logo, .sb-brand__wm { display: block; height: auto; mix-blend-mode: multiply; }
+.sb-brand__logo { width: 52px; }
+.sb-brand__wm { width: 88px; }
+
 .nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 9px 11px;
   border: none;
-  border-left: 3px solid transparent;
   background: transparent;
-  color: var(--text);
+  color: var(--nav-muted);
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -130,31 +168,43 @@ body {
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
 }
-.nav-item:hover { background: var(--field); }
+.nav-item:hover { background: var(--nav-hover); color: var(--nav-ink); }
 .nav-item.is-active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-left-color: var(--accent);
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  background: var(--nav-active);
+  color: #FFFFFF;
 }
+.nav-item:focus-visible { outline: 2px solid var(--nav-ink); outline-offset: -2px; }
 
-.tab-num {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--line); color: var(--muted);
-  font-size: 12px; font-weight: 700;
+/* 메뉴 아이콘 — 선 아이콘이라 색은 currentColor 로 글자와 같이 움직인다 */
+.nav-ico { flex: 0 0 auto; display: inline-flex; width: 18px; height: 18px; opacity: .82; }
+.nav-ico svg { width: 100%; height: 100%; }
+.nav-item.is-active .nav-ico { opacity: 1; }
+
+/* ── 사이드바 최하단 제품 사진 ──
+   좌우·아래로 블리드(패딩 12px 10px 상쇄)시켜 사이드바 폭을 꽉 채우고,
+   위에서 아래로 어두워지는 오버레이 한 겹만 덮는다. */
+.sb-shot {
+  position: relative;
+  margin: 14px -10px -12px;
+  height: 112px;
+  overflow: hidden;
+  flex: 0 0 auto;
 }
-.tab-num--home { font-size: 14px; }
-.nav-item.is-active .tab-num { background: var(--accent); color: var(--card); }
+.sb-shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.sb-shot::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(16,26,51,.30) 0%, rgba(16,26,51,.72) 52%, var(--nav-bg) 100%);
+}
 
 /* ── 상시 데이터 업로드 위젯 (사이드바 하단) ── */
 .upload-widget {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--nav-line);
   padding-top: 14px; margin-top: 6px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.uw-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.uw-title { font-size: 13px; font-weight: 700; color: var(--nav-ink); }
 .uw-actions { display: flex; gap: 8px; }
 .uw-update {
   flex: 1; border: none; background: var(--accent); color: var(--card);
@@ -165,35 +215,91 @@ body {
 .uw-update:hover:not(:disabled) { filter: brightness(1.08); }
 .uw-update:disabled { opacity: .6; cursor: progress; }
 .uw-reset {
-  flex: 0 0 auto; border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  flex: 0 0 auto; border: 1px solid var(--nav-line); background: transparent; color: var(--nav-muted);
   border-radius: var(--radius-sm); padding: 10px 12px;
   font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
-.uw-reset:hover { background: var(--field); color: var(--text); border-color: var(--muted); }
-.uw-updated { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; word-break: keep-all; }
-.uw-note { font-size: 11px; color: var(--muted); text-align: center; }
+.uw-reset:hover { background: var(--nav-hover); color: var(--nav-ink); border-color: var(--nav-muted); }
+.uw-updated { font-size: 12px; color: var(--nav-muted); text-align: center; line-height: 1.5; word-break: keep-all; }
+.uw-note { font-size: 11px; color: var(--nav-muted); text-align: center; }
 
 /* ── 컨텐츠 ── */
 .content { flex: 1; padding: 12px 20px; min-width: 0; }
 
 .focus-back {
   display: none;
-  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  border: 1px solid var(--line); background: var(--card); color: var(--navy);
   border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600;
   font-family: inherit; cursor: pointer; margin-bottom: 16px;
 }
-.focus-back:hover { background: var(--field); }
+.focus-back:hover { background: var(--slate-soft); border-color: var(--navy-ink); }
 
-/* 대시보드 헤더 */
-.dash-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+/* ── 히어로 배너 (기존 .dash-header 타이틀 줄을 대체) ──
+   ★ display:flex 를 유지해야 한다 — setView() 가 이 값을 inline style 로
+     다시 써서 대시보드↔포커스 화면을 전환한다. */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 24px;
+  flex-wrap: wrap;
+  padding: 22px 24px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  background: linear-gradient(105deg, var(--nav-bg) 0%, var(--nav-bg) 40%, var(--navy-2) 100%);
+  color: #FFFFFF;
 }
-.dash-title h2 { margin: 0; font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
-.dash-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.dash-ctl { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
-.dash-ctl b { color: var(--ink); font-weight: 700; font-size: 13px; }
+
+/* 오른쪽 제품 사진 — 반투명으로 깔고, 왼쪽 끝을 마스크로 흐려 글자와 겹치는
+   경계선이 생기지 않게 한다(그림자 대신 마스크 한 겹만 쓴다). */
+.hero__photo {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 46%;
+  background: url("public/products/bed-2.png") center right / cover no-repeat;
+  opacity: .45;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 42%);
+  pointer-events: none;
+}
+
+.hero__body { position: relative; z-index: 1; min-width: 0; max-width: 640px; }
+.hero__eyebrow {
+  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .01em;
+  color: var(--navy-ink);
+}
+.hero__title {
+  margin: 7px 0 0;
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  font-size: 22px; font-weight: 800; letter-spacing: -.01em; line-height: 1.25;
+  color: #FFFFFF;
+}
+.hero__brand { font-size: 25px; font-weight: 800; letter-spacing: .14em; }
+.hero__bar { width: 1px; height: 19px; background: rgba(255,255,255,.38); align-self: center; }
+.hero__what { font-weight: 700; }
+.hero__sub {
+  margin: 9px 0 0; font-size: 13px; line-height: 1.6;
+  color: rgba(255,255,255,.82); word-break: keep-all;
+}
+
+.hero__meta {
+  position: relative; z-index: 1;
+  align-self: flex-start; margin-left: auto;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  text-align: right;
+}
+.hero__date {
+  font-size: 12.5px; font-weight: 700; color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 11px; border-radius: 999px;
+  background: rgba(255,255,255,.13);
+}
+/* 히어로 안의 '마지막 업데이트' — 네이비 위 대비를 위해 톤만 바꾼다 */
+.dash-ctl { font-size: 12px; color: var(--navy-ink); display: inline-flex; align-items: center; gap: 6px; }
+.dash-ctl b { color: #FFFFFF; font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 
 /* 대시보드 그리드 */
 .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: start; }
@@ -204,8 +310,10 @@ body {
 .dash-card.is-hidden { display: none; }
 .dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .dash-card__title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+/* 카드 '더보기' — 새 네이비 톤에 맞춰 남색으로. 크림슨은 상단바 선과
+   주요 CTA(업데이트·보고서 다운로드)에만 남긴다. */
 .more-link {
-  border: none; background: transparent; color: var(--accent);
+  border: none; background: transparent; color: var(--navy-2);
   font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap;
 }
 .more-link:hover { text-decoration: underline; }
@@ -1722,15 +1830,28 @@ body {
   .layout { flex-direction: column; min-height: 0; }
   .tabs {
     flex-basis: auto;
-    border-right: none; border-bottom: 1px solid var(--line);
+    border-right: none; border-bottom: 1px solid var(--nav-line);
     padding: 10px; gap: 6px;
   }
   .sidebar-fill { display: none; }
   .nav-item { padding: 9px 12px; }
   .upload-widget { margin-top: 4px; }
+  /* 가로로 눕는 좁은 화면에서는 브랜드 플레이트를 한 줄로 줄이고,
+     최하단 제품 사진은 뺀다 — 메뉴 위에 사진이 끼면 읽는 흐름이 끊긴다. */
+  .sb-brand { margin: 0 0 8px; padding: 9px 12px; }
+  .sb-shot { display: none; }
 
   .content { padding: 20px 16px; }
-  .dash-title h2 { font-size: 20px; }
+
+  /* 히어로 — 사진을 배경 전체로 깔고 더 어둡게(글자 대비 확보), 날짜는 위로 */
+  .hero { padding: 18px 16px; gap: 14px; }
+  .hero__photo { width: 100%; opacity: .26;
+    -webkit-mask-image: none; mask-image: none; }
+  .hero__title { font-size: 19px; gap: 9px; }
+  .hero__brand { font-size: 21px; }
+  .hero__bar { display: none; }
+  .hero__sub { font-size: 12.5px; }
+  .hero__meta { align-self: flex-start; order: -1; margin-left: 0; align-items: flex-start; text-align: left; }
 
   .dash-grid { grid-template-columns: 1fr; }
   .ds-grid, .gco-grid { grid-template-columns: 1fr; }
@@ -1759,6 +1880,23 @@ body {
     padding: 0 0 10px; background: var(--card) !important;
     border-bottom: 2px solid var(--accent);
   }
+  .hdr-mark { color: var(--accent) !important; }
+  .hdr-factorium { color: var(--accent) !important; }
+
+  /* 히어로 — 잉크를 아끼기 위해 사진·네이비 면을 빼고 글자만 남긴다 */
+  .hero {
+    background: var(--card) !important; color: var(--ink) !important;
+    padding: 0 0 10px; margin-bottom: 10px; border-radius: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero__photo { display: none !important; }
+  .hero__eyebrow { color: var(--muted) !important; }
+  .hero__title, .hero__brand, .hero__what { color: var(--ink) !important; }
+  .hero__bar { background: var(--line) !important; }
+  .hero__sub { color: var(--text) !important; }
+  .hero__date { background: transparent !important; color: var(--ink) !important; padding: 0; }
+  .dash-ctl { color: var(--muted) !important; }
+  .dash-ctl b { color: var(--ink) !important; }
 
   .layout { display: block; }
   .content { padding: 0; }

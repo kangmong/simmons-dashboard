@@ -11450,7 +11450,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // 저장된 값/기본 CSV를 자동으로 불러오지 않는다 — 데이터는 오직 [업데이트]로만 채운다.
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
   initWorldClock();  // 세계 시간: 업데이트와 무관하게 로드 즉시 실시간 표시
+  initHeroDate();    // 히어로 배너 우측 상단 '오늘 날짜'
 });
+
+/** 히어로 배너의 현재 날짜.
+ *  ★ '마지막 업데이트'(#dashUpdated)와는 다른 값이다 — 저쪽은 수집 시각,
+ *    이쪽은 보는 사람의 오늘이다. 둘을 같은 칸에 섞지 않는다.
+ *  ★ 서버가 아니라 브라우저 로컬 시간 기준이다(표기용이라 데이터에 관여하지 않는다). */
+function initHeroDate() {
+  const el = document.getElementById('heroDate');
+  if (!el) return;
+  const d = new Date();
+  const wk = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  el.textContent = d.getFullYear() + '. '
+    + String(d.getMonth() + 1).padStart(2, '0') + '. '
+    + String(d.getDate()).padStart(2, '0') + ' (' + wk + ')';
+}
 
 /** 보고서 다운로드: 브라우저 인쇄(→ PDF로 저장) */
 function initReport() {
