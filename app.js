@@ -11588,7 +11588,7 @@ function resetDashboard() {
   _fxStage = null;      // 2단계 상세에서 보고 있었다면 목록으로 되돌린다
   _fxdRange = null; _fxdTab = 'chart'; _fxdCandle = '1d';
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
-  _exh = null; _exhErr = null;   // 해외 전시·컨퍼런스 비우기('준비중'으로 되돌린다)
+  _exh = null; _exhErr = null;   // 글로벌 매트리스 산업 관련 전시·컨퍼런스 비우기('준비중'으로 되돌린다)
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
   _fxReport = false;    // 환율 리포트 접기
@@ -11694,7 +11694,7 @@ function initUpdate() {
     // await 하지 않는다. 실패하면 목록에 '주가 조회 일시 불가'가 뜨고
     // 환율 카드·차트는 그대로 동작한다.
     fetchStockQuotes();
-    // 순수 추가: 해외 전시·컨퍼런스 — 커밋된 정적 JSON.
+    // 순수 추가: 글로벌 매트리스 산업 관련 전시·컨퍼런스 — 커밋된 정적 JSON.
     // ★ 예전에는 페이지 로드 때 바로 불렀는데, 그러면 [업데이트] 를 누르기도 전에
     //   이 카드만 내용이 차 있어 다른 섹션과 어긋났다. 다른 카드와 같은 시점에 채운다.
     fetchExhibitions();
@@ -12919,7 +12919,7 @@ const SEARCH_SECTIONS = {
   domestic: { label: '신제품 · 브랜드 동향', view: 'domestic' },
   patent: { label: '특허 · 신소재 동향', view: 'patent' },
   fx: { label: '환율 (원화 시세)', view: 'fx' },
-  exh: { label: '해외 전시 · 컨퍼런스 동향', view: 'exh' },
+  exh: { label: '글로벌 매트리스 산업 관련 전시·컨퍼런스', view: 'exh' },
 };
 
 /** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
@@ -12980,7 +12980,7 @@ function buildSearchIndex() {
         .filter(Boolean).join(' · '));
   });
 
-  /* 6) 해외 전시회 · 컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
+  /* 6) 글로벌 매트리스 산업 관련 전시·컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
      유일하게 나라 이름을 가진 자료다('미국' 같은 검색어가 여기서 걸린다). */
   ((_exh && _exh.items) || []).forEach((x) => {
     push('exh', x.name,
@@ -13167,7 +13167,7 @@ function initSearch() {
 }
 
 /* ============================================================
-   해외 전시회 · 컨퍼런스 (대시보드 전용 카드)
+   글로벌 매트리스 산업 관련 전시·컨퍼런스 (대시보드 전용 카드)
    ★ public/data/exhibitions.json 하나만 읽는다(외부 호출 없음).
    ★ 지금 들어 있는 일정은 임시값이다 — JSON 의 provisional 이 true 인 동안
      화면 아래에 '잠정치' 각주가 나간다. 실데이터로 갈아 끼우면 false 로 바꾼다.
@@ -13263,7 +13263,7 @@ function exhSorted() {
     .sort((a, b) => String(a.start).localeCompare(String(b.start)));
 }
 
-/* ── 01 주요 해외 전시·컨퍼런스 일정 (미니 세계지도) ──────────────────────
+/* ── 지도 칸 (미니 세계지도) ─────────────────────────────────────────────
    ★ 카드가 세계시간과 같은 크기(본문 150px)로 줄면서, 예전 전체 폭 판에서
      쓰던 '나라 라벨 4장'은 넣지 않는다 — 라벨 한 장이 45px 라 150px 안에
      네 장이 물리적으로 안 들어가고, 넣으면 지도를 다 덮는다.
