@@ -13374,9 +13374,15 @@ function renderExhList() {
   }
   if (split) split.classList.remove('is-empty');
   const items = exhSorted();
+  /* ★ 개수를 자르지 않는다 — 예전에는 slice(0,5) 로 5건만 그려서, 지도 각주가
+     '12개 행사'라고 알리는데 목록에서는 5건밖에 닿을 수 없었다.
+     전부 그리고 카드 안에서 스크롤로 보게 한다(.exh-list 가 overflow-y:auto).
+   ★ 순서: 다가오는 것을 가까운 날짜순으로 먼저, 이미 끝난 것은 최근 순으로 뒤에.
+     그냥 날짜순으로 두면 지난 행사가 맨 위를 차지해 '다음에 뭐가 있나'를 못 본다.
+     지난 행사에는 D-day 자리에 '종료' 배지가 붙는다. */
   const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
-  /* 다가오는 것 우선, 하나도 없으면 최근 것. 최대 5개 (넘치면 카드 안에서 스크롤) */
-  const rows = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
+  const past = items.filter((x) => { const d = exhDday(x); return d == null || d < 0; }).reverse();
+  const rows = upcoming.concat(past);
 
   el.innerHTML = '<div class="exh-list">' + rows.map((x) => {
     const d = exhDday(x);
