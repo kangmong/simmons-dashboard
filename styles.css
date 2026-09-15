@@ -4059,9 +4059,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   gap: 0; width: 100%; flex: 1 1 auto; min-height: 0;
 }
 /* 카드를 쪼개지 않고 세로 구분선 하나로만 나눈다 */
-.exh-split__l { min-width: 0; padding-right: 14px; display: flex; min-height: 0; }
+/* ★ min-width:0 이 없으면 flex 칸이 내용 폭 아래로 못 줄어 칸이 카드를 넘긴다.
+   overflow:hidden 은 그래도 새는 것이 있을 때를 대비한 안전장치다. */
+.exh-split__l { min-width: 0; padding-right: 14px; display: flex; min-height: 0; overflow: hidden; }
 .exh-split__r { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line);
-  display: flex; min-height: 0; }
+  display: flex; min-height: 0; overflow: hidden; }
 /* 데이터가 없을 때(업데이트 전) — 오른쪽 칸과 구분선을 접고 안내문 한 줄만 */
 .exh-split.is-empty { grid-template-columns: 1fr; }
 .exh-split.is-empty .exh-split__r { display: none; }
@@ -4082,24 +4084,21 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* ── 01 지도 ── */
 .exh-map {
-  /* 바깥 상자 — 범례·각주를 뺀 나머지 높이를 전부 쓴다(칸에 따라 비율이 달라진다) */
-  /* 바깥 상자도 2:1 로 맞춘다 — 안쪽(2:1)과 같아져 좌우에 빈 회색 띠가 남지 않는다 */
-  position: relative; width: 100%; aspect-ratio: 2 / 1; flex: 0 0 auto;
-  background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
-  display: flex;
+  /* ★ 세계시간(.wc-map)·슬립테크(.gsl-map) 지도와 똑같은 틀이다.
+     상자를 2:1 로 잡고 그림을 inset:0 으로 꽉 채우면, 그림과 상자가 정확히
+     겹쳐 마커 좌표(mapPct 의 %)가 그대로 실제 대륙 위에 앉는다.
+     예전처럼 상자 비율이 다르면 object-fit 이 여백을 만들고 마커만 어긋난다.
+     ★ width:100% + max-width:100% 라 부모가 줄면 지도도 같이 줄고,
+       overflow:hidden 이 어떤 경우에도 상자 밖으로 새지 않게 막는다. */
+  position: relative; width: 100%; max-width: 100%; aspect-ratio: 2 / 1;
+  flex: 0 0 auto;
+  background: var(--field); border: 1px solid var(--line); border-radius: 10px;
+  overflow: hidden;
 }
-/* ★★ 안쪽 상자 — 지도 SVG(viewBox 1000x500 = 2:1)와 같은 비율.
-   바깥 상자는 칸에 따라 2.99:1 처럼 납작해지는데, object-fit:contain 이 좌우에
-   여백을 만들어도 마커는 '바깥 상자' 기준 %로 찍혀서 실제 대륙에서 밀려 있었다
-   (상하이가 약 57px 어긋났다). 안쪽에 정확한 2:1 상자를 두고 그 안에 찍는다. */
-.exh-map__in {
-  /* 높이를 기준으로 폭을 구한다(width:100% 로 두면 max-height 가 걸릴 때
-     폭은 그대로라 비율이 깨진다 — 실제로 3.0:1 이 나왔다).
-     칸이 2:1 보다 세로로 길면 max-width 가 걸려 다시 높이가 줄어든다. */
-  position: relative; margin: auto;
-  aspect-ratio: 2 / 1; height: 100%; width: auto; max-width: 100%;
+.exh-map__img {
+  position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%;
+  display: block; pointer-events: none; user-select: none; opacity: .55;
 }
-.exh-map__img { width: 100%; height: 100%; display: block; opacity: .55; }
 .exh-mk {
   position: absolute; transform: translate(-50%, -50%);
   display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;

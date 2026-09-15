@@ -1991,8 +1991,7 @@ function gsSleepLoss(s) {
   const dots = items.map((x) => {
     const ll = ISO_LONLAT[x.iso];
     if (!ll) return '';                       // 좌표가 없으면 지도에 찍지 않는다
-    const left = (ll[0] + 180) / 360 * 100;
-    const top = (90 - ll[1]) / 180 * 100;
+    const { left, top } = mapPct(ll[1], ll[0]);
     const r = Math.max(R_MIN, R_MAX * Math.sqrt(x.usdEok / max));
     return '<div class="gsl-mk gsl-mk--' + escapeHtml(x.dir || 'r') + '"'
       + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%">'
@@ -2445,6 +2444,28 @@ function skImgFallback(im) {
   if (!orig) { toPh(); return; }
   im.dataset.proxied = '1';
   im.src = '/api/img?u=' + encodeURIComponent(orig);
+}
+
+/* ── 세계지도 공용 좌표 변환 ─────────────────────────────────────────────
+   world-map.svg 는 등장방형도법(viewBox 1000x500 = 2:1)이다.
+     x = (lon + 180) / 360,  y = (90 - lat) / 180
+   ★ 이 값은 '지도 그림' 기준 비율이다. 따라서 지도를 담는 상자도 반드시 2:1
+     이어야 마커가 실제 대륙 위에 앉는다. 2:1 이 아니면 여백이 생기고 마커만
+     어긋난다(전시회 지도에서 실제로 그랬다 — 상하이가 약 57px 밀렸다).
+     세 지도(.wc-map · .gsl-map · .exh-map) 모두 aspect-ratio: 2/1 을 쓴다.
+   ★ 퍼센트라서 지도가 커지든 작아지든 마커가 저절로 따라간다(재계산 불필요).
+   같은 식이 다섯 군데 흩어져 있던 것을 여기로 모았다. */
+function mapPct(lat, lon) {
+  return {
+    left: (Number(lon) + 180) / 360 * 100,
+    top: (90 - Number(lat)) / 180 * 100,
+  };
+}
+
+/** 위 값을 바로 style 문자열로 — 'left:..%;top:..%' */
+function mapPos(lat, lon) {
+  const p = mapPct(lat, lon);
+  return 'left:' + p.left.toFixed(2) + '%;top:' + p.top.toFixed(2) + '%';
 }
 
 /** 이미지 주소 — safeUrl 을 거친 뒤 http 를 https 로 올린다.
@@ -10531,8 +10552,7 @@ function renderWorldClock() {
     return;
   }
   const dots = WORLD_CITIES.map((c, i) => {
-    const x = (c.lon + 180) / 360 * 100;
-    const y = (90 - c.lat) / 180 * 100;
+    const { left: x, top: y } = mapPct(c.lat, c.lon);
     // 서울만 상세 화면이 있어 표시를 조금 더 준다.
     // ★ 두 값은 서울이 아니면 빈 문자열이라, 나머지 마커의 HTML 은 예전과 한 글자도 다르지 않다.
     const krCls = (c.ko === '서울') ? ' wc-mk--kr' : '';
@@ -10579,7 +10599,7 @@ function wcShowTip(i, keepOpen) {
   const st = wcState(i, now, seoulOff);
   const w = _wcWeather && _wcWeather[i];
   const wx = w ? `${wmoIcon(w.code)} ${w.temp != null ? Math.round(w.temp) + '°' : '—'}` : '—';
-  const x = (c.lon + 180) / 360 * 100, y = (90 - c.lat) / 180 * 100;
+  const { left: x, top: y } = mapPct(c.lat, c.lon);
   tip.innerHTML = `<div class="wc-tip__city">${escapeHtml(c.ko)}</div>
     <div class="wc-tip__time">${st.timeStr}<span class="wc-tip__date"> · ${st.dateStr}</span></div>
     <div class="wc-tip__row"><span>서울 대비</span><b>${wcOffsetLabel(st.diffMin)}</b></div>
@@ -12307,8 +12327,7 @@ function ptCountries(rows) {
     const iso3 = PT_ISO2[k];
     const ll = iso3 && ISO_LONLAT[iso3];
     if (!ll) return '';                     // 좌표 없거나 나라가 아니면 지도에 찍지 않는다
-    const left = (ll[0] + 180) / 360 * 100;
-    const top = (90 - ll[1]) / 180 * 100;
+    const { left, top } = mapPct(ll[1], ll[0]);
     const r = Math.max(R_MIN, R_MAX * Math.sqrt(c[k] / max));
     return '<div class="gsl-mk gsl-mk--r" tabindex="0" data-tip="'
       + escapeHtml(k + (PT_NONCOUNTRY[k] ? ' · ' + PT_NONCOUNTRY[k] : '') + ' · ' + c[k] + '건')
@@ -13269,18 +13288,15 @@ function renderExhMap() {
   const cities = Object.keys(byCity).map((k) => byCity[k]);
 
   const dots = cities.map((c, i) => {
-    const left = (c.lon + 180) / 360 * 100;
-    const top = (90 - c.lat) / 180 * 100;
     /* 오른쪽 끝 도시는 말풍선을 왼쪽으로 펼친다(지도 밖으로 나가지 않게) */
-    const side = (left > 62) ? ' exh-mk--l' : '';
+    const side = (mapPct(c.lat, c.lon).left > 62) ? ' exh-mk--l' : '';
     const rows = c.evs.slice()
       .sort((x, y) => String(x.start).localeCompare(String(y.start)))
       .map((e) => '<span class="exh-pop__r">'
         + '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>'
         + '<b>' + escapeHtml(sIdxStr(e.name).split(' (')[0]) + '</b>'
         + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
-    return '<span class="exh-mk' + side + '" style="left:' + left.toFixed(2)
-      + '%;top:' + top.toFixed(2) + '%">'
+    return '<span class="exh-mk' + side + '" style="' + mapPos(c.lat, c.lon) + '">'
       + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
       + ' aria-expanded="false" aria-label="' + escapeHtml(c.country + ' ' + c.city) + ' 행사 보기">'
       + c.evs.map((e) => '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('')
@@ -13297,14 +13313,11 @@ function renderExhMap() {
   const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
     + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
 
-  /* ★★ 마커는 '실제로 그려진 지도 그림'을 기준으로 찍혀야 한다.
-     .exh-map 은 칸에 따라 비율이 달라지는데(대시보드에서 2.99:1) 지도 SVG 는
-     2:1 이라 object-fit:contain 이 좌우에 여백을 만든다. 그런데 마커는 바깥 상자
-     기준 %로 찍혀서 실제 대륙에서 밀려 있었다(상하이가 약 57px 어긋났다).
-     그래서 안쪽에 '이미지와 정확히 같은 2:1 상자'를 하나 두고 그 안에 찍는다. */
+  /* ★ 상자가 2:1 이라(.exh-map) 지도 그림과 상자가 정확히 겹친다 —
+     세계시간(.wc-map)·슬립테크(.gsl-map) 지도와 같은 구조다(안쪽 래퍼 없음). */
   exhWireMap(el);
-  el.innerHTML = '<div class="exh-map"><div class="exh-map__in">'
-    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div></div>'
+  el.innerHTML = '<div class="exh-map">'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div>'
     + '<div class="exh-lgs">' + legend + '</div>'
     /* ★ 각주는 두 줄 안에 끝내야 한다 — 카드 본문이 150px 라 세 줄이 되면
        마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
