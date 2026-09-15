@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260915c" />
+  <link rel="stylesheet" href="styles.css?v=20260915d" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -39,14 +39,6 @@
         <button class="hdr-search__clear" id="searchClear" type="button" aria-label="검색어 지우기" hidden>×</button>
         <div class="hdr-drop" id="searchResults" role="listbox" aria-label="검색 결과" hidden></div>
       </div>
-      <!-- 알림 벨 — UI 만. 동작은 아직 붙이지 않았다. -->
-      <button class="hdr-bell" id="bellBtn" type="button" aria-label="알림" title="알림 (준비 중)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M18 8.4a6 6 0 1 0-12 0c0 6.1-2.2 7.6-2.2 7.6h16.4S18 14.5 18 8.4" />
-          <path d="M13.7 19.4a2 2 0 0 1-3.4 0" />
-        </svg>
-      </button>
     </div>
 
     <!-- 공장 사진 — 헤더 바 오른쪽 끝에 와이드로 붙인다(.hdr-photo 참고).
@@ -237,20 +229,36 @@
           </div>
         </section>
 
-        <!-- 해외 전시회·컨퍼런스 — 3열 그리드 맨 아래, 전체 폭을 쓰는 한 줄.
-             ★ 대시보드 전용 카드다(사이드바 메뉴·더보기 없음).
-             ★ grid-column: 1 / -1 은 .dash-card--wide 에 걸려 있다 —
-               세계시간 옆 좁은 칸에 두면 세로로 길어져 3열 정렬이 틀어졌다.
-             내용(4분할)은 app.js renderExhibitions 가 그린다. -->
-        <section class="dash-card dash-card--wide exh-sec" data-section="exhibitions">
-          <div class="panel-body" id="body-exhibitions">
-            <div id="exhibitionsRoot"></div>
+        <!-- 해외 전시회·컨퍼런스 — 세계시간과 같은 줄에 나란히 서는 카드 2장.
+             ★ 대시보드 전용이다(사이드바 메뉴·더보기 없음).
+             ★ 일반 .dash-card 라 본문 150px 캡을 그대로 받는다 —
+               세계시간 카드(202px)와 높이가 저절로 같아진다.
+             내용은 app.js renderExhMap() / renderExhList() 가 그린다. -->
+        <section class="dash-card" data-section="exh_map">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">
+              <span class="exh-no">01</span>주요 해외 전시·컨퍼런스 일정
+            </h3>
+          </div>
+          <div class="panel-body" id="body-exh_map">
+            <div id="exhMapRoot"></div>
+          </div>
+        </section>
+
+        <section class="dash-card" data-section="exh_list">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">
+              <span class="exh-no">02</span>주요 전시회 · 컨퍼런스 목록
+            </h3>
+          </div>
+          <div class="panel-body" id="body-exh_list">
+            <div id="exhListRoot"></div>
           </div>
         </section>
       </div>
     </main>
   </div>
 
-  <script src="app.js?v=20260915c"></script>
+  <script src="app.js?v=20260915d"></script>
 </body>
 </html>

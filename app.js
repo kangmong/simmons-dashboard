@@ -12856,7 +12856,7 @@ const SEARCH_SECTIONS = {
   domestic: { label: '신제품 · 브랜드 동향', view: 'domestic' },
   patent: { label: '특허 · 신소재 동향', view: 'patent' },
   fx: { label: '환율 (원화 시세)', view: 'fx' },
-  exhibitions: { label: '해외 전시회 · 컨퍼런스', view: 'dashboard' },
+  exh_list: { label: '해외 전시회 · 컨퍼런스', view: 'dashboard' },
 };
 
 /** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
@@ -12920,7 +12920,7 @@ function buildSearchIndex() {
   /* 6) 해외 전시회 · 컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
      유일하게 나라 이름을 가진 자료다('미국' 같은 검색어가 여기서 걸린다). */
   ((_exh && _exh.items) || []).forEach((x) => {
-    push('exhibitions', x.name,
+    push('exh_list', x.name,
       [x.city, x.country, exhRange(x)].filter(Boolean).join(' · '));
   });
 
@@ -13131,7 +13131,8 @@ async function fetchExhibitions() {
     _exh = null; _exhErr = (e && e.message) ? e.message : String(e);
     console.warn('[exhibitions] 로드 실패:', e);
   }
-  renderExhibitions();
+  renderExhMap();
+  renderExhList();
 }
 
 /** 오늘 0시(로컬) — D-day 계산 기준. 시분초가 섞이면 하루씩 어긋난다. */
@@ -13162,8 +13163,8 @@ function exhRange(item) {
   return a.getFullYear() + '. ' + f(a) + ' ~ ' + tail;
 }
 
-/* 분류 4가지 — 1열 지도 범례 점 색과 2열 태그 색이 같은 표를 본다.
-   JSON 의 category 값이 이 표에 없으면 '기타'로 떨어진다(색이 비지 않게). */
+/* 분류 4가지 — 지도 범례 점 색과 목록 점 색이 같은 표를 본다.
+   JSON 의 category 가 이 표에 없으면 '기타'로 떨어진다(색이 비지 않게). */
 const EXH_CATS = [
   { key: '가구·인테리어', cls: 'furn' },
   { key: '수면·매트리스', cls: 'sleep' },
@@ -13175,25 +13176,13 @@ function exhCatCls(v) {
   return hit ? hit.cls : 'etc';
 }
 
-/** 컬럼 머리 — 01~04 번호 배지 + 제목 (+ 오른쪽 '전체 보기') */
-function exhColH(no, title, moreView) {
-  return '<div class="exh-col__h">'
-    + '<span class="exh-col__no">' + no + '</span>'
-    + '<span class="exh-col__t">' + escapeHtml(title) + '</span>'
-    + (moreView
-      ? '<button type="button" class="exh-col__more" data-exhmore="' + escapeHtml(moreView) + '">'
-        + '전체 보기 ›</button>'
-      : '')
-    + '</div>';
-}
-
 /** D-day 라벨. 지난 행사는 '종료'. */
 function exhDlabel(d) {
   if (d == null) return '';
   return (d < 0) ? '종료' : (d === 0 ? 'D-DAY' : 'D-' + d);
 }
 
-/** 'YYYY.MM.DD ~ MM.DD' — 참고 디자인의 날짜 표기(숫자 정렬용) */
+/** 'YYYY.MM.DD ~ MM.DD' — 숫자 정렬이 되는 짧은 기간 표기 */
 function exhShort(item) {
   const a = exhDate(item.start), b = exhDate(item.end);
   if (!a) return '';
@@ -13203,24 +13192,28 @@ function exhShort(item) {
   return head + ' ~ ' + p2(b.getMonth() + 1) + '.' + p2(b.getDate());
 }
 
-function renderExhibitions() {
-  const el = document.getElementById('exhibitionsRoot');
+/** 시작일 순으로 정렬된 행사 목록 */
+function exhSorted() {
+  return (_exh && Array.isArray(_exh.items) ? _exh.items.slice() : [])
+    .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+}
+
+/* ── 01 주요 해외 전시·컨퍼런스 일정 (미니 세계지도) ──────────────────────
+   ★ 카드가 세계시간과 같은 크기(본문 150px)로 줄면서, 예전 전체 폭 판에서
+     쓰던 '나라 라벨 4장'은 넣지 않는다 — 라벨 한 장이 45px 라 150px 안에
+     네 장이 물리적으로 안 들어가고, 넣으면 지도를 다 덮는다.
+     대신 도시마다 점을 찍고 hover 툴팁(도시 · 행사명)으로 상세를 준다. */
+function renderExhMap() {
+  const el = document.getElementById('exhMapRoot');
   if (!el) return;
   if (!_exh) {
     el.innerHTML = emptyState(_exhErr
-      ? '전시회 일정을 불러오지 못했습니다 — ' + _exhErr
-      : '전시회 일정 준비중');
+      ? '전시회 일정을 불러오지 못했습니다 — ' + _exhErr : '전시회 일정 준비중');
     return;
   }
-  const items = _exh.items.slice()
-    .sort((a, b) => String(a.start).localeCompare(String(b.start)));
-  const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
+  const items = exhSorted();
 
-  /* ── 01 : 미니 세계지도 + 개최지 라벨 ────────────────────────────────────
-     좌표는 JSON 의 lat/lon. 등장방형도법이라 x=(lon+180)/360, y=(90-lat)/180
-     이 그대로 퍼센트가 된다(프로젝트의 다른 지도들과 같은 계산).
-     ★ 같은 도시에서 여러 행사가 열리면 라벨을 하나로 합친다 — 겹쳐 찍으면
-       글자가 서로 위에 얹혀 읽을 수 없다. */
+  /* 같은 도시의 행사는 점 하나에 모은다 — 겹쳐 찍으면 무엇인지 알 수 없다 */
   const byCity = {};
   items.forEach((x) => {
     if (x.lat == null || x.lon == null) return;
@@ -13228,152 +13221,62 @@ function renderExhibitions() {
     if (!byCity[k]) byCity[k] = { city: k, country: sIdxStr(x.country), lat: +x.lat, lon: +x.lon, evs: [] };
     byCity[k].evs.push(x);
   });
-  const cityList = Object.keys(byCity).map((k) => byCity[k]);
+  const cities = Object.keys(byCity).map((k) => byCity[k]);
 
-  /* 점은 도시마다 하나씩 찍는다 */
-  const dots = cityList.map((c) => {
+  const dots = cities.map((c) => {
     const left = (c.lon + 180) / 360 * 100;
     const top = (90 - c.lat) / 180 * 100;
-    const d = c.evs.map((e) =>
-      '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('');
-    return '<span class="exh-mk__p" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
-      + ' title="' + escapeHtml(c.city + ' · ' + c.evs.map((e) => sIdxStr(e.name)).join(', ')) + '">'
-      + d + '</span>';
-  }).join('');
-
-  /* ★ 라벨은 '나라마다 하나'만 단다 — 도시마다 달면 라스베이거스·콜럼버스,
-     쾰른·프랑크푸르트·밀라노처럼 가까운 것끼리 글자가 서로 겹쳐 읽을 수 없다.
-     대표 도시는 그 나라에서 가장 가까운 행사가 열리는 곳으로 잡는다. */
-  const byCountry = {};
-  cityList.forEach((c) => {
-    const k = c.country || c.city;
-    const soonest = c.evs.slice().sort((a, b) =>
-      String(a.start).localeCompare(String(b.start)))[0];
-    if (!byCountry[k] || String(soonest.start) < String(byCountry[k].ev.start)) {
-      byCountry[k] = { country: k, city: c.city, lat: c.lat, lon: c.lon, ev: soonest };
-    }
-  });
-  /* ★ 라벨의 세로 위치는 '나라의 위도'가 아니라 줄(band)로 정한다.
-     지도 폭이 약 270px 뿐이라, 위도 자리에 그대로 두면 라벨끼리 겹친다
-     (경도 순으로 위/아래만 번갈아 봤지만 독일·중국이 계속 겹쳤다).
-     경도 순으로 줄을 하나씩 나눠 주면 세로가 서로 겹칠 수가 없다.
-     가로(경도)는 그대로 두므로 어느 대륙인지는 그대로 읽힌다. */
-  const marksArr = Object.keys(byCountry).map((k) => byCountry[k]).sort((a, b) => a.lon - b.lon);
-  /* 지도 높이 약 184px, 라벨 약 40px — 4줄이 서로 안 닿게 24%(약 44px)씩 띄운다 */
-  const BAND_TOP = 4, BAND_GAP = 24;
-  const marks = marksArr.map((c, i) => {
-    const left = (c.lon + 180) / 360 * 100;
-    const top = BAND_TOP + (i * BAND_GAP);
-    const side = (left > 55) ? ' exh-mk--l' : '';   // 오른쪽 끝은 라벨을 왼쪽으로
-    return '<div class="exh-mk' + side + '"'
-      + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%">'
-      + '<span class="exh-mk__lb">'
-      + '<b>' + escapeHtml(c.country) + '</b>'
-      + '<em>' + escapeHtml(c.city) + '</em>'
-      + '<u>' + escapeHtml(String(c.ev.start).slice(0, 7)) + '</u>'
-      + '<s>' + escapeHtml(sIdxStr(c.ev.name).split(' (')[0]) + '</s>'
-      + '</span></div>';
+    const tip = c.country + ' ' + c.city + ' · '
+      + c.evs.map((e) => sIdxStr(e.name).split(' (')[0] + '(' + exhShort(e) + ')').join(', ');
+    return '<span class="exh-mk" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
+      + ' title="' + escapeHtml(tip) + '">'
+      + c.evs.map((e) => '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('')
+      + '</span>';
   }).join('');
 
   const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
     + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
 
-  const col1 = exhColH('01', '주요 해외 전시·컨퍼런스 일정', 'worldclock')
-    + '<div class="exh-map"><img class="exh-map__img" src="world-map.svg" alt="" />'
-    + dots + marks + '</div>'
-    + '<div class="exh-lgs">' + legend + '</div>';
+  el.innerHTML = '<div class="exh-map">'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div>'
+    + '<div class="exh-lgs">' + legend + '</div>'
+    /* ★ 각주는 두 줄 안에 끝내야 한다 — 카드 본문이 150px 라 세 줄이 되면
+       마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
+    + '<div class="exh-note exh-note--tight">'
+    + cities.length + '개 도시 · ' + items.length + '개 행사 · 점에 마우스를 올리면 상세'
+    + (_exh.provisional ? '. 일정은 통상 개최 시기 기준 <b>잠정치</b>입니다' : '')
+    + '</div>';
+}
 
-  /* ── 02 : 행사 목록 (최대 5, 넘치면 스크롤) ───────────────────────────── */
-  const listSrc = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
-  const col2 = exhColH('02', '주요 전시회 · 컨퍼런스 목록', '')
-    + '<div class="exh-list">' + listSrc.map((x) => {
-      const d = exhDday(x);
-      const link = sIdxStr(x.link);
-      const inner = '<span class="exh-li__l">'
-        + '<i class="exh-dot exh-dot--' + exhCatCls(x.category) + '"></i>'
-        + '<span class="exh-li__dt">' + escapeHtml(exhShort(x)) + '</span></span>'
-        + '<span class="exh-li__r">'
-        + '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name).split(' (')[0]) + '</span>'
-        + '<span class="exh-li__s">' + escapeHtml(sIdxStr(x.city))
-        + (x.category ? ' · ' + escapeHtml(sIdxStr(x.category)) : '') + '</span></span>'
-        + (d == null ? '' : '<span class="exh-li__d' + (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''))
-          + '">' + exhDlabel(d) + '</span>')
-        + '<span class="exh-li__go" aria-hidden="true">›</span>';
-      return link
-        ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
-          + inner + '</a>'
-        : '<div class="exh-li">' + inner + '</div>';
-    }).join('') + '</div>';
-
-  /* ── 03 : 최신 리포트·인사이트 (최대 4) ───────────────────────────────── */
-  const reps = (_exh.reports || []).slice()
-    .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 4);
-  const col3 = exhColH('03', '최신 리포트 · 인사이트', '')
-    + (reps.length
-      ? '<div class="exh-rep">' + reps.map((r) => '<div class="exh-rep__i">'
-        + '<span class="exh-rep__ic" aria-hidden="true">'
-        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
-        + ' stroke-linecap="round" stroke-linejoin="round">'
-        + '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />'
-        + '<path d="M14 3v5h5" /><path d="M9 13h6M9 16.5h4" /></svg></span>'
-        + '<span class="exh-rep__b">'
-        + '<span class="exh-rep__t">' + escapeHtml(sIdxStr(r.title)) + '</span>'
-        + (r.source ? '<span class="exh-rep__s">(' + escapeHtml(sIdxStr(r.source)) + ')</span>' : '')
-        + '</span>'
-        + '<span class="exh-rep__d">' + escapeHtml(sIdxStr(r.date)) + '</span>'
-        + '</div>').join('') + '</div>'
-      : '<div class="exh-note">등록된 리포트가 없습니다.</div>');
-
-  /* ── 04 : 다음 주요 행사 — 사진 배경 카드 ─────────────────────────────
-     ★ 배경 사진은 임시로 제품 사진(bed-1.png)을 쓴다. 나중에 행사장 사진으로
-       교체할 자리다 — CSS .exh-next 의 background-image 파일명만 바꾸면 된다. */
-  const next = upcoming[0] || null;
-  const col4 = exhColH('04', '다음 주요 행사', '')
-    + (next
-      ? '<div class="exh-next">'
-        + '<span class="exh-next__d">' + exhDlabel(exhDday(next)) + '</span>'
-        + '<div class="exh-next__b">'
-        + '<div class="exh-next__h">'
-        + '<span class="exh-next__n">' + escapeHtml(sIdxStr(next.name).split(' (')[0]) + '</span>'
-        + (next.category
-          ? '<span class="exh-next__tag">' + escapeHtml(sIdxStr(next.category)) + '</span>' : '')
-        + '</div>'
-        + '<div class="exh-next__m"><span aria-hidden="true">🗓</span>'
-        + escapeHtml(exhShort(next)) + '</div>'
-        + '<div class="exh-next__m"><span aria-hidden="true">📍</span>'
-        + escapeHtml([next.country, next.city].filter(Boolean).join(' ')) + '</div>'
-        + '</div>'
-        + (sIdxStr(next.link)
-          ? '<a class="exh-next__go" href="' + escapeHtml(next.link) + '" target="_blank"'
-            + ' rel="noopener noreferrer" aria-label="' + escapeHtml(sIdxStr(next.name)) + ' 공식 사이트">→</a>'
-          : '')
-        + '</div>'
-      : '<div class="exh-note">예정된 행사가 없습니다. 일정을 갱신해 주세요.</div>');
-
-  el.innerHTML = '<div class="exh4">'
-    + '<div class="exh4__bar" aria-hidden="true"></div>'
-    + '<div class="exh4__cols">'
-    + '<div class="exh-col">' + col1 + '</div>'
-    + '<div class="exh-col">' + col2 + '</div>'
-    + '<div class="exh-col">' + col3 + '</div>'
-    + '<div class="exh-col">' + col4 + '</div>'
-    + '</div>'
-    + '<div class="exh-note exh4__foot">'
-    + (_exh.provisional
-      ? '※ 표시된 일정은 각 행사의 통상 개최 시기를 근거로 채운 <b>잠정치</b>입니다. '
-        + '주최측 공식 공지로 확인한 뒤 사용하십시오. '
-      : '')
-    + '출처: ' + escapeHtml(sIdxStr(_exh.source) || '각 행사 공식 사이트')
-    + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
-    + '</div></div>';
-
-  /* '전체 보기' — 해당 화면으로 전환. 매번 다시 그리므로 위임으로 한 번만 건다. */
-  if (!el.dataset.wired) {
-    el.dataset.wired = '1';
-    el.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-exhmore]');
-      if (!b) return;
-      setView(b.dataset.exhmore);
-    });
+/* ── 02 주요 전시회 · 컨퍼런스 목록 ────────────────────────────────────── */
+function renderExhList() {
+  const el = document.getElementById('exhListRoot');
+  if (!el) return;
+  if (!_exh) {
+    el.innerHTML = emptyState(_exhErr
+      ? '전시회 일정을 불러오지 못했습니다 — ' + _exhErr : '전시회 일정 준비중');
+    return;
   }
+  const items = exhSorted();
+  const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
+  /* 다가오는 것 우선, 하나도 없으면 최근 것. 최대 5개 (넘치면 카드 안에서 스크롤) */
+  const rows = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
+
+  el.innerHTML = '<div class="exh-list">' + rows.map((x) => {
+    const d = exhDday(x);
+    const link = sIdxStr(x.link);
+    const inner = '<span class="exh-li__l">'
+      + '<i class="exh-dot exh-dot--' + exhCatCls(x.category) + '"></i>'
+      + '<span class="exh-li__dt">' + escapeHtml(exhShort(x)) + '</span></span>'
+      + '<span class="exh-li__r">'
+      + '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name).split(' (')[0]) + '</span>'
+      + '<span class="exh-li__s">' + escapeHtml(sIdxStr(x.city))
+      + (x.category ? ' · ' + escapeHtml(sIdxStr(x.category)) : '') + '</span></span>'
+      + (d == null ? '' : '<span class="exh-li__d'
+        + (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : '')) + '">' + exhDlabel(d) + '</span>');
+    return link
+      ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
+        + inner + '</a>'
+      : '<div class="exh-li">' + inner + '</div>';
+  }).join('') + '</div>';
 }
