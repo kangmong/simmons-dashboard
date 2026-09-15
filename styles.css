@@ -4109,19 +4109,37 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 지도가 88 → 173px 로 커진 만큼 마커도 키운다 — 7px 이면 점이 너무 작아 보인다.
    범례 점은 글자(10px) 옆이라 그대로 7px 를 쓴다. */
 .exh-mk .exh-dot { width: 9px; height: 9px; }
-/* 개최지 라벨 — 가로는 경도 자리, 세로는 겹치지 않게 나눠 둔 줄(위치는 인라인 style) */
-.exh-lb { position: absolute; display: flex; max-width: 58%; pointer-events: none; }
-.exh-lb--l { justify-content: flex-end; transform: translateX(-100%); }
-.exh-lb__b {
-  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
-  padding: 2px 5px; line-height: 1.3; white-space: nowrap; box-shadow: var(--shadow);
-  overflow: hidden; text-overflow: ellipsis;
+/* 개최지 말풍선 — 점을 눌렀을 때만 펼친다(항상 띄우면 지도를 덮는다) */
+.exh-mk__b {
+  display: inline-flex; gap: 2px; padding: 3px; border: none; border-radius: 999px;
+  background: rgba(255, 255, 255, .92); box-shadow: 0 0 0 1px var(--line);
+  cursor: pointer; font: inherit; line-height: 0;
 }
-.exh-lb__b b { font-size: 9px; font-weight: 800; color: var(--ink); }
-.exh-lb__b em { font-size: 8.5px; font-style: normal; color: var(--text); margin-left: 3px; }
-.exh-lb__b u {
-  display: block; font-size: 8px; text-decoration: none; color: var(--muted);
-  font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis;
+.exh-mk__b:hover { box-shadow: 0 0 0 2px var(--navy-2); }
+.exh-mk__b:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 2px; }
+.exh-mk.is-on .exh-mk__b { box-shadow: 0 0 0 2px var(--navy-2); }
+
+.exh-pop {
+  display: none; position: absolute; z-index: 5; left: 50%; top: calc(100% + 7px);
+  transform: translateX(-50%);
+  min-width: 156px; max-width: 230px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+  box-shadow: var(--shadow-hover); padding: 7px 9px; text-align: left;
+}
+.exh-mk.is-on .exh-pop { display: block; }
+/* 오른쪽 끝 도시는 왼쪽으로 펼쳐 지도 밖으로 나가지 않게 */
+.exh-mk--l .exh-pop { left: auto; right: 50%; transform: translateX(0); }
+.exh-pop__h { display: block; margin-bottom: 4px; }
+.exh-pop__h b { font-size: 11px; font-weight: 800; color: var(--ink); }
+.exh-pop__h em { font-size: 10.5px; font-style: normal; color: var(--muted); margin-left: 4px; }
+.exh-pop__r {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px;
+  align-items: baseline; padding: 3px 0; border-top: 1px solid var(--line);
+}
+.exh-pop__r b { font-size: 10.5px; font-weight: 700; color: var(--ink); word-break: keep-all; }
+.exh-pop__r u {
+  grid-column: 2; font-size: 9.5px; text-decoration: none; color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .exh-lgs { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-top: 7px; }
@@ -4251,9 +4269,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 }
 
 /* ② 분야별 비중 도넛 */
-.exd { display: flex; flex-direction: column; align-items: center; gap: 11px; flex: 1 1 auto; justify-content: center; }
+/* 도넛은 왼쪽, 범례는 오른쪽 — 세로로 쌓으면 칸을 세로로만 길게 먹는다 */
+.exd { display: flex; align-items: center; gap: 14px; flex: 1 1 auto; justify-content: center;
+  flex-wrap: wrap; }
 .exd__ring {
-  position: relative; width: 132px; height: 132px; border-radius: 50%; flex: 0 0 auto;
+  position: relative; width: 124px; height: 124px; border-radius: 50%; flex: 0 0 auto;
 }
 .exd__hole {
   position: absolute; inset: 26px; border-radius: 50%; background: var(--card);
@@ -4261,27 +4281,47 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 }
 .exd__hole b { font-size: 13px; font-weight: 800; color: var(--ink); }
 .exd__hole em { font-size: 10.5px; font-style: normal; color: var(--muted); }
-.exd__lg { list-style: none; margin: 0; padding: 0; width: 100%; display: flex;
-  flex-direction: column; gap: 4px; }
+.exd__lg { list-style: none; margin: 0; padding: 0; flex: 1 1 130px; min-width: 130px;
+  display: flex; flex-direction: column; gap: 5px; }
 .exd__li { display: flex; align-items: center; gap: 6px; font-size: 11px; }
 .exd__k { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exd__v { margin-left: auto; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 /* ③ 지역별 행사 수 막대 */
-.exb { flex: 1 1 auto; display: flex; align-items: flex-end; }
-.exb__plot {
-  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-  gap: 7px; width: 100%; height: 152px; align-items: end;
+.exb { flex: 1 1 auto; display: flex; flex-direction: column; }
+.exb__unit { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.exb__wrap { display: flex; gap: 6px; flex: 1 1 auto; }
+/* y축 — 눈금 숫자. 격자와 같은 칸 수로 나눠 높이를 맞춘다. */
+.exb__ax {
+  /* 눈금·격자·막대 세 가지가 모두 118px 를 기준으로 서야 눈금과 막대 끝이 맞는다 */
+  display: flex; flex-direction: column; justify-content: space-between;
+  height: 118px; flex: 0 0 auto; margin-top: 15px;   /* 값 표시 줄만큼 내려 준다 */
 }
-.exb__c { display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%;
+.exb__tick { display: block; height: 0; }
+.exb__tick u {
+  display: block; transform: translateY(-50%);
+  font-size: 9.5px; color: var(--muted); text-decoration: none;
+  font-variant-numeric: tabular-nums; text-align: right; min-width: 14px;
+}
+.exb__plotwrap { position: relative; flex: 1 1 auto; min-width: 0; }
+.exb__grid {
+  position: absolute; left: 0; right: 0; top: 15px; height: 118px;
+  display: flex; flex-direction: column; justify-content: space-between; pointer-events: none;
+}
+.exb__grid span { display: block; height: 1px; background: var(--line); }
+.exb__plot {
+  position: relative;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 7px; width: 100%; align-items: end;
+}
+.exb__c { display: flex; flex-direction: column; align-items: center; gap: 3px;
   justify-content: flex-end; min-width: 0; }
+.exb__c .exb__k { margin-top: 3px; }
 .exb__v { font-size: 11px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .exb__bar {
-  width: 100%; max-width: 26px; border-radius: 5px 5px 0 0;
-  background: linear-gradient(180deg, var(--blue) 0%, var(--navy-2) 100%);
-  min-height: 4px;
+  width: 100%; max-width: 26px; border-radius: 5px 5px 0 0; min-height: 4px;
+  /* 색은 나라마다 달라 인라인 style 로 온다 */
 }
-.exb__bar.is-etc { background: var(--slate); opacity: .55; }
 .exb__k { font-size: 10px; color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 

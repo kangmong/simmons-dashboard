@@ -7,7 +7,8 @@
     "화면의 잠정치 각주가 사라집니다. 수집기를 붙일 경우 이 파일을 그대로 덮어쓰면 됩니다.",
     "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙).",
     "lat/lon 은 1열 미니 세계지도 마커용 도시 좌표입니다(등장방형도법). 도시를 바꾸면 좌표도 같이 바꿔 주세요.",
-    "category 는 1열 지도 범례와 2열 태그에 쓰는 분류입니다. 가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 네 가지를 씁니다."
+    "category 는 1열 지도 범례와 2열 태그에 쓰는 분류입니다. 가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 네 가지를 씁니다.",
+    "image: '다가오는 주요 행사' 카드에 쓸 행사 사진 경로입니다. 비어 있으면 분야 색 배너로 대신합니다. 저장소 안 경로(예: public/exhibitions/ces-2027.jpg)나 https 절대주소를 넣으세요. ★ 저장소 안 파일을 쓸 때는 vercel.json 의 builds 에 그 폴더(public/exhibitions/**)를 등록해야 배포본에서 404 가 나지 않습니다."
   ],
   "provisional": true,
   "updatedAt": "2026-09-15",
@@ -22,7 +23,8 @@
       "link": "https://www.ciff.furniture/",
       "lat": 31.23,
       "lon": 121.47,
-      "category": "가구·인테리어"
+      "category": "가구·인테리어",
+      "image": ""
     },
     {
       "name": "CES 2027",
@@ -33,7 +35,8 @@
       "link": "https://www.ces.tech/",
       "lat": 36.17,
       "lon": -115.14,
-      "category": "가전·테크"
+      "category": "가전·테크",
+      "image": ""
     },
     {
       "name": "Heimtextil Frankfurt",
@@ -44,7 +47,8 @@
       "link": "https://heimtextil.messefrankfurt.com/",
       "lat": 50.11,
       "lon": 8.68,
-      "category": "소재·기술"
+      "category": "소재·기술",
+      "image": ""
     },
     {
       "name": "IMM Cologne (쾰른 국제가구박람회)",
@@ -55,7 +59,8 @@
       "link": "https://www.imm-cologne.com/",
       "lat": 50.94,
       "lon": 6.96,
-      "category": "가구·인테리어"
+      "category": "가구·인테리어",
+      "image": ""
     },
     {
       "name": "CIFF Guangzhou (중국국제가구박람회)",
@@ -66,7 +71,8 @@
       "link": "https://www.ciff.furniture/",
       "lat": 23.13,
       "lon": 113.26,
-      "category": "가구·인테리어"
+      "category": "가구·인테리어",
+      "image": ""
     },
     {
       "name": "ISPA EXPO 2027 (국제수면용품협회)",
@@ -77,7 +83,8 @@
       "link": "https://www.sleepproducts.org/",
       "lat": 39.96,
       "lon": -83.0,
-      "category": "수면·매트리스"
+      "category": "수면·매트리스",
+      "image": ""
     },
     {
       "name": "Salone del Mobile Milano (밀라노 국제가구박람회)",
@@ -88,7 +95,8 @@
       "link": "https://www.salonemilano.it/",
       "lat": 45.46,
       "lon": 9.19,
-      "category": "가구·인테리어"
+      "category": "가구·인테리어",
+      "image": ""
     },
     {
       "name": "interzum Cologne (가구 부자재·소재 전시회)",
@@ -99,7 +107,8 @@
       "link": "https://www.interzum.com/",
       "lat": 50.94,
       "lon": 6.96,
-      "category": "소재·기술"
+      "category": "소재·기술",
+      "image": ""
     }
   ],
   "reports": [

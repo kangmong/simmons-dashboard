@@ -13268,46 +13268,32 @@ function renderExhMap() {
   });
   const cities = Object.keys(byCity).map((k) => byCity[k]);
 
-  const dots = cities.map((c) => {
+  const dots = cities.map((c, i) => {
     const left = (c.lon + 180) / 360 * 100;
     const top = (90 - c.lat) / 180 * 100;
-    const tip = c.country + ' ' + c.city + ' · '
-      + c.evs.map((e) => sIdxStr(e.name).split(' (')[0] + '(' + exhShort(e) + ')').join(', ');
-    return '<span class="exh-mk" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
-      + ' title="' + escapeHtml(tip) + '">'
+    /* 오른쪽 끝 도시는 말풍선을 왼쪽으로 펼친다(지도 밖으로 나가지 않게) */
+    const side = (left > 62) ? ' exh-mk--l' : '';
+    const rows = c.evs.slice()
+      .sort((x, y) => String(x.start).localeCompare(String(y.start)))
+      .map((e) => '<span class="exh-pop__r">'
+        + '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>'
+        + '<b>' + escapeHtml(sIdxStr(e.name).split(' (')[0]) + '</b>'
+        + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
+    return '<span class="exh-mk' + side + '" style="left:' + left.toFixed(2)
+      + '%;top:' + top.toFixed(2) + '%">'
+      + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
+      + ' aria-expanded="false" aria-label="' + escapeHtml(c.country + ' ' + c.city) + ' 행사 보기">'
       + c.evs.map((e) => '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('')
-      + '</span>';
+      + '</button>'
+      + '<span class="exh-pop">'
+      + '<span class="exh-pop__h"><b>' + escapeHtml(c.country) + '</b>'
+      + '<em>' + escapeHtml(c.city) + '</em></span>'
+      + rows + '</span></span>';
   }).join('');
 
-  /* ★ 어디서 열리는지 지도에서 바로 읽히도록 라벨을 단다.
-     · 라벨은 '나라마다 하나'다 — 도시마다 달면 라스베이거스·콜럼버스,
-       쾰른·프랑크푸르트·밀라노처럼 붙은 것끼리 글자가 서로 위에 얹힌다.
-     · 세로 위치는 위도가 아니라 줄(band)로 나눈다. 지도가 173px 밖에 안 돼
-       위도 자리에 그대로 두면 유럽 셋이 한 덩어리로 겹친다.
-       가로(경도)는 그대로라 어느 대륙인지는 읽힌다. */
-  const byCountry = {};
-  cities.forEach((c) => {
-    const k = c.country || c.city;
-    const soonest = c.evs.slice().sort((a, b) =>
-      String(a.start).localeCompare(String(b.start)))[0];
-    if (!byCountry[k] || String(soonest.start) < String(byCountry[k].ev.start)) {
-      byCountry[k] = { country: k, city: c.city, lat: c.lat, lon: c.lon, ev: soonest };
-    }
-  });
-  const labArr = Object.keys(byCountry).map((k) => byCountry[k]).sort((a, b) => a.lon - b.lon);
-  const BAND_TOP = 5, BAND_GAP = 23;      // % — 4줄이면 5·28·51·74%
-  const labels = labArr.map((c, i) => {
-    const left = (c.lon + 180) / 360 * 100;
-    const side = (left > 55) ? ' exh-lb--l' : '';
-    return '<div class="exh-lb' + side + '" style="left:' + left.toFixed(2)
-      + '%;top:' + (BAND_TOP + i * BAND_GAP).toFixed(2) + '%">'
-      + '<span class="exh-lb__b">'
-      + '<b>' + escapeHtml(c.country) + '</b><em>' + escapeHtml(c.city) + '</em>'
-      + '<u>' + escapeHtml(String(c.ev.start).slice(0, 7)) + ' · '
-      + escapeHtml(sIdxStr(c.ev.name).split(' (')[0]) + '</u>'
-      + '</span></div>';
-  }).join('');
-
+  /* ★ 라벨을 항상 띄우지 않는다 — 지도를 덮어 대륙이 안 보였다.
+     점을 누르면 그 도시 것만 펼친다(한 번에 하나). 지도 바깥을 누르면 닫힌다.
+     라벨은 점 안에 같이 넣어 두고 CSS 로 감춰 둔다 — 위치 계산이 따로 필요 없다. */
   const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
     + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
 
@@ -13316,16 +13302,47 @@ function renderExhMap() {
      2:1 이라 object-fit:contain 이 좌우에 여백을 만든다. 그런데 마커는 바깥 상자
      기준 %로 찍혀서 실제 대륙에서 밀려 있었다(상하이가 약 57px 어긋났다).
      그래서 안쪽에 '이미지와 정확히 같은 2:1 상자'를 하나 두고 그 안에 찍는다. */
+  exhWireMap(el);
   el.innerHTML = '<div class="exh-map"><div class="exh-map__in">'
-    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + labels + '</div></div>'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div></div>'
     + '<div class="exh-lgs">' + legend + '</div>'
     /* ★ 각주는 두 줄 안에 끝내야 한다 — 카드 본문이 150px 라 세 줄이 되면
        마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
     + '<div class="exh-note exh-note--tight">'
     /* 한 줄로 끝낸다 — 두 줄이 되면 요약 카드 본문(225px)을 넘어 잘린다 */
-    + cities.length + '개 도시 · ' + items.length + '개 행사'
+    + cities.length + '개 도시 · ' + items.length + '개 행사 · 점을 누르면 상세'
     + (_exh.provisional ? ' · 일정은 <b>잠정치</b>' : '')
     + '</div>';
+}
+
+/** 지도 점 클릭 → 그 도시 말풍선만 펼친다. 한 번만 건다(매번 다시 그리므로 위임). */
+function exhWireMap(root) {
+  if (!root || root.dataset.mapWired) return;
+  root.dataset.mapWired = '1';
+  root.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-exhcity]');
+    const opened = root.querySelectorAll('.exh-mk.is-on');
+    [].forEach.call(opened, (m) => {
+      if (!btn || m !== btn.parentNode) {
+        m.classList.remove('is-on');
+        const b = m.querySelector('.exh-mk__b');
+        if (b) b.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (!btn) return;
+    const mk = btn.parentNode;
+    const on = mk.classList.toggle('is-on');
+    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  });
+  /* 지도 바깥을 누르면 닫는다 */
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.exh-map')) return;
+    [].forEach.call(document.querySelectorAll('.exh-mk.is-on'), (m) => {
+      m.classList.remove('is-on');
+      const b = m.querySelector('.exh-mk__b');
+      if (b) b.setAttribute('aria-expanded', 'false');
+    });
+  });
 }
 
 /* ── 02 주요 전시회 · 컨퍼런스 목록 ────────────────────────────────────── */
@@ -13392,7 +13409,15 @@ function exhUpcomingHtml(items) {
     const d = exhDday(x);
     const link = sIdxStr(x.link);
     const name = sIdxStr(x.name).split(' (')[0];
+    /* ★ 실제 행사 사진은 exhibitions.json 의 items[].image 에 넣으면 그대로 뜬다.
+       (public/exhibitions/ces-2027.jpg 처럼 저장소 안 상대경로나 https 절대주소)
+       아직 없으면 지금처럼 분야 색 배너 + 이니셜로 대신한다 — 남의 사진을
+       임의로 끌어다 쓰지 않는다. 로드에 실패해도 배너로 되돌아간다. */
+    const photo = assetSrc(x.image);
     const inner = '<span class="exu__ph" style="--exu-c:' + exhCatColor(x.category) + '">'
+      + (photo
+        ? '<img class="exu__img" src="' + escapeHtml(photo) + '" alt="" loading="lazy"'
+          + ' onerror="this.remove()">' : '')
       + '<span class="exu__d">' + exhDlabel(d) + '</span>'
       + '<span class="exu__ini">' + escapeHtml(name.slice(0, 4)) + '</span></span>'
       + '<span class="exu__b">'
@@ -13443,19 +13468,46 @@ function exhDonutHtml(st) {
 }
 
 /** ③ 지역별 행사 수 — 세로 막대. 값은 파일에서 오고, 높이는 최대값 기준 비율. */
+/* 막대 색 — 나라마다 다르게. '기타'는 항상 회색으로 끝에 둔다. */
+const EXH_BAR_COLORS = ['var(--blue)', 'var(--navy-2)', 'var(--violet)', 'var(--green)',
+  'var(--amber)', 'var(--teal)', 'var(--accent)'];
+
 function exhBarsHtml(st) {
   const rows = (st.byCountry || []).filter((x) => x && x.n != null);
   if (!rows.length) return '<div class="exh-note">집계가 없습니다.</div>';
   const max = Math.max.apply(null, rows.map((x) => x.n)) || 1;
+  /* y축 눈금은 5의 배수로 올려 잡는다 — 18이면 20까지, 눈금 5칸 */
+  const step = (max <= 10) ? 2 : (max <= 25 ? 5 : 10);
+  const top = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = top; v >= 0; v -= step) ticks.push(v);
+
+  const axis = '<div class="exb__ax">'
+    + ticks.map((v) => '<span class="exb__tick"><u>' + v + '</u></span>').join('')
+    + '</div>';
+  const grid = '<div class="exb__grid" aria-hidden="true">'
+    + ticks.map(() => '<span></span>').join('') + '</div>';
+
+  /* ★ 막대 높이는 %가 아니라 px 로 준다. 부모가 flex 라 높이가 '확정'이 아니어서
+     height:% 가 0 으로 풀렸고, min-height 4px 짜리 실선만 남았다(실제로 그랬다). */
+  const PLOT_H = 118;                       // 눈금 영역(152px)에서 값·이름 줄을 뺀 높이
+  let ci = 0;
   const bars = rows.map((r) => {
     const isEtc = sIdxStr(r.key) === '기타';
+    const color = isEtc ? 'var(--slate)' : EXH_BAR_COLORS[ci++ % EXH_BAR_COLORS.length];
+    const h = Math.max(3, r.n / top * PLOT_H);
     return '<div class="exb__c">'
       + '<b class="exb__v">' + r.n + '</b>'
-      + '<span class="exb__bar' + (isEtc ? ' is-etc' : '') + '"'
-      + ' style="height:' + (r.n / max * 100).toFixed(1) + '%"></span>'
+      + '<span class="exb__bar" style="height:' + h.toFixed(1)
+      + 'px;background:' + color + (isEtc ? ';opacity:.55' : '') + '"></span>'
       + '<span class="exb__k">' + escapeHtml(r.key) + '</span></div>';
   }).join('');
-  return '<div class="exb"><div class="exb__plot">' + bars + '</div></div>';
+
+  return '<div class="exb">'
+    + '<div class="exb__unit">단위: 건</div>'
+    + '<div class="exb__wrap">' + axis
+    + '<div class="exb__plotwrap">' + grid
+    + '<div class="exb__plot">' + bars + '</div></div></div></div>';
 }
 
 /** 전용 화면 아래 3블록. 대시보드에서는 비워 둔다. */
