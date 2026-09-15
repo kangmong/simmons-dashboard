@@ -12851,6 +12851,7 @@ const SEARCH_SECTIONS = {
   competitor: '국내외 경쟁사 분기 실적',
   domestic: '신제품 · 브랜드 동향',
   patent: '특허 · 신소재 동향',
+  fx: '환율 (원화 시세)',
   exhibitions: '해외 전시회 · 컨퍼런스',
 };
 
@@ -12897,8 +12898,18 @@ function buildSearchIndex() {
      ★ 요약(summary)까지 넣는다 — 제목이 '매트리스 조립체'처럼 짧고 비슷해서
        제목만으로는 검색어가 거의 걸리지 않는다. */
   ((_ptData && _ptData.rows) || []).forEach((r) => {
+    /* words 는 이 특허에 걸린 분류 키워드다(화면의 키워드 칩과 같은 값).
+       '라텍스'처럼 분류표에는 있지만 제목·요약에 안 나오는 말이 여기서 걸린다. */
+    const kw = Array.isArray(r.words) ? r.words.join(' ') : '';
     push('patent', r.title,
-      [r.company, r.date, r.catLabel, r.summary].filter(Boolean).join(' · '));
+      [r.company, r.date, r.catLabel, kw, r.summary].filter(Boolean).join(' · '));
+  });
+
+  /* 5-1) 환율 — 통화 카드(USD·EUR·JPY). 'USD' 같은 통화 코드가 여기서 걸린다. */
+  ((_fxa && _fxa.cards) || []).forEach((c) => {
+    push('fx', [c.name, c.cur].filter(Boolean).join(' '),
+      ['원 / ' + sIdxStr(c.unit), (c.now != null ? fxNum(c.now) + '원' : '')]
+        .filter(Boolean).join(' · '));
   });
 
   /* 6) 해외 전시회 · 컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
@@ -13043,7 +13054,6 @@ function initSearch() {
 const EXH_DATA_URL = 'public/data/exhibitions.json';
 let _exh = null;        // 로드 결과 (실패하면 null)
 let _exhErr = null;     // 실패 이유 — 조용히 비우지 않고 화면에 그대로 보여 준다
-let _exhOpen = { 1: false, 2: true, 3: false, 4: true };   // 아코디언 펼침 상태
 
 /** 국가 → 국기 이모지. 없는 나라는 글자만 나간다(모양이 깨지지 않게). */
 const EXH_FLAG = {
@@ -13094,19 +13104,19 @@ function exhRange(item) {
   return a.getFullYear() + '. ' + f(a) + ' ~ ' + tail;
 }
 
-/** 아코디언 한 덩이 */
-function exhAcc(n, title, count, bodyHtml) {
-  const on = !!_exhOpen[n];
-  return '<div class="exh-acc' + (on ? ' is-open' : '') + '">'
-    + '<button type="button" class="exh-acc__h" data-exhacc="' + n + '"'
-    + ' aria-expanded="' + (on ? 'true' : 'false') + '">'
-    + '<span class="exh-acc__n">' + n + '</span>'
-    + '<span class="exh-acc__t">' + escapeHtml(title) + '</span>'
-    + (count ? '<span class="exh-acc__c">' + escapeHtml(count) + '</span>' : '')
-    + '<span class="exh-acc__ar" aria-hidden="true">▾</span>'
-    + '</button>'
-    + '<div class="exh-acc__b"' + (on ? '' : ' hidden') + '>' + bodyHtml + '</div>'
+/** 컬럼 머리 — 01~04 번호 배지 + 제목 */
+function exhColH(no, title, sub) {
+  return '<div class="exh-col__h">'
+    + '<span class="exh-col__no">' + no + '</span>'
+    + '<span class="exh-col__t">' + escapeHtml(title) + '</span>'
+    + (sub ? '<span class="exh-col__s">' + escapeHtml(sub) + '</span>' : '')
     + '</div>';
+}
+
+/** D-day 라벨. 지난 행사는 '종료'. */
+function exhDlabel(d) {
+  if (d == null) return '';
+  return (d < 0) ? '종료' : (d === 0 ? 'D-DAY' : 'D-' + d);
 }
 
 function renderExhibitions() {
@@ -13122,67 +13132,86 @@ function renderExhibitions() {
     .sort((a, b) => String(a.start).localeCompare(String(b.start)));
   const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
 
-  /* 1) 개최지 — 국가별 건수 뱃지. ★ 숫자는 데이터에서 센다(코드에 적지 않는다). */
-  const byCountry = {};
-  items.forEach((x) => {
-    const k = sIdxStr(x.country) || '기타';
-    byCountry[k] = (byCountry[k] || 0) + 1;
-  });
-  const geo = Object.keys(byCountry).sort((a, b) => byCountry[b] - byCountry[a])
-    .map((k) => '<span class="exh-geo__b">'
-      + (EXH_FLAG[k] ? '<i>' + EXH_FLAG[k] + '</i>' : '')
-      + escapeHtml(k) + '<span class="exh-geo__n">' + byCountry[k] + '</span></span>').join('');
-
-  /* 2) 행사 목록 — 다가오는 것 우선, 하나도 없으면 최근 것. 최대 5개 */
-  const listSrc = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
-  const evs = listSrc.map((x) => {
-    const d = exhDday(x);
-    const cls = (d == null) ? '' : (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''));
-    const badge = (d == null) ? '' : (d < 0 ? '종료' : (d === 0 ? 'D-DAY' : 'D-' + d));
-    const link = sIdxStr(x.link);
-    const inner = '<span class="exh-ev__n">' + escapeHtml(sIdxStr(x.name)) + '</span>'
-      + '<span class="exh-ev__m">'
-      + '<span class="exh-ev__c">' + escapeHtml(sIdxStr(x.city) || '—') + '</span>'
-      + '<span>' + escapeHtml(exhRange(x)) + '</span>'
-      + (badge ? '<span class="exh-ev__d' + cls + '">' + badge + '</span>' : '')
-      + '</span>';
-    return link
-      ? '<a class="exh-ev__i" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
-        + inner + '</a>'
-      : '<div class="exh-ev__i">' + inner + '</div>';
+  /* ── 1열: 미니 세계지도 + 개최 도시 점 ──────────────────────────────────
+     좌표는 JSON 의 lat/lon 을 그대로 쓴다. 등장방형도법이라
+     x=(lon+180)/360, y=(90-lat)/180 로 바로 퍼센트가 된다
+     (프로젝트의 다른 지도들과 같은 계산). 좌표가 없으면 찍지 않는다. */
+  const seenCity = {};
+  const marks = items.filter((x) => {
+    if (x.lat == null || x.lon == null) return false;
+    const k = sIdxStr(x.city);
+    if (seenCity[k]) return false;            // 같은 도시는 한 번만
+    seenCity[k] = 1;
+    return true;
+  }).map((x) => {
+    const left = (Number(x.lon) + 180) / 360 * 100;
+    const top = (90 - Number(x.lat)) / 180 * 100;
+    const soon = (() => { const d = exhDday(x); return d != null && d >= 0 && d <= 120; })();
+    return '<span class="exh-mk' + (soon ? ' is-soon' : '') + '"'
+      + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
+      + ' title="' + escapeHtml(sIdxStr(x.city) + ' · ' + sIdxStr(x.name)) + '">'
+      + '<i></i><b>' + escapeHtml(sIdxStr(x.city)) + '</b></span>';
   }).join('');
 
-  /* 3) 최근 리포트·인사이트 — 최신순 최대 4개 */
+  const col1 = exhColH('01', '주요 해외 전시·컨퍼런스 일정', Object.keys(seenCity).length + '개 도시')
+    + '<div class="exh-map">'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />'
+    + marks + '</div>';
+
+  /* ── 2열: 행사 목록 (최대 5개, 넘치면 스크롤) ───────────────────────── */
+  const listSrc = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
+  const col2 = exhColH('02', '주요 전시·컨퍼런스 목록', listSrc.length + '건')
+    + '<div class="exh-list">' + listSrc.map((x) => {
+      const d = exhDday(x);
+      const cls = (d == null) ? '' : (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''));
+      const link = sIdxStr(x.link);
+      const inner = '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name)) + '</span>'
+        + '<span class="exh-li__m">'
+        + '<span class="exh-li__c">' + escapeHtml(sIdxStr(x.city) || '—') + '</span>'
+        + '<span>' + escapeHtml(exhRange(x)) + '</span></span>'
+        + (d == null ? '' : '<span class="exh-li__d' + cls + '">' + exhDlabel(d) + '</span>');
+      return link
+        ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
+          + inner + '</a>'
+        : '<div class="exh-li">' + inner + '</div>';
+    }).join('') + '</div>';
+
+  /* ── 3열: 최신 리포트·인사이트 (최대 4개) ───────────────────────────── */
   const reps = (_exh.reports || []).slice()
     .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 4);
-  const rpHtml = reps.length
-    ? reps.map((r) => '<div class="exh-rp__i">'
-      + '<div class="exh-rp__t">' + escapeHtml(sIdxStr(r.title)) + '</div>'
-      + '<div class="exh-rp__m">' + escapeHtml(sIdxStr(r.date))
-      + (r.source ? ' · ' + escapeHtml(sIdxStr(r.source)) : '') + '</div></div>').join('')
-    : '<div class="exh-note">등록된 리포트가 없습니다.</div>';
+  const col3 = exhColH('03', '최신 리포트 · 인사이트', reps.length + '건')
+    + (reps.length
+      ? '<div class="exh-rep">' + reps.map((r) => '<div class="exh-rep__i">'
+        + '<div class="exh-rep__t">' + escapeHtml(sIdxStr(r.title)) + '</div>'
+        + '<div class="exh-rep__m">' + escapeHtml(sIdxStr(r.date))
+        + (r.source ? ' · ' + escapeHtml(sIdxStr(r.source)) : '') + '</div></div>').join('') + '</div>'
+      : '<div class="exh-note">등록된 리포트가 없습니다.</div>');
 
-  /* 4) 다음 행사 카운트다운 */
+  /* ── 4열: 다음 주요 행사 — 사진 배경 카드 ────────────────────────────
+     ★ 배경 사진은 임시로 제품 사진(bed-1.png)을 쓴다.
+       나중에 행사장 사진으로 교체할 자리다(CSS .exh-next 의 background-image). */
   const next = upcoming[0] || null;
-  const cd = next
-    ? '<div class="exh-cd">'
-      + '<div class="exh-cd__d">' + (exhDday(next) === 0 ? 'D-DAY' : 'D-' + exhDday(next)) + '</div>'
-      + '<div class="exh-cd__r">'
-      + '<div class="exh-cd__n">' + escapeHtml(sIdxStr(next.name)) + '</div>'
-      + '<div class="exh-cd__s">' + escapeHtml(sIdxStr(next.city)) + ' · '
-      + escapeHtml(exhRange(next)) + '</div>'
-      + '</div></div>'
-    : '<div class="exh-note">예정된 행사가 없습니다. 일정을 갱신해 주세요.</div>';
+  const col4 = exhColH('04', '다음 주요 행사', '')
+    + (next
+      ? '<div class="exh-next">'
+        + '<span class="exh-next__d">' + exhDlabel(exhDday(next)) + '</span>'
+        + '<div class="exh-next__b">'
+        + '<div class="exh-next__n">' + escapeHtml(sIdxStr(next.name)) + '</div>'
+        + '<div class="exh-next__m">' + escapeHtml(sIdxStr(next.city)) + ' · '
+        + escapeHtml(exhRange(next)) + '</div>'
+        + '</div></div>'
+      : '<div class="exh-note">예정된 행사가 없습니다. 일정을 갱신해 주세요.</div>');
 
-  el.innerHTML = '<div class="exh">'
-    + exhAcc(1, '주요 전시 지역', Object.keys(byCountry).length + '개국',
-      '<div class="exh-geo">' + geo + '</div>')
-    + exhAcc(2, '주요 전시회 · 컨퍼런스', listSrc.length + '건',
-      '<div class="exh-ev">' + evs + '</div>')
-    + exhAcc(3, '최근 리포트 · 인사이트', reps.length + '건',
-      '<div class="exh-rp">' + rpHtml + '</div>')
-    + exhAcc(4, '다음 주요 행사', '', cd)
-    + '<div class="exh-note">'
+  el.innerHTML = '<div class="exh4">'
+    + '<div class="exh4__bar" aria-hidden="true"></div>'
+    + '<div class="exh4__hd"><h3 class="exh4__t">해외 전시회 · 컨퍼런스</h3></div>'
+    + '<div class="exh4__cols">'
+    + '<div class="exh-col">' + col1 + '</div>'
+    + '<div class="exh-col">' + col2 + '</div>'
+    + '<div class="exh-col">' + col3 + '</div>'
+    + '<div class="exh-col">' + col4 + '</div>'
+    + '</div>'
+    + '<div class="exh-note exh4__foot">'
     + (_exh.provisional
       ? '※ 표시된 일정은 각 행사의 통상 개최 시기를 근거로 채운 <b>잠정치</b>입니다. '
         + '주최측 공식 공지로 확인한 뒤 사용하십시오. '
@@ -13190,15 +13219,4 @@ function renderExhibitions() {
     + '출처: ' + escapeHtml(sIdxStr(_exh.source) || '각 행사 공식 사이트')
     + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
     + '</div></div>';
-
-  /* 아코디언 토글 — 매번 다시 그리므로 위임으로 한 번만 건다 */
-  if (!el.dataset.wired) {
-    el.dataset.wired = '1';
-    el.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-exhacc]');
-      if (!b) return;
-      _exhOpen[b.dataset.exhacc] = !_exhOpen[b.dataset.exhacc];
-      renderExhibitions();
-    });
-  }
 }

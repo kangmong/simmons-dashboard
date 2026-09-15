@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260915a" />
+  <link rel="stylesheet" href="styles.css?v=20260915b" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -237,13 +237,12 @@
           </div>
         </section>
 
-        <!-- 해외 전시회·컨퍼런스 — 세계시간 옆 빈 칸을 채운다.
-             ★ 대시보드 전용 카드다(사이드바 메뉴·더보기 없음). 폭이 좁아
-               4개 묶음을 세로 아코디언으로 쌓는다. 내용은 app.js renderExhibitions. -->
-        <section class="dash-card" data-section="exhibitions">
-          <div class="dash-card__head">
-            <h3 class="dash-card__title">해외 전시회 · 컨퍼런스</h3>
-          </div>
+        <!-- 해외 전시회·컨퍼런스 — 3열 그리드 맨 아래, 전체 폭을 쓰는 한 줄.
+             ★ 대시보드 전용 카드다(사이드바 메뉴·더보기 없음).
+             ★ grid-column: 1 / -1 은 .dash-card--wide 에 걸려 있다 —
+               세계시간 옆 좁은 칸에 두면 세로로 길어져 3열 정렬이 틀어졌다.
+             내용(4분할)은 app.js renderExhibitions 가 그린다. -->
+        <section class="dash-card dash-card--wide exh-sec" data-section="exhibitions">
           <div class="panel-body" id="body-exhibitions">
             <div id="exhibitionsRoot"></div>
           </div>
@@ -252,6 +251,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20260915a"></script>
+  <script src="app.js?v=20260915b"></script>
 </body>
 </html>

@@ -5,7 +5,8 @@
     "화면에도 '일정은 잠정치' 각주가 나가도록 해 두었습니다(exhibitions.provisional=true).",
     "갱신 방법: 아래 items 의 start/end/city/link 를 각 행사 공식 사이트 공지로 바꾸고 provisional 을 false 로 두면",
     "화면의 잠정치 각주가 사라집니다. 수집기를 붙일 경우 이 파일을 그대로 덮어쓰면 됩니다.",
-    "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙)."
+    "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙).",
+    "lat/lon 은 1열 미니 세계지도 마커용 도시 좌표입니다(등장방형도법). 도시를 바꾸면 좌표도 같이 바꿔 주세요."
   ],
   "provisional": true,
   "updatedAt": "2026-09-15",
@@ -17,7 +18,9 @@
       "end": "2026-09-11",
       "city": "상하이",
       "country": "중국",
-      "link": "https://www.ciff.furniture/"
+      "link": "https://www.ciff.furniture/",
+      "lat": 31.23,
+      "lon": 121.47
     },
     {
       "name": "CES 2027",
@@ -25,7 +28,9 @@
       "end": "2027-01-08",
       "city": "라스베이거스",
       "country": "미국",
-      "link": "https://www.ces.tech/"
+      "link": "https://www.ces.tech/",
+      "lat": 36.17,
+      "lon": -115.14
     },
     {
       "name": "Heimtextil Frankfurt",
@@ -33,7 +38,9 @@
       "end": "2027-01-15",
       "city": "프랑크푸르트",
       "country": "독일",
-      "link": "https://heimtextil.messefrankfurt.com/"
+      "link": "https://heimtextil.messefrankfurt.com/",
+      "lat": 50.11,
+      "lon": 8.68
     },
     {
       "name": "IMM Cologne (쾰른 국제가구박람회)",
@@ -41,7 +48,9 @@
       "end": "2027-01-21",
       "city": "쾰른",
       "country": "독일",
-      "link": "https://www.imm-cologne.com/"
+      "link": "https://www.imm-cologne.com/",
+      "lat": 50.94,
+      "lon": 6.96
     },
     {
       "name": "CIFF Guangzhou (중국국제가구박람회)",
@@ -49,7 +58,9 @@
       "end": "2027-03-21",
       "city": "광저우",
       "country": "중국",
-      "link": "https://www.ciff.furniture/"
+      "link": "https://www.ciff.furniture/",
+      "lat": 23.13,
+      "lon": 113.26
     },
     {
       "name": "ISPA EXPO 2027 (국제수면용품협회)",
@@ -57,7 +68,9 @@
       "end": "2027-03-26",
       "city": "콜럼버스",
       "country": "미국",
-      "link": "https://www.sleepproducts.org/"
+      "link": "https://www.sleepproducts.org/",
+      "lat": 39.96,
+      "lon": -83.0
     },
     {
       "name": "Salone del Mobile Milano (밀라노 국제가구박람회)",
@@ -65,7 +78,9 @@
       "end": "2027-04-18",
       "city": "밀라노",
       "country": "이탈리아",
-      "link": "https://www.salonemilano.it/"
+      "link": "https://www.salonemilano.it/",
+      "lat": 45.46,
+      "lon": 9.19
     },
     {
       "name": "interzum Cologne (가구 부자재·소재 전시회)",
@@ -73,7 +88,9 @@
       "end": "2027-05-07",
       "city": "쾰른",
       "country": "독일",
-      "link": "https://www.interzum.com/"
+      "link": "https://www.interzum.com/",
+      "lat": 50.94,
+      "lon": 6.96
     }
   ],
   "reports": [
