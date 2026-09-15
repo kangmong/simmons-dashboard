@@ -4249,10 +4249,16 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   position: relative; height: 74px; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, var(--exu-c, var(--navy)) 0%, var(--navy) 130%);
 }
+/* 실제 사진 — 배너 위에 덮는다. 로드 실패 시 <img> 가 사라지고 배너가 드러난다. */
+.exu__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .exu__ini {
   font-size: 19px; font-weight: 800; letter-spacing: .06em;
   color: rgba(255, 255, 255, .92); text-transform: uppercase;
 }
+/* 사진이 있으면 이니셜은 가린다(사진 위에 글자가 겹치지 않게) */
+.exu__ph:has(.exu__img) .exu__ini { display: none; }
+/* D-day 배지는 사진 위에서도 읽혀야 한다 */
+.exu__d { z-index: 2; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
 .exu__d {
   position: absolute; top: 7px; left: 7px;
   background: var(--nav-bg); color: #FFFFFF;

@@ -8,7 +8,7 @@
     "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙).",
     "lat/lon 은 1열 미니 세계지도 마커용 도시 좌표입니다(등장방형도법). 도시를 바꾸면 좌표도 같이 바꿔 주세요.",
     "category 는 1열 지도 범례와 2열 태그에 쓰는 분류입니다. 가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 네 가지를 씁니다.",
-    "image: '다가오는 주요 행사' 카드에 쓸 행사 사진 경로입니다. 비어 있으면 분야 색 배너로 대신합니다. 저장소 안 경로(예: public/exhibitions/ces-2027.jpg)나 https 절대주소를 넣으세요. ★ 저장소 안 파일을 쓸 때는 vercel.json 의 builds 에 그 폴더(public/exhibitions/**)를 등록해야 배포본에서 404 가 나지 않습니다."
+    "image: '다가오는 주요 행사' 카드 사진입니다. 행사 공식 사이트의 대표 이미지(og:image)를 scripts/fill_exhibition_images.py 가 뽑아 채웁니다(시몬스 소식이 기사 썸네일을 쓰는 방식과 같음). 갱신: python scripts/fill_exhibition_images.py --all . 비어 있으면 분야 색 배너로 표시됩니다."
   ],
   "provisional": true,
   "updatedAt": "2026-09-15",
@@ -24,7 +24,7 @@
       "lat": 31.23,
       "lon": 121.47,
       "category": "가구·인테리어",
-      "image": ""
+      "image": "https://www.ciff.furniture/images/slider/CIFF-Logo.png"
     },
     {
       "name": "CES 2027",
@@ -36,7 +36,7 @@
       "lat": 36.17,
       "lon": -115.14,
       "category": "가전·테크",
-      "image": ""
+      "image": "https://www.ces.tech/media/1yebqthg/ai.jpg?v=639171443628330000&width=1000&height=1000&format=webp&quality=80"
     },
     {
       "name": "Heimtextil Frankfurt",
@@ -48,7 +48,7 @@
       "lat": 50.11,
       "lon": 8.68,
       "category": "소재·기술",
-      "image": ""
+      "image": "https://heimtextil.messefrankfurt.com/content/dam/messefrankfurt-redaktion/heimtextil/2027/htx-header-2027-2.jpg"
     },
     {
       "name": "IMM Cologne (쾰른 국제가구박람회)",
@@ -60,7 +60,7 @@
       "lat": 50.94,
       "lon": 6.96,
       "category": "가구·인테리어",
-      "image": ""
+      "image": "https://media.koelnmesse.io/imm2021/redaktionell/imm/img/layout/imm_cologne_840.jpg"
     },
     {
       "name": "CIFF Guangzhou (중국국제가구박람회)",
@@ -72,7 +72,7 @@
       "lat": 23.13,
       "lon": 113.26,
       "category": "가구·인테리어",
-      "image": ""
+      "image": "https://www.ciff.furniture/images/slider/CIFF-Logo.png"
     },
     {
       "name": "ISPA EXPO 2027 (국제수면용품협회)",
@@ -84,7 +84,7 @@
       "lat": 39.96,
       "lon": -83.0,
       "category": "수면·매트리스",
-      "image": ""
+      "image": "https://sleepproducts.org/wp-content/uploads/Featured-Image.png"
     },
     {
       "name": "Salone del Mobile Milano (밀라노 국제가구박람회)",
@@ -108,7 +108,7 @@
       "lat": 50.94,
       "lon": 6.96,
       "category": "소재·기술",
-      "image": ""
+      "image": "https://media.koelnmesse.io/interzum2021/redaktionell/interzum/img/layout/interzum_logo_1200x675.jpg"
     }
   ],
   "reports": [

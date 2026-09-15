@@ -13413,11 +13413,16 @@ function exhUpcomingHtml(items) {
        (public/exhibitions/ces-2027.jpg 처럼 저장소 안 상대경로나 https 절대주소)
        아직 없으면 지금처럼 분야 색 배너 + 이니셜로 대신한다 — 남의 사진을
        임의로 끌어다 쓰지 않는다. 로드에 실패해도 배너로 되돌아간다. */
-    const photo = assetSrc(x.image);
+    /* 사진은 행사 공식 사이트의 대표 이미지(og:image)다 — 시몬스 소식이 기사
+       썸네일을 쓰는 것과 같은 방식이고, scripts/fill_exhibition_images.py 가 채운다.
+       ★ 뉴스 썸네일과 같은 사다리를 탄다: https 로 올려 보고 → 실패하면 서버
+         프록시로 한 번 우회 → 그래도 안 되면 분야 색 배너로 돌아간다. */
+    const photo = assetSrc(imgUrl(x.image) || x.image);
     const inner = '<span class="exu__ph" style="--exu-c:' + exhCatColor(x.category) + '">'
       + (photo
         ? '<img class="exu__img" src="' + escapeHtml(photo) + '" alt="" loading="lazy"'
-          + ' onerror="this.remove()">' : '')
+          + ' referrerpolicy="no-referrer" data-orig="' + escapeHtml(sIdxStr(x.image))
+          + '" onerror="exhImgFallback(this)">' : '')
       + '<span class="exu__d">' + exhDlabel(d) + '</span>'
       + '<span class="exu__ini">' + escapeHtml(name.slice(0, 4)) + '</span></span>'
       + '<span class="exu__b">'
@@ -13434,6 +13439,17 @@ function exhUpcomingHtml(items) {
         + inner + '</a>'
       : '<div class="exu__c">' + inner + '</div>';
   }).join('') + '</div>';
+}
+
+/** 행사 사진 로드 실패 → 한 번만 서버 프록시로 우회, 그래도 실패하면 배너로.
+ *  (뉴스 썸네일의 skImgFallback 과 같은 규칙 — 인증서가 깨진 호스트 대비) */
+function exhImgFallback(im) {
+  if (!im) return;
+  if (im.dataset.proxied) { im.remove(); return; }   // 배너가 뒤에 깔려 있다
+  const orig = im.dataset.orig || im.getAttribute('src');
+  if (!orig) { im.remove(); return; }
+  im.dataset.proxied = '1';
+  im.src = '/api/img?u=' + encodeURIComponent(orig);
 }
 
 /** ② 분야별 비중 도넛 — conic-gradient 로 그린다(차트 라이브러리 없이). */
