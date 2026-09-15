@@ -13227,7 +13227,8 @@ function exhRange(item) {
   return a.getFullYear() + '. ' + f(a) + ' ~ ' + tail;
 }
 
-/* 분류 4가지 — 지도 범례 점 색과 목록 점 색이 같은 표를 본다.
+/* 분류 5가지 — 도넛(분야별 비중)과 '다가오는 행사' 카드의 분야 배지가 본다.
+   ★ 지도 마커·목록 점은 더 이상 이 표를 보지 않는다(아래 국가 색표로 옮겼다).
    JSON 의 category 가 이 표에 없으면 '기타'로 떨어진다(색이 비지 않게). */
 const EXH_CATS = [
   { key: '가구·인테리어', cls: 'furn' },
@@ -13239,6 +13240,44 @@ const EXH_CATS = [
 function exhCatCls(v) {
   const hit = EXH_CATS.filter((c) => c.key === sIdxStr(v))[0];
   return hit ? hit.cls : 'etc';
+}
+
+/* ── 국가 색 — 지도 마커 · 목록 점 · 지도 아래 범례가 모두 이 표를 본다 ──
+   ★ 왜 분야가 아니라 국가인가: 지도는 '어디서 열리나'를 보는 그림이라,
+     점 색이 나라를 가리켜야 지도의 점과 오른쪽 목록의 행을 눈으로 이을 수 있다.
+     분야는 색에서 빠지는 대신 목록 소제목('도시 · 분야')과 도넛이 계속 알려 준다.
+   ★ 색을 클래스(.exh-dot--*)가 아니라 인라인 style 로 넣는다 — 나라는 데이터에서
+     오는 값이라 CSS 에 미리 적어 둘 수 없다. 도넛 범례도 같은 방식이다.
+   ★ 표에 없는 나라가 JSON 에 들어와도 점이 회색으로 뭉치지 않게, 여분 색을
+     items 에 나온 순서대로 하나씩 내어 준다(같은 나라는 언제나 같은 색). */
+const EXH_COUNTRY_COLORS = {
+  '미국': 'var(--blue)',
+  '독일': 'var(--amber)',
+  '중국': 'var(--violet)',
+  '콜롬비아': 'var(--cyan)',
+  '이탈리아': 'var(--green)',
+  'UAE': 'var(--accent)',
+};
+const EXH_COUNTRY_SPARE = ['#DB2777', '#4F46E5', '#B45309', '#65A30D', '#0F766E', '#9333EA'];
+let _exhCcSrc = null, _exhCc = null;
+function exhCountryMap() {
+  if (_exhCc && _exhCcSrc === _exh) return _exhCc;   /* 데이터가 그대로면 다시 만들지 않는다 */
+  const m = {};
+  Object.keys(EXH_COUNTRY_COLORS).forEach((k) => { m[k] = EXH_COUNTRY_COLORS[k]; });
+  let spare = 0;
+  ((_exh && _exh.items) || []).forEach((x) => {
+    const k = sIdxStr(x && x.country);
+    if (!k || m[k]) return;
+    m[k] = EXH_COUNTRY_SPARE[spare % EXH_COUNTRY_SPARE.length];
+    spare += 1;
+  });
+  _exhCcSrc = _exh;
+  _exhCc = m;
+  return m;
+}
+function exhCountryColor(v) { return exhCountryMap()[sIdxStr(v)] || 'var(--slate)'; }
+function exhDotHtml(country) {
+  return '<i class="exh-dot" style="background:' + exhCountryColor(country) + '"></i>';
 }
 
 /** D-day 라벨. 지난 행사는 '종료'. */
@@ -13294,13 +13333,17 @@ function renderExhMap() {
     const rows = c.evs.slice()
       .sort((x, y) => String(x.start).localeCompare(String(y.start)))
       .map((e) => '<span class="exh-pop__r">'
-        + '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>'
+        + exhDotHtml(c.country)
         + '<b>' + escapeHtml(sIdxStr(e.name).split(' (')[0]) + '</b>'
         + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
     return '<span class="exh-mk' + side + '" style="' + mapPos(c.lat, c.lon) + '">'
       + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
       + ' aria-expanded="false" aria-label="' + escapeHtml(c.country + ' ' + c.city) + ' 행사 보기">'
-      + c.evs.map((e) => '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('')
+      /* ★ 점은 도시마다 하나만 찍는다. 색이 나라 기준이 된 뒤로는 한 도시의
+         행사 수만큼 점을 찍으면 똑같은 색 점이 나란히 붙어 오류처럼 보였다
+         (광저우 2건 · 쾰른 2건). 대신 2건 이상이면 옆에 숫자를 붙인다. */
+      + exhDotHtml(c.country)
+      + (c.evs.length > 1 ? '<i class="exh-mk__n">' + c.evs.length + '</i>' : '')
       + '</button>'
       + '<span class="exh-pop">'
       + '<span class="exh-pop__h"><b>' + escapeHtml(c.country) + '</b>'
@@ -13311,8 +13354,10 @@ function renderExhMap() {
   /* ★ 라벨을 항상 띄우지 않는다 — 지도를 덮어 대륙이 안 보였다.
      점을 누르면 그 도시 것만 펼친다(한 번에 하나). 지도 바깥을 누르면 닫힌다.
      라벨은 점 안에 같이 넣어 두고 CSS 로 감춰 둔다 — 위치 계산이 따로 필요 없다. */
-  const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
-    + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
+  /* ★ 범례는 items 에 실제로 나온 나라만, 많은 순으로 낸다(아래 막대그래프와 같은 순서).
+     나라 목록을 코드에 적어 두면 데이터를 갈아 끼웠을 때 범례만 옛말이 된다. */
+  const legend = exhByCountry(items).map((c) => '<span class="exh-lg">'
+    + exhDotHtml(c.key) + escapeHtml(c.key) + '</span>').join('');
 
   /* ★ 상자가 2:1 이라(.exh-map) 지도 그림과 상자가 정확히 겹친다 —
      세계시간(.wc-map)·슬립테크(.gsl-map) 지도와 같은 구조다(안쪽 래퍼 없음). */
@@ -13388,7 +13433,7 @@ function renderExhList() {
     const d = exhDday(x);
     const link = sIdxStr(x.link);
     const inner = '<span class="exh-li__l">'
-      + '<i class="exh-dot exh-dot--' + exhCatCls(x.category) + '"></i>'
+      + exhDotHtml(x.country)
       + '<span class="exh-li__dt">' + escapeHtml(exhShort(x)) + '</span></span>'
       + '<span class="exh-li__r">'
       + '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name).split(' (')[0]) + '</span>'
@@ -13537,10 +13582,12 @@ function exhDonutHtml(items) {
     + '<ul class="exd__lg">' + legend + '</ul></div>';
 }
 
-/** ③ 지역별 행사 수 — 세로 막대. 값은 파일에서 오고, 높이는 최대값 기준 비율. */
-/* 막대 색 — 나라마다 다르게. '기타'는 항상 회색으로 끝에 둔다. */
-const EXH_BAR_COLORS = ['var(--blue)', 'var(--navy-2)', 'var(--violet)', 'var(--green)',
-  'var(--amber)', 'var(--teal)', 'var(--accent)'];
+/** ③ 지역별 행사 수 — 세로 막대. 값은 items 에서 세고, 높이는 최대값 기준 비율. */
+/* ★ 막대 색은 지도·목록·범례와 같은 국가 색표(exhCountryColor)를 쓴다.
+   예전에는 '앞에서부터 순서대로' 색을 나눠 주는 별도 팔레트였는데, 그러면
+   (a) 바로 위 범례가 '콜롬비아=청록'이라고 알리는데 막대는 주황으로 나오고,
+   (b) 건수가 바뀌어 순위가 뒤집히면 같은 나라의 막대 색까지 따라 바뀌었다.
+   나라 색은 한 곳에서만 정한다. */
 
 function exhBarsHtml(items) {
   const rows = exhByCountry(items).filter((x) => x && x.n != null);
@@ -13561,10 +13608,9 @@ function exhBarsHtml(items) {
   /* ★ 막대 높이는 %가 아니라 px 로 준다. 부모가 flex 라 높이가 '확정'이 아니어서
      height:% 가 0 으로 풀렸고, min-height 4px 짜리 실선만 남았다(실제로 그랬다). */
   const PLOT_H = 118;                       // 눈금 영역(152px)에서 값·이름 줄을 뺀 높이
-  let ci = 0;
   const bars = rows.map((r) => {
     const isEtc = sIdxStr(r.key) === '기타';
-    const color = isEtc ? 'var(--slate)' : EXH_BAR_COLORS[ci++ % EXH_BAR_COLORS.length];
+    const color = isEtc ? 'var(--slate)' : exhCountryColor(r.key);
     const h = Math.max(3, r.n / top * PLOT_H);
     return '<div class="exb__c">'
       + '<b class="exb__v">' + r.n + '</b>'

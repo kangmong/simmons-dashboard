@@ -13,6 +13,8 @@
   --accent-soft: #FDECEE;
   --blue: #3B82F6; --green: #12B981; --amber: #F59E0B; --violet: #8B5CF6; --slate: #64748B;
   --teal: #0D9488;          /* 국제유가 '재상승' 구간 — 다섯 구간 색을 서로 다르게 */
+  --cyan: #0891B2;          /* 전시회 지도의 나라 색 — --green 과 --blue 사이를 메운다.
+                               --teal 을 쓰면 --green 과 너무 닮아 7px 점에서 구분이 안 된다. */
   --radius: 16px;
   --shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 20px rgba(16,24,40,.06);
   --shadow-hover: 0 2px 4px rgba(16,24,40,.06), 0 12px 28px rgba(16,24,40,.10);
@@ -4074,7 +4076,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   display: flex; flex-direction: column; width: 100%; min-height: 0;
 }
 
-/* 분류 점 — 지도 범례와 목록이 같은 색표를 본다 */
+/* 점 — 같은 모양을 두 곳이 쓴다.
+   · 지도 마커 · 목록 행 · 지도 아래 범례: 색을 나라별로 인라인 style 로 받는다
+     (나라는 데이터에서 오는 값이라 여기 클래스로 적어 둘 수 없다).
+   · 아래 --furn 등 분야 클래스: '다가오는 행사' 카드의 분야 배지가 쓴다. */
 .exh-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
 .exh-dot--furn { background: var(--blue); }
 .exh-dot--sleep { background: var(--accent); }
@@ -4109,6 +4114,12 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 지도가 88 → 173px 로 커진 만큼 마커도 키운다 — 7px 이면 점이 너무 작아 보인다.
    범례 점은 글자(10px) 옆이라 그대로 7px 를 쓴다. */
 .exh-mk .exh-dot { width: 9px; height: 9px; }
+/* 한 도시에 행사가 둘 이상일 때의 개수 — 점을 여러 개 찍는 대신 숫자로 알린다.
+   (.exh-mk__b 가 line-height:0 이라 여기서 되돌려 줘야 숫자가 잘리지 않는다) */
+.exh-mk__n {
+  font-size: 9px; font-weight: 800; line-height: 1; font-style: normal;
+  color: var(--navy-2); padding-right: 1px; font-variant-numeric: tabular-nums;
+}
 /* 개최지 말풍선 — 점을 눌렀을 때만 펼친다(항상 띄우면 지도를 덮는다) */
 .exh-mk__b {
   display: inline-flex; gap: 2px; padding: 3px; border: none; border-radius: 999px;
