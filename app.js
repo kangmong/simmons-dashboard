@@ -13234,6 +13234,7 @@ const EXH_CATS = [
   { key: '수면·매트리스', cls: 'sleep' },
   { key: '소재·기술', cls: 'mat' },
   { key: '가전·테크', cls: 'tech' },
+  { key: '수면건강', cls: 'health' },
 ];
 function exhCatCls(v) {
   const hit = EXH_CATS.filter((c) => c.key === sIdxStr(v))[0];
@@ -13401,15 +13402,49 @@ function renderExhList() {
    ① 다가오는 주요 행사 (카드 4장) ② 분야별 비중(도넛) ③ 지역별 행사 수(막대)
    ★ 대시보드 요약 카드에는 나오지 않는다 — 요약은 지도+목록으로 충분하고,
      이 블록들은 전용 화면의 빈 아래쪽을 채우는 용도다.
-   ★ ②③ 은 exhibitions.json 의 stats(최근 3년 집계)를 그대로 그린다.
-     숫자를 코드에 적지 않는다 — 파일을 갱신하면 그래프가 따라 바뀐다.
+   ★ ②③ 은 exhibitions.json 의 items 를 그때그때 세어 그린다(exhCountBy).
+     집계 숫자를 코드에도 파일에도 따로 적지 않는다 — items 만 바꾸면 전부 따라 바뀐다.
    ============================================================ */
 
 /** 분야 색 — 도넛·막대·점이 모두 같은 표를 본다 */
 function exhCatColor(key) {
   const M = { furn: 'var(--blue)', sleep: 'var(--accent)', mat: 'var(--green)',
-    tech: 'var(--violet)', etc: 'var(--slate)' };
+    tech: 'var(--violet)', health: 'var(--teal)', etc: 'var(--slate)' };
   return M[exhCatCls(key)] || 'var(--slate)';
+}
+
+/* ★★ 통계는 반드시 items 에서 센다 — 집계 숫자를 어딘가에 따로 적어 두면
+   items 를 바꿔도 차트가 옛 숫자를 그대로 보여 준다(예전에 stats 블록을 두었다가
+   행사를 12건으로 갈아 끼웠는데 도넛·막대는 '총 56개'를 계속 그렸다).
+   아래 한 함수만 쓰고, 총 건수도 items.length 로만 구한다. */
+function exhCountBy(items, field) {
+  const map = {};
+  (items || []).forEach((x) => {
+    const k = sIdxStr(x && x[field]) || '기타';
+    map[k] = (map[k] || 0) + 1;
+  });
+  return Object.keys(map).map((k) => ({ key: k, n: map[k] }));
+}
+
+/** 분야별 — 범례 색 순서(EXH_CATS)를 따르고, 목록에 없는 값은 '기타'로 뒤에 붙인다 */
+function exhByCategory(items) {
+  const counted = exhCountBy(items, 'category');
+  const order = EXH_CATS.map((c) => c.key);
+  const known = order
+    .map((k) => counted.filter((c) => c.key === k)[0])
+    .filter(Boolean);
+  const rest = counted.filter((c) => order.indexOf(c.key) < 0);
+  const etc = rest.reduce((a, b) => a + b.n, 0);
+  return etc ? known.concat([{ key: '기타', n: etc }]) : known;
+}
+
+/** 지역별 — 많은 순. '기타'가 있으면 항상 끝으로 */
+function exhByCountry(items) {
+  return exhCountBy(items, 'country').sort((a, b) => {
+    if (a.key === '기타') return 1;
+    if (b.key === '기타') return -1;
+    return b.n - a.n || a.key.localeCompare(b.key);
+  });
 }
 
 /** ① 다가오는 주요 행사 — 사진 자리는 분야 색 배너로 채운다.
@@ -13466,9 +13501,9 @@ function exhImgFallback(im) {
 }
 
 /** ② 분야별 비중 도넛 — conic-gradient 로 그린다(차트 라이브러리 없이). */
-function exhDonutHtml(st) {
-  const rows = (st.byCategory || []).filter((x) => x && x.n > 0);
-  const total = rows.reduce((a, b) => a + b.n, 0);
+function exhDonutHtml(items) {
+  const rows = exhByCategory(items).filter((x) => x && x.n > 0);
+  const total = (items || []).length;
   if (!total) return '<div class="exh-note">집계가 없습니다.</div>';
   let acc = 0;
   const stops = rows.map((r) => {
@@ -13501,8 +13536,8 @@ function exhDonutHtml(st) {
 const EXH_BAR_COLORS = ['var(--blue)', 'var(--navy-2)', 'var(--violet)', 'var(--green)',
   'var(--amber)', 'var(--teal)', 'var(--accent)'];
 
-function exhBarsHtml(st) {
-  const rows = (st.byCountry || []).filter((x) => x && x.n != null);
+function exhBarsHtml(items) {
+  const rows = exhByCountry(items).filter((x) => x && x.n != null);
   if (!rows.length) return '<div class="exh-note">집계가 없습니다.</div>';
   const max = Math.max.apply(null, rows.map((x) => x.n)) || 1;
   /* y축 눈금은 5의 배수로 올려 잡는다 — 18이면 20까지, 눈금 5칸 */
@@ -13548,8 +13583,8 @@ function renderExhExtra() {
   if (!onFocus || !_exh) { el.innerHTML = ''; return; }
 
   const items = exhSorted();
-  const st = _exh.stats || {};
-  const yrs = sIdxStr(st.years);
+  /* ★ 부제도 하드코딩하지 않는다 — 등록된 건수를 그대로 쓴다 */
+  const sub = '등록 ' + items.length + '건';
   const head = (no, title, sub) => '<div class="exs__h">'
     + '<span class="exs__t">' + escapeHtml(title) + '</span>'
     + (sub ? '<span class="exs__s">' + escapeHtml(sub) + '</span>' : '') + '</div>';
@@ -13558,14 +13593,16 @@ function renderExhExtra() {
     + '<section class="exs__box exs__box--wide">'
     + head(1, '다가오는 주요 행사', '') + exhUpcomingHtml(items) + '</section>'
     + '<section class="exs__box">'
-    + head(2, '주요 행사 분야별 비중', yrs ? '최근 3년 (' + yrs + ')' : '최근 3년')
-    + exhDonutHtml(st) + '</section>'
+    + head(2, '주요 행사 분야별 비중', sub)
+    + exhDonutHtml(items) + '</section>'
     + '<section class="exs__box">'
-    + head(3, '관심 지역별 행사 수', yrs ? '최근 3년 (' + yrs + ')' : '최근 3년')
-    + exhBarsHtml(st) + '</section>'
+    + head(3, '관심 지역별 행사 수', sub)
+    + exhBarsHtml(items) + '</section>'
     + '</div>'
-    + (_exh.provisional
-      ? '<div class="exh-note exs__foot">※ 분야별·지역별 집계는 <b>잠정 집계</b>입니다'
-        + '(개별 행사 기록이 아니라 추정 숫자). 위 일정과 마찬가지로 확인 후 사용하십시오.</div>'
-      : '');
+    + '<div class="exh-note exs__foot">'
+    + (_exh.provisional ? '※ 표시된 일정은 <b>잠정치</b>입니다. 주최측 공식 공지로 확인한 뒤 사용하십시오. ' : '')
+    + '분야별·지역별 건수는 위 목록 ' + items.length + '건을 그대로 센 값입니다. '
+    + '출처: ' + escapeHtml(sIdxStr(_exh.source) || '각 행사 공식 사이트')
+    + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
+    + '</div>';
 }

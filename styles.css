@@ -4080,6 +4080,7 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .exh-dot--sleep { background: var(--accent); }
 .exh-dot--mat { background: var(--green); }
 .exh-dot--tech { background: var(--violet); }
+.exh-dot--health { background: var(--teal); }
 .exh-dot--etc { background: var(--slate); }
 
 /* ── 01 지도 ── */
