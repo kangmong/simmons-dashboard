@@ -3408,7 +3408,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
     color-mix(in srgb, var(--blue) 52%, var(--navy-2)) 100%);
   box-shadow: inset 0 -3px 0 var(--blue);
 }
-/* 탭으로 감춘 패널 — display 를 쓰는 요소도 확실히 접히게 !important 를 둔다 */
+/* 탭으로 감춘 패널 — display 를 쓰는 요소도 확실히 접히게 !important 를 둔다.
+   ★★ 이 !important 때문에 `.무엇.is-off` 로 더 좁게 써도 이 규칙이 이긴다.
+      '흐리게'를 뜻하는 상태에는 절대 is-off 를 쓰지 말 것(is-dim 을 쓴다) —
+      sq-row 와 전시회 지도·막대가 실제로 통째로 사라졌다. */
 .is-off { display: none !important; }
 
 /* 신제품·브랜드 섹션의 국내/국외 전환 줄 (분기 실적 탭과 독립) */
@@ -4129,6 +4132,9 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .exh-mk__b:hover { box-shadow: 0 0 0 2px var(--navy-2); }
 .exh-mk__b:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 2px; }
 .exh-mk.is-on .exh-mk__b { box-shadow: 0 0 0 2px var(--navy-2); }
+/* 필터에 걸리지 않은 도시 — 지우지 않고 물러나게 둔다(어디가 빠졌는지 보이게).
+   누를 수는 없게 막는다: 말풍선에 필터 밖 행사가 뜨면 목록과 어긋난다. */
+.exh-mk.is-dim { opacity: .17; filter: grayscale(1); pointer-events: none; }
 
 .exh-pop {
   display: none; position: absolute; z-index: 5; left: 50%; top: calc(100% + 7px);
@@ -4155,6 +4161,42 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 .exh-lgs { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-top: 7px; }
 .exh-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+/* 나라 필터가 걸렸을 때 해당 없는 범례 — 지도의 흐린 점과 짝을 맞춘다 */
+.exh-lg.is-dim { opacity: .3; }
+
+/* 지금 걸린 필터 알림 — 목록 맨 위 */
+.exh-fbar {
+  display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  padding: 0 2px 7px; border-bottom: 1px solid var(--line); margin-bottom: 5px;
+}
+.exh-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--blue-soft); border: 1px solid var(--blue);
+  border-radius: 999px; padding: 2px 4px 2px 9px;
+}
+.exh-chip__t { font-size: 11px; font-weight: 700; color: var(--navy-2); }
+.exh-chip__x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border: 0; border-radius: 50%; cursor: pointer;
+  background: rgba(30, 58, 110, .12); color: var(--navy-2);
+  font-size: 9px; line-height: 1; font-family: inherit; padding: 0;
+}
+.exh-chip__x:hover { background: var(--navy-2); color: #FFFFFF; }
+.exh-chip__x:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 1px; }
+.exh-fbar__n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 걸러낸 결과가 없을 때 — 목록 자리에 그대로 둔다(칸이 비어 보이지 않게) */
+.exh-list--none { align-items: center; justify-content: center; overflow: hidden; }
+.exh-none {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  font-size: 12px; color: var(--muted); padding: 22px 12px; text-align: center;
+}
+.exh-none__b {
+  border: 1px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 4px 13px; font-size: 11px; font-weight: 700; color: var(--navy-2);
+  cursor: pointer; font-family: inherit;
+}
+.exh-none__b:hover { background: var(--blue-soft); border-color: var(--blue); }
 
 /* ── 02 목록 ──
    ★ 목록 카드만 본문 캡(150px)을 풀고, 대신 목록 자체에 같은 높이를 준다.
@@ -4300,9 +4342,22 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .exd { display: flex; align-items: center; gap: 14px; flex: 1 1 auto; justify-content: center;
   flex-wrap: wrap; }
 .exd__ring {
-  position: relative; width: 124px; height: 124px; border-radius: 50%; flex: 0 0 auto;
+  position: relative; width: 124px; height: 124px; flex: 0 0 auto;
 }
+/* 조각을 밀어내도(선택 표시) 잘리지 않게 viewBox 안에 여유를 두었다 */
+.exd__svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.exd__sl { cursor: pointer; transition: opacity .12s ease, filter .12s ease; }
+.exd__sl:hover { filter: brightness(1.08); }
+.exd__sl:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 2px; }
+/* 고른 조각은 밖으로 밀려 나온 채(<g transform>) 흰 테두리로 한 번 더 끊어 준다 */
+.exd__sl.is-on { stroke: var(--card); stroke-width: 1.5; }
+/* 필터가 걸리면 고르지 않은 조각은 물러난다 */
+.exd.is-filtered .exd__sl:not(.is-on) { opacity: .28; }
 .exd__hole {
+  /* ★ 가운데 글자는 라벨일 뿐이라 클릭을 가로채면 안 된다 — 이게 없으면
+     조각이 커서 가운데를 덮는 경우(소재·기술 150도) 조각 한가운데를 눌러도
+     이 글자가 먼저 받아 아무 일도 일어나지 않는다. */
+  pointer-events: none;
   position: absolute; inset: 26px; border-radius: 50%; background: var(--card);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
 }
@@ -4310,7 +4365,19 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .exd__hole em { font-size: 10.5px; font-style: normal; color: var(--muted); }
 .exd__lg { list-style: none; margin: 0; padding: 0; flex: 1 1 130px; min-width: 130px;
   display: flex; flex-direction: column; gap: 5px; }
-.exd__li { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.exd__li { display: flex; }
+/* 범례도 누를 수 있다 — 8% 짜리 조각은 각도가 좁아 마우스로 집기 어렵고,
+   키보드 사용자에게는 이쪽이 제대로 된 button 이다(조각은 path 라 흉내다). */
+.exd__b {
+  flex: 1 1 auto; display: flex; align-items: center; gap: 6px; font-size: 11px;
+  background: none; border: 1px solid transparent; border-radius: 7px;
+  padding: 2px 5px; margin: -2px -5px; cursor: pointer; font-family: inherit;
+  text-align: left; min-width: 0;
+}
+.exd__b:hover { background: var(--row-hover); }
+.exd__b:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 1px; }
+.exd__b.is-on { background: var(--blue-soft); border-color: var(--blue); }
+.exd.is-filtered .exd__b:not(.is-on) { opacity: .5; }
 .exd__k { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exd__v { margin-left: auto; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 
@@ -4341,8 +4408,21 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   gap: 7px; width: 100%; align-items: end;
 }
-.exb__c { display: flex; flex-direction: column; align-items: center; gap: 3px;
-  justify-content: flex-end; min-width: 0; }
+.exb__c {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  justify-content: flex-end; min-width: 0;
+  background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer;
+  transition: opacity .12s ease;
+}
+.exb__c:focus-visible { outline: 2px solid var(--navy-2); outline-offset: 2px; border-radius: 6px; }
+.exb__c:hover .exb__bar { filter: brightness(1.08); }
+/* 고른 막대 — 색을 진하게 하고 고리를 두른다(막대 색과 상관없이 눈에 띄게) */
+.exb__c.is-on .exb__bar { filter: saturate(1.25) brightness(.88); box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--navy-2); }
+.exb__c.is-on .exb__v, .exb__c.is-on .exb__k { color: var(--ink); font-weight: 800; }
+/* 고르지 않은 막대는 물러난다. ★ 흐리게만 하고 감추지 않는다 — 감추면
+   독일을 고른 뒤 미국으로 옮겨 갈 수가 없다(필터를 먼저 풀어야 한다). */
+.exb__c.is-dim { opacity: .4; }
+.exb__c.is-dim:hover { opacity: .75; }
 .exb__c .exb__k { margin-top: 3px; }
 .exb__v { font-size: 11px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .exb__bar {

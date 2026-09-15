@@ -116,7 +116,10 @@ function setView(view) {
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('is-active', n.dataset.view === view));
   /* 전시회 아래 3블록은 전용 화면에서만 나온다 — 화면이 바뀔 때마다 다시 그린다.
      (함수 선언은 호이스팅되므로 아래에 정의돼 있어도 여기서 부를 수 있다) */
-  if (typeof renderExhExtra === 'function') renderExhExtra();
+  /* ★ 지도·목록도 같이 다시 그린다 — 전용 화면에서 건 필터가 요약 카드로
+     새지 않게 하려면(exhFilter 가 화면을 보고 판단한다) 화면이 바뀔 때
+     세 곳을 모두 새로 그려야 한다. */
+  if (typeof exhRenderAll === 'function') exhRenderAll();
   history.replaceState(null, '', `#${view}`);
   window.scrollTo(0, 0);
 }
@@ -13280,6 +13283,74 @@ function exhDotHtml(country) {
   return '<i class="exh-dot" style="background:' + exhCountryColor(country) + '"></i>';
 }
 
+/* ── 차트 클릭 필터 ───────────────────────────────────────────────────
+   도넛 조각을 누르면 그 분야만, 막대를 누르면 그 나라만 지도·목록에 남긴다.
+   ★ 한 번에 하나만 건다 — 분야와 나라를 겹쳐 걸 수 있게 하면 '0건'이 나오는
+     조합이 대부분이라(예: 가전·테크 ∩ 독일) 화면이 자주 비어 버린다.
+     다른 축을 누르면 앞의 필터는 버리고 새로 건다.
+   ★ 차트(도넛·막대)는 언제나 items 전체로 그린다. 필터가 걸렸다고 차트까지
+     줄이면 '미국'을 고른 뒤 막대에 미국 하나만 남아 되돌아올 길이 없어진다.
+     줄어드는 것은 지도와 목록뿐이고, 차트는 지금 무엇이 선택됐는지만 표시한다. */
+let _exhFilter = null;          // { kind: 'cat' | 'country', key } · 없으면 null
+
+function exhOnFocus() {
+  const c = document.getElementById('content');
+  return !!(c && c.dataset.view === 'exh');
+}
+/* ★ 요약 카드(대시보드)에는 도넛·막대가 없다 — 거기서는 필터를 걸 수도, 풀 수도
+   없으므로 아예 적용하지 않는다. 그러지 않으면 전용 화면에서 건 필터 때문에
+   대시보드 카드가 이유 없이 몇 건만 보여 준다. */
+function exhFilter() { return exhOnFocus() ? _exhFilter : null; }
+
+function exhHit(x, f) {
+  if (!f) return true;
+  return sIdxStr(f.kind === 'cat' ? (x && x.category) : (x && x.country)) === f.key;
+}
+/** 필터까지 적용된 목록(날짜순) */
+function exhVisible() {
+  const f = exhFilter();
+  return exhSorted().filter((x) => exhHit(x, f));
+}
+/** 필터 라벨·색 — 칩과 안내문이 함께 쓴다 */
+function exhFilterLabel(f) { return f.key + (f.kind === 'cat' ? ' 분야' : ' 지역'); }
+function exhFilterColor(f) {
+  return f.kind === 'cat' ? exhCatColor(f.key) : exhCountryColor(f.key);
+}
+
+/** 같은 것을 다시 누르면 해제, 다른 것을 누르면 그것으로 갈아 끼운다 */
+function exhSetFilter(kind, key) {
+  const k = sIdxStr(key);
+  if (!k) return;
+  const same = _exhFilter && _exhFilter.kind === kind && _exhFilter.key === k;
+  _exhFilter = same ? null : { kind: kind, key: k };
+  exhRenderAll();
+}
+function exhClearFilter() { _exhFilter = null; exhRenderAll(); }
+function exhRenderAll() { renderExhMap(); renderExhList(); renderExhExtra(); }
+
+/** 도넛 조각·막대·칩 ✕ 클릭을 한 곳에서 받는다(다시 그려도 살아 있게 위임) */
+function exhWireFilter(root) {
+  if (!root || root.dataset.filterWired) return;
+  root.dataset.filterWired = '1';
+  root.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('[data-exhclear]')) { exhClearFilter(); return; }
+    const cat = t.closest('[data-exhcat]');
+    if (cat) { exhSetFilter('cat', cat.getAttribute('data-exhcat')); return; }
+    const cty = t.closest('[data-exhcountry]');
+    if (cty) { exhSetFilter('country', cty.getAttribute('data-exhcountry')); }
+  });
+  /* SVG 조각은 button 이 아니라 path 라 Enter/Space 가 저절로 먹지 않는다 */
+  root.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const cat = e.target.closest && e.target.closest('[data-exhcat]');
+    if (cat && cat.tagName.toLowerCase() === 'path') {
+      e.preventDefault();
+      exhSetFilter('cat', cat.getAttribute('data-exhcat'));
+    }
+  });
+}
+
 /** D-day 라벨. 지난 행사는 '종료'. */
 function exhDlabel(d) {
   if (d == null) return '';
@@ -13316,34 +13387,46 @@ function renderExhMap() {
     return;
   }
   const items = exhSorted();
+  const f = exhFilter();
 
-  /* 같은 도시의 행사는 점 하나에 모은다 — 겹쳐 찍으면 무엇인지 알 수 없다 */
+  /* 같은 도시의 행사는 점 하나에 모은다 — 겹쳐 찍으면 무엇인지 알 수 없다.
+     ★ 필터가 걸려도 도시를 빼지 않고 전부 찍는다. 걸리지 않는 도시는 흐리게
+       두는 편이 '어디가 빠졌는지'까지 보여 준다 — 점을 지우면 지도가 휑해져서
+       무엇이 걸러진 결과인지 알 수 없다. hit 이 그 도시의 '걸린 행사'다. */
   const byCity = {};
   items.forEach((x) => {
     if (x.lat == null || x.lon == null) return;
     const k = sIdxStr(x.city);
-    if (!byCity[k]) byCity[k] = { city: k, country: sIdxStr(x.country), lat: +x.lat, lon: +x.lon, evs: [] };
+    if (!byCity[k]) byCity[k] = { city: k, country: sIdxStr(x.country), lat: +x.lat, lon: +x.lon, evs: [], hit: [] };
     byCity[k].evs.push(x);
+    if (exhHit(x, f)) byCity[k].hit.push(x);
   });
   const cities = Object.keys(byCity).map((k) => byCity[k]);
+  const onCities = cities.filter((c) => c.hit.length);
+  const onEvents = onCities.reduce((a, c) => a + c.hit.length, 0);
 
   const dots = cities.map((c, i) => {
     /* 오른쪽 끝 도시는 말풍선을 왼쪽으로 펼친다(지도 밖으로 나가지 않게) */
     const side = (mapPct(c.lat, c.lon).left > 62) ? ' exh-mk--l' : '';
-    const rows = c.evs.slice()
+    /* ★ 클래스명을 is-off 로 쓰면 안 된다 — 전역 `.is-off{display:none!important}`
+       (탭 숨김용)이 있어서 흐려지는 대신 통째로 사라진다. sq-row 에서 같은 일을
+       겪고 남긴 경고가 styles.css 에 있다. 여기서는 is-dim 을 쓴다. */
+    const off = c.hit.length ? '' : ' is-dim';    /* 필터에 걸리지 않은 도시 */
+    const shown = c.hit.length ? c.hit : c.evs;   /* 말풍선·개수는 걸린 것만 */
+    const rows = shown.slice()
       .sort((x, y) => String(x.start).localeCompare(String(y.start)))
       .map((e) => '<span class="exh-pop__r">'
         + exhDotHtml(c.country)
         + '<b>' + escapeHtml(sIdxStr(e.name).split(' (')[0]) + '</b>'
         + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
-    return '<span class="exh-mk' + side + '" style="' + mapPos(c.lat, c.lon) + '">'
+    return '<span class="exh-mk' + side + off + '" style="' + mapPos(c.lat, c.lon) + '">'
       + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
       + ' aria-expanded="false" aria-label="' + escapeHtml(c.country + ' ' + c.city) + ' 행사 보기">'
       /* ★ 점은 도시마다 하나만 찍는다. 색이 나라 기준이 된 뒤로는 한 도시의
          행사 수만큼 점을 찍으면 똑같은 색 점이 나란히 붙어 오류처럼 보였다
          (광저우 2건 · 쾰른 2건). 대신 2건 이상이면 옆에 숫자를 붙인다. */
       + exhDotHtml(c.country)
-      + (c.evs.length > 1 ? '<i class="exh-mk__n">' + c.evs.length + '</i>' : '')
+      + (shown.length > 1 ? '<i class="exh-mk__n">' + shown.length + '</i>' : '')
       + '</button>'
       + '<span class="exh-pop">'
       + '<span class="exh-pop__h"><b>' + escapeHtml(c.country) + '</b>'
@@ -13356,8 +13439,11 @@ function renderExhMap() {
      라벨은 점 안에 같이 넣어 두고 CSS 로 감춰 둔다 — 위치 계산이 따로 필요 없다. */
   /* ★ 범례는 items 에 실제로 나온 나라만, 많은 순으로 낸다(아래 막대그래프와 같은 순서).
      나라 목록을 코드에 적어 두면 데이터를 갈아 끼웠을 때 범례만 옛말이 된다. */
-  const legend = exhByCountry(items).map((c) => '<span class="exh-lg">'
-    + exhDotHtml(c.key) + escapeHtml(c.key) + '</span>').join('');
+  const legend = exhByCountry(items).map((c) => {
+    /* 나라 필터가 걸리면 범례도 지도와 같이 흐려진다 — 색표와 지도가 따로 놀지 않게 */
+    const off = (f && f.kind === 'country' && f.key !== c.key) ? ' is-dim' : '';
+    return '<span class="exh-lg' + off + '">' + exhDotHtml(c.key) + escapeHtml(c.key) + '</span>';
+  }).join('');
 
   /* ★ 상자가 2:1 이라(.exh-map) 지도 그림과 상자가 정확히 겹친다 —
      세계시간(.wc-map)·슬립테크(.gsl-map) 지도와 같은 구조다(안쪽 래퍼 없음). */
@@ -13369,7 +13455,8 @@ function renderExhMap() {
        마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
     + '<div class="exh-note exh-note--tight">'
     /* 한 줄로 끝낸다 — 두 줄이 되면 요약 카드 본문(225px)을 넘어 잘린다 */
-    + cities.length + '개 도시 · ' + items.length + '개 행사 · 점을 누르면 상세'
+    + onCities.length + '개 도시 · ' + onEvents + '개 행사'
+    + (f ? ' · ' + escapeHtml(exhFilterLabel(f)) + '만 보는 중' : ' · 점을 누르면 상세')
     + (_exh.provisional ? ' · 일정은 <b>잠정치</b>' : '')
     + '</div>';
 }
@@ -13418,7 +13505,8 @@ function renderExhList() {
     return;
   }
   if (split) split.classList.remove('is-empty');
-  const items = exhSorted();
+  exhWireFilter(el);                /* 칩의 ✕ 를 받는다 */
+  const items = exhVisible();
   /* ★ 개수를 자르지 않는다 — 예전에는 slice(0,5) 로 5건만 그려서, 지도 각주가
      '12개 행사'라고 알리는데 목록에서는 5건밖에 닿을 수 없었다.
      전부 그리고 카드 안에서 스크롤로 보게 한다(.exh-list 가 overflow-y:auto).
@@ -13429,7 +13517,28 @@ function renderExhList() {
   const past = items.filter((x) => { const d = exhDday(x); return d == null || d < 0; }).reverse();
   const rows = upcoming.concat(past);
 
-  el.innerHTML = '<div class="exh-list">' + rows.map((x) => {
+  /* 지금 걸린 필터를 목록 맨 위에 알린다 — 목록이 짧아진 이유가 보이지 않으면
+     데이터가 빠진 것으로 오해한다. ✕ 를 누르면 전체로 돌아온다. */
+  const f = exhFilter();
+  const chip = f
+    ? '<div class="exh-fbar"><span class="exh-chip">'
+      + '<i class="exh-dot" style="background:' + exhFilterColor(f) + '"></i>'
+      + '<span class="exh-chip__t">' + escapeHtml(exhFilterLabel(f)) + '만 보기</span>'
+      + '<button type="button" class="exh-chip__x" data-exhclear="1"'
+      + ' aria-label="' + escapeHtml(exhFilterLabel(f)) + ' 필터 해제">&#10005;</button>'
+      + '</span><span class="exh-fbar__n">' + rows.length + '건</span></div>'
+    : '';
+
+  if (!rows.length) {
+    el.innerHTML = chip
+      + '<div class="exh-list exh-list--none"><div class="exh-none">'
+      + '해당 조건의 행사가 없습니다.'
+      + '<button type="button" class="exh-none__b" data-exhclear="1">전체 보기</button>'
+      + '</div></div>';
+    return;
+  }
+
+  el.innerHTML = chip + '<div class="exh-list">' + rows.map((x) => {
     const d = exhDday(x);
     const link = sIdxStr(x.link);
     const inner = '<span class="exh-li__l">'
@@ -13551,18 +13660,40 @@ function exhImgFallback(im) {
   im.src = '/api/img?u=' + encodeURIComponent(orig);
 }
 
-/** ② 분야별 비중 도넛 — conic-gradient 로 그린다(차트 라이브러리 없이). */
+/* 도넛 기하 — viewBox 100 기준. 12시에서 시계방향으로 센다(conic-gradient 와
+   같은 방향이라 예전 그림과 조각 위치가 그대로다).
+   ★ 안쪽 29 는 가운데 글자판(.exd__hole, 124px 상자에 inset:26px → 반지름 36px
+     = 29단위)과 정확히 맞춘 값이다. 이보다 작게 잡으면 흰 글자판이 색 띠를
+     덮어 도넛이 얇아 보이고, 크게 잡으면 띠와 글자판 사이에 틈이 생긴다.
+   ★ 바깥 48 은 튀어나온 조각(+3.5)까지 더해도 상자를 거의 넘지 않는 값이다
+     (넘더라도 .exd__svg 가 overflow:visible 이라 잘리지는 않는다). */
+const EXD_C = 50, EXD_R = 48, EXD_RI = 29, EXD_POP = 3.5;
+
+function exhPolar(r, deg) {
+  const a = (deg - 90) * Math.PI / 180;
+  return (EXD_C + r * Math.cos(a)).toFixed(2) + ' ' + (EXD_C + r * Math.sin(a)).toFixed(2);
+}
+/** 도넛 한 조각(고리꼴)의 path. 바깥 호 → 안쪽으로 → 안쪽 호를 거꾸로 → 닫기 */
+function exhArc(a0, a1) {
+  const big = (a1 - a0) > 180 ? 1 : 0;
+  return 'M' + exhPolar(EXD_R, a0)
+    + 'A' + EXD_R + ' ' + EXD_R + ' 0 ' + big + ' 1 ' + exhPolar(EXD_R, a1)
+    + 'L' + exhPolar(EXD_RI, a1)
+    + 'A' + EXD_RI + ' ' + EXD_RI + ' 0 ' + big + ' 0 ' + exhPolar(EXD_RI, a0) + 'Z';
+}
+
+/** ② 분야별 비중 도넛.
+ *  ★ conic-gradient 에서 SVG 조각으로 바꿨다 — 그라데이션은 그림 한 장이라
+ *    '조각을 눌렀다'를 알 수 없고(각도를 직접 계산해야 한다) 조각만 밀어내
+ *    선택을 보여 줄 수도 없다. path 로 나누면 둘 다 공짜로 된다.
+ *  ★ 언제나 items 전체로 그린다 — 필터가 걸려도 분포는 그대로 두고 선택만 표시한다. */
 function exhDonutHtml(items) {
   const rows = exhByCategory(items).filter((x) => x && x.n > 0);
   const total = (items || []).length;
-  if (!total) return '<div class="exh-note">집계가 없습니다.</div>';
-  let acc = 0;
-  const stops = rows.map((r) => {
-    const from = acc / total * 100;
-    acc += r.n;
-    const to = acc / total * 100;
-    return exhCatColor(r.key) + ' ' + from.toFixed(2) + '% ' + to.toFixed(2) + '%';
-  }).join(', ');
+  if (!total || !rows.length) return '<div class="exh-note">집계가 없습니다.</div>';
+  const f = exhFilter();
+  const sel = (f && f.kind === 'cat') ? f.key : null;
+
   /* ★ 그냥 반올림하면 합이 100%가 안 된다(34+27+20+13+7 = 101%).
      최대잉여법: 내림으로 깔고, 남은 %는 소수부가 큰 항목부터 1씩 나눠 준다. */
   const pct = rows.map((r) => r.n / total * 100);
@@ -13571,13 +13702,47 @@ function exhDonutHtml(items) {
   pct.map((v, i) => ({ i: i, frac: v - floor[i] }))
     .sort((a, b) => b.frac - a.frac)
     .forEach((x) => { if (rest > 0) { floor[x.i] += 1; rest -= 1; } });
-  const legend = rows.map((r, i) => '<li class="exd__li">'
-    + '<i class="exh-dot" style="background:' + exhCatColor(r.key) + '"></i>'
-    + '<span class="exd__k">' + escapeHtml(r.key) + '</span>'
-    + '<b class="exd__v">' + floor[i] + '%</b></li>').join('');
-  return '<div class="exd">'
-    + '<div class="exd__ring" style="background:conic-gradient(' + stops + ')"'
-    + ' role="img" aria-label="분야별 비중">'
+
+  let acc = 0;
+  const slices = rows.map((r) => {
+    const a0 = acc / total * 360;
+    acc += r.n;
+    const a1 = acc / total * 360;
+    const on = sel === r.key;
+    const mid = (a0 + a1) / 2;
+    /* 선택한 조각은 제 각도 방향으로 살짝 밀어낸다(튀어나온 것처럼) */
+    const dx = on ? (EXD_POP * Math.cos((mid - 90) * Math.PI / 180)).toFixed(2) : 0;
+    const dy = on ? (EXD_POP * Math.sin((mid - 90) * Math.PI / 180)).toFixed(2) : 0;
+    /* 분야가 하나뿐이면 360도라 호의 시작·끝이 겹쳐 아무것도 안 그려진다 —
+       그때는 조각 대신 고리(두꺼운 원) 하나로 그린다. */
+    const shape = (a1 - a0 >= 359.99)
+      ? '<circle cx="' + EXD_C + '" cy="' + EXD_C + '" r="' + ((EXD_R + EXD_RI) / 2) + '"'
+        + ' fill="none" stroke-width="' + (EXD_R - EXD_RI) + '"'
+        + ' stroke="' + exhCatColor(r.key) + '"'
+      : '<path d="' + exhArc(a0, a1) + '" fill="' + exhCatColor(r.key) + '"';
+    return '<g transform="translate(' + dx + ' ' + dy + ')">' + shape
+      + ' class="exd__sl' + (on ? ' is-on' : '') + '"'
+      + ' data-exhcat="' + escapeHtml(r.key) + '" tabindex="0" role="button"'
+      + ' aria-pressed="' + (on ? 'true' : 'false') + '"'
+      + ' aria-label="' + escapeHtml(r.key) + ' ' + r.n + '건, 눌러서 이 분야만 보기">'
+      + '<title>' + escapeHtml(r.key) + ' ' + r.n + '건</title>'
+      + (shape.indexOf('<circle') === 0 ? '</circle>' : '</path>') + '</g>';
+  }).join('');
+
+  const legend = rows.map((r, i) => {
+    const on = sel === r.key;
+    return '<li class="exd__li">'
+      + '<button type="button" class="exd__b' + (on ? ' is-on' : '') + '"'
+      + ' data-exhcat="' + escapeHtml(r.key) + '" aria-pressed="' + (on ? 'true' : 'false') + '">'
+      + '<i class="exh-dot" style="background:' + exhCatColor(r.key) + '"></i>'
+      + '<span class="exd__k">' + escapeHtml(r.key) + '</span>'
+      + '<b class="exd__v">' + floor[i] + '%</b></button></li>';
+  }).join('');
+
+  return '<div class="exd' + (sel ? ' is-filtered' : '') + '">'
+    + '<div class="exd__ring">'
+    + '<svg class="exd__svg" viewBox="0 0 100 100" role="img"'
+    + ' aria-label="분야별 비중 — 조각을 누르면 그 분야만 봅니다">' + slices + '</svg>'
     + '<span class="exd__hole"><b>총 ' + total + '개</b><em>행사</em></span></div>'
     + '<ul class="exd__lg">' + legend + '</ul></div>';
 }
@@ -13608,18 +13773,26 @@ function exhBarsHtml(items) {
   /* ★ 막대 높이는 %가 아니라 px 로 준다. 부모가 flex 라 높이가 '확정'이 아니어서
      height:% 가 0 으로 풀렸고, min-height 4px 짜리 실선만 남았다(실제로 그랬다). */
   const PLOT_H = 118;                       // 눈금 영역(152px)에서 값·이름 줄을 뺀 높이
+  /* 막대는 button 이다 — 누르면 그 나라만 지도·목록에 남긴다.
+     선택한 것은 진하게, 나머지는 흐리게(is-off) 해서 지금 무엇을 고른 건지 보인다. */
+  const f = exhFilter();
+  const sel = (f && f.kind === 'country') ? f.key : null;
   const bars = rows.map((r) => {
     const isEtc = sIdxStr(r.key) === '기타';
     const color = isEtc ? 'var(--slate)' : exhCountryColor(r.key);
     const h = Math.max(3, r.n / top * PLOT_H);
-    return '<div class="exb__c">'
+    const on = sel === r.key;
+    const cls = 'exb__c' + (on ? ' is-on' : (sel ? ' is-dim' : ''));
+    return '<button type="button" class="' + cls + '"'
+      + ' data-exhcountry="' + escapeHtml(r.key) + '" aria-pressed="' + (on ? 'true' : 'false') + '"'
+      + ' aria-label="' + escapeHtml(r.key) + ' ' + r.n + '건, 눌러서 이 지역만 보기">'
       + '<b class="exb__v">' + r.n + '</b>'
       + '<span class="exb__bar" style="height:' + h.toFixed(1)
       + 'px;background:' + color + (isEtc ? ';opacity:.55' : '') + '"></span>'
-      + '<span class="exb__k">' + escapeHtml(r.key) + '</span></div>';
+      + '<span class="exb__k">' + escapeHtml(r.key) + '</span></button>';
   }).join('');
 
-  return '<div class="exb">'
+  return '<div class="exb' + (sel ? ' is-filtered' : '') + '">'
     + '<div class="exb__unit">단위: 건</div>'
     + '<div class="exb__wrap">' + axis
     + '<div class="exb__plotwrap">' + grid
@@ -13634,6 +13807,9 @@ function renderExhExtra() {
   const onFocus = content && content.dataset.view === 'exh';
   if (!onFocus || !_exh) { el.innerHTML = ''; return; }
 
+  exhWireFilter(el);                /* 도넛 조각·막대 클릭을 받는다 */
+  /* ★ 차트는 언제나 items 전체를 본다 — 필터는 지도·목록만 줄인다.
+     차트까지 줄이면 한 나라만 남아 다른 나라로 옮겨갈 수가 없다. */
   const items = exhSorted();
   /* ★ 부제도 하드코딩하지 않는다 — 등록된 건수를 그대로 쓴다 */
   const sub = '등록 ' + items.length + '건';
