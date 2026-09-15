@@ -13378,6 +13378,50 @@ function exhSorted() {
      쓰던 '나라 라벨 4장'은 넣지 않는다 — 라벨 한 장이 45px 라 150px 안에
      네 장이 물리적으로 안 들어가고, 넣으면 지도를 다 덮는다.
      대신 도시마다 점을 찍고 hover 툴팁(도시 · 행사명)으로 상세를 준다. */
+/** 지도에서 포개지는 점을 최소 간격만큼 밀어 떼어 놓는다(지도학의 displacement).
+ *
+ *  ★ 왜 필요한가: 프랑크푸르트와 쾰른은 세계지도(649px 폭) 위에서 중심이
+ *    4px 밖에 안 떨어져 점이 사실상 완전히 포개졌다. 위에 그려진 쾰른이 클릭을
+ *    전부 가져가는 바람에 프랑크푸르트 말풍선은 아예 열 수가 없었다
+ *    (프랑크푸르트 점 한가운데를 눌러도 쾰른이 열렸다).
+ *    도시마다 점을 따로 찍기로 한 이상, 포개진 점은 떼어 놔야 그 결정이 뜻을 갖는다.
+ *
+ *  ★ 계산은 '지도 폭에 대한 %' 한 가지 단위로 한다. 지도가 2:1 이라 세로 1% 는
+ *    가로 0.5% 와 같은 길이다 — 그래서 top 을 반으로 접어(v) 거리를 잰다.
+ *    이렇게 하지 않으면 세로로 겹친 점을 실제보다 멀다고 판단한다.
+ *
+ *  ★ 미는 거리는 지도 폭의 1.2% 안쪽이고(649px 지도에서 8px 남짓), 어느 도시인지는
+ *    말풍선 제목('국가 · 도시')이 밝혀 준다. 좌표 자체는 건드리지 않는다 —
+ *    그리는 자리만 옮긴다.
+ */
+function exhSpread(pcts, minPct) {
+  const MIN = minPct;
+  const pts = pcts.map((p) => ({ u: p.left, v: p.top / 2 }));
+  /* 한 번에 안 풀리는 뭉치(유럽처럼 셋이 몰린 곳)가 있어 몇 번 되풀이한다 */
+  for (let pass = 0; pass < 12; pass++) {
+    let moved = false;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        let du = pts[j].u - pts[i].u;
+        let dv = pts[j].v - pts[i].v;
+        let d = Math.sqrt(du * du + dv * dv);
+        if (d >= MIN) continue;
+        if (d < 1e-6) { du = 1e-3; dv = 1e-3; d = Math.sqrt(2) * 1e-3; }   /* 완전히 같은 자리 */
+        const push = (MIN - d) / 2 / d;
+        pts[i].u -= du * push; pts[i].v -= dv * push;
+        pts[j].u += du * push; pts[j].v += dv * push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  /* 밀다가 지도 밖으로 나가지 않게 가장자리에서 멈춘다 */
+  return pts.map((p) => ({
+    left: Math.min(97.5, Math.max(2.5, p.u)),
+    top: Math.min(96, Math.max(4, p.v * 2)),
+  }));
+}
+
 function renderExhMap() {
   const el = document.getElementById('exhMapRoot');
   if (!el) return;
@@ -13405,6 +13449,9 @@ function renderExhMap() {
   const onCities = cities.filter((c) => c.hit.length);
   const onEvents = onCities.reduce((a, c) => a + c.hit.length, 0);
 
+  /* ★ 점의 최종 자리는 '그린 뒤에' 잡는다(exhPlaceMarkers) — 떼어 놓을 거리는
+     픽셀로 정해야 하는데(점 크기가 15px 고정) 지도 폭은 지금 알 수 없기 때문이다.
+     여기서는 제 좌표에 놓고 lat/lon 을 실어 보낸다. */
   const dots = cities.map((c, i) => {
     /* 오른쪽 끝 도시는 말풍선을 왼쪽으로 펼친다(지도 밖으로 나가지 않게) */
     const side = (mapPct(c.lat, c.lon).left > 62) ? ' exh-mk--l' : '';
@@ -13419,9 +13466,12 @@ function renderExhMap() {
         + exhDotHtml(c.country)
         + '<b>' + escapeHtml(sIdxStr(e.name).split(' (')[0]) + '</b>'
         + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
-    return '<span class="exh-mk' + side + off + '" style="' + mapPos(c.lat, c.lon) + '">'
+    return '<span class="exh-mk' + side + off + '"'
+      + ' data-lat="' + c.lat + '" data-lon="' + c.lon + '"'
+      + ' style="' + mapPos(c.lat, c.lon) + '">'
       + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
-      + ' aria-expanded="false" aria-label="' + escapeHtml(c.country + ' ' + c.city) + ' 행사 보기">'
+      + ' aria-expanded="false" aria-label="'
+      + escapeHtml([c.country, c.city].filter(Boolean).join(' ')) + ' 행사 보기">'
       /* ★ 점은 도시마다 하나만 찍는다. 색이 나라 기준이 된 뒤로는 한 도시의
          행사 수만큼 점을 찍으면 똑같은 색 점이 나란히 붙어 오류처럼 보였다
          (광저우 2건 · 쾰른 2건). 대신 2건 이상이면 옆에 숫자를 붙인다. */
@@ -13429,8 +13479,16 @@ function renderExhMap() {
       + (shown.length > 1 ? '<i class="exh-mk__n">' + shown.length + '</i>' : '')
       + '</button>'
       + '<span class="exh-pop">'
+      /* ★ 말풍선 제목은 언제나 '국가 · 도시' 다. 점은 도시(좌표)마다 찍히므로
+         같은 나라라도 프랑크푸르트와 쾰른은 서로 다른 점이다 — 제목에 나라만
+         있으면 두 점이 똑같아 보여 어느 도시를 연 건지 알 수 없다.
+         도시를 모르는 자료(city 가 빈 값)면 나라만 내보낸다 — 없는 도시를
+         지어내지 않는다. */
       + '<span class="exh-pop__h"><b>' + escapeHtml(c.country) + '</b>'
-      + '<em>' + escapeHtml(c.city) + '</em></span>'
+      /* ★ 가운뎃점 양옆 공백을 CSS 여백이 아니라 글자(&#160;)로 넣는다 —
+         여백으로 띄우면 눈에는 '독일 · 쾰른' 인데 실제 글자는 '독일· 쾰른' 이라
+         복사하거나 화면 낭독기로 읽을 때 붙어 나온다. */
+      + (c.city ? '<em>&#160;·&#160;' + escapeHtml(c.city) + '</em>' : '') + '</span>'
       + rows + '</span></span>';
   }).join('');
 
@@ -13448,6 +13506,7 @@ function renderExhMap() {
   /* ★ 상자가 2:1 이라(.exh-map) 지도 그림과 상자가 정확히 겹친다 —
      세계시간(.wc-map)·슬립테크(.gsl-map) 지도와 같은 구조다(안쪽 래퍼 없음). */
   exhWireMap(el);
+  exhWireMapResize();
   el.innerHTML = '<div class="exh-map">'
     + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div>'
     + '<div class="exh-lgs">' + legend + '</div>'
@@ -13459,6 +13518,45 @@ function renderExhMap() {
     + (f ? ' · ' + escapeHtml(exhFilterLabel(f)) + '만 보는 중' : ' · 점을 누르면 상세')
     + (_exh.provisional ? ' · 일정은 <b>잠정치</b>' : '')
     + '</div>';
+  exhPlaceMarkers(el);
+}
+
+/** 그려 놓은 점들의 자리를 지도 실제 폭에 맞춰 다시 잡는다.
+ *  ★ 떼어 놓을 거리는 픽셀이어야 한다 — 점은 어디서나 15px 인데 지도는
+ *    전용 화면 649px, 요약 카드 422px, 좁은 화면 299px 로 달라진다.
+ *    %로 고정하면 지도가 작아질수록 간격도 같이 줄어 다시 포개진다(실제로 그랬다). */
+function exhPlaceMarkers(root) {
+  if (!root) return;
+  const map = root.querySelector('.exh-map');
+  if (!map) return;
+  const mks = [].slice.call(root.querySelectorAll('.exh-mk'));
+  if (!mks.length) return;
+  const w = map.getBoundingClientRect().width;
+  if (!w) return;                       /* 아직 화면에 없다(숨은 카드) — 다음 그릴 때 잡힌다 */
+  /* 17px 떨어뜨리면 점(15px)의 한가운데가 서로의 바깥에 놓여 둘 다 누를 수 있다.
+     다만 지도가 아주 좁을 때 17px 을 고집하면 대륙을 벗어날 만큼 밀리므로 4.5% 에서 멈춘다
+     (299px 지도에서 13.5px — 이 정도면 여전히 각자 눌린다). */
+  const minPct = Math.min(4.5, Math.max(2.2, 17 / w * 100));
+  const at = exhSpread(mks.map((m) => mapPct(m.dataset.lat, m.dataset.lon)), minPct);
+  mks.forEach((m, i) => {
+    m.style.left = at[i].left.toFixed(2) + '%';
+    m.style.top = at[i].top.toFixed(2) + '%';
+    /* 말풍선이 펼쳐질 방향도 옮겨진 자리로 다시 판단한다 */
+    m.classList.toggle('exh-mk--l', at[i].left > 62);
+  });
+}
+
+/** 창 크기가 바뀌면 점 간격을 다시 잡는다(한 번만 건다) */
+let _exhResizeWired = false, _exhResizeT = null;
+function exhWireMapResize() {
+  if (_exhResizeWired) return;
+  _exhResizeWired = true;
+  window.addEventListener('resize', () => {
+    clearTimeout(_exhResizeT);
+    _exhResizeT = setTimeout(() => {
+      exhPlaceMarkers(document.getElementById('exhMapRoot'));
+    }, 120);
+  });
 }
 
 /** 지도 점 클릭 → 그 도시 말풍선만 펼친다. 한 번만 건다(매번 다시 그리므로 위임). */
