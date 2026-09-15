@@ -429,9 +429,9 @@ body {
 /* 대시보드(그리드) 모드: 카드 본문을 요약 높이로 축소 + 하단 페이드 */
 /* ★ 요약 본문 높이. 150px 이면 3줄을 다 쌓아도 화면 아래가 남았다.
    215px 로 키우면 카드 한 장이 약 267px → 3줄 = 약 821px 로 뷰포트를 채운다. */
-.content[data-view="dashboard"] .dash-card .panel-body { max-height: 215px; overflow: hidden; position: relative; }
+.content[data-view="dashboard"] .dash-card .panel-body { max-height: 225px; overflow: hidden; position: relative; }
 /* 내용이 짧은 카드도 같은 높이로 서게 한다(줄마다 높이가 들쭉날쭉하지 않게) */
-.content[data-view="dashboard"] .dash-grid > .dash-card { min-height: 267px; }
+.content[data-view="dashboard"] .dash-grid > .dash-card { min-height: 277px; }
 .content[data-view="dashboard"] .dash-card .panel-body::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px;
   background: linear-gradient(to bottom, transparent, var(--card)); pointer-events: none;
@@ -4082,12 +4082,24 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* ── 01 지도 ── */
 .exh-map {
-  /* 높이를 고정하지 않는다 — 범례·각주를 뺀 나머지를 전부 지도가 쓴다.
-     (고정 88px 이던 시절에는 카드가 커져도 지도만 작게 남았다) */
-  position: relative; width: 100%; flex: 1 1 auto; min-height: 120px;
+  /* 바깥 상자 — 범례·각주를 뺀 나머지 높이를 전부 쓴다(칸에 따라 비율이 달라진다) */
+  /* 바깥 상자도 2:1 로 맞춘다 — 안쪽(2:1)과 같아져 좌우에 빈 회색 띠가 남지 않는다 */
+  position: relative; width: 100%; aspect-ratio: 2 / 1; flex: 0 0 auto;
   background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: flex;
 }
-.exh-map__img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .55; }
+/* ★★ 안쪽 상자 — 지도 SVG(viewBox 1000x500 = 2:1)와 같은 비율.
+   바깥 상자는 칸에 따라 2.99:1 처럼 납작해지는데, object-fit:contain 이 좌우에
+   여백을 만들어도 마커는 '바깥 상자' 기준 %로 찍혀서 실제 대륙에서 밀려 있었다
+   (상하이가 약 57px 어긋났다). 안쪽에 정확한 2:1 상자를 두고 그 안에 찍는다. */
+.exh-map__in {
+  /* 높이를 기준으로 폭을 구한다(width:100% 로 두면 max-height 가 걸릴 때
+     폭은 그대로라 비율이 깨진다 — 실제로 3.0:1 이 나왔다).
+     칸이 2:1 보다 세로로 길면 max-width 가 걸려 다시 높이가 줄어든다. */
+  position: relative; margin: auto;
+  aspect-ratio: 2 / 1; height: 100%; width: auto; max-width: 100%;
+}
+.exh-map__img { width: 100%; height: 100%; display: block; opacity: .55; }
 .exh-mk {
   position: absolute; transform: translate(-50%, -50%);
   display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;
@@ -4123,7 +4135,7 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
    목록이 그 안에서 스크롤하게 둔다. none 으로 풀어 두면 목록 길이만큼 카드가
    284px 까지 자라 같은 줄의 다른 카드(267px)와 어긋난다. */
 .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body {
-  max-height: 215px; overflow: visible;
+  max-height: 225px; overflow: visible;
 }
 .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body::after { display: none; }
 .exh-list { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -4186,4 +4198,104 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 @media print {
   .exh-list { max-height: none !important; overflow: visible !important; }
   .exh-li, .exh-map { break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* ── 전용 화면(#exh) 아래 3블록 ─────────────────────────────────────────
+   ① 다가오는 주요 행사 ② 분야별 비중(도넛) ③ 지역별 행사 수(막대)
+   대시보드 요약 카드에서는 렌더러가 비워 두므로 여기 규칙도 쓰이지 않는다. */
+.exs {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px; margin-top: 10px;
+}
+.exs__box {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 13px 15px; min-width: 0; display: flex; flex-direction: column;
+}
+.exs__h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 11px; flex-wrap: wrap; }
+.exs__t { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.exs__s { font-size: 11px; color: var(--muted); }
+.exs__foot { margin-top: 8px; }
+
+/* ① 다가오는 주요 행사 */
+.exu { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.exu__c {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  text-decoration: none; color: inherit; background: var(--card);
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.exu__c:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+/* 사진 자리 — 행사장 사진이 없어 분야 색 배너로 채운다(--exu-c 는 인라인으로 온다).
+   나중에 사진이 생기면 이 자리를 <img> 로 바꾸면 된다. */
+.exu__ph {
+  position: relative; height: 74px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--exu-c, var(--navy)) 0%, var(--navy) 130%);
+}
+.exu__ini {
+  font-size: 19px; font-weight: 800; letter-spacing: .06em;
+  color: rgba(255, 255, 255, .92); text-transform: uppercase;
+}
+.exu__d {
+  position: absolute; top: 7px; left: 7px;
+  background: var(--nav-bg); color: #FFFFFF;
+  font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px;
+}
+.exu__b { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px 11px; min-width: 0; }
+.exu__n { font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.3; word-break: keep-all; }
+.exu__dt { font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+.exu__loc { font-size: 10.5px; color: var(--muted); }
+.exu__tags {
+  margin-top: 4px; display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  font-size: 10px; font-weight: 700; color: var(--navy-2);
+  background: var(--blue-soft); border-radius: 999px; padding: 2px 8px;
+}
+
+/* ② 분야별 비중 도넛 */
+.exd { display: flex; flex-direction: column; align-items: center; gap: 11px; flex: 1 1 auto; justify-content: center; }
+.exd__ring {
+  position: relative; width: 132px; height: 132px; border-radius: 50%; flex: 0 0 auto;
+}
+.exd__hole {
+  position: absolute; inset: 26px; border-radius: 50%; background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+}
+.exd__hole b { font-size: 13px; font-weight: 800; color: var(--ink); }
+.exd__hole em { font-size: 10.5px; font-style: normal; color: var(--muted); }
+.exd__lg { list-style: none; margin: 0; padding: 0; width: 100%; display: flex;
+  flex-direction: column; gap: 4px; }
+.exd__li { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.exd__k { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exd__v { margin-left: auto; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ③ 지역별 행사 수 막대 */
+.exb { flex: 1 1 auto; display: flex; align-items: flex-end; }
+.exb__plot {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 7px; width: 100%; height: 152px; align-items: end;
+}
+.exb__c { display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%;
+  justify-content: flex-end; min-width: 0; }
+.exb__v { font-size: 11px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.exb__bar {
+  width: 100%; max-width: 26px; border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, var(--blue) 0%, var(--navy-2) 100%);
+  min-height: 4px;
+}
+.exb__bar.is-etc { background: var(--slate); opacity: .55; }
+.exb__k { font-size: 10px; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* 좁은 화면 — 3블록을 세로로 쌓고 행사 카드도 2열로 */
+@media (max-width: 1180px) {
+  .exs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .exs__box--wide { grid-column: 1 / -1; }
+}
+@media (max-width: 768px) {
+  .exs { grid-template-columns: 1fr; }
+  .exu { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media print {
+  .exs { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important; }
+  .exs__box, .exu__c, .exd, .exb { break-inside: avoid; page-break-inside: avoid; }
 }

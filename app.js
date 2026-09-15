@@ -114,6 +114,9 @@ function setView(view) {
   });
 
   document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('is-active', n.dataset.view === view));
+  /* 전시회 아래 3블록은 전용 화면에서만 나온다 — 화면이 바뀔 때마다 다시 그린다.
+     (함수 선언은 호이스팅되므로 아래에 정의돼 있어도 여기서 부를 수 있다) */
+  if (typeof renderExhExtra === 'function') renderExhExtra();
   history.replaceState(null, '', `#${view}`);
   window.scrollTo(0, 0);
 }
@@ -11465,6 +11468,7 @@ function refreshSections() {
   renderFx();
   renderExhMap();       // 전시회: 데이터 없으면 '준비중' 빈 상태
   renderExhList();
+  renderExhExtra();     // 전용 화면(#exh) 아래 3블록
   updateDashHeader();
   buildSearchIndex();   // 섹션 데이터가 바뀌면 검색 인덱스도 같이 갱신한다
 }
@@ -13173,6 +13177,7 @@ async function fetchExhibitions() {
   }
   renderExhMap();
   renderExhList();
+  renderExhExtra();
 }
 
 /** 오늘 0시(로컬) — D-day 계산 기준. 시분초가 섞이면 하루씩 어긋난다. */
@@ -13306,14 +13311,20 @@ function renderExhMap() {
   const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
     + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
 
-  el.innerHTML = '<div class="exh-map">'
-    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + labels + '</div>'
+  /* ★★ 마커는 '실제로 그려진 지도 그림'을 기준으로 찍혀야 한다.
+     .exh-map 은 칸에 따라 비율이 달라지는데(대시보드에서 2.99:1) 지도 SVG 는
+     2:1 이라 object-fit:contain 이 좌우에 여백을 만든다. 그런데 마커는 바깥 상자
+     기준 %로 찍혀서 실제 대륙에서 밀려 있었다(상하이가 약 57px 어긋났다).
+     그래서 안쪽에 '이미지와 정확히 같은 2:1 상자'를 하나 두고 그 안에 찍는다. */
+  el.innerHTML = '<div class="exh-map"><div class="exh-map__in">'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + labels + '</div></div>'
     + '<div class="exh-lgs">' + legend + '</div>'
     /* ★ 각주는 두 줄 안에 끝내야 한다 — 카드 본문이 150px 라 세 줄이 되면
        마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
     + '<div class="exh-note exh-note--tight">'
-    + cities.length + '개 도시 · ' + items.length + '개 행사 · 점에 마우스를 올리면 상세'
-    + (_exh.provisional ? '. 일정은 통상 개최 시기 기준 <b>잠정치</b>입니다' : '')
+    /* 한 줄로 끝낸다 — 두 줄이 되면 요약 카드 본문(225px)을 넘어 잘린다 */
+    + cities.length + '개 도시 · ' + items.length + '개 행사'
+    + (_exh.provisional ? ' · 일정은 <b>잠정치</b>' : '')
     + '</div>';
 }
 
@@ -13353,4 +13364,127 @@ function renderExhList() {
         + inner + '</a>'
       : '<div class="exh-li">' + inner + '</div>';
   }).join('') + '</div>';
+}
+
+/* ============================================================
+   전용 화면(#exh)에서만 나오는 아래 3블록
+   ① 다가오는 주요 행사 (카드 4장) ② 분야별 비중(도넛) ③ 지역별 행사 수(막대)
+   ★ 대시보드 요약 카드에는 나오지 않는다 — 요약은 지도+목록으로 충분하고,
+     이 블록들은 전용 화면의 빈 아래쪽을 채우는 용도다.
+   ★ ②③ 은 exhibitions.json 의 stats(최근 3년 집계)를 그대로 그린다.
+     숫자를 코드에 적지 않는다 — 파일을 갱신하면 그래프가 따라 바뀐다.
+   ============================================================ */
+
+/** 분야 색 — 도넛·막대·점이 모두 같은 표를 본다 */
+function exhCatColor(key) {
+  const M = { furn: 'var(--blue)', sleep: 'var(--accent)', mat: 'var(--green)',
+    tech: 'var(--violet)', etc: 'var(--slate)' };
+  return M[exhCatCls(key)] || 'var(--slate)';
+}
+
+/** ① 다가오는 주요 행사 — 사진 자리는 분야 색 배너로 채운다.
+ *  ★ 행사장 사진을 갖고 있지 않아 임의 이미지를 끌어다 쓰지 않았다.
+ *    나중에 사진이 생기면 items[].image 를 읽어 <img> 로 바꾸면 된다. */
+function exhUpcomingHtml(items) {
+  const up = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; }).slice(0, 4);
+  if (!up.length) return '<div class="exh-note">예정된 행사가 없습니다.</div>';
+  return '<div class="exu">' + up.map((x) => {
+    const d = exhDday(x);
+    const link = sIdxStr(x.link);
+    const name = sIdxStr(x.name).split(' (')[0];
+    const inner = '<span class="exu__ph" style="--exu-c:' + exhCatColor(x.category) + '">'
+      + '<span class="exu__d">' + exhDlabel(d) + '</span>'
+      + '<span class="exu__ini">' + escapeHtml(name.slice(0, 4)) + '</span></span>'
+      + '<span class="exu__b">'
+      + '<span class="exu__n">' + escapeHtml(name) + '</span>'
+      + '<span class="exu__dt">' + escapeHtml(exhShort(x)) + '</span>'
+      + '<span class="exu__loc">'
+      + escapeHtml([sIdxStr(x.country), sIdxStr(x.city)].filter(Boolean).join(' · ')) + '</span>'
+      + (x.category
+        ? '<span class="exu__tags"><i class="exh-dot exh-dot--' + exhCatCls(x.category) + '"></i>'
+          + escapeHtml(sIdxStr(x.category)) + '</span>' : '')
+      + '</span>';
+    return link
+      ? '<a class="exu__c" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
+        + inner + '</a>'
+      : '<div class="exu__c">' + inner + '</div>';
+  }).join('') + '</div>';
+}
+
+/** ② 분야별 비중 도넛 — conic-gradient 로 그린다(차트 라이브러리 없이). */
+function exhDonutHtml(st) {
+  const rows = (st.byCategory || []).filter((x) => x && x.n > 0);
+  const total = rows.reduce((a, b) => a + b.n, 0);
+  if (!total) return '<div class="exh-note">집계가 없습니다.</div>';
+  let acc = 0;
+  const stops = rows.map((r) => {
+    const from = acc / total * 100;
+    acc += r.n;
+    const to = acc / total * 100;
+    return exhCatColor(r.key) + ' ' + from.toFixed(2) + '% ' + to.toFixed(2) + '%';
+  }).join(', ');
+  /* ★ 그냥 반올림하면 합이 100%가 안 된다(34+27+20+13+7 = 101%).
+     최대잉여법: 내림으로 깔고, 남은 %는 소수부가 큰 항목부터 1씩 나눠 준다. */
+  const pct = rows.map((r) => r.n / total * 100);
+  const floor = pct.map((v) => Math.floor(v));
+  let rest = 100 - floor.reduce((a, b) => a + b, 0);
+  pct.map((v, i) => ({ i: i, frac: v - floor[i] }))
+    .sort((a, b) => b.frac - a.frac)
+    .forEach((x) => { if (rest > 0) { floor[x.i] += 1; rest -= 1; } });
+  const legend = rows.map((r, i) => '<li class="exd__li">'
+    + '<i class="exh-dot" style="background:' + exhCatColor(r.key) + '"></i>'
+    + '<span class="exd__k">' + escapeHtml(r.key) + '</span>'
+    + '<b class="exd__v">' + floor[i] + '%</b></li>').join('');
+  return '<div class="exd">'
+    + '<div class="exd__ring" style="background:conic-gradient(' + stops + ')"'
+    + ' role="img" aria-label="분야별 비중">'
+    + '<span class="exd__hole"><b>총 ' + total + '개</b><em>행사</em></span></div>'
+    + '<ul class="exd__lg">' + legend + '</ul></div>';
+}
+
+/** ③ 지역별 행사 수 — 세로 막대. 값은 파일에서 오고, 높이는 최대값 기준 비율. */
+function exhBarsHtml(st) {
+  const rows = (st.byCountry || []).filter((x) => x && x.n != null);
+  if (!rows.length) return '<div class="exh-note">집계가 없습니다.</div>';
+  const max = Math.max.apply(null, rows.map((x) => x.n)) || 1;
+  const bars = rows.map((r) => {
+    const isEtc = sIdxStr(r.key) === '기타';
+    return '<div class="exb__c">'
+      + '<b class="exb__v">' + r.n + '</b>'
+      + '<span class="exb__bar' + (isEtc ? ' is-etc' : '') + '"'
+      + ' style="height:' + (r.n / max * 100).toFixed(1) + '%"></span>'
+      + '<span class="exb__k">' + escapeHtml(r.key) + '</span></div>';
+  }).join('');
+  return '<div class="exb"><div class="exb__plot">' + bars + '</div></div>';
+}
+
+/** 전용 화면 아래 3블록. 대시보드에서는 비워 둔다. */
+function renderExhExtra() {
+  const el = document.getElementById('exhExtraRoot');
+  if (!el) return;
+  const content = document.getElementById('content');
+  const onFocus = content && content.dataset.view === 'exh';
+  if (!onFocus || !_exh) { el.innerHTML = ''; return; }
+
+  const items = exhSorted();
+  const st = _exh.stats || {};
+  const yrs = sIdxStr(st.years);
+  const head = (no, title, sub) => '<div class="exs__h">'
+    + '<span class="exs__t">' + escapeHtml(title) + '</span>'
+    + (sub ? '<span class="exs__s">' + escapeHtml(sub) + '</span>' : '') + '</div>';
+
+  el.innerHTML = '<div class="exs">'
+    + '<section class="exs__box exs__box--wide">'
+    + head(1, '다가오는 주요 행사', '') + exhUpcomingHtml(items) + '</section>'
+    + '<section class="exs__box">'
+    + head(2, '주요 행사 분야별 비중', yrs ? '최근 3년 (' + yrs + ')' : '최근 3년')
+    + exhDonutHtml(st) + '</section>'
+    + '<section class="exs__box">'
+    + head(3, '관심 지역별 행사 수', yrs ? '최근 3년 (' + yrs + ')' : '최근 3년')
+    + exhBarsHtml(st) + '</section>'
+    + '</div>'
+    + (_exh.provisional
+      ? '<div class="exh-note exs__foot">※ 분야별·지역별 집계는 <b>잠정 집계</b>입니다'
+        + '(개별 행사 기록이 아니라 추정 숫자). 위 일정과 마찬가지로 확인 후 사용하십시오.</div>'
+      : '');
 }
