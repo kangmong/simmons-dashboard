@@ -17,6 +17,7 @@ SIMMONS 대시보드 — Vercel 서버리스 함수 (/api/update).
 """
 import re
 import os
+import html as _htmlmod
 import sys
 import io
 import json
@@ -166,17 +167,36 @@ def _https_img(url):
     return url
 
 
+def _unesc_url(raw, base_url):
+    """HTML 안에서 뽑은 주소를 실제 요청에 쓸 수 있는 형태로 되돌린다.
+
+    ★★ HTML 속성값은 &amp; 로 이스케이프돼 있다. 이걸 풀지 않으면
+      '?auth=…&amp;width=640' 이 그대로 요청돼 쿼리 이름이 'amp;width' 가 되고,
+      서명(auth)이 붙은 주소는 통째로 깨진다. 실제로 조선일보·The National·
+      arc-cdn(모두 Arc Publishing 의 resizer/v2) 썸네일이 403 text/html 을
+      돌려줬고, 브라우저는 그걸 이미지가 아니라고 보고 ORB 로 막아
+      (net::ERR_BLOCKED_BY_ORB) 카드에 브랜드 첫 글자만 남았다.
+      &amp; 를 풀면 같은 주소가 200 image/jpeg 를 준다.
+      (scripts/fill_exhibition_images.py 가 CES 주소에서 같은 일을 겪고
+       이미 html.unescape 를 쓰고 있다 — 수집기 쪽에만 빠져 있었다.)
+    """
+    u = urllib.parse.urljoin(base_url, _htmlmod.unescape((raw or "").strip()))
+    if not u.startswith("http") or "googleusercontent" in u:
+        return None
+    return u
+
+
 def _img_from_html(html, base_url):
     """HTML 한 장에서 대표 이미지 뽑기. 못 찾으면 None."""
     for rx in _IMG_METAS:
         m = rx.search(html)
         if m:
-            img = urllib.parse.urljoin(base_url, m.group(1).strip())
-            if img.startswith("http") and "googleusercontent" not in img:
+            img = _unesc_url(m.group(1), base_url)
+            if img:
                 return img
     for m in re.finditer(r'<img[^>]+(?:data-src|src)=["\']([^"\']+\.(?:jpe?g|png|webp)[^"\']*)', html, re.I):
-        img = urllib.parse.urljoin(base_url, m.group(1).strip())
-        if img.startswith("http") and "googleusercontent" not in img:
+        img = _unesc_url(m.group(1), base_url)
+        if img:
             return img
     return None
 
@@ -1227,11 +1247,17 @@ def _brand_norm(name):
 
 
 def _brand_logos(brand):
-    """공용 로고 소스: (clearbit_url, favicon_fallback, matched). 상단·하단 카드가 함께 사용."""
+    """공용 로고 소스: (logo_url, favicon_fallback, matched). 상단·하단 카드가 함께 사용.
+
+    ★ 예전에는 첫 칸이 logo.clearbit.com 이었는데 그 서비스가 없어졌다 —
+      도메인 자체가 안 풀려(DNS 실패) 25개 브랜드 전부 실패했고, 카드마다 실패
+      요청이 한 번씩 나가 콘솔이 404 로 덮였다. 지금은 구글 파비콘만 쓴다.
+      더 나은 로고 소스가 생기면 첫 칸에 다시 넣으면 된다(화면은 그대로 동작한다).
+    """
     dom = BRAND_DOMAINS.get(_brand_norm(brand))
     if not dom:
         return (None, None, False)
-    return ("https://logo.clearbit.com/" + dom,
+    return (None,
             "https://www.google.com/s2/favicons?sz=128&domain=" + dom, True)
 
 
@@ -1249,10 +1275,22 @@ _BAD_IMG_WORDS = ("logo", "default", "noimage", "no-image", "no_image",
 
 def _img_usable(img, base=None):
     """상대경로면 절대경로로 보정하고, 일반 로고/기본 썸네일이면 버린다.
-       쓸 만하면 URL, 아니면 None."""
+       쓸 만하면 URL, 아니면 None.
+
+    ★★ 맨 먼저 HTML 엔티티를 푼다. 메타 태그의 content 값은 &amp; 로 이스케이프돼
+      있는데, 풀지 않으면 '?auth=…&amp;width=640' 이 그대로 저장돼 쿼리 이름이
+      'amp;width' 가 되고 서명(auth)이 붙은 주소는 통째로 깨진다.
+      실제로 조선일보·The National·arc-cdn(모두 Arc Publishing resizer/v2)
+      썸네일이 403 text/html 을 돌려줬고, 브라우저는 그것을 이미지가 아니라고 보고
+      ORB 로 막아(net::ERR_BLOCKED_BY_ORB) 카드에 브랜드 첫 글자만 남았다
+      — '템퍼 자리에 T 만 보인다'가 이 증상이었다. &amp; 를 풀면 같은 주소가
+      200 image/jpeg 를 준다.
+      ★ 이 함수는 메타 태그 경로(_meta_image)와 RSS 미디어 경로가 함께 지나가는
+        길목이라, 여기서 한 번 풀면 두 경로가 모두 낫는다.
+    """
     if not img:
         return None
-    img = img.strip()
+    img = _htmlmod.unescape(img.strip())
     if base:
         img = urllib.parse.urljoin(base, img)
     if not img.startswith(("http://", "https://")):
@@ -1266,9 +1304,13 @@ def _img_usable(img, base=None):
     return img
 
 
-def _meta_image(page_url, timeout=5):
+def _meta_image(page_url, timeout=8):
     """기사 페이지의 '메타 태그만' 보고 대표 이미지를 뽑는다. (실패 사유와 함께 반환)
-       ★ 본문 <img> 크롤링은 하지 않는다 — 매체마다 구조가 달라 광고가 잡힌다."""
+       ★ 본문 <img> 크롤링은 하지 않는다 — 매체마다 구조가 달라 광고가 잡힌다.
+       ★ 기본 8초. 예전 5초에서는 느린 매체가 시간 안에 안 끝나 이미지가 있는 기사도
+         '이미지 없음'으로 떨어졌다(에너지경제·서울경제 기사 6건이 그랬다 —
+         나중에 같은 주소를 다시 열었더니 og:image 가 멀쩡히 있었다).
+         이미지 추출은 기사별로 병렬 실행이라 3초 더 줘도 전체 시간은 거의 그대로다."""
     if not page_url or not page_url.startswith("http"):
         return None, "링크 없음"
     try:

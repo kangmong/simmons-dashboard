@@ -2478,9 +2478,50 @@ function mapPos(lat, lon) {
  *    수집기(api/update.py _https_img)에서도 올려 주지만, 이미 커밋된 옛 데이터를
  *    위해 화면에서도 한 번 더 올린다. */
 function imgUrl(u) {
-  const s = safeUrl(u);
+  /* ★★ 수집기가 HTML 에서 뽑아 둔 주소에 &amp; 가 그대로 남아 있는 경우가 있다.
+     풀지 않으면 '?auth=…&amp;width=640' 이 그대로 요청돼 쿼리 이름이 'amp;width' 가
+     되고, 서명(auth)이 붙은 주소는 통째로 깨진다 — 조선일보·The National·arc-cdn
+     (모두 Arc Publishing resizer/v2) 썸네일이 403 text/html 을 돌려주고 브라우저가
+     ORB 로 막아(net::ERR_BLOCKED_BY_ORB) 카드에 브랜드 첫 글자만 남았다.
+     수집기(api/update.py _unesc_url)에서도 고쳤지만, 이미 커밋된 dashboard.json 을
+     다음 수집 때까지 기다리지 않고 지금 바로 살리려면 여기서도 풀어 줘야 한다. */
+  const raw = (typeof u === 'string') ? unescapeHtml(u) : u;
+  const s = safeUrl(raw);
   if (!s) return null;
   return s.startsWith('http://') ? 'https://' + s.slice(7) : s;
+}
+
+/** &amp; &lt; &#39; 같은 HTML 엔티티를 되돌린다(주소 안에 섞여 들어온 것). */
+function unescapeHtml(str) {
+  if (!str || str.indexOf('&') < 0) return str;
+  const el = document.createElement('textarea');
+  el.innerHTML = str;
+  return el.value;
+}
+
+/** 브랜드 기사 사진이 실패했을 때: 한 번만 서버 프록시로 우회, 그래도 안 되면 치운다.
+ *  치우면 아래 깔린 브랜드 로고 → 첫 글자가 차례로 드러난다(기존 동작).
+ *  ★ 시몬스 소식(skImgFallback)·전시회(exhImgFallback)와 같은 규칙이다 —
+ *    http 로만 제공되거나 인증서가 깨진 언론사 호스트를 서버가 대신 받아 준다
+ *    (실제로 jayski.com 썸네일이 http 라 배포본에서 mixed content 로 막혔다). */
+function brandImgFallback(im) {
+  if (!im) return;
+  if (im.dataset.proxied) { im.remove(); return; }
+  const orig = im.dataset.orig || im.getAttribute('src');
+  if (!orig) { im.remove(); return; }
+  im.dataset.proxied = '1';
+  im.src = '/api/img?u=' + encodeURIComponent(orig);
+}
+
+/** 죽은 로고 소스를 걸러낸다.
+ *  ★ logo.clearbit.com 은 서비스가 없어져 도메인 자체가 안 풀린다(모든 브랜드에서
+ *    실패). 그대로 두면 카드마다 실패 요청이 한 번씩 나가고 콘솔이 404 로 덮인다.
+ *    수집기에서도 더는 만들지 않지만(_brand_logos), 이미 커밋된 데이터에 남아 있어
+ *    여기서 한 번 더 거른다. */
+function logoUrl(u) {
+  const s = safeUrl(u);
+  if (!s || s.indexOf('logo.clearbit.com') >= 0) return null;
+  return s;
 }
 
 /** 이미지 경로 — 절대 https 이거나, 저장소 안 public/... 상대경로만 허용한다.
@@ -8385,8 +8426,8 @@ function brandFeatureCards(featList, colors) {
   return featList.map((it) => {
     const url = safeUrl(it.link);
     const img = imgUrl(it.image);
-    const logo = safeUrl(it.logo_url);
-    const logo2 = safeUrl(it.logo_fallback);
+    const logo = logoUrl(it.logo_url);
+    const logo2 = logoUrl(it.logo_fallback);
     const color = colors[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const name = String(it.product_name || it.title || '').trim();
@@ -8395,7 +8436,7 @@ function brandFeatureCards(featList, colors) {
       ? `<img class="prod-card__logo" src="${escapeHtml(u)}" alt="${escapeHtml(brand)} 로고" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
     const imgTag = img
-      ? `<img class="prod-card__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img class="prod-card__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-orig="${escapeHtml(img)}" onerror="brandImgFallback(this)">`
       : '';
     const tag = url ? 'a' : 'div';
     const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
@@ -8428,16 +8469,16 @@ function brandListItems(items, colors) {
       const stripped = title.replace(bre, '').trim();
       if (stripped) title = stripped;
     }
-    const logo = safeUrl(it.logo_url);
-    const logo2 = safeUrl(it.logo_fallback);
+    const logo = logoUrl(it.logo_url);
+    const logo2 = logoUrl(it.logo_fallback);
     const initial = brand ? brand.charAt(0) : '·';
     if (brand && !logo && !logo2) console.warn('[brands] 로고 URL 없음(첫글자 폴백):', brand);
-    // 썸네일 스택(뒤→앞): 첫글자 → 파비콘 → Clearbit 로고 → 기사 사진
+    // 썸네일 스택(뒤→앞): 첫글자 → 파비콘 → 브랜드 로고 → 기사 사진
     const mkLogo = (u) => u
       ? `<img class="dom-thumb__logo" src="${escapeHtml(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
       : '';
     const imgTag = img
-      ? `<img class="dom-thumb__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      ? `<img class="dom-thumb__img" src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-orig="${escapeHtml(img)}" onerror="brandImgFallback(this)">`
       : '';
     const tag = url ? 'a' : 'div';
     const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
