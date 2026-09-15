@@ -89,7 +89,11 @@ body {
   min-height: 96px;
   background: linear-gradient(110deg, var(--nav-bg) 0%, var(--navy-2) 100%);
   border-bottom: 3px solid var(--accent);
-  overflow: hidden;
+  /* ★ overflow:hidden 을 두지 않는다 — 검색 결과 드롭다운이 헤더 밖으로
+     내려오는데, 숨기면 그대로 잘린다(실제로 잘렸다). 공장 사진은 height:100%
+     로 헤더에 정확히 맞춰 두었으므로 넘칠 일이 없어 잘라 낼 필요도 없다.
+     z-index 는 드롭다운이 아래 본문 위에 얹히도록 헤더째 올려 준다. */
+  z-index: 50;
 }
 
 /* 로고 락업 — 두 줄을 세로로 쌓고 가운데 정렬한다.
@@ -142,20 +146,87 @@ body {
 /* 버튼 묶음을 우측으로 밀어냄(일러스트는 그 오른쪽 끝) */
 .header-right { display: flex; align-items: center; gap: 18px; min-width: 0; margin-left: auto; }
 
-.report-btn {
-  border: none;
-  background: var(--accent);
-  color: var(--card);
-  border-radius: var(--radius-sm);
-  padding: 8px 15px;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: filter 150ms ease, box-shadow 150ms ease;
+/* ── 통합 검색 (헤더 우측) ──
+   네이비 바 위에 얹히므로 배경은 흰 면이 아니라 반투명 흰색을 쓴다. */
+.hdr-search { position: relative; flex: 1 1 280px; min-width: 0; max-width: 440px; }
+.hdr-search__ico {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--nav-muted); pointer-events: none;
 }
-.report-btn:hover { filter: brightness(1.08); box-shadow: var(--shadow-hover); }
+.hdr-search__ico svg { width: 100%; height: 100%; display: block; }
+.hdr-search__in {
+  width: 100%; height: 36px;
+  padding: 0 32px 0 33px;
+  border: 1px solid var(--nav-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .10);
+  color: #FFFFFF;
+  font-size: 12.5px; font-family: inherit;
+  transition: background .15s ease, border-color .15s ease;
+}
+.hdr-search__in::placeholder { color: var(--nav-muted); }
+.hdr-search__in:hover { background: rgba(255, 255, 255, .14); }
+.hdr-search__in:focus {
+  outline: none; background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .42);
+}
+.hdr-search__clear {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  width: 19px; height: 19px; border: none; border-radius: 50%;
+  background: rgba(255, 255, 255, .18); color: #FFFFFF;
+  font-size: 14px; line-height: 1; font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.hdr-search__clear:hover { background: rgba(255, 255, 255, .3); }
+
+/* 결과 드롭다운 — 본문 위에 뜨므로 흰 카드 톤으로 되돌린다 */
+.hdr-drop {
+  position: absolute; z-index: 60; top: calc(100% + 7px); left: 0; right: 0;
+  max-height: 60vh; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow-hover); padding: 5px;
+}
+.hdr-drop__empty { padding: 13px 12px; font-size: 12.5px; color: var(--muted); text-align: center; }
+.hdr-drop__cnt {
+  padding: 7px 10px 6px; font-size: 11px; color: var(--muted);
+  border-bottom: 1px solid var(--line); margin-bottom: 4px;
+}
+.sr-item {
+  display: block; width: 100%; text-align: left;
+  border: none; background: transparent; font-family: inherit;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+}
+.sr-item:hover, .sr-item.is-on { background: var(--slate-soft); }
+.sr-item:focus-visible { outline: 2px solid var(--navy-2); outline-offset: -2px; }
+.sr-item__t {
+  display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.45;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.sr-item__t mark { background: var(--hl-bg); color: var(--hl-ink); padding: 0 1px; border-radius: 2px; }
+.sr-item__m { display: flex; align-items: center; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+.sr-tag {
+  font-size: 10.5px; font-weight: 700; color: var(--navy-2);
+  background: var(--blue-soft); border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+}
+.sr-item__s { font-size: 11px; color: var(--muted); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 알림 벨 — 아직 동작 없음(UI 만) */
+.hdr-bell {
+  flex: 0 0 auto; width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--nav-line); border-radius: 50%;
+  background: rgba(255, 255, 255, .10); color: var(--nav-ink);
+  cursor: pointer; transition: background .15s ease;
+}
+.hdr-bell svg { width: 17px; height: 17px; }
+.hdr-bell:hover { background: rgba(255, 255, 255, .2); }
+
+/* 검색 결과로 찾아간 카드 — 2초만 테두리로 짚어 준다 */
+.dash-card.is-found {
+  outline: 2px solid var(--navy-2); outline-offset: 3px;
+  transition: outline-color .2s ease;
+}
 
 /* ── 레이아웃 ── */
 /* 헤더가 두 겹(약 174px) → 한 겹(약 120px)으로 줄어든 만큼 콘텐츠 영역이 넓어진다 */
@@ -1871,7 +1942,8 @@ body {
   .hdr-mark { font-size: 23px; letter-spacing: .16em; margin-right: -.16em; }
   .hdr-tagline { font-size: 7.5px; letter-spacing: .08em; margin-right: -.08em; }
   .header-right { gap: 10px; }
-  .report-btn { padding: 7px 13px; font-size: 12px; }
+  .hdr-search { flex-basis: 100%; max-width: none; }
+  .hdr-search__in { height: 34px; font-size: 12px; }
 
   .layout { flex-direction: column; min-height: 0; }
   .tabs {
@@ -1929,7 +2001,7 @@ body {
   body { font-size: 11.5px; }
   .ds-card, .mk-card, .mt-card, .news-card { padding: 12px !important; }
 
-  .tabs, .report-btn, .viz-actions, .viz-crosshair, .news-filters,
+  .tabs, .hdr-search, .hdr-bell, .viz-actions, .viz-crosshair, .news-filters,
   .upload-toolbar, .hdr-photo, .focus-back, .more-link { display: none !important; }
   /* hover 로만 뜨는 말풍선·툴팁 — 종이에서는 뜰 일이 없는데 자리는 차지한다
      (.sm-oth__bub 는 300px 짜리라 오른쪽으로 삐져나가 폭 검사에 걸렸다) */
@@ -3952,4 +4024,103 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 @media (max-width: 760px) {
   .sqi-kv--2, .sqi-kv--3 { grid-template-columns: 1fr; }
   .sqc-tip { font-size: 10px; padding: 5px 8px; }
+}
+
+/* ============================================================
+   해외 전시회 · 컨퍼런스 (대시보드 전용 카드)
+   ★ 폭이 좁은 자리라 4개 묶음을 세로 아코디언으로 쌓는다.
+   ★ 색은 기존 네이비/화이트 토큰만 쓴다(새 색을 만들지 않는다).
+   ============================================================ */
+/* 이 카드만 대시보드의 150px 본문 캡에서 뺀다 — 아코디언을 펴면 잘려서
+   무엇이 열렸는지 보이지 않는다. 옆 카드보다 길어져도 그리드가
+   align-items:start 라 다른 칸을 밀지 않는다. */
+.content[data-view="dashboard"] .dash-card[data-section="exhibitions"] .panel-body {
+  max-height: none; overflow: visible;
+}
+.content[data-view="dashboard"] .dash-card[data-section="exhibitions"] .panel-body::after { display: none; }
+
+.exh { display: flex; flex-direction: column; gap: 6px; }
+
+.exh-acc { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.exh-acc__h {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px; border: none; background: var(--field);
+  font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink);
+  text-align: left; cursor: pointer;
+}
+.exh-acc__h:hover { background: var(--slate-soft); }
+.exh-acc__h:focus-visible { outline: 2px solid var(--navy-2); outline-offset: -2px; }
+.exh-acc__n {
+  flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--navy); color: #FFFFFF;
+  font-size: 10.5px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.exh-acc__t { flex: 1 1 auto; min-width: 0; }
+.exh-acc__c { flex: 0 0 auto; font-size: 11px; font-weight: 600; color: var(--muted); }
+.exh-acc__ar { flex: 0 0 auto; color: var(--muted); font-size: 11px; transition: transform .15s ease; }
+.exh-acc.is-open .exh-acc__ar { transform: rotate(180deg); }
+.exh-acc__b { padding: 10px 11px; border-top: 1px solid var(--line); }
+
+/* 1) 개최지 뱃지 */
+.exh-geo { display: flex; flex-wrap: wrap; gap: 6px; }
+.exh-geo__b {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 999px;
+  background: var(--blue-soft); color: var(--navy-2);
+  font-size: 11.5px; font-weight: 700;
+}
+.exh-geo__b i { font-style: normal; font-size: 13px; line-height: 1; }
+.exh-geo__n {
+  background: var(--navy-2); color: #FFFFFF; border-radius: 999px;
+  padding: 0 5px; font-size: 10px; font-weight: 800;
+}
+
+/* 2) 행사 목록 */
+.exh-ev { display: flex; flex-direction: column; }
+.exh-ev__i {
+  display: block; padding: 8px 0; border-bottom: 1px solid var(--line);
+  color: inherit; text-decoration: none;
+}
+.exh-ev__i:last-child { border-bottom: 0; }
+.exh-ev__i:hover .exh-ev__n { color: var(--navy-2); text-decoration: underline; }
+.exh-ev__n { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.4; word-break: keep-all; }
+.exh-ev__m { margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.exh-ev__c { color: var(--text); font-weight: 600; }
+.exh-ev__d {
+  margin-left: auto; flex: 0 0 auto; font-size: 10.5px; font-weight: 800;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--slate-soft); color: var(--slate);
+}
+.exh-ev__d.is-soon { background: var(--accent-soft); color: var(--accent); }
+.exh-ev__d.is-past { background: var(--line); color: var(--muted); }
+
+/* 3) 리포트 목록 */
+.exh-rp { display: flex; flex-direction: column; }
+.exh-rp__i { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.exh-rp__i:last-child { border-bottom: 0; }
+.exh-rp__t { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.45; word-break: keep-all; }
+.exh-rp__m { margin-top: 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* 4) 다음 행사 카운트다운 — 이 카드의 강조 지점이라 유일하게 네이비 면을 쓴다 */
+.exh-cd {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 13px; border-radius: var(--radius-sm);
+  background: linear-gradient(115deg, var(--nav-bg) 0%, var(--navy-2) 100%);
+  color: #FFFFFF;
+}
+.exh-cd__d { flex: 0 0 auto; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.exh-cd__r { min-width: 0; }
+.exh-cd__n { font-size: 12px; font-weight: 700; line-height: 1.35; word-break: keep-all; }
+.exh-cd__s { margin-top: 3px; font-size: 11px; color: var(--navy-ink); font-variant-numeric: tabular-nums; }
+
+.exh-note { font-size: 10.5px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
+
+/* 인쇄: 아코디언을 전부 펴서 내용이 빠지지 않게 한다 */
+@media print {
+  .exh-acc__b[hidden] { display: block !important; }
+  .exh-acc__h { background: var(--card); }
+  .exh-acc__ar { display: none; }
+  .exh-acc, .exh-cd, .exh-ev__i, .exh-rp__i { break-inside: avoid; page-break-inside: avoid; }
 }

@@ -1,0 +1,101 @@
+{
+  "_comment": [
+    "★ 임시(Provisional) 데이터입니다. 실데이터로 갱신해야 합니다.",
+    "각 행사의 '통상 개최 시기'를 근거로 채워 넣은 추정 일정이며, 주최측 공식 발표로 확정된 값이 아닙니다.",
+    "화면에도 '일정은 잠정치' 각주가 나가도록 해 두었습니다(exhibitions.provisional=true).",
+    "갱신 방법: 아래 items 의 start/end/city/link 를 각 행사 공식 사이트 공지로 바꾸고 provisional 을 false 로 두면",
+    "화면의 잠정치 각주가 사라집니다. 수집기를 붙일 경우 이 파일을 그대로 덮어쓰면 됩니다.",
+    "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙)."
+  ],
+  "provisional": true,
+  "updatedAt": "2026-09-15",
+  "source": "각 행사 공식 사이트의 통상 개최 시기 기준 (임시)",
+  "items": [
+    {
+      "name": "CIFF Shanghai (중국국제가구박람회)",
+      "start": "2026-09-08",
+      "end": "2026-09-11",
+      "city": "상하이",
+      "country": "중국",
+      "link": "https://www.ciff.furniture/"
+    },
+    {
+      "name": "CES 2027",
+      "start": "2027-01-05",
+      "end": "2027-01-08",
+      "city": "라스베이거스",
+      "country": "미국",
+      "link": "https://www.ces.tech/"
+    },
+    {
+      "name": "Heimtextil Frankfurt",
+      "start": "2027-01-12",
+      "end": "2027-01-15",
+      "city": "프랑크푸르트",
+      "country": "독일",
+      "link": "https://heimtextil.messefrankfurt.com/"
+    },
+    {
+      "name": "IMM Cologne (쾰른 국제가구박람회)",
+      "start": "2027-01-18",
+      "end": "2027-01-21",
+      "city": "쾰른",
+      "country": "독일",
+      "link": "https://www.imm-cologne.com/"
+    },
+    {
+      "name": "CIFF Guangzhou (중국국제가구박람회)",
+      "start": "2027-03-18",
+      "end": "2027-03-21",
+      "city": "광저우",
+      "country": "중국",
+      "link": "https://www.ciff.furniture/"
+    },
+    {
+      "name": "ISPA EXPO 2027 (국제수면용품협회)",
+      "start": "2027-03-23",
+      "end": "2027-03-26",
+      "city": "콜럼버스",
+      "country": "미국",
+      "link": "https://www.sleepproducts.org/"
+    },
+    {
+      "name": "Salone del Mobile Milano (밀라노 국제가구박람회)",
+      "start": "2027-04-13",
+      "end": "2027-04-18",
+      "city": "밀라노",
+      "country": "이탈리아",
+      "link": "https://www.salonemilano.it/"
+    },
+    {
+      "name": "interzum Cologne (가구 부자재·소재 전시회)",
+      "start": "2027-05-04",
+      "end": "2027-05-07",
+      "city": "쾰른",
+      "country": "독일",
+      "link": "https://www.interzum.com/"
+    }
+  ],
+  "reports": [
+    {
+      "title": "글로벌 매트리스 시장 규모·성장률 요약",
+      "date": "2026-09-01",
+      "source": "Global Market Insights"
+    },
+    {
+      "title": "슬립테크 CES 수상 기업 동향 정리",
+      "date": "2026-08-20",
+      "source": "사내 정리"
+    },
+    {
+      "title": "폴리우레탄 원료(PPG·TDI·MDI) 가격 흐름",
+      "date": "2026-08-05",
+      "source": "ICIS 기반 사내 정리"
+    },
+    {
+      "title": "북미 매트리스 유통 채널 변화 메모",
+      "date": "2026-07-18",
+      "source": "사내 정리"
+    }
+  ]
+}

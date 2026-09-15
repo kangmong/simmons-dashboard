@@ -11430,6 +11430,7 @@ function refreshSections() {
   renderMaterial();
   renderFx();
   updateDashHeader();
+  buildSearchIndex();   // 섹션 데이터가 바뀌면 검색 인덱스도 같이 갱신한다
 }
 
 /** 대시보드 헤더의 "마지막 업데이트" 표시.
@@ -11444,13 +11445,15 @@ function updateDashHeader() {
 document.addEventListener('DOMContentLoaded', () => {
   initNav();
   initUpload();
-  initReport();
+  initSearch();       // 통합 검색 (헤더 우측)
   initUpdate();
   // 로드 시 항상 "초기 상태(데이터 없음)"로 시작한다.
   // 저장된 값/기본 CSV를 자동으로 불러오지 않는다 — 데이터는 오직 [업데이트]로만 채운다.
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
   initWorldClock();  // 세계 시간: 업데이트와 무관하게 로드 즉시 실시간 표시
   initHeroDate();    // 히어로 배너 우측 상단 '오늘 날짜'
+  fetchExhibitions();  // 해외 전시회·컨퍼런스: 커밋된 정적 JSON (업데이트와 무관)
+  buildSearchIndex();  // 페이지 로드 시 통합 검색 인덱스 1차 생성
 });
 
 /** 히어로 배너의 현재 날짜.
@@ -11467,11 +11470,10 @@ function initHeroDate() {
     + String(d.getDate()).padStart(2, '0') + ' (' + wk + ')';
 }
 
-/** 보고서 다운로드: 브라우저 인쇄(→ PDF로 저장) */
-function initReport() {
-  const btn = document.getElementById('reportBtn');
-  if (btn) btn.addEventListener('click', () => window.print());
-}
+/* 헤더의 [보고서 다운로드] 버튼은 통합 검색창으로 교체했다(initReport 제거).
+   인쇄용 스타일(@media print)은 그대로 살아 있으므로 브라우저 인쇄(Ctrl+P)로
+   여전히 보고서를 뽑을 수 있다. 버튼을 다른 자리에 두고 싶으면
+   window.print() 를 부르는 버튼 하나만 다시 붙이면 된다. */
 
 /* ============================================================
    실시간 업데이트 — 백엔드 /api/update
@@ -12831,4 +12833,372 @@ function wirePatent() {
     e.preventDefault();
     t.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
+}
+
+/* ============================================================
+   통합 검색 (헤더 우측)
+   ★ 새로 수집하지 않는다. 각 섹션이 '이미 화면에 그리고 있는' 전역 데이터만
+     모아 { type, title, snippet, sectionId } 배열로 만든다.
+   ★ 데이터는 [업데이트] 이후에 비동기로 채워지므로, 로드 시 한 번 만들고
+     refreshSections() 와 검색어 입력 때마다 다시 만든다(항목 수백 개라 값이 싸다).
+   ============================================================ */
+let _searchIdx = [];
+
+/** 섹션 id → 화면에 보일 이름. dash-card 의 data-section 과 같은 키를 쓴다. */
+const SEARCH_SECTIONS = {
+  simmons_news: '시몬스 코리아 소식',
+  material: '원자재 · 원가 동향',
+  competitor: '국내외 경쟁사 분기 실적',
+  domestic: '신제품 · 브랜드 동향',
+  patent: '특허 · 신소재 동향',
+  exhibitions: '해외 전시회 · 컨퍼런스',
+};
+
+/** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
+function sIdxStr(v) { return (v == null) ? '' : String(v).trim(); }
+
+/** 통합 검색 인덱스 생성. 전역 배열 _searchIdx 에 담고 그대로 돌려준다. */
+function buildSearchIndex() {
+  const idx = [];
+  const push = (sectionId, title, snippet) => {
+    const t = sIdxStr(title);
+    if (!t) return;                       // 제목이 없으면 검색 결과로 쓸 수 없다
+    idx.push({
+      type: SEARCH_SECTIONS[sectionId], title: t,
+      snippet: sIdxStr(snippet), sectionId: sectionId,
+    });
+  };
+
+  /* 1) 시몬스 코리아 소식 */
+  ((_simmonsNews && _simmonsNews.items) || []).forEach((n) => {
+    push('simmons_news', n.title, [n.source, n.date].filter(Boolean).join(' · '));
+  });
+
+  /* 2) 원자재 · 원가 동향 — 원료 용어(업데이트 전에도 항상 있는 값) */
+  ICIS_TERMS.forEach((t) => {
+    push('material', t.key + ' — ' + t.full, t.use);
+  });
+
+  /* 3) 국내외 경쟁사 분기 실적 — 국외 상장사 카드 */
+  ((_competitors && _competitors.global) || []).forEach((c) => {
+    const bits = [];
+    if (c.ticker) bits.push(c.ticker);
+    if (c.quarter) bits.push(c.quarter);
+    if (c.revenue != null) bits.push('매출 ' + fmtUsd(c.revenue));
+    push('competitor', c.name, bits.join(' · '));
+  });
+
+  /* 4) 신제품 · 브랜드 동향 */
+  (_domestic || []).forEach((it) => {
+    push('domestic', it.title, [it.brand, it.product_name, it.source].filter(Boolean).join(' · '));
+  });
+
+  /* 5) 특허 · 신소재 동향 (KIPRIS)
+     ★ 요약(summary)까지 넣는다 — 제목이 '매트리스 조립체'처럼 짧고 비슷해서
+       제목만으로는 검색어가 거의 걸리지 않는다. */
+  ((_ptData && _ptData.rows) || []).forEach((r) => {
+    push('patent', r.title,
+      [r.company, r.date, r.catLabel, r.summary].filter(Boolean).join(' · '));
+  });
+
+  /* 6) 해외 전시회 · 컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
+     유일하게 나라 이름을 가진 자료다('미국' 같은 검색어가 여기서 걸린다). */
+  ((_exh && _exh.items) || []).forEach((x) => {
+    push('exhibitions', x.name,
+      [x.city, x.country, exhRange(x)].filter(Boolean).join(' · '));
+  });
+
+  _searchIdx = idx;
+  return idx;
+}
+
+/** 정규식 특수문자 이스케이프 — 사용자가 친 글자를 그대로 찾게 한다 */
+function srEscRe(v) { return String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/** 일치 부분만 <mark> 로 감싼다.
+ *  ★ HTML 이스케이프를 먼저 하고 그 다음에 <mark> 를 넣는다 — 순서를 바꾸면
+ *    <mark> 태그까지 escapeHtml 에 먹혀 화면에 태그가 글자로 보인다. */
+function srMark(text, q) {
+  const safe = escapeHtml(String(text));
+  const key = escapeHtml(String(q || ''));
+  if (!key) return safe;
+  return safe.replace(new RegExp('(' + srEscRe(key) + ')', 'gi'), '<mark>$1</mark>');
+}
+
+/** 검색어로 인덱스를 거른다. 제목에서 걸린 것 먼저, 그 다음 부가정보. 최대 20개. */
+function searchQuery(q) {
+  const key = String(q || '').trim().toLowerCase();
+  if (!key) return [];
+  const hitT = [], hitS = [];
+  /* ★ 섹션 이름(type)도 훑는다 — '원자재'·'특허'처럼 섹션을 가리키는 말로
+     찾는 경우가 많은데, 그 말이 개별 항목 제목에는 안 들어 있다. */
+  buildSearchIndex().forEach((r) => {
+    if (r.title.toLowerCase().indexOf(key) >= 0) hitT.push(r);
+    else if (r.snippet.toLowerCase().indexOf(key) >= 0
+      || r.type.toLowerCase().indexOf(key) >= 0) hitS.push(r);
+  });
+  return hitT.concat(hitS).slice(0, 20);
+}
+
+/** 결과 드롭다운 그리기. 검색어가 비면 숨긴다. */
+function renderSearchResults(q) {
+  const box = document.getElementById('searchResults');
+  const input = document.getElementById('globalSearch');
+  if (!box || !input) return;
+  const key = String(q || '').trim();
+  if (!key) {
+    box.hidden = true; box.innerHTML = '';
+    input.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  const rows = searchQuery(key);
+  box.innerHTML = rows.length
+    ? '<div class="hdr-drop__cnt">' + rows.length + '건'
+      + (rows.length === 20 ? ' (상위 20건)' : '') + '</div>'
+      + rows.map((r, i) => '<button type="button" class="sr-item" role="option"'
+        + ' aria-selected="false" data-sr="' + i + '" data-sec="' + escapeHtml(r.sectionId) + '">'
+        + '<span class="sr-item__t">' + srMark(r.title, key) + '</span>'
+        + '<span class="sr-item__m"><span class="sr-tag">' + escapeHtml(r.type) + '</span>'
+        + (r.snippet ? '<span class="sr-item__s">' + srMark(r.snippet, key) + '</span>' : '')
+        + '</span></button>').join('')
+    : '<div class="hdr-drop__empty">‘' + escapeHtml(key) + '’에 대한 결과가 없습니다</div>';
+  box.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+}
+
+/** 결과 클릭 → 해당 섹션 카드로 스크롤 + 2초간 테두리 강조 */
+function searchGoto(sectionId) {
+  const content = document.getElementById('content');
+  /* 포커스(단일 섹션) 화면에서는 다른 섹션 카드가 숨겨져 있으므로 대시보드로 되돌린다.
+     ★ setView() 가 window.scrollTo(0,0) 을 부르기 때문에, 스크롤은 그 다음 프레임에
+       해야 한다. 같은 프레임에서 부르면 맨 위로 되감겨 아무 데도 못 간다. */
+  if (content && content.dataset.view !== 'dashboard') setView('dashboard');
+  requestAnimationFrame(() => {
+    const card = document.querySelector('.dash-card[data-section="' + sectionId + '"]');
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.add('is-found');
+    setTimeout(() => card.classList.remove('is-found'), 2000);
+  });
+}
+
+function initSearch() {
+  const input = document.getElementById('globalSearch');
+  const box = document.getElementById('searchResults');
+  const clear = document.getElementById('searchClear');
+  if (!input || !box) return;
+
+  const close = () => { box.hidden = true; input.setAttribute('aria-expanded', 'false'); };
+  const sync = () => {
+    if (clear) clear.hidden = !input.value;
+    renderSearchResults(input.value);
+  };
+
+  input.addEventListener('input', sync);
+  input.addEventListener('focus', sync);
+
+  if (clear) clear.addEventListener('click', () => { input.value = ''; sync(); input.focus(); });
+
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('.sr-item');
+    if (!b) return;
+    close();
+    searchGoto(b.dataset.sec);
+  });
+
+  /* 키보드: ↑↓ 이동 · Enter 선택 · Esc 닫기 */
+  input.addEventListener('keydown', (e) => {
+    const items = [].slice.call(box.querySelectorAll('.sr-item'));
+    const cur = items.findIndex((x) => x.classList.contains('is-on'));
+    if (e.key === 'Escape') { close(); input.blur(); return; }
+    if (!items.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = (e.key === 'ArrowDown')
+        ? (cur + 1) % items.length
+        : (cur <= 0 ? items.length - 1 : cur - 1);
+      items.forEach((x) => { x.classList.remove('is-on'); x.setAttribute('aria-selected', 'false'); });
+      items[next].classList.add('is-on');
+      items[next].setAttribute('aria-selected', 'true');
+      items[next].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const pick = items[cur >= 0 ? cur : 0];
+      if (pick) { close(); searchGoto(pick.dataset.sec); }
+    }
+  });
+
+  /* 바깥을 누르면 닫는다 */
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.hdr-search')) close();
+  });
+}
+
+/* ============================================================
+   해외 전시회 · 컨퍼런스 (대시보드 전용 카드)
+   ★ public/data/exhibitions.json 하나만 읽는다(외부 호출 없음).
+   ★ 지금 들어 있는 일정은 임시값이다 — JSON 의 provisional 이 true 인 동안
+     화면 아래에 '잠정치' 각주가 나간다. 실데이터로 갈아 끼우면 false 로 바꾼다.
+   ============================================================ */
+const EXH_DATA_URL = 'public/data/exhibitions.json';
+let _exh = null;        // 로드 결과 (실패하면 null)
+let _exhErr = null;     // 실패 이유 — 조용히 비우지 않고 화면에 그대로 보여 준다
+let _exhOpen = { 1: false, 2: true, 3: false, 4: true };   // 아코디언 펼침 상태
+
+/** 국가 → 국기 이모지. 없는 나라는 글자만 나간다(모양이 깨지지 않게). */
+const EXH_FLAG = {
+  '중국': '🇨🇳', '미국': '🇺🇸', '독일': '🇩🇪', '이탈리아': '🇮🇹',
+  '프랑스': '🇫🇷', '일본': '🇯🇵', '영국': '🇬🇧', '싱가포르': '🇸🇬',
+};
+
+async function fetchExhibitions() {
+  try {
+    const res = await fetch(EXH_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + EXH_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !Array.isArray(d.items)) throw new Error('형식이 올바르지 않습니다');
+    _exh = d; _exhErr = null;
+  } catch (e) {
+    _exh = null; _exhErr = (e && e.message) ? e.message : String(e);
+    console.warn('[exhibitions] 로드 실패:', e);
+  }
+  renderExhibitions();
+}
+
+/** 오늘 0시(로컬) — D-day 계산 기준. 시분초가 섞이면 하루씩 어긋난다. */
+function exhToday() {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+/** 'YYYY-MM-DD' → Date(로컬 0시). 형식이 아니면 null. */
+function exhDate(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ''));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+
+/** 시작일까지 남은 일수. 음수면 이미 시작한(또는 끝난) 행사. */
+function exhDday(item) {
+  const d = exhDate(item.start);
+  return d ? Math.round((d - exhToday()) / 86400000) : null;
+}
+
+/** 기간 표기: 'YYYY. M월 D일 ~ D일' (달이 다르면 뒤에도 월을 붙인다) */
+function exhRange(item) {
+  const a = exhDate(item.start), b = exhDate(item.end);
+  if (!a) return '';
+  const f = (x) => (x.getMonth() + 1) + '월 ' + x.getDate() + '일';
+  if (!b || +a === +b) return a.getFullYear() + '. ' + f(a);
+  const tail = (a.getMonth() === b.getMonth()) ? (b.getDate() + '일') : f(b);
+  return a.getFullYear() + '. ' + f(a) + ' ~ ' + tail;
+}
+
+/** 아코디언 한 덩이 */
+function exhAcc(n, title, count, bodyHtml) {
+  const on = !!_exhOpen[n];
+  return '<div class="exh-acc' + (on ? ' is-open' : '') + '">'
+    + '<button type="button" class="exh-acc__h" data-exhacc="' + n + '"'
+    + ' aria-expanded="' + (on ? 'true' : 'false') + '">'
+    + '<span class="exh-acc__n">' + n + '</span>'
+    + '<span class="exh-acc__t">' + escapeHtml(title) + '</span>'
+    + (count ? '<span class="exh-acc__c">' + escapeHtml(count) + '</span>' : '')
+    + '<span class="exh-acc__ar" aria-hidden="true">▾</span>'
+    + '</button>'
+    + '<div class="exh-acc__b"' + (on ? '' : ' hidden') + '>' + bodyHtml + '</div>'
+    + '</div>';
+}
+
+function renderExhibitions() {
+  const el = document.getElementById('exhibitionsRoot');
+  if (!el) return;
+  if (!_exh) {
+    el.innerHTML = emptyState(_exhErr
+      ? '전시회 일정을 불러오지 못했습니다 — ' + _exhErr
+      : '전시회 일정 준비중');
+    return;
+  }
+  const items = _exh.items.slice()
+    .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
+
+  /* 1) 개최지 — 국가별 건수 뱃지. ★ 숫자는 데이터에서 센다(코드에 적지 않는다). */
+  const byCountry = {};
+  items.forEach((x) => {
+    const k = sIdxStr(x.country) || '기타';
+    byCountry[k] = (byCountry[k] || 0) + 1;
+  });
+  const geo = Object.keys(byCountry).sort((a, b) => byCountry[b] - byCountry[a])
+    .map((k) => '<span class="exh-geo__b">'
+      + (EXH_FLAG[k] ? '<i>' + EXH_FLAG[k] + '</i>' : '')
+      + escapeHtml(k) + '<span class="exh-geo__n">' + byCountry[k] + '</span></span>').join('');
+
+  /* 2) 행사 목록 — 다가오는 것 우선, 하나도 없으면 최근 것. 최대 5개 */
+  const listSrc = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
+  const evs = listSrc.map((x) => {
+    const d = exhDday(x);
+    const cls = (d == null) ? '' : (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''));
+    const badge = (d == null) ? '' : (d < 0 ? '종료' : (d === 0 ? 'D-DAY' : 'D-' + d));
+    const link = sIdxStr(x.link);
+    const inner = '<span class="exh-ev__n">' + escapeHtml(sIdxStr(x.name)) + '</span>'
+      + '<span class="exh-ev__m">'
+      + '<span class="exh-ev__c">' + escapeHtml(sIdxStr(x.city) || '—') + '</span>'
+      + '<span>' + escapeHtml(exhRange(x)) + '</span>'
+      + (badge ? '<span class="exh-ev__d' + cls + '">' + badge + '</span>' : '')
+      + '</span>';
+    return link
+      ? '<a class="exh-ev__i" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
+        + inner + '</a>'
+      : '<div class="exh-ev__i">' + inner + '</div>';
+  }).join('');
+
+  /* 3) 최근 리포트·인사이트 — 최신순 최대 4개 */
+  const reps = (_exh.reports || []).slice()
+    .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 4);
+  const rpHtml = reps.length
+    ? reps.map((r) => '<div class="exh-rp__i">'
+      + '<div class="exh-rp__t">' + escapeHtml(sIdxStr(r.title)) + '</div>'
+      + '<div class="exh-rp__m">' + escapeHtml(sIdxStr(r.date))
+      + (r.source ? ' · ' + escapeHtml(sIdxStr(r.source)) : '') + '</div></div>').join('')
+    : '<div class="exh-note">등록된 리포트가 없습니다.</div>';
+
+  /* 4) 다음 행사 카운트다운 */
+  const next = upcoming[0] || null;
+  const cd = next
+    ? '<div class="exh-cd">'
+      + '<div class="exh-cd__d">' + (exhDday(next) === 0 ? 'D-DAY' : 'D-' + exhDday(next)) + '</div>'
+      + '<div class="exh-cd__r">'
+      + '<div class="exh-cd__n">' + escapeHtml(sIdxStr(next.name)) + '</div>'
+      + '<div class="exh-cd__s">' + escapeHtml(sIdxStr(next.city)) + ' · '
+      + escapeHtml(exhRange(next)) + '</div>'
+      + '</div></div>'
+    : '<div class="exh-note">예정된 행사가 없습니다. 일정을 갱신해 주세요.</div>';
+
+  el.innerHTML = '<div class="exh">'
+    + exhAcc(1, '주요 전시 지역', Object.keys(byCountry).length + '개국',
+      '<div class="exh-geo">' + geo + '</div>')
+    + exhAcc(2, '주요 전시회 · 컨퍼런스', listSrc.length + '건',
+      '<div class="exh-ev">' + evs + '</div>')
+    + exhAcc(3, '최근 리포트 · 인사이트', reps.length + '건',
+      '<div class="exh-rp">' + rpHtml + '</div>')
+    + exhAcc(4, '다음 주요 행사', '', cd)
+    + '<div class="exh-note">'
+    + (_exh.provisional
+      ? '※ 표시된 일정은 각 행사의 통상 개최 시기를 근거로 채운 <b>잠정치</b>입니다. '
+        + '주최측 공식 공지로 확인한 뒤 사용하십시오. '
+      : '')
+    + '출처: ' + escapeHtml(sIdxStr(_exh.source) || '각 행사 공식 사이트')
+    + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
+    + '</div></div>';
+
+  /* 아코디언 토글 — 매번 다시 그리므로 위임으로 한 번만 건다 */
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-exhacc]');
+      if (!b) return;
+      _exhOpen[b.dataset.exhacc] = !_exhOpen[b.dataset.exhacc];
+      renderExhibitions();
+    });
+  }
 }

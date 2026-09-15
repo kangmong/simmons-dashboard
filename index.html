@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20260914h" />
+  <link rel="stylesheet" href="styles.css?v=20260915a" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -23,8 +23,29 @@
     </div>
 
     <div class="header-right">
-      <button class="report-btn" id="reportBtn" type="button" title="현재 화면을 PDF로 저장">
-        ⭳ 보고서 다운로드
+      <!-- 통합 검색 — 각 섹션에 이미 렌더링된 데이터를 모아 만든 인덱스를 훑는다.
+           (인덱스 생성: app.js buildSearchIndex) -->
+      <div class="hdr-search" role="search">
+        <span class="hdr-search__ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" />
+          </svg>
+        </span>
+        <input class="hdr-search__in" id="globalSearch" type="text" autocomplete="off"
+               role="combobox" aria-expanded="false" aria-controls="searchResults"
+               aria-autocomplete="list" aria-label="통합 검색"
+               placeholder="관심 키워드를 검색해보세요. (예: 라텍스, 미국, 원자재)" />
+        <button class="hdr-search__clear" id="searchClear" type="button" aria-label="검색어 지우기" hidden>×</button>
+        <div class="hdr-drop" id="searchResults" role="listbox" aria-label="검색 결과" hidden></div>
+      </div>
+      <!-- 알림 벨 — UI 만. 동작은 아직 붙이지 않았다. -->
+      <button class="hdr-bell" id="bellBtn" type="button" aria-label="알림" title="알림 (준비 중)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 8.4a6 6 0 1 0-12 0c0 6.1-2.2 7.6-2.2 7.6h16.4S18 14.5 18 8.4" />
+          <path d="M13.7 19.4a2 2 0 0 1-3.4 0" />
+        </svg>
       </button>
     </div>
 
@@ -215,10 +236,22 @@
             <div id="worldclockRoot"></div>
           </div>
         </section>
+
+        <!-- 해외 전시회·컨퍼런스 — 세계시간 옆 빈 칸을 채운다.
+             ★ 대시보드 전용 카드다(사이드바 메뉴·더보기 없음). 폭이 좁아
+               4개 묶음을 세로 아코디언으로 쌓는다. 내용은 app.js renderExhibitions. -->
+        <section class="dash-card" data-section="exhibitions">
+          <div class="dash-card__head">
+            <h3 class="dash-card__title">해외 전시회 · 컨퍼런스</h3>
+          </div>
+          <div class="panel-body" id="body-exhibitions">
+            <div id="exhibitionsRoot"></div>
+          </div>
+        </section>
       </div>
     </main>
   </div>
 
-  <script src="app.js?v=20260914a"></script>
+  <script src="app.js?v=20260915a"></script>
 </body>
 </html>
