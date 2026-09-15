@@ -4048,14 +4048,24 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 지도 + 목록을 한 카드에 담고 2칸을 쓴다 — [세계 시간][전시·컨퍼런스(2칸)]
    로 마지막 줄이 꽉 찬다(카드 8장 = 3+3+2칸). */
 .dash-card--span2 { grid-column: span 2; align-self: stretch; }
-.dash-card--span2 .panel-body { display: flex; }
+
+/* ★★ 카드 높이(267px)를 내용이 실제로 쓰게 만드는 사슬.
+   이 연결이 하나라도 끊기면 본문이 '내용 높이'(150px)로 주저앉아
+   카드 아래쪽 76px 이 그냥 빈 채로 남는다 — 칸에 비해 내용이 작아 보이던 원인이다.
+   .dash-card 가 이미 flex column 이라, 본문부터 지도/목록까지 flex 로 이어 준다. */
+.dash-card--span2 .panel-body { flex: 1 1 auto; display: flex; min-height: 0; }
 .exh-split {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0; width: 100%;
+  gap: 0; width: 100%; flex: 1 1 auto; min-height: 0;
 }
 /* 카드를 쪼개지 않고 세로 구분선 하나로만 나눈다 */
-.exh-split__l { min-width: 0; padding-right: 14px; }
-.exh-split__r { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); }
+.exh-split__l { min-width: 0; padding-right: 14px; display: flex; min-height: 0; }
+.exh-split__r { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line);
+  display: flex; min-height: 0; }
+/* 렌더러가 만든 래퍼(#exhMapRoot · #exhListRoot)도 같이 늘어나야 한다 */
+.exh-split__l > div, .exh-split__r > div {
+  display: flex; flex-direction: column; width: 100%; min-height: 0;
+}
 
 /* 분류 점 — 지도 범례와 목록이 같은 색표를 본다 */
 .exh-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
@@ -4067,8 +4077,9 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* ── 01 지도 ── */
 .exh-map {
-  /* 88 + 범례 18 + 각주 2줄 ≈ 143px — 본문 캡 150px 안에 들어간다 */
-  position: relative; width: 100%; height: 88px;
+  /* 높이를 고정하지 않는다 — 범례·각주를 뺀 나머지를 전부 지도가 쓴다.
+     (고정 88px 이던 시절에는 카드가 커져도 지도만 작게 남았다) */
+  position: relative; width: 100%; flex: 1 1 auto; min-height: 120px;
   background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
 }
 .exh-map__img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .55; }
@@ -4078,6 +4089,9 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   background: rgba(255, 255, 255, .92); box-shadow: 0 0 0 1px var(--line);
   cursor: help;
 }
+/* 지도가 88 → 173px 로 커진 만큼 마커도 키운다 — 7px 이면 점이 너무 작아 보인다.
+   범례 점은 글자(10px) 옆이라 그대로 7px 를 쓴다. */
+.exh-mk .exh-dot { width: 9px; height: 9px; }
 .exh-lgs { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-top: 7px; }
 .exh-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
 
@@ -4085,11 +4099,14 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
    ★ 목록 카드만 본문 캡(150px)을 풀고, 대신 목록 자체에 같은 높이를 준다.
      캡을 그대로 두면 4·5번째 행사가 페이드에 잘려 아예 볼 수 없다(스크롤이 안 된다).
      이렇게 하면 카드 높이는 그대로 202px 인 채로 5건을 다 넘겨 볼 수 있다. */
+/* ★ 다른 카드와 같은 215px 로 묶되, 페이드로 자르지 않고(overflow:visible)
+   목록이 그 안에서 스크롤하게 둔다. none 으로 풀어 두면 목록 길이만큼 카드가
+   284px 까지 자라 같은 줄의 다른 카드(267px)와 어긋난다. */
 .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body {
-  max-height: none; overflow: visible;
+  max-height: 215px; overflow: visible;
 }
 .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body::after { display: none; }
-.exh-list { display: flex; flex-direction: column; max-height: 150px; overflow-y: auto; }
+.exh-list { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .exh-li {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center; gap: 8px;
