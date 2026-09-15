@@ -6,7 +6,8 @@
     "갱신 방법: 아래 items 의 start/end/city/link 를 각 행사 공식 사이트 공지로 바꾸고 provisional 을 false 로 두면",
     "화면의 잠정치 각주가 사라집니다. 수집기를 붙일 경우 이 파일을 그대로 덮어쓰면 됩니다.",
     "★ 수집 실패가 이 파일을 빈 값으로 덮지 않도록 주의(프로젝트 수집기 방어 규칙).",
-    "lat/lon 은 1열 미니 세계지도 마커용 도시 좌표입니다(등장방형도법). 도시를 바꾸면 좌표도 같이 바꿔 주세요."
+    "lat/lon 은 1열 미니 세계지도 마커용 도시 좌표입니다(등장방형도법). 도시를 바꾸면 좌표도 같이 바꿔 주세요.",
+    "category 는 1열 지도 범례와 2열 태그에 쓰는 분류입니다. 가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 네 가지를 씁니다."
   ],
   "provisional": true,
   "updatedAt": "2026-09-15",
@@ -20,7 +21,8 @@
       "country": "중국",
       "link": "https://www.ciff.furniture/",
       "lat": 31.23,
-      "lon": 121.47
+      "lon": 121.47,
+      "category": "가구·인테리어"
     },
     {
       "name": "CES 2027",
@@ -30,7 +32,8 @@
       "country": "미국",
       "link": "https://www.ces.tech/",
       "lat": 36.17,
-      "lon": -115.14
+      "lon": -115.14,
+      "category": "가전·테크"
     },
     {
       "name": "Heimtextil Frankfurt",
@@ -40,7 +43,8 @@
       "country": "독일",
       "link": "https://heimtextil.messefrankfurt.com/",
       "lat": 50.11,
-      "lon": 8.68
+      "lon": 8.68,
+      "category": "소재·기술"
     },
     {
       "name": "IMM Cologne (쾰른 국제가구박람회)",
@@ -50,7 +54,8 @@
       "country": "독일",
       "link": "https://www.imm-cologne.com/",
       "lat": 50.94,
-      "lon": 6.96
+      "lon": 6.96,
+      "category": "가구·인테리어"
     },
     {
       "name": "CIFF Guangzhou (중국국제가구박람회)",
@@ -60,7 +65,8 @@
       "country": "중국",
       "link": "https://www.ciff.furniture/",
       "lat": 23.13,
-      "lon": 113.26
+      "lon": 113.26,
+      "category": "가구·인테리어"
     },
     {
       "name": "ISPA EXPO 2027 (국제수면용품협회)",
@@ -70,7 +76,8 @@
       "country": "미국",
       "link": "https://www.sleepproducts.org/",
       "lat": 39.96,
-      "lon": -83.0
+      "lon": -83.0,
+      "category": "수면·매트리스"
     },
     {
       "name": "Salone del Mobile Milano (밀라노 국제가구박람회)",
@@ -80,7 +87,8 @@
       "country": "이탈리아",
       "link": "https://www.salonemilano.it/",
       "lat": 45.46,
-      "lon": 9.19
+      "lon": 9.19,
+      "category": "가구·인테리어"
     },
     {
       "name": "interzum Cologne (가구 부자재·소재 전시회)",
@@ -90,7 +98,8 @@
       "country": "독일",
       "link": "https://www.interzum.com/",
       "lat": 50.94,
-      "lon": 6.96
+      "lon": 6.96,
+      "category": "소재·기술"
     }
   ],
   "reports": [

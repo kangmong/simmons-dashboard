@@ -4036,129 +4036,199 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 }
 
 /* ============================================================
-   해외 전시회 · 컨퍼런스 — 3열 그리드 맨 아래 '전체 폭 한 줄'
+   해외 전시회 · 컨퍼런스 — 3열 그리드 맨 아래 '전체 폭 한 줄' 가로 4분할
    ★ 세계시간 옆 좁은 칸에 두면 세로로 길어져 3열 정렬이 틀어졌다.
      그래서 grid-column: 1 / -1 로 제 줄을 준다.
-   ★ 색은 기존 네이비/화이트 토큰만 쓴다.
+   ★ 네 칸은 주제가 달라도 '같은 틀'로 보이게 한다 —
+     번호 배지 + 제목 + (전체 보기) 머리줄을 네 칸 모두 똑같이 쓴다.
    ============================================================ */
 .dash-card--wide { grid-column: 1 / -1; }
 
-/* 이 카드는 대시보드의 150px 본문 캡을 받지 않는다 — 캡이 걸리면
-   4분할 내용이 잘려 무엇이 있는지 보이지 않는다. */
-.content[data-view="dashboard"] .dash-card--wide .panel-body {
-  max-height: none; overflow: visible;
-}
+/* 대시보드의 150px 본문 캡을 받지 않는다 — 캡이 걸리면 4분할이 잘린다 */
+.content[data-view="dashboard"] .dash-card--wide .panel-body { max-height: none; overflow: visible; }
 .content[data-view="dashboard"] .dash-card--wide .panel-body::after { display: none; }
-/* 카드 자체 padding 은 0 으로 두고 안쪽 .exh4 가 여백을 잡는다
-   (상단 그라데이션 바를 카드 끝까지 붙이기 위해서다) */
+/* 상단 그라데이션 바를 카드 끝까지 붙이려고 카드 padding 은 0 으로 둔다 */
 .exh-sec { padding: 0; overflow: hidden; }
 
 .exh4 { display: flex; flex-direction: column; }
 /* 카드 최상단 얇은 파랑 그라데이션 라인 — 섹션 전체를 감싸는 표시 */
 .exh4__bar {
   height: 3px; flex: 0 0 auto;
-  background: linear-gradient(90deg, var(--navy) 0%, var(--navy-2) 45%, var(--blue) 100%);
+  background: linear-gradient(90deg, var(--navy) 0%, var(--navy-2) 42%, var(--blue) 100%);
 }
-.exh4__hd { padding: 12px 14px 0; }
-.exh4__t { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
 
-/* 4분할 — 세로 구분선으로 나눈다(카드를 4개로 쪼개지 않는다) */
 .exh4__cols {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  padding: 12px 0 4px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0;
+  padding: 14px 0 6px;
 }
-.exh-col { min-width: 0; padding: 0 14px; border-left: 1px solid var(--line); }
+.exh-col { min-width: 0; padding: 0 15px; border-left: 1px solid var(--line); }
 .exh-col:first-child { border-left: 0; }
 
-.exh-col__h { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; flex-wrap: wrap; }
+/* 네 칸 공통 머리줄 */
+.exh-col__h { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
 .exh-col__no {
-  flex: 0 0 auto; font-size: 10px; font-weight: 800; letter-spacing: .04em;
-  color: #FFFFFF; background: var(--navy); border-radius: 5px; padding: 2px 5px;
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 800; letter-spacing: .03em;
+  color: #FFFFFF; background: var(--navy-2); border-radius: 6px; padding: 3px 6px;
 }
-.exh-col__t { font-size: 12.5px; font-weight: 700; color: var(--ink); min-width: 0; }
-.exh-col__s { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.exh-col__t {
+  font-size: 12.5px; font-weight: 800; color: var(--ink); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.exh-col__more {
+  margin-left: auto; flex: 0 0 auto; border: none; background: transparent;
+  color: var(--navy-2); font-family: inherit; font-size: 11px; font-weight: 700;
+  cursor: pointer; padding: 0; white-space: nowrap;
+}
+.exh-col__more:hover { text-decoration: underline; }
 
-/* 1열 — 미니 세계지도 */
-.exh-map { position: relative; width: 100%; aspect-ratio: 2 / 1; background: var(--field);
-  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.exh-map__img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .55; }
-.exh-mk { position: absolute; transform: translate(-50%, -50%); display: flex;
-  flex-direction: column; align-items: center; gap: 1px; pointer-events: auto; }
-.exh-mk i {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--navy-2); box-shadow: 0 0 0 2px rgba(255, 255, 255, .85);
-}
-.exh-mk.is-soon i { background: var(--accent); }
-.exh-mk b {
-  font-size: 8.5px; font-weight: 700; color: var(--ink); white-space: nowrap;
-  background: rgba(255, 255, 255, .82); border-radius: 3px; padding: 0 2px;
-}
+/* 분류 점 — 지도 범례와 목록이 같은 색표를 본다 */
+.exh-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+.exh-dot--furn { background: var(--blue); }
+.exh-dot--sleep { background: var(--accent); }
+.exh-dot--mat { background: var(--green); }
+.exh-dot--tech { background: var(--violet); }
+.exh-dot--etc { background: var(--slate); }
 
-/* 2열 — 행사 목록(5개 넘으면 스크롤) */
-.exh-list { display: flex; flex-direction: column; max-height: 210px; overflow-y: auto; }
+/* ── 01 지도 ── */
+.exh-map {
+  /* ★ 세로 여유를 실측으로 맞췄다. 16/10(167px)에서는 라벨 4장(장당 51px)이
+     물리적으로 안 들어가 계속 겹쳤다. 라벨을 3줄(45px)로 줄이고 16/12(201px)로
+     키우면 줄 간격 48px > 라벨 45px 라 겹칠 수가 없다. */
+  position: relative; width: 100%; aspect-ratio: 16 / 12;
+  background: var(--field); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+}
+.exh-map__img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: .5; }
+/* 라벨 — 가로는 경도 자리, 세로는 겹치지 않게 나눠 둔 줄(band). 위치는 인라인 style. */
+.exh-mk { position: absolute; display: flex; max-width: 62%; }
+.exh-mk--l { justify-content: flex-end; transform: translateX(-100%); }
+/* 도시 점 — 라벨과 따로 찍는다(라벨은 나라마다 하나뿐이라) */
+.exh-mk__p {
+  position: absolute; transform: translate(-50%, -50%);
+  display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;
+  background: rgba(255, 255, 255, .9); box-shadow: 0 0 0 1px var(--line);
+}
+.exh-mk__lb {
+  display: none;                                  /* 좁을 때는 점만 — 글자가 서로 겹친다 */
+  background: var(--card); border: 1px solid var(--line); border-radius: 7px;
+  padding: 3px 6px; line-height: 1.25; white-space: nowrap; box-shadow: var(--shadow);
+}
+/* 나라와 도시는 한 줄에 같이 둔다 — 줄 수를 줄여야 4장이 겹치지 않는다 */
+.exh-mk__lb b { font-size: 9px; font-weight: 800; color: var(--ink); }
+.exh-mk__lb em { font-size: 8.5px; font-style: normal; color: var(--text); margin-left: 3px; }
+.exh-mk__lb u {
+  display: block; font-size: 8px; text-decoration: none; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.exh-mk__lb s { display: block; font-size: 8.5px; text-decoration: none; font-weight: 700; color: var(--navy-2); }
+/* 폭이 넉넉할 때만 라벨을 띄운다 */
+@media (min-width: 1180px) { .exh-mk__lb { display: block; } }
+
+.exh-lgs { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
+.exh-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
+
+/* ── 02 행사 목록 ── */
+.exh-list { display: flex; flex-direction: column; max-height: 232px; overflow-y: auto; }
 .exh-li {
-  display: block; padding: 7px 0; border-bottom: 1px solid var(--line);
-  color: inherit; text-decoration: none; position: relative;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+  color: inherit; text-decoration: none;
 }
 .exh-li:last-child { border-bottom: 0; }
 .exh-li:hover .exh-li__n { color: var(--navy-2); text-decoration: underline; }
-.exh-li__n { display: block; font-size: 12px; font-weight: 700; color: var(--ink);
-  line-height: 1.4; word-break: keep-all; padding-right: 46px; }
-.exh-li__m { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px;
-  font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.exh-li__c { color: var(--text); font-weight: 600; }
+.exh-li__l { display: inline-flex; align-items: center; gap: 5px; }
+.exh-li__dt { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exh-li__r { min-width: 0; }
+.exh-li__n {
+  font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.exh-li__s {
+  display: block; font-size: 10px; color: var(--muted); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .exh-li__d {
-  position: absolute; top: 7px; right: 0;
   font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 999px;
-  background: var(--blue-soft); color: var(--navy-2);
+  background: var(--blue-soft); color: var(--navy-2); white-space: nowrap;
 }
 .exh-li__d.is-soon { background: var(--accent-soft); color: var(--accent); }
 .exh-li__d.is-past { background: var(--line); color: var(--muted); }
+.exh-li__go { color: var(--muted); font-size: 13px; }
 
-/* 3열 — 리포트 */
+/* ── 03 리포트 ── */
 .exh-rep { display: flex; flex-direction: column; }
-.exh-rep__i { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.exh-rep__i {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line);
+}
 .exh-rep__i:last-child { border-bottom: 0; }
-.exh-rep__t { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.45; word-break: keep-all; }
-.exh-rep__m { margin-top: 2px; font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.exh-rep__ic { width: 17px; height: 17px; color: var(--accent); flex: 0 0 auto; }
+.exh-rep__ic svg { width: 100%; height: 100%; display: block; }
+.exh-rep__b { min-width: 0; }
+.exh-rep__t {
+  display: block; font-size: 11.5px; font-weight: 700; color: var(--ink); line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.exh-rep__s {
+  display: block; font-size: 10px; color: var(--muted); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.exh-rep__d { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* 4열 — 다음 행사(사진 배경)
-   ★ 배경은 임시로 제품 사진을 쓴다. 나중에 행사장 사진으로 교체할 자리다
-     — 아래 background-image 의 파일명만 바꾸면 된다. */
+/* ── 04 다음 행사 (사진 배경) ──
+   ★ 배경은 임시로 제품 사진이다. 나중에 행사장 사진으로 교체할 자리 —
+     아래 url(...) 파일명만 바꾸면 된다. */
 .exh-next {
-  position: relative; min-height: 132px; border-radius: 10px; overflow: hidden;
+  position: relative; min-height: 158px; border-radius: 12px; overflow: hidden;
   display: flex; align-items: flex-end;
-  background-image: linear-gradient(180deg, rgba(16, 26, 51, .28) 0%, rgba(16, 26, 51, .88) 100%),
+  background-image: linear-gradient(180deg, rgba(16, 26, 51, .18) 0%, rgba(16, 26, 51, .9) 72%),
     url("public/products/bed-1.png");
   background-size: cover; background-position: center;
 }
 .exh-next__d {
-  position: absolute; top: 9px; left: 9px;
+  position: absolute; top: 10px; right: 10px;
   background: var(--accent); color: #FFFFFF;
-  font-size: 12px; font-weight: 800; letter-spacing: -.01em;
-  padding: 3px 9px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; letter-spacing: .02em;
+  padding: 4px 10px; border-radius: 7px;
 }
-.exh-next__b { padding: 10px 11px; color: #FFFFFF; min-width: 0; }
-.exh-next__n { font-size: 12.5px; font-weight: 800; line-height: 1.35; word-break: keep-all; }
-.exh-next__m { margin-top: 3px; font-size: 11px; color: var(--navy-ink);
-  font-variant-numeric: tabular-nums; }
+.exh-next__b { padding: 11px 12px; color: #FFFFFF; min-width: 0; width: 100%; }
+.exh-next__h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.exh-next__n { font-size: 14px; font-weight: 800; line-height: 1.3; }
+.exh-next__tag {
+  font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+  background: rgba(255, 255, 255, .22); color: #FFFFFF; white-space: nowrap;
+}
+.exh-next__m {
+  margin-top: 4px; font-size: 10.5px; color: var(--navy-ink);
+  display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums;
+}
+.exh-next__go {
+  position: absolute; right: 10px; bottom: 10px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--blue); color: #FFFFFF; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.exh-next__go:hover { filter: brightness(1.1); }
 
 .exh-note { font-size: 10.5px; color: var(--muted); line-height: 1.55; }
-.exh4__foot { padding: 6px 14px 12px; }
+.exh4__foot { padding: 6px 15px 13px; }
 
-/* 반응형 — 768px 이하에서는 4열을 세로로 쌓는다(구분선도 가로선으로) */
+/* 검색 결과로 찾아간 '항목'도 카드와 같은 방식으로 짚어 준다 */
+.is-found { outline: 2px solid var(--navy-2); outline-offset: 2px; border-radius: 6px; }
+
+/* 반응형 — 768px 이하에서는 4칸을 세로로 쌓고 구분선을 가로선으로 */
 @media (max-width: 768px) {
-  .exh4__cols { grid-template-columns: 1fr; gap: 14px; }
-  .exh-col { border-left: 0; border-top: 1px solid var(--line); padding: 12px 14px 0; }
+  .exh4__cols { grid-template-columns: 1fr; gap: 16px; }
+  .exh-col { border-left: 0; border-top: 1px solid var(--line); padding: 14px 15px 0; }
   .exh-col:first-child { border-top: 0; padding-top: 0; }
   .exh-list { max-height: none; }
 }
 
-/* 인쇄: 목록 스크롤을 풀어 내용이 빠지지 않게 한다 */
+/* 인쇄: 목록 스크롤을 풀고 4칸을 유지한다 */
 @media print {
   .exh-list { max-height: none !important; overflow: visible !important; }
-  .exh-col, .exh-li, .exh-rep__i, .exh-next { break-inside: avoid; page-break-inside: avoid; }
   .exh4__cols { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .exh-col, .exh-li, .exh-rep__i, .exh-next { break-inside: avoid; page-break-inside: avoid; }
+  .exh-col__more, .exh-next__go { display: none !important; }
 }

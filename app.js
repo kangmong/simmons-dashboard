@@ -12845,14 +12845,18 @@ function wirePatent() {
 let _searchIdx = [];
 
 /** 섹션 id → 화면에 보일 이름. dash-card 의 data-section 과 같은 키를 쓴다. */
+/* label = 결과에 붙는 태그, view = setView() 에 넘길 실제 뷰 이름.
+   ★ 뷰 이름은 VIEWS 배열에 있는 값이어야 한다('material'·'patent'…).
+   ★ 전용 화면이 없는 카드(전시회)는 view 를 'dashboard' 로 둔다 —
+     대시보드로 돌아간 뒤 그 카드로 스크롤·강조만 한다. */
 const SEARCH_SECTIONS = {
-  simmons_news: '시몬스 코리아 소식',
-  material: '원자재 · 원가 동향',
-  competitor: '국내외 경쟁사 분기 실적',
-  domestic: '신제품 · 브랜드 동향',
-  patent: '특허 · 신소재 동향',
-  fx: '환율 (원화 시세)',
-  exhibitions: '해외 전시회 · 컨퍼런스',
+  simmons_news: { label: '시몬스 코리아 소식', view: 'simmons_news' },
+  material: { label: '원자재 · 원가 동향', view: 'material' },
+  competitor: { label: '국내외 경쟁사 분기 실적', view: 'competitor' },
+  domestic: { label: '신제품 · 브랜드 동향', view: 'domestic' },
+  patent: { label: '특허 · 신소재 동향', view: 'patent' },
+  fx: { label: '환율 (원화 시세)', view: 'fx' },
+  exhibitions: { label: '해외 전시회 · 컨퍼런스', view: 'dashboard' },
 };
 
 /** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
@@ -12864,9 +12868,10 @@ function buildSearchIndex() {
   const push = (sectionId, title, snippet) => {
     const t = sIdxStr(title);
     if (!t) return;                       // 제목이 없으면 검색 결과로 쓸 수 없다
+    const sec = SEARCH_SECTIONS[sectionId] || { label: sectionId, view: 'dashboard' };
     idx.push({
-      type: SEARCH_SECTIONS[sectionId], title: t,
-      snippet: sIdxStr(snippet), sectionId: sectionId,
+      type: sec.label, title: t, snippet: sIdxStr(snippet),
+      sectionId: sectionId, viewId: sec.view,
     });
   };
 
@@ -12967,7 +12972,8 @@ function renderSearchResults(q) {
     ? '<div class="hdr-drop__cnt">' + rows.length + '건'
       + (rows.length === 20 ? ' (상위 20건)' : '') + '</div>'
       + rows.map((r, i) => '<button type="button" class="sr-item" role="option"'
-        + ' aria-selected="false" data-sr="' + i + '" data-sec="' + escapeHtml(r.sectionId) + '">'
+        + ' aria-selected="false" data-sr="' + i + '" data-sec="' + escapeHtml(r.sectionId) + '"'
+        + ' data-view="' + escapeHtml(r.viewId) + '" data-title="' + escapeHtml(r.title) + '">'
         + '<span class="sr-item__t">' + srMark(r.title, key) + '</span>'
         + '<span class="sr-item__m"><span class="sr-tag">' + escapeHtml(r.type) + '</span>'
         + (r.snippet ? '<span class="sr-item__s">' + srMark(r.snippet, key) + '</span>' : '')
@@ -12977,20 +12983,72 @@ function renderSearchResults(q) {
   input.setAttribute('aria-expanded', 'true');
 }
 
-/** 결과 클릭 → 해당 섹션 카드로 스크롤 + 2초간 테두리 강조 */
-function searchGoto(sectionId) {
-  const content = document.getElementById('content');
-  /* 포커스(단일 섹션) 화면에서는 다른 섹션 카드가 숨겨져 있으므로 대시보드로 되돌린다.
-     ★ setView() 가 window.scrollTo(0,0) 을 부르기 때문에, 스크롤은 그 다음 프레임에
-       해야 한다. 같은 프레임에서 부르면 맨 위로 되감겨 아무 데도 못 간다. */
-  if (content && content.dataset.view !== 'dashboard') setView('dashboard');
-  requestAnimationFrame(() => {
-    const card = document.querySelector('.dash-card[data-section="' + sectionId + '"]');
-    if (!card) return;
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    card.classList.add('is-found');
-    setTimeout(() => card.classList.remove('is-found'), 2000);
-  });
+/** 2초만 테두리로 짚어 준다 */
+function searchFlash(elm) {
+  if (!elm) return;
+  elm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  elm.classList.add('is-found');
+  setTimeout(() => elm.classList.remove('is-found'), 2000);
+}
+
+/** 전환된 화면 안에서 제목과 맞는 '가장 작은' 요소를 찾는다.
+ *  ★ 가장 안쪽(자식이 더 안 걸리는) 것을 고른다 — 안 그러면 섹션 전체가
+ *    잡혀서 카드를 통째로 강조하게 된다. 못 찾으면 null. */
+function searchFindItem(scope, title) {
+  const raw = String(title || '').trim();
+  if (!scope || !raw) return null;
+  const SEL = 'tr, li, .sk-card, .ig-card, .dom-item, .gco-card, .ds-card, .mk-card,'
+    + ' .mt-card, .news-card, .fxa-c, .sq-row, .exh-li, .exh-rep__i, .viz-figure';
+  /* ★ .viz-figure(도표 한 덩이)도 후보에 넣는다 — 원자재 화면에는 원료 용어
+     표가 렌더되지 않아(tr 0개), 'PPG'를 품은 가장 작은 요소가 그 도표다.
+     빼 버리면 섹션 카드를 통째로 강조하게 된다. */
+  const nodes = [].slice.call(scope.querySelectorAll(SEL)).filter((e) =>
+    e.offsetParent !== null || getComputedStyle(e).position === 'fixed');
+
+  /* ★ 제목을 그대로 못 찾는 경우가 있다 — 인덱스 제목은 우리가 이어 붙인
+     문자열이라(예: 'PPG — Polypropylene Glycol (…)') 화면의 표 한 줄에는
+     그 구분자(' — ')가 없다. 그래서 전체 → 앞토막 → 앞 8글자 순으로 좁혀 본다. */
+  const keys = [];
+  const add = (v) => {
+    const k = String(v || '').trim().toLowerCase();
+    if (k && keys.indexOf(k) < 0) keys.push(k);
+  };
+  add(raw);
+  add(raw.split(' — ')[0]);
+  add(raw.split(' (')[0]);
+  add(raw.slice(0, 8));
+
+  for (let i = 0; i < keys.length; i++) {
+    let best = null;
+    nodes.forEach((e) => {
+      const t = (e.textContent || '').trim().toLowerCase();
+      if (!t || t.indexOf(keys[i]) < 0) return;
+      /* 가장 안쪽(글자 수가 가장 적은) 것을 고른다 — 아니면 섹션이 통째로 잡힌다 */
+      if (!best || t.length < best.len) best = { el: e, len: t.length };
+    });
+    if (best) return best.el;
+  }
+  return null;
+}
+
+/** 결과 클릭 → 그 항목이 사는 '전용 화면'으로 전환한 뒤, 항목까지 스크롤 + 강조.
+ *  ★ setView() 가 window.scrollTo(0,0) 을 부르므로 스크롤은 그 다음 프레임에
+ *    해야 한다. 같은 프레임에서 부르면 맨 위로 되감겨 아무 데도 못 간다.
+ *  ★ 화면을 바꾸면 그 섹션이 다시 그려지는 경우가 있어, 항목을 못 찾으면
+ *    한 번 더 늦게 찾아본다(그래도 없으면 섹션 카드를 강조한다). */
+function searchGoto(viewId, sectionId, title) {
+  const view = (VIEWS.indexOf(viewId) >= 0) ? viewId : 'dashboard';
+  setView(view);
+  const card = () => document.querySelector('.dash-card[data-section="' + sectionId + '"]');
+  const tryFlash = (retry) => {
+    const c = card();
+    if (!c) return;
+    const item = searchFindItem(c, title);
+    if (item && item !== c) { searchFlash(item); return; }
+    if (retry > 0) { setTimeout(() => tryFlash(retry - 1), 260); return; }
+    searchFlash(c);                       // 항목을 못 찾으면 카드째 강조
+  };
+  requestAnimationFrame(() => tryFlash(2));
 }
 
 function initSearch() {
@@ -13014,7 +13072,7 @@ function initSearch() {
     const b = e.target.closest('.sr-item');
     if (!b) return;
     close();
-    searchGoto(b.dataset.sec);
+    searchGoto(b.dataset.view, b.dataset.sec, b.dataset.title);
   });
 
   /* 키보드: ↑↓ 이동 · Enter 선택 · Esc 닫기 */
@@ -13035,7 +13093,7 @@ function initSearch() {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const pick = items[cur >= 0 ? cur : 0];
-      if (pick) { close(); searchGoto(pick.dataset.sec); }
+      if (pick) { close(); searchGoto(pick.dataset.view, pick.dataset.sec, pick.dataset.title); }
     }
   });
 
@@ -13104,12 +13162,28 @@ function exhRange(item) {
   return a.getFullYear() + '. ' + f(a) + ' ~ ' + tail;
 }
 
-/** 컬럼 머리 — 01~04 번호 배지 + 제목 */
-function exhColH(no, title, sub) {
+/* 분류 4가지 — 1열 지도 범례 점 색과 2열 태그 색이 같은 표를 본다.
+   JSON 의 category 값이 이 표에 없으면 '기타'로 떨어진다(색이 비지 않게). */
+const EXH_CATS = [
+  { key: '가구·인테리어', cls: 'furn' },
+  { key: '수면·매트리스', cls: 'sleep' },
+  { key: '소재·기술', cls: 'mat' },
+  { key: '가전·테크', cls: 'tech' },
+];
+function exhCatCls(v) {
+  const hit = EXH_CATS.filter((c) => c.key === sIdxStr(v))[0];
+  return hit ? hit.cls : 'etc';
+}
+
+/** 컬럼 머리 — 01~04 번호 배지 + 제목 (+ 오른쪽 '전체 보기') */
+function exhColH(no, title, moreView) {
   return '<div class="exh-col__h">'
     + '<span class="exh-col__no">' + no + '</span>'
     + '<span class="exh-col__t">' + escapeHtml(title) + '</span>'
-    + (sub ? '<span class="exh-col__s">' + escapeHtml(sub) + '</span>' : '')
+    + (moreView
+      ? '<button type="button" class="exh-col__more" data-exhmore="' + escapeHtml(moreView) + '">'
+        + '전체 보기 ›</button>'
+      : '')
     + '</div>';
 }
 
@@ -13117,6 +13191,16 @@ function exhColH(no, title, sub) {
 function exhDlabel(d) {
   if (d == null) return '';
   return (d < 0) ? '종료' : (d === 0 ? 'D-DAY' : 'D-' + d);
+}
+
+/** 'YYYY.MM.DD ~ MM.DD' — 참고 디자인의 날짜 표기(숫자 정렬용) */
+function exhShort(item) {
+  const a = exhDate(item.start), b = exhDate(item.end);
+  if (!a) return '';
+  const p2 = (n) => String(n).padStart(2, '0');
+  const head = a.getFullYear() + '.' + p2(a.getMonth() + 1) + '.' + p2(a.getDate());
+  if (!b || +a === +b) return head;
+  return head + ' ~ ' + p2(b.getMonth() + 1) + '.' + p2(b.getDate());
 }
 
 function renderExhibitions() {
@@ -13132,79 +13216,142 @@ function renderExhibitions() {
     .sort((a, b) => String(a.start).localeCompare(String(b.start)));
   const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
 
-  /* ── 1열: 미니 세계지도 + 개최 도시 점 ──────────────────────────────────
-     좌표는 JSON 의 lat/lon 을 그대로 쓴다. 등장방형도법이라
-     x=(lon+180)/360, y=(90-lat)/180 로 바로 퍼센트가 된다
-     (프로젝트의 다른 지도들과 같은 계산). 좌표가 없으면 찍지 않는다. */
-  const seenCity = {};
-  const marks = items.filter((x) => {
-    if (x.lat == null || x.lon == null) return false;
+  /* ── 01 : 미니 세계지도 + 개최지 라벨 ────────────────────────────────────
+     좌표는 JSON 의 lat/lon. 등장방형도법이라 x=(lon+180)/360, y=(90-lat)/180
+     이 그대로 퍼센트가 된다(프로젝트의 다른 지도들과 같은 계산).
+     ★ 같은 도시에서 여러 행사가 열리면 라벨을 하나로 합친다 — 겹쳐 찍으면
+       글자가 서로 위에 얹혀 읽을 수 없다. */
+  const byCity = {};
+  items.forEach((x) => {
+    if (x.lat == null || x.lon == null) return;
     const k = sIdxStr(x.city);
-    if (seenCity[k]) return false;            // 같은 도시는 한 번만
-    seenCity[k] = 1;
-    return true;
-  }).map((x) => {
-    const left = (Number(x.lon) + 180) / 360 * 100;
-    const top = (90 - Number(x.lat)) / 180 * 100;
-    const soon = (() => { const d = exhDday(x); return d != null && d >= 0 && d <= 120; })();
-    return '<span class="exh-mk' + (soon ? ' is-soon' : '') + '"'
-      + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
-      + ' title="' + escapeHtml(sIdxStr(x.city) + ' · ' + sIdxStr(x.name)) + '">'
-      + '<i></i><b>' + escapeHtml(sIdxStr(x.city)) + '</b></span>';
+    if (!byCity[k]) byCity[k] = { city: k, country: sIdxStr(x.country), lat: +x.lat, lon: +x.lon, evs: [] };
+    byCity[k].evs.push(x);
+  });
+  const cityList = Object.keys(byCity).map((k) => byCity[k]);
+
+  /* 점은 도시마다 하나씩 찍는다 */
+  const dots = cityList.map((c) => {
+    const left = (c.lon + 180) / 360 * 100;
+    const top = (90 - c.lat) / 180 * 100;
+    const d = c.evs.map((e) =>
+      '<i class="exh-dot exh-dot--' + exhCatCls(e.category) + '"></i>').join('');
+    return '<span class="exh-mk__p" style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%"'
+      + ' title="' + escapeHtml(c.city + ' · ' + c.evs.map((e) => sIdxStr(e.name)).join(', ')) + '">'
+      + d + '</span>';
   }).join('');
 
-  const col1 = exhColH('01', '주요 해외 전시·컨퍼런스 일정', Object.keys(seenCity).length + '개 도시')
-    + '<div class="exh-map">'
-    + '<img class="exh-map__img" src="world-map.svg" alt="" />'
-    + marks + '</div>';
+  /* ★ 라벨은 '나라마다 하나'만 단다 — 도시마다 달면 라스베이거스·콜럼버스,
+     쾰른·프랑크푸르트·밀라노처럼 가까운 것끼리 글자가 서로 겹쳐 읽을 수 없다.
+     대표 도시는 그 나라에서 가장 가까운 행사가 열리는 곳으로 잡는다. */
+  const byCountry = {};
+  cityList.forEach((c) => {
+    const k = c.country || c.city;
+    const soonest = c.evs.slice().sort((a, b) =>
+      String(a.start).localeCompare(String(b.start)))[0];
+    if (!byCountry[k] || String(soonest.start) < String(byCountry[k].ev.start)) {
+      byCountry[k] = { country: k, city: c.city, lat: c.lat, lon: c.lon, ev: soonest };
+    }
+  });
+  /* ★ 라벨의 세로 위치는 '나라의 위도'가 아니라 줄(band)로 정한다.
+     지도 폭이 약 270px 뿐이라, 위도 자리에 그대로 두면 라벨끼리 겹친다
+     (경도 순으로 위/아래만 번갈아 봤지만 독일·중국이 계속 겹쳤다).
+     경도 순으로 줄을 하나씩 나눠 주면 세로가 서로 겹칠 수가 없다.
+     가로(경도)는 그대로 두므로 어느 대륙인지는 그대로 읽힌다. */
+  const marksArr = Object.keys(byCountry).map((k) => byCountry[k]).sort((a, b) => a.lon - b.lon);
+  /* 지도 높이 약 184px, 라벨 약 40px — 4줄이 서로 안 닿게 24%(약 44px)씩 띄운다 */
+  const BAND_TOP = 4, BAND_GAP = 24;
+  const marks = marksArr.map((c, i) => {
+    const left = (c.lon + 180) / 360 * 100;
+    const top = BAND_TOP + (i * BAND_GAP);
+    const side = (left > 55) ? ' exh-mk--l' : '';   // 오른쪽 끝은 라벨을 왼쪽으로
+    return '<div class="exh-mk' + side + '"'
+      + ' style="left:' + left.toFixed(2) + '%;top:' + top.toFixed(2) + '%">'
+      + '<span class="exh-mk__lb">'
+      + '<b>' + escapeHtml(c.country) + '</b>'
+      + '<em>' + escapeHtml(c.city) + '</em>'
+      + '<u>' + escapeHtml(String(c.ev.start).slice(0, 7)) + '</u>'
+      + '<s>' + escapeHtml(sIdxStr(c.ev.name).split(' (')[0]) + '</s>'
+      + '</span></div>';
+  }).join('');
 
-  /* ── 2열: 행사 목록 (최대 5개, 넘치면 스크롤) ───────────────────────── */
+  const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
+    + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
+
+  const col1 = exhColH('01', '주요 해외 전시·컨퍼런스 일정', 'worldclock')
+    + '<div class="exh-map"><img class="exh-map__img" src="world-map.svg" alt="" />'
+    + dots + marks + '</div>'
+    + '<div class="exh-lgs">' + legend + '</div>';
+
+  /* ── 02 : 행사 목록 (최대 5, 넘치면 스크롤) ───────────────────────────── */
   const listSrc = (upcoming.length ? upcoming : items.slice().reverse()).slice(0, 5);
-  const col2 = exhColH('02', '주요 전시·컨퍼런스 목록', listSrc.length + '건')
+  const col2 = exhColH('02', '주요 전시회 · 컨퍼런스 목록', '')
     + '<div class="exh-list">' + listSrc.map((x) => {
       const d = exhDday(x);
-      const cls = (d == null) ? '' : (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''));
       const link = sIdxStr(x.link);
-      const inner = '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name)) + '</span>'
-        + '<span class="exh-li__m">'
-        + '<span class="exh-li__c">' + escapeHtml(sIdxStr(x.city) || '—') + '</span>'
-        + '<span>' + escapeHtml(exhRange(x)) + '</span></span>'
-        + (d == null ? '' : '<span class="exh-li__d' + cls + '">' + exhDlabel(d) + '</span>');
+      const inner = '<span class="exh-li__l">'
+        + '<i class="exh-dot exh-dot--' + exhCatCls(x.category) + '"></i>'
+        + '<span class="exh-li__dt">' + escapeHtml(exhShort(x)) + '</span></span>'
+        + '<span class="exh-li__r">'
+        + '<span class="exh-li__n">' + escapeHtml(sIdxStr(x.name).split(' (')[0]) + '</span>'
+        + '<span class="exh-li__s">' + escapeHtml(sIdxStr(x.city))
+        + (x.category ? ' · ' + escapeHtml(sIdxStr(x.category)) : '') + '</span></span>'
+        + (d == null ? '' : '<span class="exh-li__d' + (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''))
+          + '">' + exhDlabel(d) + '</span>')
+        + '<span class="exh-li__go" aria-hidden="true">›</span>';
       return link
         ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
           + inner + '</a>'
         : '<div class="exh-li">' + inner + '</div>';
     }).join('') + '</div>';
 
-  /* ── 3열: 최신 리포트·인사이트 (최대 4개) ───────────────────────────── */
+  /* ── 03 : 최신 리포트·인사이트 (최대 4) ───────────────────────────────── */
   const reps = (_exh.reports || []).slice()
     .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 4);
-  const col3 = exhColH('03', '최신 리포트 · 인사이트', reps.length + '건')
+  const col3 = exhColH('03', '최신 리포트 · 인사이트', '')
     + (reps.length
       ? '<div class="exh-rep">' + reps.map((r) => '<div class="exh-rep__i">'
-        + '<div class="exh-rep__t">' + escapeHtml(sIdxStr(r.title)) + '</div>'
-        + '<div class="exh-rep__m">' + escapeHtml(sIdxStr(r.date))
-        + (r.source ? ' · ' + escapeHtml(sIdxStr(r.source)) : '') + '</div></div>').join('') + '</div>'
+        + '<span class="exh-rep__ic" aria-hidden="true">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"'
+        + ' stroke-linecap="round" stroke-linejoin="round">'
+        + '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />'
+        + '<path d="M14 3v5h5" /><path d="M9 13h6M9 16.5h4" /></svg></span>'
+        + '<span class="exh-rep__b">'
+        + '<span class="exh-rep__t">' + escapeHtml(sIdxStr(r.title)) + '</span>'
+        + (r.source ? '<span class="exh-rep__s">(' + escapeHtml(sIdxStr(r.source)) + ')</span>' : '')
+        + '</span>'
+        + '<span class="exh-rep__d">' + escapeHtml(sIdxStr(r.date)) + '</span>'
+        + '</div>').join('') + '</div>'
       : '<div class="exh-note">등록된 리포트가 없습니다.</div>');
 
-  /* ── 4열: 다음 주요 행사 — 사진 배경 카드 ────────────────────────────
-     ★ 배경 사진은 임시로 제품 사진(bed-1.png)을 쓴다.
-       나중에 행사장 사진으로 교체할 자리다(CSS .exh-next 의 background-image). */
+  /* ── 04 : 다음 주요 행사 — 사진 배경 카드 ─────────────────────────────
+     ★ 배경 사진은 임시로 제품 사진(bed-1.png)을 쓴다. 나중에 행사장 사진으로
+       교체할 자리다 — CSS .exh-next 의 background-image 파일명만 바꾸면 된다. */
   const next = upcoming[0] || null;
   const col4 = exhColH('04', '다음 주요 행사', '')
     + (next
       ? '<div class="exh-next">'
         + '<span class="exh-next__d">' + exhDlabel(exhDday(next)) + '</span>'
         + '<div class="exh-next__b">'
-        + '<div class="exh-next__n">' + escapeHtml(sIdxStr(next.name)) + '</div>'
-        + '<div class="exh-next__m">' + escapeHtml(sIdxStr(next.city)) + ' · '
-        + escapeHtml(exhRange(next)) + '</div>'
-        + '</div></div>'
+        + '<div class="exh-next__h">'
+        + '<span class="exh-next__n">' + escapeHtml(sIdxStr(next.name).split(' (')[0]) + '</span>'
+        + (next.category
+          ? '<span class="exh-next__tag">' + escapeHtml(sIdxStr(next.category)) + '</span>' : '')
+        + '</div>'
+        + '<div class="exh-next__m"><span aria-hidden="true">🗓</span>'
+        + escapeHtml(exhShort(next)) + '</div>'
+        + '<div class="exh-next__m"><span aria-hidden="true">📍</span>'
+        + escapeHtml([next.country, next.city].filter(Boolean).join(' ')) + '</div>'
+        + '</div>'
+        + (sIdxStr(next.link)
+          ? '<a class="exh-next__go" href="' + escapeHtml(next.link) + '" target="_blank"'
+            + ' rel="noopener noreferrer" aria-label="' + escapeHtml(sIdxStr(next.name)) + ' 공식 사이트">→</a>'
+          : '')
+        + '</div>'
       : '<div class="exh-note">예정된 행사가 없습니다. 일정을 갱신해 주세요.</div>');
 
   el.innerHTML = '<div class="exh4">'
     + '<div class="exh4__bar" aria-hidden="true"></div>'
-    + '<div class="exh4__hd"><h3 class="exh4__t">해외 전시회 · 컨퍼런스</h3></div>'
     + '<div class="exh4__cols">'
     + '<div class="exh-col">' + col1 + '</div>'
     + '<div class="exh-col">' + col2 + '</div>'
@@ -13219,4 +13366,14 @@ function renderExhibitions() {
     + '출처: ' + escapeHtml(sIdxStr(_exh.source) || '각 행사 공식 사이트')
     + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
     + '</div></div>';
+
+  /* '전체 보기' — 해당 화면으로 전환. 매번 다시 그리므로 위임으로 한 번만 건다. */
+  if (!el.dataset.wired) {
+    el.dataset.wired = '1';
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-exhmore]');
+      if (!b) return;
+      setView(b.dataset.exhmore);
+    });
+  }
 }
