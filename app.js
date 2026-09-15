@@ -91,7 +91,7 @@ function sourceDistribution(rows) {
    섹션 탭 전환
    ============================================================ */
 const VIEWS = ['dashboard', 'simmons_news', 'material', 'competitor', 'domestic',
-  'patent', 'fx', 'worldclock'];
+  'patent', 'fx', 'worldclock', 'exh'];
 
 /** 화면 전환: 'dashboard'(그리드) ↔ 개별 섹션(포커스). 차트는 재렌더 없이 CSS로 리플로우 */
 function setView(view) {
@@ -11463,6 +11463,8 @@ function refreshSections() {
   renderPatent();         // ★ 빠져 있었다 — 초기화해도 특허 카드가 그대로 남았다
   renderMaterial();
   renderFx();
+  renderExhMap();       // 전시회: 데이터 없으면 '준비중' 빈 상태
+  renderExhList();
   updateDashHeader();
   buildSearchIndex();   // 섹션 데이터가 바뀌면 검색 인덱스도 같이 갱신한다
 }
@@ -11486,7 +11488,6 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshSections(); // 빈 STORE → 모든 섹션 "준비중" 빈 상태
   initWorldClock();  // 세계 시간: 업데이트와 무관하게 로드 즉시 실시간 표시
   initHeroDate();    // 히어로 배너 우측 상단 '오늘 날짜'
-  fetchExhibitions();  // 해외 전시회·컨퍼런스: 커밋된 정적 JSON (업데이트와 무관)
   buildSearchIndex();  // 페이지 로드 시 통합 검색 인덱스 1차 생성
 });
 
@@ -11563,6 +11564,7 @@ function resetDashboard() {
   _fxStage = null;      // 2단계 상세에서 보고 있었다면 목록으로 되돌린다
   _fxdRange = null; _fxdTab = 'chart'; _fxdCandle = '1d';
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
+  _exh = null; _exhErr = null;   // 해외 전시·컨퍼런스 비우기('준비중'으로 되돌린다)
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
   _fxReport = false;    // 환율 리포트 접기
@@ -11668,6 +11670,10 @@ function initUpdate() {
     // await 하지 않는다. 실패하면 목록에 '주가 조회 일시 불가'가 뜨고
     // 환율 카드·차트는 그대로 동작한다.
     fetchStockQuotes();
+    // 순수 추가: 해외 전시·컨퍼런스 — 커밋된 정적 JSON.
+    // ★ 예전에는 페이지 로드 때 바로 불렀는데, 그러면 [업데이트] 를 누르기도 전에
+    //   이 카드만 내용이 차 있어 다른 섹션과 어긋났다. 다른 카드와 같은 시점에 채운다.
+    fetchExhibitions();
     // 순수 추가: SIMMONS IG — 커밋된 instagram.json 을 읽는다(Apify 호출 없음).
     // await 하지 않는다 — 다른 카드가 이 로드를 기다리지 않게 한다.
     fetchInstagram();
@@ -12890,7 +12896,7 @@ const SEARCH_SECTIONS = {
   domestic: { label: '신제품 · 브랜드 동향', view: 'domestic' },
   patent: { label: '특허 · 신소재 동향', view: 'patent' },
   fx: { label: '환율 (원화 시세)', view: 'fx' },
-  exh: { label: '해외 전시 · 컨퍼런스 동향', view: 'dashboard' },
+  exh: { label: '해외 전시 · 컨퍼런스 동향', view: 'exh' },
 };
 
 /** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
@@ -13268,11 +13274,40 @@ function renderExhMap() {
       + '</span>';
   }).join('');
 
+  /* ★ 어디서 열리는지 지도에서 바로 읽히도록 라벨을 단다.
+     · 라벨은 '나라마다 하나'다 — 도시마다 달면 라스베이거스·콜럼버스,
+       쾰른·프랑크푸르트·밀라노처럼 붙은 것끼리 글자가 서로 위에 얹힌다.
+     · 세로 위치는 위도가 아니라 줄(band)로 나눈다. 지도가 173px 밖에 안 돼
+       위도 자리에 그대로 두면 유럽 셋이 한 덩어리로 겹친다.
+       가로(경도)는 그대로라 어느 대륙인지는 읽힌다. */
+  const byCountry = {};
+  cities.forEach((c) => {
+    const k = c.country || c.city;
+    const soonest = c.evs.slice().sort((a, b) =>
+      String(a.start).localeCompare(String(b.start)))[0];
+    if (!byCountry[k] || String(soonest.start) < String(byCountry[k].ev.start)) {
+      byCountry[k] = { country: k, city: c.city, lat: c.lat, lon: c.lon, ev: soonest };
+    }
+  });
+  const labArr = Object.keys(byCountry).map((k) => byCountry[k]).sort((a, b) => a.lon - b.lon);
+  const BAND_TOP = 5, BAND_GAP = 23;      // % — 4줄이면 5·28·51·74%
+  const labels = labArr.map((c, i) => {
+    const left = (c.lon + 180) / 360 * 100;
+    const side = (left > 55) ? ' exh-lb--l' : '';
+    return '<div class="exh-lb' + side + '" style="left:' + left.toFixed(2)
+      + '%;top:' + (BAND_TOP + i * BAND_GAP).toFixed(2) + '%">'
+      + '<span class="exh-lb__b">'
+      + '<b>' + escapeHtml(c.country) + '</b><em>' + escapeHtml(c.city) + '</em>'
+      + '<u>' + escapeHtml(String(c.ev.start).slice(0, 7)) + ' · '
+      + escapeHtml(sIdxStr(c.ev.name).split(' (')[0]) + '</u>'
+      + '</span></div>';
+  }).join('');
+
   const legend = EXH_CATS.map((c) => '<span class="exh-lg">'
     + '<i class="exh-dot exh-dot--' + c.cls + '"></i>' + escapeHtml(c.key) + '</span>').join('');
 
   el.innerHTML = '<div class="exh-map">'
-    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + '</div>'
+    + '<img class="exh-map__img" src="world-map.svg" alt="" />' + dots + labels + '</div>'
     + '<div class="exh-lgs">' + legend + '</div>'
     /* ★ 각주는 두 줄 안에 끝내야 한다 — 카드 본문이 150px 라 세 줄이 되면
        마지막 줄이 페이드에 잘린다. 출처 문구는 '잠정치'와 내용이 겹쳐 뺐다. */
@@ -13286,11 +13321,16 @@ function renderExhMap() {
 function renderExhList() {
   const el = document.getElementById('exhListRoot');
   if (!el) return;
+  const split = document.querySelector('.exh-split');
+  /* ★ 데이터가 없을 때 안내문은 한 번만 낸다. 왼쪽·오른쪽이 각자 emptyState 를
+     그리면 같은 문장이 나란히 두 번 뜬다(실제로 그렇게 보였다).
+     안내문은 왼쪽이 맡고, 오른쪽 칸과 구분선은 접는다. */
   if (!_exh) {
-    el.innerHTML = emptyState(_exhErr
-      ? '전시회 일정을 불러오지 못했습니다 — ' + _exhErr : '전시회 일정 준비중');
+    el.innerHTML = '';
+    if (split) split.classList.add('is-empty');
     return;
   }
+  if (split) split.classList.remove('is-empty');
   const items = exhSorted();
   const upcoming = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
   /* 다가오는 것 우선, 하나도 없으면 최근 것. 최대 5개 (넘치면 카드 안에서 스크롤) */

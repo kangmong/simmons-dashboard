@@ -4062,6 +4062,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .exh-split__l { min-width: 0; padding-right: 14px; display: flex; min-height: 0; }
 .exh-split__r { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line);
   display: flex; min-height: 0; }
+/* 데이터가 없을 때(업데이트 전) — 오른쪽 칸과 구분선을 접고 안내문 한 줄만 */
+.exh-split.is-empty { grid-template-columns: 1fr; }
+.exh-split.is-empty .exh-split__r { display: none; }
+.exh-split.is-empty .exh-split__l { padding-right: 0; }
+
 /* 렌더러가 만든 래퍼(#exhMapRoot · #exhListRoot)도 같이 늘어나야 한다 */
 .exh-split__l > div, .exh-split__r > div {
   display: flex; flex-direction: column; width: 100%; min-height: 0;
@@ -4092,6 +4097,21 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 지도가 88 → 173px 로 커진 만큼 마커도 키운다 — 7px 이면 점이 너무 작아 보인다.
    범례 점은 글자(10px) 옆이라 그대로 7px 를 쓴다. */
 .exh-mk .exh-dot { width: 9px; height: 9px; }
+/* 개최지 라벨 — 가로는 경도 자리, 세로는 겹치지 않게 나눠 둔 줄(위치는 인라인 style) */
+.exh-lb { position: absolute; display: flex; max-width: 58%; pointer-events: none; }
+.exh-lb--l { justify-content: flex-end; transform: translateX(-100%); }
+.exh-lb__b {
+  background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+  padding: 2px 5px; line-height: 1.3; white-space: nowrap; box-shadow: var(--shadow);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.exh-lb__b b { font-size: 9px; font-weight: 800; color: var(--ink); }
+.exh-lb__b em { font-size: 8.5px; font-style: normal; color: var(--text); margin-left: 3px; }
+.exh-lb__b u {
+  display: block; font-size: 8px; text-decoration: none; color: var(--muted);
+  font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis;
+}
+
 .exh-lgs { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-top: 7px; }
 .exh-lg { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
 
