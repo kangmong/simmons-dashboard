@@ -427,7 +427,11 @@ body {
 .more-link:hover { text-decoration: underline; }
 
 /* 대시보드(그리드) 모드: 카드 본문을 요약 높이로 축소 + 하단 페이드 */
-.content[data-view="dashboard"] .dash-card .panel-body { max-height: 150px; overflow: hidden; position: relative; }
+/* ★ 요약 본문 높이. 150px 이면 3줄을 다 쌓아도 화면 아래가 남았다.
+   215px 로 키우면 카드 한 장이 약 267px → 3줄 = 약 821px 로 뷰포트를 채운다. */
+.content[data-view="dashboard"] .dash-card .panel-body { max-height: 215px; overflow: hidden; position: relative; }
+/* 내용이 짧은 카드도 같은 높이로 서게 한다(줄마다 높이가 들쭉날쭉하지 않게) */
+.content[data-view="dashboard"] .dash-grid > .dash-card { min-height: 267px; }
 .content[data-view="dashboard"] .dash-card .panel-body::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 20px;
   background: linear-gradient(to bottom, transparent, var(--card)); pointer-events: none;
@@ -4041,22 +4045,17 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
    ★ 카드가 작아진 만큼 예전 전체 폭 판의 '나라 라벨'은 넣지 않는다 —
      라벨 한 장이 45px 라 150px 안에 네 장이 물리적으로 안 들어간다.
    ============================================================ */
-/* 헤더의 파란 원형 번호 배지 — 01 · 02 두 카드가 같이 쓴다 */
-.exh-no {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 19px; height: 19px; margin-right: 6px; border-radius: 50%;
-  background: var(--navy-2); color: #FFFFFF;
-  font-size: 10px; font-weight: 800; letter-spacing: .02em;
-  vertical-align: middle;
+/* 지도 + 목록을 한 카드에 담고 2칸을 쓴다 — [세계 시간][전시·컨퍼런스(2칸)]
+   로 마지막 줄이 꽉 찬다(카드 8장 = 3+3+2칸). */
+.dash-card--span2 { grid-column: span 2; align-self: stretch; }
+.dash-card--span2 .panel-body { display: flex; }
+.exh-split {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0; width: 100%;
 }
-.dash-card[data-section="exh_map"] .dash-card__title,
-.dash-card[data-section="exh_list"] .dash-card__title {
-  display: flex; align-items: center; min-width: 0;
-}
-/* ★ .dash-grid 는 align-items:start 라 카드마다 제 높이로 선다. 두 카드는
-   내용이 조금 짧아 198px 이 되어 세계시간(202px)과 4px 어긋났다.
-   이 둘만 stretch 로 돌려 줄 높이에 맞춘다(세계시간이 기준이 된다). */
-.dash-card[data-section="exh_map"], .dash-card[data-section="exh_list"] { align-self: stretch; }
+/* 카드를 쪼개지 않고 세로 구분선 하나로만 나눈다 */
+.exh-split__l { min-width: 0; padding-right: 14px; }
+.exh-split__r { min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); }
 
 /* 분류 점 — 지도 범례와 목록이 같은 색표를 본다 */
 .exh-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
@@ -4086,10 +4085,10 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
    ★ 목록 카드만 본문 캡(150px)을 풀고, 대신 목록 자체에 같은 높이를 준다.
      캡을 그대로 두면 4·5번째 행사가 페이드에 잘려 아예 볼 수 없다(스크롤이 안 된다).
      이렇게 하면 카드 높이는 그대로 202px 인 채로 5건을 다 넘겨 볼 수 있다. */
-.content[data-view="dashboard"] .dash-card[data-section="exh_list"] .panel-body {
+.content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body {
   max-height: none; overflow: visible;
 }
-.content[data-view="dashboard"] .dash-card[data-section="exh_list"] .panel-body::after { display: none; }
+.content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body::after { display: none; }
 .exh-list { display: flex; flex-direction: column; max-height: 150px; overflow-y: auto; }
 .exh-li {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4130,7 +4129,20 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
      이 규칙이 파일 뒤쪽에 있어 같은 우선순위에서 나중 것이 이긴다(!important 불필요). */
 @media (max-width: 768px) {
   .dash-grid { grid-template-columns: 1fr; }
+  /* ★★ span 2 를 풀지 않으면 1열로 바꿔도 소용이 없다 — 1열 그리드에 span 2 인
+     항목이 있으면 브라우저가 암묵적으로 2번째 열을 만들어 버려 계속 2열로 보인다
+     (실제로 390px 에서도 2열이었다). */
+  .dash-card--span2 { grid-column: auto; }
+  /* 좁은 화면에서는 지도와 목록도 위아래로 — 구분선은 가로선으로 바꾼다 */
+  .exh-split { grid-template-columns: 1fr; }
+  .exh-split__l { padding-right: 0; }
+  .exh-split__r {
+    padding-left: 0; border-left: 0;
+    border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px;
+  }
   .exh-list { max-height: none; }
+  /* 카드 한 장이 화면을 다 먹지 않게 요약 높이 상한을 되돌린다 */
+  .content[data-view="dashboard"] .dash-grid > .dash-card { min-height: 0; }
 }
 
 /* 인쇄: 캡을 푼 뒤에도 각 항목이 페이지 경계에서 갈라지지 않게 */

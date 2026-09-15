@@ -563,10 +563,10 @@ function renderSimmonsNews() {
   }
   el.innerHTML = items.map((it) => {
     const url = safeUrl(it.link);
-    const img = safeUrl(it.image);
+    const img = imgUrl(it.image);
     // 썸네일: 이미지 있으면 표시(로드 실패 시 그라데이션+워드마크로 대체), 없으면 그라데이션
     const thumb = img
-      ? `<div class="sk-card__thumb"><img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('sk-card__thumb--ph');this.remove()"><span class="sk-card__wm">SIMMONS</span></div>`
+      ? `<div class="sk-card__thumb"><img src="${escapeHtml(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-orig="${escapeHtml(safeUrl(it.image) || img)}" onerror="skImgFallback(this)"><span class="sk-card__wm">SIMMONS</span></div>`
       : `<div class="sk-card__thumb sk-card__thumb--ph"><span class="sk-card__wm">SIMMONS</span></div>`;
     const tag = url ? 'a' : 'div';
     const attrs = url ? ` href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : '';
@@ -633,7 +633,7 @@ function renderInstagram() {
   }
   el.innerHTML = items.map((it) => {
     const url = safeUrl(it.link);
-    const img = safeUrl(it.image);
+    const img = imgUrl(it.image);
     // 이미지가 없거나 로드에 실패하면 대체 블록(크림슨 그라데이션 + 안내 문구)을 보여준다.
     // 인스타그램 CDN 주소는 서명이 만료되면 404 가 나므로 실패는 정상 경로로 다룬다.
     const thumb = img
@@ -2420,6 +2420,40 @@ function fmtDate(d) {
 function safeUrl(u) {
   const s = String(u || '').trim();
   return /^https?:\/\//i.test(s) ? s : null;
+}
+
+/** 썸네일 로드 실패 시 한 번만 서버 프록시로 우회하고, 그래도 실패하면
+ *  기존 그라데이션 플레이스홀더로 넘긴다.
+ *  ★ 왜 프록시가 필요한가 — 언론사 호스트 중에 https 인증서가 만료된 곳이 있다
+ *    (wsobi.com 이 그랬다). 그러면 https 는 브라우저가 거부하고, http 는 배포본이
+ *    https 라 mixed content 로 막혀 어느 쪽으로도 못 받는다. 서버가 대신 받아
+ *    같은 출처로 흘려 주면 그때만 보인다.
+ *  ★ 평소에는 직접 불러온다 — 실패했을 때만 이 경로를 타므로 대역폭을 늘리지 않는다.
+ *  ★ data-orig 는 https 로 올리기 '전' 주소다. 인증서가 깨진 호스트는 http 쪽이
+ *    멀쩡한 경우가 많아, 프록시에는 원래 주소를 넘긴다. */
+function skImgFallback(im) {
+  if (!im) return;
+  const toPh = () => {
+    if (im.parentNode) im.parentNode.classList.add('sk-card__thumb--ph');
+    im.remove();
+  };
+  if (im.dataset.proxied) { toPh(); return; }     // 프록시까지 실패 → 플레이스홀더
+  const orig = im.dataset.orig || im.getAttribute('src');
+  if (!orig) { toPh(); return; }
+  im.dataset.proxied = '1';
+  im.src = '/api/img?u=' + encodeURIComponent(orig);
+}
+
+/** 이미지 주소 — safeUrl 을 거친 뒤 http 를 https 로 올린다.
+ *  ★★ 배포본은 https 인데 언론사 썸네일이 http 로 오는 경우가 있다. 그대로 두면
+ *    브라우저가 mixed content 로 막아 이미지가 통째로 안 뜨고, onerror 가 돌아
+ *    분홍 플레이스홀더만 남는다. 로컬(http)에서는 멀쩡해서 놓치기 쉬운 문제다.
+ *    수집기(api/update.py _https_img)에서도 올려 주지만, 이미 커밋된 옛 데이터를
+ *    위해 화면에서도 한 번 더 올린다. */
+function imgUrl(u) {
+  const s = safeUrl(u);
+  if (!s) return null;
+  return s.startsWith('http://') ? 'https://' + s.slice(7) : s;
 }
 
 /** 이미지 경로 — 절대 https 이거나, 저장소 안 public/... 상대경로만 허용한다.
@@ -8323,7 +8357,7 @@ function applyGlobalBrandsUpdate(data) {
 function brandFeatureCards(featList, colors) {
   return featList.map((it) => {
     const url = safeUrl(it.link);
-    const img = safeUrl(it.image);
+    const img = imgUrl(it.image);
     const logo = safeUrl(it.logo_url);
     const logo2 = safeUrl(it.logo_fallback);
     const color = colors[it.brand] || 'var(--accent)';
@@ -8356,7 +8390,7 @@ function brandFeatureCards(featList, colors) {
 function brandListItems(items, colors) {
   return items.map((it) => {
     const url = safeUrl(it.link);
-    const img = safeUrl(it.image);
+    const img = imgUrl(it.image);
     const color = colors[it.brand] || 'var(--accent)';
     const brand = String(it.brand || '');
     const meta = [it.source, it.date].filter(Boolean).join(' · ');
@@ -12856,7 +12890,7 @@ const SEARCH_SECTIONS = {
   domestic: { label: '신제품 · 브랜드 동향', view: 'domestic' },
   patent: { label: '특허 · 신소재 동향', view: 'patent' },
   fx: { label: '환율 (원화 시세)', view: 'fx' },
-  exh_list: { label: '해외 전시회 · 컨퍼런스', view: 'dashboard' },
+  exh: { label: '해외 전시 · 컨퍼런스 동향', view: 'dashboard' },
 };
 
 /** 문자열 정리 — 없으면 빈 문자열(인덱스에 'null' 이 들어가지 않게) */
@@ -12920,7 +12954,7 @@ function buildSearchIndex() {
   /* 6) 해외 전시회 · 컨퍼런스 — 이 카드의 개최지(국가·도시)가 인덱스에서
      유일하게 나라 이름을 가진 자료다('미국' 같은 검색어가 여기서 걸린다). */
   ((_exh && _exh.items) || []).forEach((x) => {
-    push('exh_list', x.name,
+    push('exh', x.name,
       [x.city, x.country, exhRange(x)].filter(Boolean).join(' · '));
   });
 

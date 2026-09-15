@@ -148,8 +148,47 @@ def _decode_gnews_url(link, timeout=8):
     return link
 
 
-def _page_image(page_url, timeout=8):
-    """기사 페이지 대표 이미지: og:image → twitter:image → link[image_src] → 본문 첫 큰 이미지."""
+_CANONICAL_RE = re.compile(
+    r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', re.I)
+
+
+def _https_img(url):
+    """이미지 주소를 https 로 올린다.
+
+    ★ 배포본은 https 로 서비스되는데 언론사 썸네일이 http 로 오는 경우가 있다.
+      그대로 두면 브라우저가 mixed content 로 막아 버려 이미지가 통째로 안 뜬다
+      (로컬 http 개발 화면에서는 멀쩡해서 놓치기 쉽다).
+      실제로 wsobi·biztribune 썸네일이 http 였고, 같은 주소가 https 로도 200 을
+      돌려준다(바이트 수 동일). 그래서 스킴만 올려 준다.
+    """
+    if isinstance(url, str) and url.startswith("http://"):
+        return "https://" + url[7:]
+    return url
+
+
+def _img_from_html(html, base_url):
+    """HTML 한 장에서 대표 이미지 뽑기. 못 찾으면 None."""
+    for rx in _IMG_METAS:
+        m = rx.search(html)
+        if m:
+            img = urllib.parse.urljoin(base_url, m.group(1).strip())
+            if img.startswith("http") and "googleusercontent" not in img:
+                return img
+    for m in re.finditer(r'<img[^>]+(?:data-src|src)=["\']([^"\']+\.(?:jpe?g|png|webp)[^"\']*)', html, re.I):
+        img = urllib.parse.urljoin(base_url, m.group(1).strip())
+        if img.startswith("http") and "googleusercontent" not in img:
+            return img
+    return None
+
+
+def _page_image(page_url, timeout=8, _depth=0):
+    """기사 페이지 대표 이미지: og:image → twitter:image → link[image_src] → 본문 첫 큰 이미지.
+
+    ★ 못 찾으면 rel="canonical" 을 한 번만 따라간다. Google News 가 주는 주소가
+      AMP 판(articleViewAmp.html)인 경우가 있는데, AMP 판에는 og:image 가 아예
+      없고 정규 주소에는 있다(인사이트코리아 기사에서 실제로 그랬다:
+      AMP 11KB·이미지 없음 / 정규 197KB·og:image 있음).
+    """
     if not page_url or not page_url.startswith("http"):
         return None
     try:
@@ -158,16 +197,17 @@ def _page_image(page_url, timeout=8):
         html = r.text
     except Exception:  # noqa: BLE001
         return None
-    for rx in _IMG_METAS:
-        m = rx.search(html)
+
+    img = _img_from_html(html, page_url)
+    if img:
+        return _https_img(img)
+
+    if _depth == 0:                       # 정규 주소로 딱 한 번만 더 가 본다
+        m = _CANONICAL_RE.search(html)
         if m:
-            img = urllib.parse.urljoin(page_url, m.group(1).strip())
-            if img.startswith("http") and "googleusercontent" not in img:
-                return img
-    for m in re.finditer(r'<img[^>]+(?:data-src|src)=["\']([^"\']+\.(?:jpe?g|png|webp)[^"\']*)', html, re.I):
-        img = urllib.parse.urljoin(page_url, m.group(1).strip())
-        if img.startswith("http") and "googleusercontent" not in img:
-            return img
+            canon = urllib.parse.urljoin(page_url, m.group(1).strip())
+            if canon.startswith("http") and canon != page_url:
+                return _page_image(canon, timeout=timeout, _depth=1)
     return None
 
 

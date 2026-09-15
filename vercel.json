@@ -24,6 +24,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/img.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -166,6 +170,13 @@
         "POST"
       ],
       "dest": "/api/instagram.py"
+    },
+    {
+      "src": "/api/img",
+      "methods": [
+        "GET"
+      ],
+      "dest": "/api/img.py"
     },
     {
       "handle": "filesystem"

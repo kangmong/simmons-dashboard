@@ -2204,6 +2204,27 @@ def api_weather_news():
     return jsonify(fetch_region_news(region))
 
 
+@app.route("/api/img", methods=["GET"])
+def api_img():
+    """기사 썸네일 프록시 — 배포(api/img.py)와 같은 동작을 로컬에서도 쓴다.
+       화면은 직접 로드가 실패했을 때만 이 경로로 우회한다."""
+    from flask import request, Response
+    import importlib.util, os
+    url = request.args.get("u", "")
+    if not url:
+        return Response("u 파라미터가 필요합니다", status=400, mimetype="text/plain")
+    spec = importlib.util.spec_from_file_location(
+        "_img_proxy", os.path.join(os.path.dirname(__file__), "api", "img.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    try:
+        content, ctype = mod.fetch_image(url)
+    except Exception as e:  # noqa: BLE001
+        return Response(str(e)[:200], status=502, mimetype="text/plain")
+    return Response(content, mimetype=ctype,
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.route("/api/instagram", methods=["GET", "POST"])
 def api_instagram():
     """SIMMONS IG — Vercel 의 api/instagram.py 와 같은 응답.
