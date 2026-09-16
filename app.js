@@ -5588,8 +5588,14 @@ function renderXsiHtml() {
       <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다${_xsiData
         && _xsiData.unitNote ? ' · ' + escapeHtml(_xsiData.unitNote) : ''}</div>
     </div></div>`;
+  /* ★ 링크로 바꿀 토막은 반드시 각주 문구 안에 실제로 들어 있는 말이어야 한다.
+     예전에는 'XSI-C 지수 목록' 을 넘겼는데 그 말은 각주에 없어(gLinkify 는 문구 안에서
+     그 토막을 찾아 <a> 로 바꿀 뿐이다) 아무 것도 링크가 되지 않았다 — 다른 원자재
+     항목은 출처를 누르면 홈페이지가 뜨는데 이 카드만 글자로만 남은 이유다.
+     기관명을 그대로 링크한다(Sea-Intelligence 각주와 같은 방식). */
   const cap = capSrc('출처: Compass Financial Technologies (Xeneta Shipping Index)',
-    [{ text: 'XSI-C 지수 목록', url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/' }]);
+    [{ text: 'Compass Financial Technologies',
+      url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/?family=xsi' }]);
 
   if (!_xsiData) {
     return `<div class="viz-root viz-figure xsi-figure">${head}`
