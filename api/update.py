@@ -102,11 +102,16 @@ def _http():
 
 
 # 기사 페이지에서 대표 이미지 후보 (og:image → twitter:image → link[image_src])
+# [*] 속성 사이 구분자는 [^>]* 여야 한다(+ 아님).
+#    스포츠경향(khan) 기사는 <meta property="og:image"content="..." /> 처럼
+#    따옴표와 다음 속성이 붙어 있다. +는 사이에 최소 한 글자를 요구해서
+#    이런 태그를 통째로 놓쳤고, 247KB 짜리 기사 페이지인데도
+#    '메타 태그 없음'으로 떨어졌다(이케아 기사).
 _IMG_METAS = [
-    re.compile(r'<meta[^>]+property=["\']og:image(?::secure_url)?["\'][^>]+content=["\']([^"\']+)', re.I),
-    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', re.I),
-    re.compile(r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]+content=["\']([^"\']+)', re.I),
-    re.compile(r'<link[^>]+rel=["\']image_src["\'][^>]+href=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]*property=["\']og:image(?::secure_url)?["\'][^>]*content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]*content=["\']([^"\']+)["\'][^>]*property=["\']og:image["\']', re.I),
+    re.compile(r'<meta[^>]+name=["\']twitter:image(?::src)?["\'][^>]*content=["\']([^"\']+)', re.I),
+    re.compile(r'<link[^>]+rel=["\']image_src["\'][^>]*href=["\']([^"\']+)', re.I),
 ]
 
 
@@ -1304,7 +1309,7 @@ def _img_usable(img, base=None):
     return img
 
 
-def _meta_image(page_url, timeout=8):
+def _meta_image(page_url, timeout=8, _depth=0):
     """기사 페이지의 '메타 태그만' 보고 대표 이미지를 뽑는다. (실패 사유와 함께 반환)
        ★ 본문 <img> 크롤링은 하지 않는다 — 매체마다 구조가 달라 광고가 잡힌다.
        ★ 기본 8초. 예전 5초에서는 느린 매체가 시간 안에 안 끝나 이미지가 있는 기사도
@@ -1329,6 +1334,23 @@ def _meta_image(page_url, timeout=8):
             u = _img_usable(m.group(1), page_url)
             if u:
                 return u, None
+
+    # ★★ 못 찾으면 rel="canonical" 을 딱 한 번 따라간다.
+    #   Google News 가 주는 주소가 AMP 판인 경우가 있는데, AMP 판에는 og:image 가
+    #   아예 없고 정규 주소에는 있다. 매일일보 기사가 실제로 그랬다
+    #   (AMP 8.5KB·이미지 없음 / 정규 185KB·og:image 있음) — '알레르망 자리에
+    #   A 만 보인다'가 이 경우였다.
+    #   _page_image 는 예전부터 이렇게 하고 있었는데, 브랜드 뉴스가 쓰는
+    #   이 함수에만 빠져 있었다.
+    if _depth == 0:
+        m = _CANONICAL_RE.search(html)
+        if m:
+            canon = urllib.parse.urljoin(page_url, _htmlmod.unescape(m.group(1).strip()))
+            if canon.startswith("http") and canon != page_url:
+                u, why2 = _meta_image(canon, timeout=timeout, _depth=1)
+                if u:
+                    return u, None
+                return None, "정규 주소에도 없음(%s)" % why2
     return None, "메타 태그 없음/부적합"
 
 
