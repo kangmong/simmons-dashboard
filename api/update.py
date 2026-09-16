@@ -1096,6 +1096,15 @@ def _brand_relevant(title, source, brand=None, desc=None):
 # 브랜드 기사 이미지 추출 동시 요청 수. 차단되면 낮출 것(보수적으로 4에서 시작).
 BRAND_IMG_WORKERS = 8
 
+# 브랜드당 후보를 몇 개까지 모을지 / 최종적으로 몇 건까지 보여 줄지
+# ★★ 예전에는 둘이 같은 3 이었다. 그래서 '먼저 걸린 3건'이 그대로 확정됐고,
+#   그 안에 사진을 받을 수 없는 기사(Forbes 쿠폰 모음글처럼 403 을 주는 매체)가
+#   섞여 있어도 그 자리를 그대로 차지했다. 뒤에 사진 있는 기사가 줄지어 있어도
+#   쳐다보지도 않고 넘어갔다 — 구글 뉴스는 브랜드당 100건씩 준다.
+#   이제 후보를 넉넉히 모아 두고, 사진을 받을 수 있는 것을 먼저 골라 쓴다.
+BRAND_CAND_PER_BRAND = 6      # 모아 두는 후보 수
+BRAND_SHOW_PER_BRAND = 3      # 화면에 내보내는 최대 건수(예전과 같다)
+
 # ── 신제품 동향 판정 (국내·국외 공통) ───────────────────────────────────
 # 제외: 실적·재무·M&A·인사 기사. 섹션 제목이 '신제품·브랜드 동향'인데 이런 기사가 섞였다.
 # ★ 실적은 '국내외 경쟁사 분기 실적' 섹션이 따로 있어 중복이다.
@@ -1458,10 +1467,10 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
                 media_by_link[link] = media
             collected.append({"brand": brand, "title": title, "source": source,
                               "date": _fmt_pubdate(pub), "link": link,
-                              "grade": grade, "grade_kw": gkw,
+                              "grade": grade, "grade_kw": gkw, "rank": cnt,
                               "product_name": _product_name(title, brand, source)})
             cnt += 1
-            if cnt >= 3:  # 브랜드별 최신 최대 3건(중복 제거 재료 확보)
+            if cnt >= BRAND_CAND_PER_BRAND:   # 브랜드별 후보 상한
                 break
         brand_stat[brand] = cnt
         print("[brand_news][%s] 검색 %d건 → 통과 %d건 / 제외 %d건" % (brand, seen, cnt, len(dropped)))
@@ -1481,13 +1490,43 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
     #   순차로 돌리면 국내 24건에 70초가 걸렸다(전체의 90%). 스레드 풀로 병렬화한다.
     #   기사마다 언론사가 달라 특정 호스트에 몰리지 않으므로 sleep 없이 동시 4개로 제한.
     img_cache, img_stat, img_fail = {}, {"rss": 0, "meta": 0}, []
-    links = list(dict.fromkeys(it["link"] for it in collected if it.get("link")))
-    if links:
+
+    def _fetch_images(link_list):
+        """주어진 링크들의 대표 이미지를 병렬로 받아 img_cache 에 담는다."""
+        link_list = [l for l in link_list if l and l not in img_cache]
+        if not link_list:
+            return
         with concurrent.futures.ThreadPoolExecutor(
-                max_workers=min(BRAND_IMG_WORKERS, len(links))) as _ex:
-            for lk, res in zip(links, _ex.map(
-                    lambda l: _brand_image(l, media_by_link.get(l)), links)):
+                max_workers=min(BRAND_IMG_WORKERS, len(link_list))) as _ex:
+            for lk, res in zip(link_list, _ex.map(
+                    lambda l: _brand_image(l, media_by_link.get(l)), link_list)):
                 img_cache[lk] = res
+
+    # ★ 1차: 브랜드마다 앞의 BRAND_SHOW_PER_BRAND 건만 본다 — 예전과 같은 요청 수다.
+    _fetch_images(list(dict.fromkeys(
+        it["link"] for it in collected
+        if it.get("link") and it.get("rank", 0) < BRAND_SHOW_PER_BRAND)))
+
+    # ★ 2차: 사진을 확보한 기사가 정원에 못 미치는 브랜드만, 남겨 둔 후보를 더 본다.
+    #   (모든 브랜드가 1차에서 다 채워지면 2차 요청은 아예 나가지 않는다 —
+    #    평소에는 수집 시간이 예전 그대로고, 모자란 브랜드에서만 더 쓴다.)
+    have = {}
+    for it in collected:
+        if it.get("rank", 0) < BRAND_SHOW_PER_BRAND and img_cache.get(it.get("link"), (None,))[0]:
+            have[it["brand"]] = have.get(it["brand"], 0) + 1
+    short = {it["brand"] for it in collected
+             if have.get(it["brand"], 0) < BRAND_SHOW_PER_BRAND}
+    if short:
+        extra = list(dict.fromkeys(
+            it["link"] for it in collected
+            if it.get("link") and it.get("rank", 0) >= BRAND_SHOW_PER_BRAND
+            and it["brand"] in short))
+        if extra:
+            print("[brand_news] 사진이 모자란 브랜드 %d곳 → 예비 후보 %d건을 더 확인"
+                  % (len(short), len(extra)))
+            _fetch_images(extra)
+
+    links = list(dict.fromkeys(it["link"] for it in collected if it.get("link")))
     for it in collected:
         img, how = img_cache.get(it.get("link"), (None, "링크 없음"))
         it["image"] = img
@@ -1570,14 +1609,23 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
     if dropped_dup:
         print("[brand_news] 상단과 중복된 기사 %d건을 하단에서 제외" % dropped_dup)
     items, picked = [], set()
+    per_brand = {}
     for r in pool:  # 브랜드별 대표 먼저(브랜드 누락 방지)
-        if r["brand"] not in {x["brand"] for x in items}:
+        if r["brand"] not in per_brand:
             items.append(r)
             picked.add(id(r))
-    for r in pool:  # 남은 슬롯 채움
-        if id(r) not in picked and len(items) < items_max:
-            items.append(r)
-            picked.add(id(r))
+            per_brand[r["brand"]] = 1
+    # ★ 남은 슬롯은 (사진 있는 것 → 최신) 순으로 채우되 브랜드당 상한을 지킨다.
+    #   후보를 6건까지 모으게 되면서, 상한이 없으면 기사가 많은 한 브랜드가
+    #   하단 목록을 독차지할 수 있다.
+    for r in pool:
+        if id(r) in picked or len(items) >= items_max:
+            continue
+        if per_brand.get(r["brand"], 0) >= BRAND_SHOW_PER_BRAND:
+            continue
+        items.append(r)
+        picked.add(id(r))
+        per_brand[r["brand"]] = per_brand.get(r["brand"], 0) + 1
     items = sorted(items[:items_max], key=lambda x: x["date"], reverse=True)
     # 그래도 모자라면 빈 칸 대신 안내 카드를 채운다.
     while len(featured) < 3:
