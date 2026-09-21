@@ -11823,6 +11823,10 @@ let _ptCo = '';           // 출원인
 let _ptKind = '';         // 출원 유형(등록·공개…)
 let _ptYear = '';         // 연도
 let _ptCat = '';          // 기술 분야(catLabel)
+/* 키워드(워드클라우드에서 고른 말). 행마다 words 배열에 어떤 키워드가 걸렸는지
+   이미 들어 있어서(수집기가 kipris_taxonomy.json 사전으로 표시해 둔다) 따로
+   찾아볼 것 없이 그대로 거를 수 있다 — 워드클라우드의 건수도 같은 배열을 센 값이다. */
+let _ptKw = '';           // 키워드
 let _ptPage = 1;          // 목록 페이지(1부터)
 const PT_PAGE_SIZE = 20;  // 한 페이지에 보여 줄 건수
 
@@ -11833,6 +11837,7 @@ function ptActiveFilters() {
   if (_ptKind) out.push({ k: 'kind', v: _ptKind, label: _ptKind });
   if (_ptCat) out.push({ k: 'cat', v: _ptCat, label: _ptCat });
   if (_ptCo) out.push({ k: 'co', v: _ptCo, label: _ptCo });
+  if (_ptKw) out.push({ k: 'kw', v: _ptKw, label: '키워드 ' + _ptKw });
   return out;
 }
 
@@ -11843,6 +11848,7 @@ function ptApplyFilters(rows) {
     if (_ptKind && (r.kind || '미표기') !== _ptKind) return false;
     if (_ptCat && (r.catLabel || '기타/미분류') !== _ptCat) return false;
     if (_ptCo && (r.company || '미표기') !== _ptCo) return false;
+    if (_ptKw && (r.words || []).indexOf(_ptKw) < 0) return false;
     return true;
   });
 }
@@ -11854,12 +11860,13 @@ function ptToggleFilter(kind, value) {
   else if (kind === 'kind') _ptKind = (_ptKind === v) ? '' : v;
   else if (kind === 'cat') _ptCat = (_ptCat === v) ? '' : v;
   else if (kind === 'co') _ptCo = (_ptCo === v) ? '' : v;
+  else if (kind === 'kw') _ptKw = (_ptKw === v) ? '' : v;
   _ptPage = 1;              // 조건이 바뀌면 첫 페이지부터
   renderPatent();
 }
 
 function ptClearFilters() {
-  _ptCo = ''; _ptKind = ''; _ptYear = ''; _ptCat = '';
+  _ptCo = ''; _ptKind = ''; _ptYear = ''; _ptCat = ''; _ptKw = '';
   _ptPage = 1;
   renderPatent();
 }
@@ -12418,13 +12425,25 @@ function ptWords(rows) {
   const max = items[0].n, min = items[items.length - 1].n;
   const size = (n) => (max === min ? 20 : 13 + (n - min) / (max - min) * 17);
   const shade = (n) => (max === min ? 0.85 : 0.5 + (n - min) / (max - min) * 0.5);
+  /* ★ 누르면 아래 '최근 주요 특허 출원' 표가 그 키워드가 걸린 출원만 남긴다.
+     다른 축(연도·유형·분야·출원인)과 같은 규칙이다 — 다시 누르면 해제되고,
+     필터 바의 [해제 ✕]·[전체 보기]로도 풀린다.
+     ★ span 이 아니라 button 이다: 키보드 Tab·Enter 가 저절로 되고, 화면 낭독기가
+       '누를 수 있는 것'으로 읽어 준다(예전에는 tabindex 만 있어 눌러도 반응이 없었다). */
   return '<div class="sm-card"><div class="sm-h">신소재 관련 특허 키워드 TOP10</div>'
-    + '<div class="pt-cloud">' + items.map((x) => '<span class="pt-cloud__w"'
-      + ' style="font-size:' + size(x.n).toFixed(1) + 'px;opacity:' + shade(x.n).toFixed(2)
-      + '" tabindex="0" data-tip="' + escapeHtml(x.w + ' · ' + x.n + '건')
-      + '" title="' + escapeHtml(x.w + ' · ' + x.n + '건') + '">'
-      + escapeHtml(x.w) + '<i>' + x.n + '</i></span>').join('') + '</div>'
-    + '<div class="sm-foot">형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
+    + '<div class="pt-cloud">' + items.map((x) => {
+      const on = _ptKw === x.w;
+      const tip = x.w + ' · ' + x.n + '건' + (on ? ' · 다시 누르면 해제' : ' · 눌러서 이 키워드만 보기');
+      return '<button type="button" class="pt-cloud__w' + (on ? ' is-on' : '') + '"'
+        + ' style="font-size:' + size(x.n).toFixed(1) + 'px'
+        + (on ? '' : ';opacity:' + shade(x.n).toFixed(2)) + '"'
+        + ' data-ptkw="' + escapeHtml(x.w) + '"'
+        + ' aria-pressed="' + (on ? 'true' : 'false') + '"'
+        + ' data-tip="' + escapeHtml(tip) + '" title="' + escapeHtml(tip) + '">'
+        + escapeHtml(x.w) + '<i>' + x.n + '</i></button>';
+    }).join('') + '</div>'
+    + '<div class="sm-foot">키워드를 누르면 아래 목록이 그 키워드가 걸린 출원만 남습니다. '
+    + '형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
     + ' 사전과 맞춰 센 결과입니다.</div></div>';
 }
 
@@ -12868,6 +12887,11 @@ function wirePatent() {
       if (k >= 1) { _ptPage = k; renderPatent(); }
       return;
     }
+    const kw = e.target && e.target.closest ? e.target.closest('[data-ptkw]') : null;
+    if (kw) {
+      ptToggleFilter('kw', kw.getAttribute('data-ptkw'));
+      return;
+    }
     const chip = e.target && e.target.closest ? e.target.closest('.pt-chip') : null;
     if (chip) {
       _ptCo = chip.getAttribute('data-ptco') || '';
@@ -12885,6 +12909,7 @@ function wirePatent() {
       else if (k === 'kind') { _ptKind = ''; renderPatent(); }
       else if (k === 'cat') { _ptCat = ''; renderPatent(); }
       else if (k === 'co') { _ptCo = ''; renderPatent(); }
+      else if (k === 'kw') { _ptKw = ''; renderPatent(); }
       return;
     }
     // 차트에서 고르기 — 도넛 조각·범례 / 연도 막대 / 기술분야 행 / 출원인 막대
