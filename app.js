@@ -3618,7 +3618,7 @@ function iiMaterialCards() {
   }).join('');
   if (!cards) return '';
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">① 원자재별 변동요인</h3>
+    <h3 class="subhead ii-h">원자재별 변동요인</h3>
     <div class="ii-mats">${cards}</div>
   </div>`;
 }
@@ -3883,7 +3883,12 @@ function renderMaterial() {
     const { periods, series } = icisViewData(_matYear);
     // 추세 연장은 화면이 데이터 끝까지 닿아 있을 때만 만든다(iiExtend 안에서 판단).
     const ext = iiExtend(periods);
-    body = vizUnitCap('USD/톤', 'USD') + buildIcisChart(periods, series, ext)
+    /* ★ '원자재별 변동요인'을 차트보다 먼저 놓는다 — 네 원료의 현재 값과
+       한 줄 설명을 먼저 보고 그 다음 추이를 보는 순서가 읽기 편하다.
+       (예전에는 같은 숫자를 KPI 줄로 차트 위에 한 번, 이 카드로 차트 아래에
+        한 번 보여 줬다. KPI 줄을 내리고 이 카드를 그 자리로 올린 것이다.) */
+    body = iiMaterialCards()
+      + vizUnitCap('USD/톤', 'USD') + buildIcisChart(periods, series, ext)
       + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
         + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
         + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
@@ -3896,8 +3901,8 @@ function renderMaterial() {
                              (아래 icisEventsSvg). 시점이 있는 이야기는 표보다
                              그래프 위에 찍혀 있을 때 값의 움직임과 이어진다.
          · iiOutlook(ext)    '단기·중기 전망'.
+         · iiImplications()  '시사점 및 의사결정 포인트' 3열.
          지우지 않고 남겨 둔 함수들이라 되살리려면 여기에 다시 부르면 된다. */
-      + iiMaterialCards() + iiImplications()
       + icisTermsTable()
       + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
@@ -4129,6 +4134,28 @@ function icisTermsTable() {
 
 /** 순수 추가: 용어표 아래 '다음 달 전망'. 예측 데이터 없으면 '' 반환(섹션 숨김).
  *  숫자는 백엔드가 계산(_icisForecast), 문장(comment/summary/caution)만 AI. 기존 환율값(_matUsdKrw) 참조. */
+/** 예측을 어떻게 낸 것인지 한눈에. 숫자를 만든 규칙을 그대로 옮긴 것이라
+ *  icis_forecast.py 를 고치면 이 문구도 같이 손봐야 한다.
+ *  ★ 값은 코드가 계산한다(AI 가 수치를 지어내지 않는다). 세 가지를 섞는다:
+ *    최근 6개월 선형추세 · 최근 3개월 모멘텀 · 최근 12개월 평균으로의 회귀.
+ *    먼 달일수록 추세·모멘텀 비중을 줄이고 평균회귀를 키운다(원자재는 급등 뒤
+ *    되돌림이 잦다). 신뢰구간은 최근 12개월 월간 변동성(1σ)에 √단계수를 곱한 폭. */
+function icisFcMethodHtml() {
+  const rows = [
+    ['선형추세', '최근 6개월 값을 직선으로 이어 다음 달로 연장'],
+    ['모멘텀', '최근 3개월 평균 변화율을 현재 값에 적용'],
+    ['평균회귀', '최근 12개월 평균 쪽으로 30% 되돌림'],
+  ];
+  return '<div class="icis-fc__how">'
+    + '<b class="icis-fc__how-t">예측 방법</b>'
+    + '<span class="icis-fc__how-b">아래 세 가지를 가중평균해 계산합니다 — '
+    + rows.map((r) => '<i>' + escapeHtml(r[0]) + '</i> ' + escapeHtml(r[1])).join(' · ')
+    + '. 먼 달일수록 추세·모멘텀 비중을 줄이고 평균회귀를 키웁니다'
+    + '(원자재는 급등 뒤 되돌림이 잦습니다). '
+    + '신뢰구간은 최근 12개월 월간 변동성(1σ)에 예측 개월수의 제곱근을 곱한 폭입니다. '
+    + '숫자는 모두 코드가 계산하며 AI 가 값을 만들지 않습니다.</span></div>';
+}
+
 function renderIcisForecastHtml() {
   const fc = _icisForecast;
   if (!fc || !Array.isArray(fc.materials) || !fc.materials.some((m) => m && m.status === 'ok')) return '';
@@ -4172,6 +4199,7 @@ function renderIcisForecastHtml() {
     ${sub}
     <div class="icis-fc__grid">${cards}</div>
     ${sum}${cau}
+    ${icisFcMethodHtml()}
     <div class="icis-fc__disc">통계적 추세 기반 참고용 추정치이며 실제 시황과 다를 수 있습니다. 구매 의사결정의 유일한 근거로 사용하지 마세요.</div>
   </div>`;
 }
