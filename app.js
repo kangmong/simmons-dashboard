@@ -3230,6 +3230,70 @@ function msFracIndex(keys, date) {
 }
 
 /** 차트 안에 넣을 변곡점 마커 SVG. 이벤트가 없거나 축 밖이면 ''. */
+/* ── 히스토리 이벤트를 차트 위 마커로 ────────────────────────────────
+   icis-insights.json 의 timeline 은 '2021-02' 처럼 한 달짜리도 있고
+   '2023~2024'·'2021-H2'·'2026 상반기 후반' 처럼 기간짜리도 있다.
+   기간은 한 점으로 찍을 수 없으니 [시작달, 끝달] 로 풀어 두고, 지금 보고 있는
+   구간과 겹치는 부분의 한가운데에 찍는다 — 그래야 '2023~2024' 가 2023 칩에서도
+   2024 칩에서도 보인다(한 점으로 굳히면 한쪽에서 사라진다). */
+function iiEventRange(raw) {
+  const t = String(raw || '').trim();
+  let m;
+  if ((m = t.match(/^(\d{4})-(\d{2})\s*~\s*(\d{2})$/))) return [m[1] + '-' + m[2], m[1] + '-' + m[3]];
+  if ((m = t.match(/^(\d{4})-(\d{2})/))) return [m[1] + '-' + m[2], m[1] + '-' + m[2]];
+  if ((m = t.match(/^(\d{4})\s*-?\s*H([12])$/i))) {
+    return m[2] === '1' ? [m[1] + '-01', m[1] + '-06'] : [m[1] + '-07', m[1] + '-12'];
+  }
+  if ((m = t.match(/^(\d{4})\s*[~\u2013-]\s*(\d{4})$/))) return [m[1] + '-01', m[2] + '-12'];
+  if ((m = t.match(/^(\d{4})\s*상반기\s*후반/))) return [m[1] + '-04', m[1] + '-06'];
+  if ((m = t.match(/^(\d{4})\s*상반기/))) return [m[1] + '-01', m[1] + '-06'];
+  if ((m = t.match(/^(\d{4})\s*하반기\s*후반/))) return [m[1] + '-10', m[1] + '-12'];
+  if ((m = t.match(/^(\d{4})\s*하반기/))) return [m[1] + '-07', m[1] + '-12'];
+  if ((m = t.match(/^(\d{4})$/))) return [m[1] + '-01', m[1] + '-12'];
+  return null;
+}
+
+/** 라벨은 첫 마디만 — 차트 위는 자리가 좁다. 전체 문장은 툴팁(detail)이 맡는다. */
+function iiEventLabel(text) {
+  const t = String(text || '').trim();
+  const head = t.split(/[,，(]/)[0].trim();
+  return (head && head.length <= 18) ? head : t.slice(0, 16) + (t.length > 16 ? '…' : '');
+}
+
+/** 지금 보이는 구간(periods)에 겹치는 타임라인 이벤트 → 차트가 쓰는 모양으로. */
+function iiTimelineEvents(periods) {
+  const list = (_iiData && Array.isArray(_iiData.timeline)) ? _iiData.timeline : [];
+  if (!list.length || !periods || periods.length < 2) return [];
+  const lo = msMonthNo(periods[0].slice(0, 7));
+  const hi = msMonthNo(periods[periods.length - 1].slice(0, 7));
+  if (lo == null || hi == null) return [];
+  const out = [];
+  list.forEach((e) => {
+    const r = iiEventRange(e.date);
+    if (!r) return;
+    const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
+    if (a == null || b == null) return;
+    const from = Math.max(a, lo), to = Math.min(b, hi);
+    if (from > to) return;                       // 보이는 구간과 안 겹친다
+    const mid = Math.floor((from + to) / 2);
+    out.push({
+      date: msYmOfNo(mid),
+      label: iiEventLabel(e.event),
+      /* 툴팁에는 원래 표기·문장·영향을 그대로 (라벨은 줄여 놓았으므로) */
+      detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
+        .filter(Boolean).join(' — ') + (e.date ? ' (' + e.date + ')' : ''),
+    });
+  });
+  return out;
+}
+
+/** ICIS 차트 마커 = 시황 해설 이벤트 + 히스토리 이벤트 */
+function icisEventsSvg(periods, X, padT, plotH, W) {
+  const info = msFor('icis_asia_pu');
+  const base = (info && Array.isArray(info.events)) ? info.events : [];
+  return vizEventsSvg(base.concat(iiTimelineEvents(periods)), periods, X, padT, plotH, W);
+}
+
 function msEventsSvg(key, keys, X, padT, plotH, W) {
   const info = msFor(key);
   return vizEventsSvg((info && Array.isArray(info.events)) ? info.events : [],
@@ -3388,10 +3452,13 @@ function msPtsSr() {
   return srFlatten(ys).map((p) => ({ k: p.ym, v: p.v }));
 }
 
-/* ══ ICIS 6단 시황 패널 ═══════════════════════════════════════════════════
-   ① 가격 추이 + 추세 연장   ② 원자재별 변동요인   ③ 히스토리 타임라인
-   ④ 단기·중기 전망          ⑥ 시사점·의사결정 포인트
-   (⑤ 원가 시뮬레이션은 제품별 BOM 비중이 없어 이번에는 만들지 않는다)
+/* ══ ICIS 시황 패널 ══════════════════════════════════════════════════════
+   가격 추이 + 추세 연장(차트 · 히스토리 이벤트를 마커로 얹는다)
+   ① 원자재별 변동요인   ② 시사점·의사결정 포인트   원료 용어 설명   다음 달 전망
+   ★ 예전에 있던 '최신값 KPI 줄'·'단기 요인 상자'·'히스토리 이벤트 목록'·
+     '단기·중기 전망'은 내렸다. 최신값은 ①이 같은 숫자를 더 자세히 보여 주고,
+     히스토리는 차트 위 마커가 값의 움직임과 함께 보여 준다.
+     함수는 남겨 뒀으니 되살리려면 renderIcisSection 에서 다시 부르면 된다.
 
    ★★ 추세 연장은 '예측 모델'이 아니다. 최근 3개월 이동평균의 기울기를 그대로
      3개월 늘려 그은 직선일 뿐이며, 화면에도 그렇게 적는다. 수요·공급이나 지정학
@@ -3551,7 +3618,7 @@ function iiMaterialCards() {
   }).join('');
   if (!cards) return '';
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">② 원자재별 변동요인</h3>
+    <h3 class="subhead ii-h">① 원자재별 변동요인</h3>
     <div class="ii-mats">${cards}</div>
   </div>`;
 }
@@ -3706,7 +3773,7 @@ function iiImplications() {
   if (!cols) return '';
   const upd = (_iiData && _iiData.updated) ? String(_iiData.updated) : null;
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">⑥ 시사점 및 의사결정 포인트</h3>
+    <h3 class="subhead ii-h">② 시사점 및 의사결정 포인트</h3>
     <div class="ii-imps">${cols}</div>
     ${im.note ? `<div class="ii-cap">${escapeHtml(im.note)}</div>` : ''}
     <div class="ii-cap">시황 해설은 주기적으로 갱신됩니다${upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : ''}</div>
@@ -3820,9 +3887,17 @@ function renderMaterial() {
       + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
         + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
         + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
-      + icisLatest()
-      + msFactorsHtml('icis_asia_pu')
-      + iiMaterialCards() + iiTimeline() + iiOutlook(ext) + iiImplications()
+      /* ★ 뺀 것들 — 화면에서 겹치거나 값을 더해 주지 않던 블록이다.
+         · icisLatest()      최신값 KPI 줄. 바로 아래 '원자재별 변동요인' 카드가
+                             같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
+                             보여 줘서 같은 값을 두 번 읽게 했다.
+         · msFactorsHtml()   '단기 요인' 상자.
+         · iiTimeline()      '히스토리 이벤트' 목록 → 차트 위 마커로 옮겼다
+                             (아래 icisEventsSvg). 시점이 있는 이야기는 표보다
+                             그래프 위에 찍혀 있을 때 값의 움직임과 이어진다.
+         · iiOutlook(ext)    '단기·중기 전망'.
+         지우지 않고 남겨 둔 함수들이라 되살리려면 여기에 다시 부르면 된다. */
+      + iiMaterialCards() + iiImplications()
       + icisTermsTable()
       + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
   }
@@ -3985,7 +4060,7 @@ function buildIcisChart(periods, series, ext) {
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
       <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${msEventsSvg('icis_asia_pu', periods, X, padT, plotH, W)}
+      ${icisEventsSvg(periods, X, padT, plotH, W)}
     </svg>`;
 }
 
