@@ -3870,6 +3870,9 @@ function renderMaterial() {
      (전년비를 재려면 12개월이 필요하다). 해상 정시성 위젯과 같은 .sr-sum 을 쓴다.
      ★ 다만 '보여주는' 것은 연도 버튼을 누른 뒤다 — 섹션 공통 규칙(1차 필터를
        직접 고르기 전에는 요약박스까지 아무것도 내지 않는다). */
+  /* ★ 더 이상 화면에 내보내지 않는다 — 바로 아래 '원자재별 변동요인' 카드가
+     같은 네 숫자(PPG·TDI·MDI·PO)에 원화 환산과 한 줄 설명까지 얹어 보여 준다.
+     되살리려면 아래 템플릿의 toolbar 앞에 ${_matYear ? icisSum : ''} 를 넣으면 된다. */
   const icisSum = matSeriesBoxes(ICIS_SERIES.map((s) => ({
     label: s.key,
     pts: ICIS_DATA.periods.map((p, i) => ({ k: p, v: ICIS_DATA[s.key][i] }))
@@ -3889,9 +3892,13 @@ function renderMaterial() {
         한 번 보여 줬다. KPI 줄을 내리고 이 카드를 그 자리로 올린 것이다.) */
     body = iiMaterialCards()
       + vizUnitCap('USD/톤', 'USD') + buildIcisChart(periods, series, ext)
-      + (ext ? '<div class="ii-cap ii-cap--chart">점선 구간은 최근 추세를 단순 연장한 통계적'
-        + ' 추정치이며, 실제 시장 예측이 아닙니다. (최근 ' + II_MA_WIN + '개월 이동평균의 기울기를 '
-        + II_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서 벗어난 정도로 잡은 참고 범위)</div>' : '')
+      /* ★ 예전 문구는 '이동평균의 기울기를 연장', '추세선에서 벗어난 정도로 잡은
+         참고 범위' 처럼 계산 절차를 그대로 옮겨 적어 읽기 어려웠다.
+         무엇을 보고 있는지만 남긴다 — 자세한 방법은 코드(iiExtend)에 있다. */
+      + (ext ? '<div class="ii-cap ii-cap--chart">오른쪽 점선은 <b>최근 '
+        + II_MA_WIN + '개월 흐름이 그대로 이어진다면</b> 어디쯤일지 '
+        + II_EXT_MONTHS + '개월 그려 본 선입니다. 예측이 아니라 참고용이고, '
+        + '옅은 띠는 그동안의 출렁임을 감안한 대략의 범위입니다.</div>' : '')
       /* ★ 뺀 것들 — 화면에서 겹치거나 값을 더해 주지 않던 블록이다.
          · icisLatest()      최신값 KPI 줄. 바로 아래 '원자재별 변동요인' 카드가
                              같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
@@ -3903,8 +3910,11 @@ function renderMaterial() {
          · iiOutlook(ext)    '단기·중기 전망'.
          · iiImplications()  '시사점 및 의사결정 포인트' 3열.
          지우지 않고 남겨 둔 함수들이라 되살리려면 여기에 다시 부르면 된다. */
-      + icisTermsTable()
-      + renderIcisForecastHtml();  // 순수 추가: 용어표 아래 '다음 달 전망'
+      /* ★ '다음 달 전망'(renderIcisForecastHtml)은 내렸다. 차트 오른쪽 점선이
+         이미 같은 성격의 추세 연장을 보여 주고 있어 겹쳤다.
+         함수와 수집기(icis_forecast.py)는 그대로 두었으니 되살리려면 여기에
+         + renderIcisForecastHtml() 만 다시 붙이면 된다. */
+      + icisTermsTable();
   }
 
   // 순수 추가: KOIMA 요약 한 줄을 맨 앞에 덧붙인다(데이터 없으면 '' → 기존 출력과 동일).
@@ -3913,7 +3923,6 @@ function renderMaterial() {
   root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
     ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
       'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay)}
-    ${_matYear ? icisSum : ''}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
