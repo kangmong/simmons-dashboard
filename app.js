@@ -8432,20 +8432,21 @@ function renderKoimaHtml() {
       : (allRows.length ? '수집 ' + allRows[0].period + '~'
         + allRows[allRows.length - 1].period : '');
     const trend = '<div class="ii-panel koima-panel--first">'
-      + '<h3 class="subhead ii-h">① 지수 추이'
+      /* ★ 번호(①)를 뗀다 — ②④ 가 없어져 번호가 ①③ 으로 건너뛰었다. */
+      + '<h3 class="subhead ii-h">지수 추이'
       + (cat ? ' <span class="koima-h__cat">' + escapeHtml(cat.label)
         + (span ? ' · ' + escapeHtml(span) : '') + '</span>' : '') + '</h3>'
       + trendBody + '</div>';
-    /* ★ ②③④·시사점·핵심인사이트도 기간을 고른 뒤에만 낸다.
-         부문 버튼만으로 열리는 것은 배너·상단 요약박스·조작부(기준 년월·기간 칩)와
-         ① 자리의 안내 문구까지다 — 섹션 공통 규칙과 같다. */
-    body = trend + (_koimaRange
-      ? koimaFactors(cat)
-        + koimaRecentPanel(cat, st)
-        + koimaOutlook(cat, st, fc)
-        + koimaActions(cat)
-        + koimaInsightBox(cat, st, fc)
-      : '');
+    /* ★ 뺀 것 — 주요 변동요인 분석(koimaFactors) · 향후 전망(koimaOutlook,
+         KPI 3박스 + 추정 그래프) · 시사점 및 대응 방안(koimaActions) ·
+         하단 핵심 인사이트(koimaInsightBox). 모두 서술 카드라 그래프가
+         말하는 것 위에 문장을 덧대던 자리다.
+       ★ 남긴 것 — 지수 추이 그래프와 최근 12개월 표. 둘 다 실측값이다.
+       ★ 남은 것도 기간을 고른 뒤에만 낸다. 부문 버튼만으로 열리는 것은
+         배너·상단 요약박스·조작부(기준 년월·기간 칩)와 안내 문구까지다
+         — 섹션 공통 규칙과 같다.
+       함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+    body = trend + (_koimaRange ? koimaRecentPanel(cat, st) : '');
   }
   const koimaSum = (ok && cat && st) ? koimaSum4(cat, st, fc) : '';
   return `<div class="viz-root viz-figure koima-figure">${head}${koimaSum}${tabs}${controls}${chips}${body}${cap}</div>`;
@@ -8457,7 +8458,8 @@ function koimaRecentPanel(cat, st) {
   if (!cat || !st) return '';
   const rows = st.rows.slice(-12);
   if (!rows.length) return '';
-  return '<div class="ii-panel"><h3 class="subhead ii-h">③ 최근 12개월 지수 현황</h3>'
+  /* ★ 번호(③)를 뗀다 — 위와 같은 이유. */
+  return '<div class="ii-panel"><h3 class="subhead ii-h">최근 12개월 지수 현황</h3>'
     + '<div class="koima-recent">' + koimaRecentTable(rows, cat) + '</div></div>';
 }
 
