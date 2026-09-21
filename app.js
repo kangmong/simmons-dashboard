@@ -1149,7 +1149,9 @@ function smDelta(pct) {
     + Math.abs(pct).toFixed(1) + '%</span>';
 }
 
-/** 차트 A — 시몬스 최근 실적 추이. 매출 막대 + 영업이익 라인(같은 억원 축). */
+/** 차트 A — 시몬스 최근 실적 추이. 매출 막대 + 영업이익 라인(같은 억원 축).
+ *  ★ 지금은 화면에서 쓰지 않는다 — 이 카드는 DART 감사보고서 데이터로 그리는
+ *    6분할(sfPanelsHtml)로 바뀌었다. 되돌릴 여지를 두려고 남겨 둔다. */
 function smPerfChart(d) {
   const rows = (d.simmonsPerformance || []).slice().sort((a, b) => a.year - b.year);
   if (!rows.length) return '';
@@ -1790,9 +1792,15 @@ function smKoreaHtml() {
   const sy = (d.marketShare2025 && d.marketShare2025.year) || 2025;
 
   return '<div class="sm-wrap">'
+    /* ★ 이 카드만 DART 감사보고서 데이터(simmons-financials.json)로 그린다.
+       아래 다른 카드들(업계 매출 비교·점유율·기술분류도·시장규모·슬립테크)은
+       예전 그대로 simmons-market.json 을 본다 — 건드리지 않았다.
+       ★ 배지도 바뀐다: 예전 문구는 '공시 API 조회 불가 → 기사 기준 수기 입력'
+         이었는데, 이제 감사받은 개별 재무제표라 그 설명이 맞지 않는다. */
     + '<div class="sm-card sm-card--full">'
-    + '<div class="sm-h">시몬스 최근 실적 추이 <span class="sm-h__u">(단위: ' + unit + ')</span>'
-    + badge + '</div>' + smPerfChart(d) + '</div>'
+    + '<div class="sm-h">시몬스 최근 실적 추이 <span class="sm-h__u">(단위: '
+    + escapeHtml((_sfData && _sfData.unit) || '억원') + ')</span>'
+    + sfBadge() + '</div>' + sfPanelsHtml() + '</div>'
     + '<div class="sm-grid2">'
     + '<div class="sm-card"><div class="sm-h">국내 침대·매트리스 업계 매출 비교'
     + ' <span class="sm-h__u">(단위: ' + unit + ' · 기준 연도는 회사마다 표기)</span></div>'
@@ -1819,6 +1827,275 @@ function smKoreaHtml() {
 function gcAbbr(label, tip) {
   return '<span class="gc-abbr" tabindex="0" role="note">' + escapeHtml(label)
     + '<span class="gc-abbr__bub">' + escapeHtml(tip) + '</span></span>';
+}
+
+
+/* ══ 시몬스 재무 6분할 — public/data/simmons-financials.json ═══════════════
+   '시몬스 최근 실적 추이' 카드 하나만 이 데이터로 그린다. 같은 국내 섹션의
+   다른 카드(업계 매출 비교·점유율·기술분류도·시장규모·슬립테크)는 건드리지 않는다.
+
+   ★ 값을 코드에 적지 않는다 — dart_financials.py 가 감사보고서에서 뽑아 둔
+     JSON 한 곳만 갱신되면 6개 패널이 모두 따라간다.
+   ★ 시몬스는 비상장사라 사업보고서가 없다. 그래서 이 숫자는 DART 감사보고서의
+     **감사받은 개별 재무제표**다(예전 카드의 '기사 기준 수기 입력'과 다르다).
+   ★ 접두사는 sf- 로 통일한다 — 기존 sm-* 규칙과 섞이지 않게(프로젝트 규칙). */
+const SF_DATA_URL = 'public/data/simmons-financials.json';
+let _sfData = null;
+
+/* 패널 공통 색 — 당기는 진하게, 전기는 연하게 */
+const SF_CUR = 'var(--accent)';       // 당기(최근 사업연도)
+const SF_PRE = '#9CA3AF';             // 전기
+const SF_ASSET = ['var(--blue)', 'var(--navy-2)'];    // 유동 / 비유동
+const SF_CAP = ['var(--amber)', 'var(--green)'];      // 부채 / 자본
+
+/** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다(국내 섹션만 다시 그린다). */
+async function fetchSimmonsFinancials() {
+  try {
+    const res = await fetch(SF_DATA_URL, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('데이터 파일 없음 (' + SF_DATA_URL + ')');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !d.accounts) throw new Error('형식이 올바르지 않습니다');
+    if (d.status && d.status !== 'ok') throw new Error(d.reason || '수집 실패');
+    _sfData = Object.assign({ status: 'ok' }, d);
+  } catch (e) {
+    _sfData = { status: 'error', reason: (e && e.message) || String(e) };
+    console.warn('[simmons-financials] 로드 실패:', e);
+  }
+  renderCompetitor();
+}
+
+/** 억원 표기 — 3,238.7 은 소수점을 버리고 3,239 로(카드가 좁다) */
+function sfNum(v) {
+  if (v == null) return '—';
+  return Math.round(Number(v)).toLocaleString('ko-KR');
+}
+/** 계정 값 꺼내기 */
+function sfV(k, which) {
+  const a = (_sfData && _sfData.accounts && _sfData.accounts[k]) || null;
+  return a ? a[which] : null;
+}
+/** 증감률(%) — 기준이 0이거나 없으면 null */
+function sfPct(cur, pre) {
+  if (cur == null || pre == null || !pre) return null;
+  return (cur - pre) / Math.abs(pre) * 100;
+}
+/** 증감 배지 */
+function sfDelta(cur, pre) {
+  const p = sfPct(cur, pre);
+  if (p == null) return '';
+  const flat = Math.abs(p) < 0.05;
+  const cls = flat ? 'flat' : (p > 0 ? 'up' : 'down');
+  const ar = flat ? '–' : (p > 0 ? '▲' : '▼');
+  return '<span class="sm-delta ' + cls + '">' + ar + ' ' + Math.abs(p).toFixed(1) + '%</span>';
+}
+
+/** 패널 껍데기 */
+function sfPanel(title, sub, body) {
+  return '<section class="sf-p"><div class="sf-p__h">'
+    + '<span class="sf-p__t">' + escapeHtml(title) + '</span>'
+    + (sub ? '<span class="sf-p__s">' + escapeHtml(sub) + '</span>' : '')
+    + '</div>' + body + '</section>';
+}
+
+/* ── ① · ② 구성 도넛 ─────────────────────────────────────────────────── */
+function sfDonut(title, sub, parts, totalLabel, totalVal) {
+  const rows = parts.filter((p) => p.v != null && p.v > 0);
+  if (!rows.length) return sfPanel(title, sub, '<div class="exh-note">값이 없습니다.</div>');
+  const tot = rows.reduce((s, p) => s + p.v, 0) || 1;
+  const S = 190, cc = S / 2, R = 74, TH = 26, rr = R - TH / 2;
+  const circ = 2 * Math.PI * rr;
+  let acc = 0;
+  const segs = rows.map((p) => {
+    const frac = p.v / tot;
+    const seg = '<circle cx="' + cc + '" cy="' + cc + '" r="' + rr + '" fill="none"'
+      + ' stroke="' + p.color + '" stroke-width="' + TH + '" stroke-dasharray="'
+      + (circ * frac).toFixed(2) + ' ' + (circ * (1 - frac)).toFixed(2) + '"'
+      + ' stroke-dashoffset="' + (-circ * acc).toFixed(2) + '" transform="rotate(-90 '
+      + cc + ' ' + cc + ')"><title>' + escapeHtml(p.name) + ' ' + sfNum(p.v)
+      + '억원 (' + (frac * 100).toFixed(1) + '%)</title></circle>';
+    acc += frac;
+    return seg;
+  }).join('');
+  /* ★ 비율은 최대잉여법으로 100%를 맞춘다(그냥 반올림하면 합이 101%가 된다) */
+  const raw = rows.map((p) => p.v / tot * 100);
+  const fl = raw.map((v) => Math.floor(v));
+  let rest = 100 - fl.reduce((a, b) => a + b, 0);
+  raw.map((v, i) => ({ i: i, f: v - fl[i] })).sort((a, b) => b.f - a.f)
+    .forEach((x) => { if (rest > 0) { fl[x.i] += 1; rest -= 1; } });
+  const legend = rows.map((p, i) => '<li><i style="background:' + p.color + '"></i>'
+    + '<span class="sf-lg__k">' + escapeHtml(p.name) + '</span>'
+    + '<b class="sf-lg__v">' + sfNum(p.v) + '</b>'
+    + '<em class="sf-lg__p">' + fl[i] + '%</em></li>').join('');
+  const body = '<div class="sf-donut">'
+    + '<div class="sf-donut__c"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img"'
+    + ' aria-label="' + escapeHtml(title) + '">' + segs + '</svg>'
+    + '<span class="sf-donut__mid"><b>' + sfNum(totalVal) + '</b><em>'
+    + escapeHtml(totalLabel) + '</em></span></div>'
+    + '<ul class="sf-lg">' + legend + '</ul></div>';
+  return sfPanel(title, sub, body);
+}
+
+/* ── ③ · ④ 전기 vs 당기 세로 막대 ────────────────────────────────────── */
+function sfBars(title, sub, keys) {
+  const rows = keys.map((k) => ({
+    k: k, name: (_sfData.accounts[k] || {}).label || k,
+    cur: sfV(k, 'current'), pre: sfV(k, 'previous'),
+  })).filter((r) => r.cur != null || r.pre != null);
+  if (!rows.length) return sfPanel(title, sub, '<div class="exh-note">값이 없습니다.</div>');
+  const max = Math.max.apply(null, rows.map((r) => Math.max(r.cur || 0, r.pre || 0))) || 1;
+  /* ★ 막대 높이는 %가 아니라 px 로 준다 — 부모가 flex 라 높이가 '확정'이 아니어서
+     height:% 가 0 으로 풀린다(전시회 막대에서 실제로 겪었다). */
+  const PLOT = 132;
+  const grp = rows.map((r) => {
+    const bar = (v, color, who) => {
+      const h = v == null ? 0 : Math.max(2, v / max * PLOT);
+      return '<span class="sf-bar__one">'
+        + '<b class="sf-bar__v">' + sfNum(v) + '</b>'
+        + '<i style="height:' + h.toFixed(1) + 'px;background:' + color + '">'
+        + '<span class="sf-bar__tip">' + escapeHtml(r.name + ' ' + who + ' ' + sfNum(v) + '억원')
+        + '</span></i></span>';
+    };
+    return '<div class="sf-bar__g">'
+      + '<div class="sf-bar__pair">' + bar(r.pre, SF_PRE, '전기') + bar(r.cur, SF_CUR, '당기') + '</div>'
+      + '<div class="sf-bar__k">' + escapeHtml(r.name) + '</div>'
+      + '<div class="sf-bar__d">' + sfDelta(r.cur, r.pre) + '</div></div>';
+  }).join('');
+  return sfPanel(title, sub, '<div class="sf-bar">' + grp + '</div>' + sfLegendPP());
+}
+
+/** 전기/당기 범례 — 막대·가로막대가 함께 쓴다 */
+function sfLegendPP() {
+  const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
+  return '<div class="sf-pp"><span><i style="background:' + SF_PRE + '"></i>전기('
+    + escapeHtml(String(py)) + ')</span><span><i style="background:' + SF_CUR
+    + '"></i>당기(' + escapeHtml(String(cy)) + ')</span></div>';
+}
+
+/* ── ⑤ 수익성 지표 가로 막대 ──────────────────────────────────────────── */
+function sfMargins(title, sub) {
+  const defs = [
+    { name: '매출총이익률', k: 'grossProfit' },
+    { name: '영업이익률', k: 'operatingProfit' },
+    { name: '순이익률', k: 'netIncome' },
+  ];
+  const rate = (k, w) => {
+    const rev = sfV('revenue', w), v = sfV(k, w);
+    return (rev && v != null) ? (v / rev * 100) : null;
+  };
+  const rows = defs.map((d) => ({ name: d.name, cur: rate(d.k, 'current'), pre: rate(d.k, 'previous') }))
+    .filter((r) => r.cur != null || r.pre != null);
+  if (!rows.length) return sfPanel(title, sub, '<div class="exh-note">값이 없습니다.</div>');
+  const max = Math.max.apply(null, rows.map((r) => Math.max(r.cur || 0, r.pre || 0))) || 1;
+  const line = (r) => {
+    const one = (v, color, who) => '<span class="sf-hb__row">'
+      + '<i style="width:' + (v == null ? 0 : Math.max(1, v / max * 100)).toFixed(1)
+      + '%;background:' + color + '"><span class="sf-bar__tip">'
+      + escapeHtml(r.name + ' ' + who + ' ' + (v == null ? '—' : v.toFixed(1) + '%'))
+      + '</span></i><b>' + (v == null ? '—' : v.toFixed(1) + '%') + '</b></span>';
+    return '<div class="sf-hb__g"><div class="sf-hb__k">' + escapeHtml(r.name) + '</div>'
+      + '<div class="sf-hb__bars">' + one(r.pre, SF_PRE, '전기') + one(r.cur, SF_CUR, '당기')
+      + '</div><div class="sf-hb__d">'
+      + (r.cur != null && r.pre != null
+        ? '<span class="sm-delta ' + (r.cur >= r.pre ? 'up' : 'down') + '">'
+          + (r.cur >= r.pre ? '▲' : '▼') + ' ' + Math.abs(r.cur - r.pre).toFixed(1) + '%p</span>'
+        : '') + '</div></div>';
+  };
+  return sfPanel(title, sub, '<div class="sf-hb">' + rows.map(line).join('') + '</div>' + sfLegendPP());
+}
+
+/* ── ⑥ 연도별 손익 추이 라인 ──────────────────────────────────────────── */
+function sfTrend(title, sub) {
+  const hs = (_sfData.history || []).filter((h) => h && h.revenue != null);
+  if (hs.length < 2) return sfPanel(title, sub, '<div class="exh-note">추이를 그릴 연도가 모자랍니다.</div>');
+  const W = 460, H = 220, padL = 46, padR = 12, padT = 16, padB = 28;
+  const pw = W - padL - padR, ph = H - padT - padB;
+  const series = [
+    { k: 'revenue', name: '매출액', color: SF_CUR },
+    { k: 'operatingProfit', name: '영업이익', color: 'var(--blue)' },
+    { k: 'netIncome', name: '당기순이익', color: 'var(--green)' },
+  ];
+  const vals = [];
+  hs.forEach((h) => series.forEach((s) => { if (h[s.k] != null) vals.push(h[s.k]); }));
+  const hi = Math.max.apply(null, vals.concat([0]));
+  const lo = Math.min.apply(null, vals.concat([0]));
+  /* 눈금은 보기 좋은 수로 올려 잡는다 */
+  const step = hi > 3000 ? 1000 : (hi > 1200 ? 500 : (hi > 600 ? 200 : 100));
+  const top = Math.ceil(hi / step) * step || step;
+  const bot = Math.min(0, Math.floor(lo / step) * step);
+  const x = (i) => padL + (hs.length === 1 ? pw / 2 : i / (hs.length - 1) * pw);
+  const y = (v) => padT + ph - (v - bot) / ((top - bot) || 1) * ph;
+  const ticks = [];
+  for (let v = bot; v <= top + 0.5; v += step) ticks.push(v);
+  const grid = ticks.map((v) => '<g><line x1="' + padL + '" x2="' + (W - padR)
+    + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" class="sf-tr__grid"/>'
+    + '<text x="' + (padL - 7) + '" y="' + (y(v) + 3.5).toFixed(1)
+    + '" class="sf-tr__ty" text-anchor="end">' + sfNum(v) + '</text></g>').join('');
+  const lines = series.map((s) => {
+    const pts = hs.map((h, i) => (h[s.k] == null ? null : x(i).toFixed(1) + ',' + y(h[s.k]).toFixed(1)))
+      .filter(Boolean).join(' ');
+    const dots = hs.map((h, i) => (h[s.k] == null ? '' : '<circle cx="' + x(i).toFixed(1)
+      + '" cy="' + y(h[s.k]).toFixed(1) + '" r="3.2" fill="' + s.color + '"><title>'
+      + h.year + ' ' + s.name + ' ' + sfNum(h[s.k]) + '억원</title></circle>')).join('');
+    return '<polyline points="' + pts + '" fill="none" stroke="' + s.color
+      + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + dots;
+  }).join('');
+  const xlab = hs.map((h, i) => '<text x="' + x(i).toFixed(1) + '" y="' + (H - 8)
+    + '" class="sf-tr__tx" text-anchor="middle">' + h.year + '</text>').join('');
+  const legend = '<div class="sf-pp">' + series.map((s) => '<span><i style="background:'
+    + s.color + '"></i>' + escapeHtml(s.name) + '</span>').join('') + '</div>';
+  return sfPanel(title, sub,
+    '<div class="sf-tr"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="'
+    + escapeHtml(title) + '">' + grid + lines + xlab + '</svg></div>' + legend);
+}
+
+/** 6분할 본문 — 3행 2열 */
+function sfPanelsHtml() {
+  if (!_sfData) {
+    return '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
+      + ' 업데이트 버튼을 누르면 표시됩니다</div>';
+  }
+  if (_sfData.status !== 'ok') {
+    return '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> '
+      + escapeHtml(_sfData.reason || '로드 실패') + '</div>';
+  }
+  const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
+  const vs = py + ' → ' + cy;
+  return '<div class="sf-grid">'
+    + sfDonut('자산 구성', cy + '년 말', [
+      { name: '유동자산', v: sfV('currentAssets', 'current'), color: SF_ASSET[0] },
+      { name: '비유동자산', v: sfV('nonCurrentAssets', 'current'), color: SF_ASSET[1] },
+    ], '자산총계', sfV('assetsTotal', 'current'))
+    + sfDonut('부채·자본 구성', cy + '년 말', [
+      { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_CAP[0] },
+      { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_CAP[1] },
+    ], '자산총계', sfV('assetsTotal', 'current'))
+    + sfBars('주요 자산·부채 항목', vs,
+      ['assetsTotal', 'currentAssets', 'nonCurrentAssets', 'liabilitiesTotal', 'equityTotal'])
+    + sfBars('손익계산서 주요 지표', vs,
+      ['revenue', 'grossProfit', 'operatingProfit', 'netIncome'])
+    + sfMargins('수익성 지표', vs)
+    + sfTrend('연도별 손익 추이', (_sfData.history || []).length + '개 연도')
+    + '</div>';
+}
+
+/** 카드 머리의 출처 배지 — 예전 '기사 기준 수기 입력'과 달리 감사받은 수치다. */
+function sfBadge() {
+  if (!_sfData || _sfData.status !== 'ok') return '';
+  const tip = (_sfData.sourceNote || '') + ' 출처: ' + (_sfData.source || 'DART')
+    + (_sfData.reportName ? ' · ' + _sfData.reportName : '');
+  const link = safeUrl(_sfData.sourceUrl);
+  return '<div class="sm-badge">'
+    + escapeHtml((_sfData.current || {}).label || '') + ' ('
+    + escapeHtml(String((_sfData.current || {}).year || '')) + '년 12월 결산) · '
+    + (link
+      ? '<a class="src-link" href="' + escapeHtml(link) + '" target="_blank"'
+        + ' rel="noopener noreferrer">' + escapeHtml(_sfData.source || 'DART') + '</a>'
+      : escapeHtml(_sfData.source || 'DART'))
+    + ' · 최종 업데이트 ' + escapeHtml((_sfData.lastUpdated || '—').slice(0, 10))
+    + '<span class="sm-info" tabindex="0" role="note" aria-label="' + escapeHtml(tip)
+    + '" title="' + escapeHtml(tip) + '">ⓘ<span class="sm-info__bub">'
+    + escapeHtml(tip) + '</span></span></div>';
 }
 
 
@@ -11730,6 +12007,10 @@ function initUpdate() {
     // 순수 추가: 국내 실적·점유율 정적 JSON. await 하지 않는다 —
     // 다른 카드가 이 로드를 기다리지 않게 하고, 끝나면 스스로 다시 그린다.
     fetchSimmonsMarket();
+    // 순수 추가: 시몬스 재무제표(DART 감사보고서) — '최근 실적 추이' 카드 전용.
+    // 위와 같은 이유로 await 하지 않는다. 실패해도 그 카드에만 사유가 뜨고
+    // 같은 섹션의 다른 카드는 영향을 받지 않는다.
+    fetchSimmonsFinancials();
     // 순수 추가: 국외 해외 슬립테크 시장·기업 정적 JSON (위와 같은 이유로 await 안 한다)
     fetchGlobalSleepTech();
     // 순수 추가: 글로벌 매트리스 시장 규모 — 월 1회 수집해 둔 캐시를 읽는다.

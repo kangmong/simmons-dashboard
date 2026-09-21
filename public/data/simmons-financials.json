@@ -1,0 +1,109 @@
+{
+  "status": "ok",
+  "corpCode": "00201557",
+  "corpName": "시몬스",
+  "unit": "억원",
+  "source": "금융감독원 전자공시(DART) 감사보고서",
+  "sourceUrl": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260330001596",
+  "sourceNote": "시몬스는 비상장사라 사업보고서를 내지 않습니다. 감사받은 개별 재무제표(감사보고서 첨부)를 그대로 옮긴 값입니다.",
+  "reportName": "감사보고서 (2025.12)",
+  "rceptNo": "20260330001596",
+  "receiptDate": "20260330",
+  "fiscalYear": 2025,
+  "current": {
+    "year": 2025,
+    "label": "제34기"
+  },
+  "previous": {
+    "year": 2024,
+    "label": "제33기"
+  },
+  "accounts": {
+    "assetsTotal": {
+      "label": "자산총계",
+      "current": 2754.1,
+      "previous": 2460.9
+    },
+    "currentAssets": {
+      "label": "유동자산",
+      "current": 659.7,
+      "previous": 858.0
+    },
+    "nonCurrentAssets": {
+      "label": "비유동자산",
+      "current": 2094.4,
+      "previous": 1602.9
+    },
+    "liabilitiesTotal": {
+      "label": "부채총계",
+      "current": 1255.1,
+      "previous": 1014.3
+    },
+    "equityTotal": {
+      "label": "자본총계",
+      "current": 1498.9,
+      "previous": 1446.6
+    },
+    "revenue": {
+      "label": "매출액",
+      "current": 3238.7,
+      "previous": 3295.4
+    },
+    "grossProfit": {
+      "label": "매출총이익",
+      "current": 2251.7,
+      "previous": 2347.3
+    },
+    "operatingProfit": {
+      "label": "영업이익",
+      "current": 405.0,
+      "previous": 527.2
+    },
+    "netIncome": {
+      "label": "당기순이익",
+      "current": 302.3,
+      "previous": 352.6
+    }
+  },
+  "history": [
+    {
+      "year": 2020,
+      "revenue": 2715.2,
+      "operatingProfit": 147.2,
+      "netIncome": 75.5
+    },
+    {
+      "year": 2021,
+      "revenue": 3053.7,
+      "operatingProfit": 184.3,
+      "netIncome": 98.1
+    },
+    {
+      "year": 2022,
+      "revenue": 2857.9,
+      "operatingProfit": 118.4,
+      "netIncome": 81.0
+    },
+    {
+      "year": 2023,
+      "revenue": 3137.6,
+      "operatingProfit": 318.7,
+      "netIncome": 239.9
+    },
+    {
+      "year": 2024,
+      "revenue": 3295.4,
+      "operatingProfit": 527.2,
+      "netIncome": 352.6
+    },
+    {
+      "year": 2025,
+      "revenue": 3238.7,
+      "operatingProfit": 405.0,
+      "netIncome": 302.3
+    }
+  ],
+  "lastUpdated": "2026-09-21 16:12:29",
+  "warnings": [],
+  "errors": []
+}

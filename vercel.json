@@ -60,6 +60,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/simmons-financials.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/global-sleeptech.json",
       "use": "@vercel/static"
     },
