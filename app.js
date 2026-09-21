@@ -4739,7 +4739,7 @@ function opPrint(q, win) {
 }
 
 /** 제품 선그래프 — 원유 차트와 같은 모양이지만 상태(_opChart)를 따로 둔다 */
-function buildProductChart(rows, onSeries, term, hOpt) {
+function buildProductChart(rows, onSeries, term, hOpt, bands) {
   const n = rows.length;
   if (!n) { _opChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const series = (onSeries || []).map((s) => ({
@@ -4781,12 +4781,13 @@ function buildProductChart(rows, onSeries, term, hOpt) {
     return d ? `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>` : '';
   }).join('');
 
-  _opChart = { periods, series, geom: { X, Y, n, W, padL } };
+  const bandSvg = oilBandsSvg(bands, { X, n, padL, padT, plotW, plotH, W });
+  _opChart = { periods, series, bands: bands || [], geom: { X, Y, n, W, padL } };
   const legend = '<div class="viz-legend">' + series.map((s) =>
     '<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:'
     + s.color + '"></span>' + escapeHtml(s.label) + '</span>').join('') + '</div>';
   return legend + `<svg class="viz-svg oilp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="국제제품가 추이">
-      ${grid}${xticks}${lines}
+      ${grid}${bandSvg}${xticks}${lines}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="oilp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="oilp-dots"></g>
@@ -4824,7 +4825,12 @@ function wireProductChart() {
     });
     if (!rows) { clear(); return; }
     dots.innerHTML = dh;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}</div>${rows}`;
+    // 지금 가리키는 지점이 속한 구간을 카드·음영 양쪽에서 진하게(원유 차트와 같게)
+    const band = (c.bands || []).find((b) => i >= b.a && i <= b.b);
+    oilHiEra(fig, band ? String(band.idx) : null);
+    const bandName = band
+      ? `<span class="oil-tt-era" style="color:${band.color}">${escapeHtml(band.era.title || '')}</span>` : '';
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}${bandName}</div>${rows}`;
     const fr = fig.getBoundingClientRect();
     let left = evt.clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
@@ -4903,20 +4909,26 @@ function renderOilProductHtml() {
         + NOTE_EXPORT + '">엑셀 저장</button>'
       + '<button type="button" class="oc-tool" data-op-exp="print">인쇄하기</button>'
       + '</div></div>';
+    // 차트 음영과 구간 카드가 같은 계산을 나눠 쓴다 — 둘이 어긋나지 않게 한 번만 구한다
+    const opEras = (_oilpIns && Array.isArray(_oilpIns.eras)) ? _oilpIns.eras : [];
+    const opBands = oilBandRanges(win, q.term, opEras);
     const result = (_opView === 'chart')
-      ? vizUnitCap(unit, 'USD') + buildProductChart(win, opOnSeries(q), q.term, OILP_CHART_H)
+      ? vizUnitCap(unit, 'USD') + buildProductChart(win, opOnSeries(q), q.term, OILP_CHART_H, opBands)
         + '<div class="viz-tooltip" id="oilpTooltip"></div>'
       : opTableHtml(q, win);
     // ① 차트(좌) + 제품별 현황 표(우). 표보기일 때는 표가 이미 넓으니 나란히 두지 않는다.
     const opRow = (_opView === 'chart')
       ? `<div class="oilp-row"><div class="oilp-row__main">${result}</div>${oilpTable(q)}</div>`
       : result;
-    // 시나리오·요약은 유가(원유) 위젯과 같은 계산을 쓴다
-    const opFc = oilForecast(opPts);
-    const opBaseLabel = ((_opData.series || []).find((x) => x.key === OILP_BASE_KEY) || {}).label || '휘발유(95RON)';
-    body = tools + opRow + msFactorsHtml('oil_price')
-      + oilpFactors() + oilpScenarios(opFc, opBaseLabel) + oilpActions()
-      + oilpInsightBox(opFc);
+    /* ★ 뺀 것 — 주요 변동요인 분석(oilpFactors) · 향후 3개월 전망(oilpScenarios) ·
+       시사점 및 대응 방안(oilpActions) · 하단 핵심 요약(oilpInsightBox).
+       원유 카드에서 지운 것과 같은 성격의 서술 카드다.
+       대신 원유 카드처럼 '가격 추이 및 핵심 이벤트' 구간 패널을 붙인다 —
+       차트에 칠해진 음영이 무엇인지 설명하는 것이라 그림 바로 아래에 둔다.
+       함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+    body = tools + opRow
+      + oilErasPanel(opEras, opBands, '주요 석유제품 가격 추이 및 핵심 이벤트')
+      + msFactorsHtml('oil_price');
   }
   const note = (_opData.note ? '<div class="g-note">' + escapeHtml(_opData.note) + '</div>' : '');
   // 적용 환율·기준일 — 이미 있는 krwNote()(usd_krw 섹션 기반)를 그대로 쓴다
@@ -5853,8 +5865,10 @@ function oilRowDay(period, term) {
 }
 
 /** 구간별로 차트에서 차지하는 인덱스 범위 [a,b]. 없으면 제외 */
-function oilBandRanges(rows, term) {
-  const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
+function oilBandRanges(rows, term, erasOpt) {
+  /* ★ erasOpt 를 주면 그 구간표를 쓴다 — 석유제품 카드가 자기 구간표를
+     넘기기 위해서다. 안 주면 예전처럼 원유 구간표를 본다. */
+  const eras = erasOpt || ((_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : []);
   if (!eras.length || !rows.length) return [];
   const days = rows.map((r) => oilRowDay(r.period, term));
   if (days.some((d) => d == null)) return [];     // 연도 기준이면 그리지 않는다
@@ -7343,9 +7357,10 @@ function oilAutoBullet(pts) {
 }
 
 /* ── ① 구간 설명 (조회 창에 맞춰 강조/흐림) ────────────────────────────── */
-function oilEras(bands) {
-  const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
-  if (!eras.length) return '';
+/** 구간 카드 패널. 원유·석유제품 두 카드가 같은 모양을 쓴다.
+ *  eras: 구간표 · bands: 지금 차트에 실제로 그려진 구간 · title: 소제목 */
+function oilErasPanel(eras, bands, title) {
+  if (!eras || !eras.length) return '';
   // 차트에 음영이 그려진 구간이 곧 '지금 보이는 구간'이다 — 같은 계산을 다시 하지 않는다.
   const drawn = new Set((bands || []).map((b) => b.idx));
   const cards = eras.map((e, i) => {
@@ -7364,10 +7379,16 @@ function oilEras(bands) {
     : '연도 기준으로 보면 구간(월 단위)을 차트에 표시할 수 없어 음영을 그리지 않습니다.';
   return `<div class="ii-panel">
     ${''/* ★ 번호(①)를 뗀다 — ②③④(변동요인·전망·시사점)가 없어졌다. */}
-    <h3 class="subhead ii-h">주요 원유 가격 추이 및 핵심 이벤트</h3>
+    <h3 class="subhead ii-h">${escapeHtml(title)}</h3>
     <div class="ii-cap">${escapeHtml(note)} 구간 구분과 설명은 참고용입니다.</div>
     <div class="xsii-eras oil-eras">${cards}</div>
   </div>`;
+}
+
+/** 원유 카드용 — 예전 호출부를 그대로 두기 위한 얇은 껍데기 */
+function oilEras(bands) {
+  const eras = (_oilIns && Array.isArray(_oilIns.eras)) ? _oilIns.eras : [];
+  return oilErasPanel(eras, bands, '주요 원유 가격 추이 및 핵심 이벤트');
 }
 
 /* ── ② 변동요인 4카드 ──────────────────────────────────────────────────── */
@@ -7528,6 +7549,46 @@ function renderOilPricesHtml() {
 }
 
 
+/** 구간 배경 음영 + 경계 점선 + 구간명.
+ *  ★ 원유 차트에 있던 코드를 그대로 빼냈다 — 석유제품 차트도 같은 모양으로
+ *    그려야 두 카드가 같은 그림으로 읽힌다. 색은 카드(.xsii-era)와 같은
+ *    b.color 를 쓴다(둘이 이어져 보이게).
+ *  g: { X, n, padL, padT, plotW, plotH, W } — 차트마다 다른 좌표 계산만 받는다. */
+function oilBandsSvg(bands, g) {
+  const { X, n, padL, padT, plotW, plotH, W } = g;
+  // 칸의 '가운데'가 아니라 이웃 칸과의 중간까지 칠해야 카드가 말하는 기간과 맞는다.
+  const edgeL = (i) => (i <= 0 ? padL : (X(i - 1) + X(i)) / 2);
+  const edgeR = (i) => (i >= n - 1 ? padL + plotW : (X(i) + X(i + 1)) / 2);
+  // ★ 구간명은 '그래프 영역 위 가장자리'(y≈7.5)에 얹는다. 예전엔 padT+8 이라
+  //   이벤트 마커 글자(padT+13)와 세로로 겹쳤다 — 실측 7쌍.
+  //   이제 구간명 상자 y[2.1~7.5], 이벤트 상자 y[17.6~23.0] 으로 10px 떨어진다.
+  // ★ 구간이 글자보다 좁으면 라벨을 아예 빼서 옆 구간 이름과 겹치지 않게 한다.
+  const LB_FS = 7.5;
+  const bandLabel = (b, x0, w) => {
+    const t = String(b.era.title || '');
+    if (!t) return '';
+    const tw = vizTextW(t, LB_FS);
+    if (w < tw + 8) return '';
+    let cx = x0 + w / 2;
+    cx = Math.max(tw / 2 + 2, Math.min(cx, W - tw / 2 - 2));   // 뷰박스 밖으로 나가지 않게
+    return `<text x="${cx.toFixed(1)}" y="${(padT - 2.5).toFixed(1)}" text-anchor="middle"
+      font-size="${LB_FS}" font-weight="700" fill="${b.color}" paint-order="stroke"
+      stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(t)}</text>`;
+  };
+  return (bands || []).map((b) => {
+    const x0 = edgeL(b.a), x1 = edgeR(b.b), w = x1 - x0;
+    if (!(w > 0)) return '';
+    const last = (b.b >= n - 1);
+    return `<g class="oil-band" data-era="${b.idx}">
+      <rect x="${x0.toFixed(1)}" y="${padT}" width="${w.toFixed(1)}" height="${plotH.toFixed(1)}"
+        fill="${b.color}" opacity=".12"/>
+      ${last ? '' : `<line x1="${x1.toFixed(1)}" y1="${padT}" x2="${x1.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
+        stroke="${b.color}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`}
+      ${bandLabel(b, x0, w)}
+    </g>`;
+  }).join('');
+}
+
 /** 선택한 유종만 선그래프 (connectNulls: 결측은 건너뛰고 이어 그림, dot 없음).
     ★ 계열을 인자로 받는다 — 전역 상태를 읽지 않으므로 어느 기준(년·월·주·일)이든 그대로 쓴다. */
 function buildOilChart(rows, onSeries, term, bands) {
@@ -7556,38 +7617,8 @@ function buildOilChart(rows, onSeries, term, bands) {
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">$${Math.round(val)}</text>${vizKrwTick(padL - 6, y, val, _matUsdKrw)}`;
   }).join('');
 
-  // ── 구간 배경 음영 + 경계 점선 ──
-  // 칸의 '가운데'가 아니라 이웃 칸과의 중간까지 칠해야 카드가 말하는 기간과 맞는다.
-  const edgeL = (i) => (i <= 0 ? padL : (X(i - 1) + X(i)) / 2);
-  const edgeR = (i) => (i >= n - 1 ? padL + plotW : (X(i) + X(i + 1)) / 2);
-  // ★ 구간명은 '그래프 영역 위 가장자리'(y≈7.5)에 얹는다. 예전엔 padT+8 이라
-  //   이벤트 마커 글자(padT+13)와 세로로 겹쳤다 — 실측 7쌍.
-  //   이제 구간명 상자 y[2.1~7.5], 이벤트 상자 y[17.6~23.0] 으로 10px 떨어진다.
-  // ★ 구간이 글자보다 좁으면 라벨을 아예 빼서 옆 구간 이름과 겹치지 않게 한다.
-  const LB_FS = 7.5;
-  const bandLabel = (b, x0, w) => {
-    const t = String(b.era.title || '');
-    if (!t) return '';
-    const tw = vizTextW(t, LB_FS);
-    if (w < tw + 8) return '';
-    let cx = x0 + w / 2;
-    cx = Math.max(tw / 2 + 2, Math.min(cx, W - tw / 2 - 2));   // 뷰박스 밖으로 나가지 않게
-    return `<text x="${cx.toFixed(1)}" y="${(padT - 2.5).toFixed(1)}" text-anchor="middle"
-      font-size="${LB_FS}" font-weight="700" fill="${b.color}" paint-order="stroke"
-      stroke="var(--surface-1)" stroke-width="2.5">${escapeHtml(t)}</text>`;
-  };
-  const bandSvg = (bands || []).map((b) => {
-    const x0 = edgeL(b.a), x1 = edgeR(b.b), w = x1 - x0;
-    if (!(w > 0)) return '';
-    const last = (b.b >= n - 1);
-    return `<g class="oil-band" data-era="${b.idx}">
-      <rect x="${x0.toFixed(1)}" y="${padT}" width="${w.toFixed(1)}" height="${plotH.toFixed(1)}"
-        fill="${b.color}" opacity=".12"/>
-      ${last ? '' : `<line x1="${x1.toFixed(1)}" y1="${padT}" x2="${x1.toFixed(1)}" y2="${(padT + plotH).toFixed(1)}"
-        stroke="${b.color}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`}
-      ${bandLabel(b, x0, w)}
-    </g>`;
-  }).join('');
+  // ── 구간 배경 음영 + 경계 점선 ── (석유제품 차트와 같은 함수를 쓴다)
+  const bandSvg = oilBandsSvg(bands, { X, n, padL, padT, plotW, plotH, W });
 
   const xticks = vizTickIdx(n, plotW).map((i) => {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
@@ -7632,14 +7663,17 @@ function oilHiEra(fig, idx) {
 
 /** 카드에 마우스를 올리면 차트의 그 구간이 진해진다(반대 방향은 툴팁이 담당) */
 function wireOilEraHover(root) {
-  const fig = root.querySelector('.oil-figure');
-  if (!fig || fig._oilEraWired) return;
-  fig._oilEraWired = true;   // root 는 재렌더에도 살아남으므로 한 번만 건다
-  fig.addEventListener('mouseover', (e) => {
-    const card = e.target.closest && e.target.closest('.xsii-era[data-era]');
-    if (card) oilHiEra(fig, card.getAttribute('data-era'));
+  // ★ 석유제품 카드(.oilp-figure)도 같은 구간 패널을 쓰므로 함께 건다.
+  ['.oil-figure', '.oilp-figure'].forEach((sel) => {
+    const fig = root.querySelector(sel);
+    if (!fig || fig._oilEraWired) return;
+    fig._oilEraWired = true;   // root 는 재렌더에도 살아남으므로 한 번만 건다
+    fig.addEventListener('mouseover', (e) => {
+      const card = e.target.closest && e.target.closest('.xsii-era[data-era]');
+      if (card) oilHiEra(fig, card.getAttribute('data-era'));
+    });
+    fig.addEventListener('mouseleave', () => oilHiEra(fig, null));
   });
-  fig.addEventListener('mouseleave', () => oilHiEra(fig, null));
 }
 
 function wireOilChart() {
