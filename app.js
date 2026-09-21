@@ -3524,6 +3524,36 @@ function iiFit(vals) {
 /** 추세 연장. { periods:[3개], byKey:{PPG:{values,band,base,slope}} } · 못 내면 null
  *  ★ 화면에 보이는 구간이 데이터의 마지막까지 닿아 있을 때만 낸다 — 2023년만 보는
  *    화면에 2027년을 그려 넣지 않기 위해서다. */
+/** 추세 연장을 어떻게 구했는지 — 실제 숫자로 보여 준다.
+ *  계산은 iiExtend/iiFit 이 하는 그대로다:
+ *    ① 값이 달마다 튀니 3개월 평균으로 매끈하게 다듬고
+ *    ② 그 평균이 최근 6개월 동안 '한 달에 얼마씩' 움직였는지를 잰다(기울기)
+ *    ③ 마지막 실제 값에서 그만큼씩 3개월 더 보탠다
+ *    ④ 옅은 띠는 그동안 값이 그 흐름에서 빗나가던 폭(멀어질수록 넓어진다)
+ *  ★ 예시는 PPG 같은 대표 원료 하나의 실제 값으로 만든다 — 규칙만 적어 두면
+ *    '기울기'가 무엇인지에서 다시 막힌다. */
+function iiExtendHowText(ext) {
+  const first = ICIS_SERIES.filter((x) => ext.byKey[x.key])[0];
+  let ex = '';
+  if (first) {
+    const e = ext.byKey[first.key];
+    const per = e.slope;
+    const dir = per >= 0 ? '오르' : '내리';
+    const r0 = Math.round(e.base), r1 = Math.round(e.values[0]);
+    const r2 = Math.round(e.values[1] != null ? e.values[1] : e.values[0]);
+    ex = ' 예를 들어 ' + escapeHtml(first.key) + '는 한 달에 약 '
+      + Math.abs(Math.round(per)).toLocaleString('ko-KR') + '씩 ' + dir + '는 흐름이라, '
+      + '마지막 실제값 ' + r0.toLocaleString('ko-KR') + '에서 '
+      + r1.toLocaleString('ko-KR') + ' → ' + r2.toLocaleString('ko-KR') + ' 로 이어 그렸습니다.';
+  }
+  return '<b>오른쪽 점선을 만든 방법</b> — 값이 달마다 튀어서 먼저 '
+    + II_MA_WIN + '개월 평균으로 다듬고, 그 평균이 최근 ' + II_SLOPE_WIN
+    + '개월 동안 <b>한 달에 얼마씩 움직였는지</b>를 구합니다. 마지막 실제값에서 '
+    + '그만큼씩 ' + II_EXT_MONTHS + '개월 더 보탠 것이 점선입니다.' + ex
+    + ' 옅은 띠는 그동안 값이 이 흐름에서 빗나가던 폭이라 멀어질수록 넓어집니다. '
+    + '지금 흐름이 이어진다는 가정일 뿐이라 예측이 아닙니다.';
+}
+
 function iiExtend(viewPeriods) {
   const P = ICIS_DATA.periods;
   if (!P.length || !viewPeriods.length) return null;
@@ -3895,10 +3925,9 @@ function renderMaterial() {
       /* ★ 예전 문구는 '이동평균의 기울기를 연장', '추세선에서 벗어난 정도로 잡은
          참고 범위' 처럼 계산 절차를 그대로 옮겨 적어 읽기 어려웠다.
          무엇을 보고 있는지만 남긴다 — 자세한 방법은 코드(iiExtend)에 있다. */
-      + (ext ? '<div class="ii-cap ii-cap--chart">오른쪽 점선은 <b>최근 '
-        + II_MA_WIN + '개월 흐름이 그대로 이어진다면</b> 어디쯤일지 '
-        + II_EXT_MONTHS + '개월 그려 본 선입니다. 예측이 아니라 참고용이고, '
-        + '옅은 띠는 그동안의 출렁임을 감안한 대략의 범위입니다.</div>' : '')
+      /* ★ 계산을 말로만 설명하면 안 읽힌다. '한 달에 얼마씩 움직였나'를 구해
+         마지막 값에 그만큼씩 더한다는 것을, 실제 숫자 예시로 보여 준다. */
+      + (ext ? '<div class="ii-cap ii-cap--chart">' + iiExtendHowText(ext) + '</div>' : '')
       /* ★ 뺀 것들 — 화면에서 겹치거나 값을 더해 주지 않던 블록이다.
          · icisLatest()      최신값 KPI 줄. 바로 아래 '원자재별 변동요인' 카드가
                              같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
@@ -5240,7 +5269,7 @@ function sriFactors() {
       <p class="sr-fac__desc">${escapeHtml(f.desc || '')}</p>
     </div>`).join('');
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">③ 최근 변동요인</h3>
+    <h3 class="subhead ii-h">최근 변동요인</h3>
     <div class="sr-facs">${cards}</div>
   </div>`;
 }
@@ -5334,8 +5363,14 @@ function renderScheduleReliabilityHtml() {
       + '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.'
       + (srExt ? ' (최근 이동평균의 기울기를 ' + SRI_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서'
         + ' 벗어난 정도로 잡은 참고 범위)' : '') + '</div>';
-    extras = sriFactors() + sriTimeline() + sriImplications(srExt)
-      + renderSrTermsHtml() + renderSrForecastHtml();
+    /* ★ 뺀 것들
+       · sriTimeline()        '히스토리 이벤트와 정시성 변화' → 차트 위 마커로
+                              옮겼다(sriEventsSvg). 연도 선과 같은 색으로 찍어
+                              어느 해 이야기인지 알 수 있게 했다.
+       · sriImplications()    '향후 전망 및 시사점' 3열.
+       · renderSrForecastHtml() '다음 달 전망'. 차트의 추세 연장과 겹쳤다.
+       함수는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+    extras = sriFactors() + renderSrTermsHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
@@ -6332,6 +6367,78 @@ function renderSrForecastHtml() {
 }
 
 /** 연도별 정시성(%) 선그래프 SVG (null 구간 선 끊김, 단일 연도 시 값 라벨) */
+/** 해상 정시성 차트의 이벤트 마커.
+ *  ★ 이 차트는 x축이 '월(Jan~Dec)'이고 연도마다 선이 따로 겹쳐 그려진다.
+ *    그래서 '2021-03' 같은 날짜를 그냥 찍으면 어느 선의 이야기인지 알 수 없다.
+ *    사건이 걸친 해마다 하나씩, 그 해 선과 같은 색으로 찍고, 여러 해를 겹쳐
+ *    보는 중이면 라벨 앞에 연도를 붙인다.
+ *  ★ '2021~2022' 처럼 여러 해에 걸친 일은 해마다 그 해에 겹치는 달의 한가운데에
+ *    찍는다 — 한 점으로 굳히면 한쪽 해에서 사라진다(ICIS 와 같은 규칙). */
+function sriEventsSvg(months, series, X, padT, plotH, W) {
+  const list = (_sriData && Array.isArray(_sriData.timeline)) ? _sriData.timeline : [];
+  if (!list.length || !series.length || !months.length) return '';
+  const showYear = series.length > 1;
+  const items = [];
+  list.forEach((e) => {
+    const r = iiEventRange(e.date);
+    if (!r) return;
+    const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
+    if (a == null || b == null) return;
+    series.forEach((s) => {
+      const y = Number(s.key);
+      if (!isFinite(y)) return;
+      const lo = Math.max(a, y * 12), hi = Math.min(b, y * 12 + 11);
+      if (lo > hi) return;                       // 이 해에는 걸치지 않는다
+      const mi = Math.floor((lo + hi) / 2) - y * 12;   // 그 해 안의 0~11 월
+      if (mi < 0 || mi >= months.length) return;
+      items.push({
+        x: X(mi), color: s.color,
+        label: (showYear ? y + ' ' : '') + iiEventLabel(e.event),
+        date: String(e.date || ''),
+        detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
+          .filter(Boolean).join(' — '),
+      });
+    });
+  });
+  if (!items.length) return '';
+  /* 라벨 줄 배정 — 겹치면 아래 줄로, 세 줄로도 안 되면 점만 남긴다(vizEventsSvg 와 같은 방식) */
+  const FS = 7.5, GAP = 5, ROWS = [13, 22, 31];
+  items.sort((p, q) => p.x - q.x);
+  items.forEach((it) => {
+    const tw = vizTextW(it.label, FS);
+    it.anchor = (it.x < 60) ? 'start' : ((it.x > W - 60) ? 'end' : 'middle');
+    it.x0 = it.anchor === 'start' ? it.x : (it.anchor === 'end' ? it.x - tw : it.x - tw / 2);
+    it.x1 = it.x0 + tw;
+  });
+  const rowEnd = ROWS.map(() => -Infinity);
+  items.forEach((it) => {
+    it.row = -1;
+    for (let r = 0; r < ROWS.length; r += 1) {
+      if (it.x0 >= rowEnd[r] + GAP) { it.row = r; rowEnd[r] = it.x1; break; }
+    }
+  });
+  const y1 = padT + plotH;
+  const out = items.map((it) => '<g class="ms-ev" tabindex="0"'
+    + ' data-label="' + escapeHtml(it.label) + '"'
+    + ' data-detail="' + escapeHtml(it.detail) + '"'
+    + ' data-date="' + escapeHtml(it.date) + '">'
+    + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + padT
+    + '" x2="' + it.x.toFixed(1) + '" y2="' + y1.toFixed(1) + '" stroke="' + it.color
+    + '" stroke-width="1" stroke-dasharray="2 2" opacity=".55"/>'
+    + '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (padT + 2).toFixed(1)
+    + '" r="2.6" fill="' + it.color + '"/>'
+    + (it.row >= 0
+      ? '<text pointer-events="none" x="' + it.x.toFixed(1) + '" y="' + (padT + ROWS[it.row]).toFixed(1)
+        + '" text-anchor="' + it.anchor + '" font-size="' + FS + '" font-weight="700"'
+        + ' paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
+        + ' fill="var(--ink)">' + escapeHtml(it.label) + '</text>'
+      : '')
+    + '<rect class="ms-ev__hit" x="' + (it.x - 7).toFixed(1) + '" y="' + padT
+    + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
+    + '</g>').join('');
+  return '<g class="ms-evs">' + out + '</g>';
+}
+
 function buildSrChart(months, series, avg, ext) {
   const n = months.length;
   if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
@@ -6427,6 +6534,7 @@ function buildSrChart(months, series, avg, ext) {
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
       ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}
+      ${sriEventsSvg(months, series, X, padT, plotH, W)}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="sr-dots"></g>
