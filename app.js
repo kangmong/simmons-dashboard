@@ -3524,6 +3524,18 @@ function iiFit(vals) {
 /** 추세 연장. { periods:[3개], byKey:{PPG:{values,band,base,slope}} } · 못 내면 null
  *  ★ 화면에 보이는 구간이 데이터의 마지막까지 닿아 있을 때만 낸다 — 2023년만 보는
  *    화면에 2027년을 그려 넣지 않기 위해서다. */
+/** 계산 순서 상자 — 번호를 매긴 짧은 문장으로 적는다.
+ *  ★ 줄글로 적으면 '이동평균의 기울기' 같은 말에서 막힌다. 한 줄에 한 동작만
+ *    두고, 그 줄에서 쓴 실제 숫자를 옆에 붙여 눈으로 따라가게 한다.
+ *  steps: [[문장, 예시(선택)], ...] */
+function howToBox(title, steps, note) {
+  const li = steps.map((st) => '<li>' + st[0]
+    + (st[1] ? '<span class="howto__ex">' + st[1] + '</span>' : '') + '</li>').join('');
+  return '<div class="howto"><b class="howto__t">' + escapeHtml(title) + '</b>'
+    + '<ol class="howto__l">' + li + '</ol>'
+    + (note ? '<span class="howto__n">' + escapeHtml(note) + '</span>' : '') + '</div>';
+}
+
 /** 추세 연장을 어떻게 구했는지 — 실제 숫자로 보여 준다.
  *  계산은 iiExtend/iiFit 이 하는 그대로다:
  *    ① 값이 달마다 튀니 3개월 평균으로 매끈하게 다듬고
@@ -3534,24 +3546,23 @@ function iiFit(vals) {
  *    '기울기'가 무엇인지에서 다시 막힌다. */
 function iiExtendHowText(ext) {
   const first = ICIS_SERIES.filter((x) => ext.byKey[x.key])[0];
-  let ex = '';
+  let exSlope = '', exPath = '';
   if (first) {
     const e = ext.byKey[first.key];
-    const per = e.slope;
-    const dir = per >= 0 ? '오르' : '내리';
-    const r0 = Math.round(e.base), r1 = Math.round(e.values[0]);
-    const r2 = Math.round(e.values[1] != null ? e.values[1] : e.values[0]);
-    ex = ' 예를 들어 ' + escapeHtml(first.key) + '는 한 달에 약 '
-      + Math.abs(Math.round(per)).toLocaleString('ko-KR') + '씩 ' + dir + '는 흐름이라, '
-      + '마지막 실제값 ' + r0.toLocaleString('ko-KR') + '에서 '
-      + r1.toLocaleString('ko-KR') + ' → ' + r2.toLocaleString('ko-KR') + ' 로 이어 그렸습니다.';
+    const per = Math.round(e.slope);
+    const n = (v) => Math.round(v).toLocaleString('ko-KR');
+    exSlope = first.key + ': 한 달에 ' + (per >= 0 ? '+' : '\u2212')
+      + Math.abs(per).toLocaleString('ko-KR');
+    exPath = n(e.base) + ' \u2192 ' + n(e.values[0])
+      + (e.values[1] != null ? ' \u2192 ' + n(e.values[1]) : '');
   }
-  return '<b>오른쪽 점선을 만든 방법</b> — 값이 달마다 튀어서 먼저 '
-    + II_MA_WIN + '개월 평균으로 다듬고, 그 평균이 최근 ' + II_SLOPE_WIN
-    + '개월 동안 <b>한 달에 얼마씩 움직였는지</b>를 구합니다. 마지막 실제값에서 '
-    + '그만큼씩 ' + II_EXT_MONTHS + '개월 더 보탠 것이 점선입니다.' + ex
-    + ' 옅은 띠는 그동안 값이 이 흐름에서 빗나가던 폭이라 멀어질수록 넓어집니다. '
-    + '지금 흐름이 이어진다는 가정일 뿐이라 예측이 아닙니다.';
+  return howToBox('오른쪽 점선은 이렇게 그립니다', [
+    ['값이 달마다 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', ''],
+    ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
+      escapeHtml(exSlope)],
+    ['마지막 실제값에 그만큼씩 <b>' + II_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
+    ['옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
+  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다.');
 }
 
 function iiExtend(viewPeriods) {
@@ -5187,6 +5198,25 @@ function msYmOfNo(no) {
 /** 추세 연장 — 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다.
  *  { year, from, values:[{mi,v}], band:[{mi,lo,hi}], slope } · 못 내면 null
  *  ★ 이어 그릴 칸이 12월을 넘으면 그 부분은 그리지 않는다(축이 1~12월이라서). */
+/** 해상 정시성 추세 연장 설명 — ICIS 와 같은 계산이라 같은 순서로 적는다.
+ *  단위가 %라 '몇 %p 씩'으로 쓴다. */
+function sriExtendHowText(ext) {
+  const per = ext.slope;
+  const sign = per >= 0 ? '+' : '\u2212';
+  const exSlope = '한 달에 ' + sign + Math.abs(per).toFixed(1) + '%p';
+  const one = (v) => v.toFixed(1) + '%';
+  const exPath = one(ext.from.v) + ' \u2192 ' + one(ext.values[0].v)
+    + (ext.values[1] ? ' \u2192 ' + one(ext.values[1].v) : '');
+  return howToBox(ext.year + '년 점선은 이렇게 그립니다', [
+    ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', ''],
+    ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
+      escapeHtml(exSlope)],
+    ['마지막 실제값에 그만큼씩 <b>' + SRI_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
+    ['옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
+  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
+    + '회색 점선(월평균)과는 다른 선입니다.');
+}
+
 function sriExtend() {
   const last = sriLast();
   if (!last) return null;
@@ -5360,9 +5390,8 @@ function renderScheduleReliabilityHtml() {
     const { months, series } = srViewData(_srYear);
     const avg = sriAvgProfile();
     body = buildSrChart(months, series, avg, srExt)
-      + '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.'
-      + (srExt ? ' (최근 이동평균의 기울기를 ' + SRI_EXT_MONTHS + '개월 연장 · 음영은 그 추세선에서'
-        + ' 벗어난 정도로 잡은 참고 범위)' : '') + '</div>';
+      + (srExt ? sriExtendHowText(srExt)
+        : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>');
     /* ★ 뺀 것들
        · sriTimeline()        '히스토리 이벤트와 정시성 변화' → 차트 위 마커로
                               옮겼다(sriEventsSvg). 연도 선과 같은 색으로 찍어
@@ -5370,7 +5399,8 @@ function renderScheduleReliabilityHtml() {
        · sriImplications()    '향후 전망 및 시사점' 3열.
        · renderSrForecastHtml() '다음 달 전망'. 차트의 추세 연장과 겹쳤다.
        함수는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
-    extras = sriFactors() + renderSrTermsHtml();
+    /* ★ '최근 변동요인'(sriFactors)도 내렸다 — 함수는 남겨 뒀다. */
+    extras = renderSrTermsHtml();
   }
   return `<div class="viz-root viz-figure sr-figure">${head}
     ${toolbar}
@@ -6495,7 +6525,10 @@ function buildSrChart(months, series, avg, ext) {
   // ── ① 추세 연장: 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다 ──
   let extShapes = '';
   if (extOn) {
-    const c = extColor || 'var(--slate)';
+    /* ★ 연도 선 색(extColor)을 쓰지 않는다. 월평균이 회색 점선이라 2021 회색
+       선을 늘릴 때 둘이 똑같아 보였고, 범례도 회색 점선 둘이라 구분이 안 됐다.
+       추세 연장은 '실측이 아닌 선'이므로 어느 해든 같은 색(청록)으로 통일한다. */
+    const c = 'var(--cyan)';
     const x0 = X(extOn.from.mi), y0 = Y(extOn.from.v);
     const up = [`${x0.toFixed(1)} ${y0.toFixed(1)}`], dn = [`${x0.toFixed(1)} ${y0.toFixed(1)}`];
     extOn.band.forEach((b) => {
@@ -6527,7 +6560,7 @@ function buildSrChart(months, series, avg, ext) {
   const yrs = sriAvgYears();
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}`
     + (avgLine ? `<span class="viz-legend__item sr-legend-avg"><span class="sr-legend-dash"></span>${escapeHtml(yrs[0] + '~' + yrs[yrs.length - 1])} 월평균</span>` : '')
-    + (extShapes ? `<span class="viz-legend__item sr-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '')
+    + (extShapes ? `<span class="viz-legend__item sr-legend-ext"><span class="sr-legend-dash sr-legend-dash--ext"></span>추세 연장(추정)</span>` : '')
     + `</div>`;
   _srChart = { months, series, geom: { X, Y, n, W, padL } };
 

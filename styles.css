@@ -1292,6 +1292,10 @@ body {
   display: inline-block; width: 15px; height: 0; margin-right: 5px; vertical-align: middle;
   border-top: 2px dashed var(--slate);
 }
+/* ★ 추세 연장은 청록 — 월평균(회색 점선)과 범례에서 구분되게.
+   예전에는 둘 다 회색 점선이라 어느 것이 무엇인지 알 수 없었다. */
+.sr-legend-dash--ext { border-top-color: var(--cyan); }
+.sr-legend-ext { color: var(--cyan); font-weight: 700; }
 
 /* ③ 최근 변동요인 — 방향(부정/균형/중립)에 따라 태그 색만 달라진다.
    ★ 카드 배경은 모두 같은 연회색이다. ⑥ 시사점 카드(채운 틴트)와 역할이 달라
@@ -4579,3 +4583,22 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 }
 .icis-fc__how-t { display: block; font-size: 11px; font-weight: 800; color: var(--ink); margin-bottom: 3px; }
 .icis-fc__how-b i { font-style: normal; font-weight: 700; color: var(--navy-2); }
+
+/* 계산 순서 상자 — 그래프 아래에서 '어떻게 그렸는지'를 번호로 짚는다 */
+.howto {
+  margin-top: 8px; padding: 9px 12px; border-radius: var(--radius-sm);
+  background: var(--field); border: 1px solid var(--line);
+}
+.howto__t { display: block; font-size: 11.5px; font-weight: 800; color: var(--ink); margin-bottom: 5px; }
+.howto__l {
+  margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 3px;
+  font-size: 11.5px; line-height: 1.55; color: var(--text);
+}
+.howto__l li::marker { color: var(--muted); font-weight: 700; }
+.howto__l b { color: var(--ink); font-weight: 700; }
+.howto__ex {
+  margin-left: 7px; padding: 1px 7px; border-radius: 999px;
+  background: var(--blue-soft); color: var(--navy-2);
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.howto__n { display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }
