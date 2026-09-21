@@ -2046,11 +2046,51 @@ function sfTrend(title, sub) {
   }).join('');
   const xlab = hs.map((h, i) => '<text x="' + x(i).toFixed(1) + '" y="' + (H - 8)
     + '" class="sf-tr__tx" text-anchor="middle">' + h.year + '</text>').join('');
+
+  /* ── 값 보기 ──
+     ★ 예전에는 점(r=3.2)에 <title> 만 달려 있었다. 그 작은 점을 정확히 맞춰야
+       하고, 떠도 한 줄뿐이라 '눌러도 값이 안 나온다'는 말을 들었다.
+     ★ 연도마다 칸 전체를 덮는 투명 사각형을 두고, 그 위에 오면 세 값을 한
+       상자에 같이 보여 준다. 세 줄을 나란히 봐야 '매출은 늘었는데 이익은
+       줄었다' 같은 게 한눈에 잡힌다.
+     ★ 자바스크립트 배선 없이 CSS :hover 로만 동작한다 — 이 카드는 조회할
+       때마다 다시 그려지는데, 배선을 걸면 그때마다 다시 걸어 줘야 한다.
+       (모바일에서는 탭하면 :hover 가 걸린다) */
+  const BW = 124, LH = 13;
+  const hits = hs.map((h, i) => {
+    const cx = x(i);
+    const x0 = (i === 0) ? padL : (x(i - 1) + cx) / 2;
+    const x1 = (i === hs.length - 1) ? (W - padR) : (cx + x(i + 1)) / 2;
+    const rows = series.filter((sr) => h[sr.k] != null);
+    const by = padT + 4, bh = 14 + LH * rows.length + 8;
+    // 오른쪽에 자리가 모자라면 상자를 왼쪽으로 넘긴다(뷰박스 밖으로 안 나가게)
+    const bx = (cx + 9 + BW > W - 4) ? (cx - 9 - BW) : (cx + 9);
+    const rowsSvg = rows.map((sr, k) => {
+      const ty = by + 14 + LH * (k + 1);
+      return '<rect x="' + (bx + 8) + '" y="' + (ty - 6.5) + '" width="6" height="6" rx="1.5" fill="'
+        + sr.color + '"/>'
+        + '<text x="' + (bx + 18) + '" y="' + ty + '" class="sf-tt__n">' + escapeHtml(sr.name) + '</text>'
+        + '<text x="' + (bx + BW - 8) + '" y="' + ty + '" class="sf-tt__v" text-anchor="end">'
+        + sfNum(h[sr.k]) + '</text>';
+    }).join('');
+    const marks = rows.map((sr) => '<circle cx="' + cx.toFixed(1) + '" cy="' + y(h[sr.k]).toFixed(1)
+      + '" r="4.6" fill="' + sr.color + '" stroke="var(--card)" stroke-width="1.8"/>').join('');
+    return '<g class="sf-tr__hit">'
+      + '<rect x="' + x0.toFixed(1) + '" y="' + padT + '" width="' + (x1 - x0).toFixed(1)
+      + '" height="' + ph + '" fill="transparent"/>'
+      + '<g class="sf-tr__pop">'
+      + '<line x1="' + cx.toFixed(1) + '" y1="' + padT + '" x2="' + cx.toFixed(1)
+      + '" y2="' + (padT + ph) + '" class="sf-tr__cross"/>' + marks
+      + '<rect x="' + bx + '" y="' + by + '" width="' + BW + '" height="' + bh + '" rx="6" class="sf-tt__bg"/>'
+      + '<text x="' + (bx + 8) + '" y="' + (by + 14) + '" class="sf-tt__t">' + h.year + '년 · 억원</text>'
+      + rowsSvg + '</g></g>';
+  }).join('');
+
   const legend = '<div class="sf-pp">' + series.map((s) => '<span><i style="background:'
     + s.color + '"></i>' + escapeHtml(s.name) + '</span>').join('') + '</div>';
   return sfPanel(title, sub,
     '<div class="sf-tr"><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="'
-    + escapeHtml(title) + '">' + grid + lines + xlab + '</svg></div>' + legend);
+    + escapeHtml(title) + '">' + grid + lines + xlab + hits + '</svg></div>' + legend);
 }
 
 /** 6분할 본문 — 3행 2열 */
