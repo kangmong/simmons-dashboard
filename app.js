@@ -3504,6 +3504,16 @@ function iiAddMonth(ym, n) {
  *  ★ sd 는 '원시 등락폭'이 아니라 '추세선이 얼마나 잘 맞았나(잔차)'다.
  *    원시 등락폭을 쓰면 2026년 급등장의 변동성이 그대로 반영돼 띠가 실측값의
  *    40% 가까이 벌어지고, 그만큼 y축이 늘어나 정작 실측 곡선이 눌려 보였다. */
+/** 최근 win 개월 이동평균의 '마지막 값'. 계산 순서 ①에 적을 숫자다. */
+function iiMaLast(vals, win) {
+  const v = (vals || []).filter((x) => x != null && isFinite(x));
+  const w = win || II_MA_WIN;
+  if (v.length < w) return null;
+  let s2 = 0;
+  for (let k = 0; k < w; k += 1) s2 += v[v.length - 1 - k];
+  return s2 / w;
+}
+
 function iiFit(vals) {
   const v = (vals || []).filter((x) => x != null && isFinite(x));
   if (v.length < II_MA_WIN + II_SLOPE_WIN - 1) return null;
@@ -3558,16 +3568,23 @@ function iiExtendHowText(ext) {
     const per = Math.round(e.slope);
     const n = (v) => Math.round(v).toLocaleString('ko-KR');
     exSlope = first.key + ': 한 달에 ' + (per >= 0 ? '+' : '\u2212')
-      + Math.abs(per).toLocaleString('ko-KR');
+      + Math.abs(per).toLocaleString('ko-KR') + ' USD/톤';
     exPath = n(e.base) + ' \u2192 ' + n(e.values[0])
-      + (e.values[1] != null ? ' \u2192 ' + n(e.values[1]) : '');
+      + (e.values[1] != null ? ' \u2192 ' + n(e.values[1]) : '') + ' USD/톤';
+  }
+  /* ★ ①에도 실제 숫자를 적는다. '3개월 평균으로 고릅니다'만 쓰면 그 결과가
+     얼마인지 알 수 없어 다음 줄의 기울기가 어디서 나온 값인지 따라가지 못한다. */
+  let exMa = '';
+  if (first) {
+    const m = iiMaLast(ICIS_DATA[first.key], II_MA_WIN);
+    if (m != null) exMa = first.key + ': ' + Math.round(m).toLocaleString('ko-KR') + ' USD/톤';
   }
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
-    ['값이 달마다 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', ''],
+    ['값이 달마다 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
     ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
       escapeHtml(exSlope)],
     ['마지막 실제값에 그만큼씩 <b>' + II_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
-    ['옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
+    ['<b>점선을 감싼</b> 옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
   ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다.');
 }
 
@@ -5213,14 +5230,17 @@ function sriExtendHowText(ext) {
   const one = (v) => v.toFixed(1) + '%';
   const exPath = one(ext.from.v) + ' \u2192 ' + one(ext.values[0].v)
     + (ext.values[1] ? ' \u2192 ' + one(ext.values[1].v) : '');
+  const ma = iiMaLast(msPtsSr().map((x) => x.v), II_MA_WIN);
+  const exMa = (ma != null) ? ma.toFixed(1) + '%' : '';
   return howToBox(ext.year + '년 점선은 이렇게 그립니다', [
-    ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', ''],
+    ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
     ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
       escapeHtml(exSlope)],
     ['마지막 실제값에 그만큼씩 <b>' + SRI_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
-    ['옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
+    ['<b>점선을 감싼</b> 옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
   ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
-    + '회색 점선(월평균)과는 다른 선입니다.');
+    + '회색 점선(월평균)과는 다른 선입니다. '
+    + '배경의 옅은 가로 색은 아래 표의 수준 구간(원활·보통·지연·심각)입니다.');
 }
 
 function sriExtend() {
@@ -6332,10 +6352,10 @@ const SR_TERMS = [
 
 // '수준별 해석' 행에만 색 점 사용 (원활=초록 / 보통=파랑 / 지연=주황 / 심각=빨강)
 const SR_LEVELS = [
-  { range: '70% 이상', name: '원활', note: '팬데믹 이전 평시 수준', color: '#12B981' },
-  { range: '55~70%',   name: '보통', note: '최근 몇 년간의 일반적 범위', color: '#3B82F6' },
-  { range: '40~55%',   name: '지연', note: '공급망 차질이 체감되는 구간', color: '#F59E0B' },
-  { range: '40% 미만', name: '심각', note: '2021~2022년 물류 대란 수준', color: '#C8102E' },
+  { range: '70% 이상', name: '원활', note: '팬데믹 이전 평시 수준', color: '#12B981', from: 70, to: 100 },
+  { range: '55~70%',   name: '보통', note: '최근 몇 년간의 일반적 범위', color: '#3B82F6', from: 55, to: 70 },
+  { range: '40~55%',   name: '지연', note: '공급망 차질이 체감되는 구간', color: '#F59E0B', from: 40, to: 55 },
+  { range: '40% 미만', name: '심각', note: '2021~2022년 물류 대란 수준', color: '#C8102E', from: 0, to: 40 },
 ];
 
 /** 순수 추가: 출처 아래 '지표 설명' 표(2열: 항목/설명). 정적 텍스트라 항상 표시. */
@@ -6477,6 +6497,25 @@ function sriEventsSvg(months, series, X, padT, plotH, W) {
   return '<g class="ms-evs">' + out + '</g>';
 }
 
+/** 수준별 해석(원활·보통·지연·심각)을 차트 배경에 옅은 가로 띠로 깐다.
+ *  ★ 왜 필요한가: 아래 '지표 설명'의 수준 색이 연도 선 색과 값까지 똑같았다
+ *    (원활 #12B981 = 2023 선, 보통 #3B82F6 = 2022 선, 지연 #F59E0B = 2024 선,
+ *     심각 #C8102E = 2026 선). 같은 초록이 표에서는 '원활', 그래프에서는
+ *    '2023년' 을 뜻하니 볼 때마다 헷갈렸다.
+ *    색을 바꾸는 대신 그 색이 무엇인지 그래프에서 바로 보이게 한다 — 띠는
+ *    y축 구간이고 선은 연도다. 아주 옅게 깔아 선을 가리지 않는다. */
+function srBandsSvg(Y, padL, plotW, ymin, ymax) {
+  const out = SR_LEVELS.map((z) => {
+    const a = Math.max(z.from, ymin), b = Math.min(z.to, ymax);
+    if (!(b > a)) return '';                       // 지금 y축 범위 밖
+    const y1 = Y(b), y2 = Y(a);
+    return '<rect x="' + padL + '" y="' + y1.toFixed(1) + '" width="' + plotW.toFixed(1)
+      + '" height="' + Math.max(0, y2 - y1).toFixed(1) + '" fill="' + z.color
+      + '" opacity=".055"/>';
+  }).join('');
+  return out ? '<g class="sr-bands" aria-hidden="true">' + out + '</g>' : '';
+}
+
 function buildSrChart(months, series, avg, ext) {
   const n = months.length;
   if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
@@ -6574,6 +6613,7 @@ function buildSrChart(months, series, avg, ext) {
 
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
+      ${srBandsSvg(Y, padL, plotW, ymin, ymax)}
       ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
