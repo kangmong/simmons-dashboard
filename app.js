@@ -1848,8 +1848,11 @@ let _sfData = null;
      (.sm-delta). 막대 색과 증감 색은 뜻이 달라 섞지 않는다. */
 const SF_CUR = '#1A2B5C';             // 당기(최근 사업연도) — 네이비
 const SF_PRE = '#A8C8E8';             // 전기 — 연한 스카이블루
-/* 구성 도넛 — 큰 조각부터 진한 네이비 → 스카이블루 → 연회색 */
-const SF_TONE = ['#1A2B5C', '#3E5C9A', '#A8C8E8', '#D7DEE8'];
+/* 구성 도넛 — 큰 조각부터 진한 네이비 → 스카이블루 → 연회색.
+   ★ 마지막 칸을 #D7DEE8 에서 #C6CFDB 로 낮췄다. 흰 카드 위에서 너무 옅어
+     8% 짜리 재고자산 조각이 고리가 끊긴 것처럼 보였다(구멍으로 읽혔다).
+     네 칸의 밝기 간격도 고르게 벌려 이웃한 조각끼리 구분되게 했다. */
+const SF_TONE = ['#1A2B5C', '#4A6BA8', '#8FB4DC', '#C6CFDB'];
 
 /** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다(국내 섹션만 다시 그린다). */
 async function fetchSimmonsFinancials() {
@@ -1893,6 +1896,12 @@ function sfDelta(cur, pre) {
   return '<span class="sm-delta ' + cls + '">' + ar + ' ' + Math.abs(p).toFixed(1) + '%</span>';
 }
 
+/** 패널 부제에 단위를 덧붙인다 — 카드 머리에 한 번 적혀 있어도, 패널마다
+ *  숫자의 단위가 무엇인지(억원이냐 %냐) 그 자리에서 보이는 편이 낫다. */
+function sfSub(text, unit) {
+  return [text, unit].filter(Boolean).join(' · ');
+}
+
 /** 패널 껍데기 */
 function sfPanel(title, sub, body) {
   return '<section class="sf-p"><div class="sf-p__h">'
@@ -1934,7 +1943,8 @@ function sfDonut(title, sub, parts, totalLabel, totalVal) {
     + '<div class="sf-donut__c"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img"'
     + ' aria-label="' + escapeHtml(title) + '">' + segs + '</svg>'
     + '<span class="sf-donut__mid"><b>' + sfNum(totalVal) + '</b><em>'
-    + escapeHtml(totalLabel) + '</em></span></div>'
+    + escapeHtml(totalLabel) + ' (' + escapeHtml((_sfData && _sfData.unit) || '억원')
+    + ')</em></span></div>'
     + '<ul class="sf-lg">' + legend + '</ul></div>';
   return sfPanel(title, sub, body);
 }
@@ -2067,20 +2077,22 @@ function sfPanelsHtml() {
       + escapeHtml(_sfData.reason || '로드 실패') + '</div>';
   }
   const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
+  const u = _sfData.unit || '억원';
   const vs = py + ' → ' + cy;
   return '<div class="sf-grid">'
-    + sfDonut('자산 구성', cy + '년 말', sfAssetParts(), '자산총계', sfV('assetsTotal', 'current'))
-    + sfDonut('부채·자본 구성', cy + '년 말', [
+    + sfDonut('자산 구성', sfSub(cy + '년 말', u), sfAssetParts(), '자산총계', sfV('assetsTotal', 'current'))
+    + sfDonut('부채·자본 구성', sfSub(cy + '년 말', u), [
       /* 큰 쪽(자본)이 진한 네이비 — 도넛 안에서 크기 순서와 색 농도를 맞춘다 */
       { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_TONE[0] },
       { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_TONE[2] },
     ], '자산총계', sfV('assetsTotal', 'current'))
-    + sfBars('주요 자산·부채 항목', vs,
+    + sfBars('주요 자산·부채 항목', sfSub(vs, u),
       ['assetsTotal', 'currentAssets', 'nonCurrentAssets', 'liabilitiesTotal', 'equityTotal'])
-    + sfBars('손익계산서 주요 지표', vs,
+    + sfBars('손익계산서 주요 지표', sfSub(vs, u),
       ['revenue', 'grossProfit', 'operatingProfit', 'netIncome'])
-    + sfMargins('수익성 지표', vs)
-    + sfTrend('연도별 손익 추이', (_sfData.history || []).length + '개 연도')
+    /* ★ 이 패널만 단위가 %다(금액이 아니라 매출 대비 비율). 증감은 %p 로 적는다. */
+    + sfMargins('수익성 지표', sfSub(vs, '%'))
+    + sfTrend('연도별 손익 추이', sfSub((_sfData.history || []).length + '개 연도', u))
     + '</div>';
 }
 
