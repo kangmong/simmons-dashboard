@@ -65,6 +65,38 @@
       "previous": 352.6
     }
   },
+  "assetBreakdown": {
+    "quickAssets": {
+      "label": "당좌자산",
+      "current": 452.5,
+      "previous": 674.8
+    },
+    "inventories": {
+      "label": "재고자산",
+      "current": 207.2,
+      "previous": 183.2
+    },
+    "investmentAssets": {
+      "label": "투자자산",
+      "current": 32.9,
+      "previous": 28.6
+    },
+    "tangibleAssets": {
+      "label": "유형자산",
+      "current": 1846.3,
+      "previous": 1282.7
+    },
+    "intangibleAssets": {
+      "label": "무형자산",
+      "current": 6.2,
+      "previous": 7.3
+    },
+    "otherNonCurrentAssets": {
+      "label": "기타비유동자산",
+      "current": 209.1,
+      "previous": 284.3
+    }
+  },
   "history": [
     {
       "year": 2020,
@@ -103,7 +135,7 @@
       "netIncome": 302.3
     }
   ],
-  "lastUpdated": "2026-09-21 07:34:01",
+  "lastUpdated": "2026-09-21 16:44:34",
   "warnings": [],
   "errors": []
 }

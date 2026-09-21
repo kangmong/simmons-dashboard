@@ -1842,11 +1842,14 @@ function gcAbbr(label, tip) {
 const SF_DATA_URL = 'public/data/simmons-financials.json';
 let _sfData = null;
 
-/* 패널 공통 색 — 당기는 진하게, 전기는 연하게 */
-const SF_CUR = 'var(--accent)';       // 당기(최근 사업연도)
-const SF_PRE = '#9CA3AF';             // 전기
-const SF_ASSET = ['var(--blue)', 'var(--navy-2)'];    // 유동 / 비유동
-const SF_CAP = ['var(--amber)', 'var(--green)'];      // 부채 / 자본
+/* 패널 공통 색 — 당기는 진한 네이비, 전기는 연한 스카이블루.
+   ★ 이 카드 안에서만 쓰는 값이다(sf- 접두사). 다른 카드의 색은 건드리지 않는다.
+   ★ 증감 배지(▲▼)는 여기 색을 쓰지 않는다 — 악화 빨강·개선 초록 그대로다
+     (.sm-delta). 막대 색과 증감 색은 뜻이 달라 섞지 않는다. */
+const SF_CUR = '#1A2B5C';             // 당기(최근 사업연도) — 네이비
+const SF_PRE = '#A8C8E8';             // 전기 — 연한 스카이블루
+/* 구성 도넛 — 큰 조각부터 진한 네이비 → 스카이블루 → 연회색 */
+const SF_TONE = ['#1A2B5C', '#3E5C9A', '#A8C8E8', '#D7DEE8'];
 
 /** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다(국내 섹션만 다시 그린다). */
 async function fetchSimmonsFinancials() {
@@ -1967,9 +1970,11 @@ function sfBars(title, sub, keys) {
 /** 전기/당기 범례 — 막대·가로막대가 함께 쓴다 */
 function sfLegendPP() {
   const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
-  return '<div class="sf-pp"><span><i style="background:' + SF_PRE + '"></i>전기('
-    + escapeHtml(String(py)) + ')</span><span><i style="background:' + SF_CUR
-    + '"></i>당기(' + escapeHtml(String(cy)) + ')</span></div>';
+  /* ★ 범례는 당기 → 전기 순으로 적는다. 막대는 왼쪽부터 전기→당기(시간순)로
+     그려 추이가 읽히게 두고, 범례만 최신 연도를 앞세운다. */
+  return '<div class="sf-pp"><span><i style="background:' + SF_CUR + '"></i>당기('
+    + escapeHtml(String(cy)) + ')</span><span><i style="background:' + SF_PRE
+    + '"></i>전기(' + escapeHtml(String(py)) + ')</span></div>';
 }
 
 /* ── ⑤ 수익성 지표 가로 막대 ──────────────────────────────────────────── */
@@ -2011,7 +2016,9 @@ function sfTrend(title, sub) {
   const W = 460, H = 220, padL = 46, padR = 12, padT = 16, padB = 28;
   const pw = W - padL - padR, ph = H - padT - padB;
   const series = [
-    { k: 'revenue', name: '매출액', color: SF_CUR },
+    /* ★ 이 라인차트만 예전 색(빨강·파랑·초록) 그대로다. SF_CUR 를 쓰면
+       막대 톤을 바꿀 때 같이 끌려가므로 여기서는 색을 직접 적는다. */
+    { k: 'revenue', name: '매출액', color: 'var(--accent)' },
     { k: 'operatingProfit', name: '영업이익', color: 'var(--blue)' },
     { k: 'netIncome', name: '당기순이익', color: 'var(--green)' },
   ];
@@ -2062,13 +2069,11 @@ function sfPanelsHtml() {
   const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
   const vs = py + ' → ' + cy;
   return '<div class="sf-grid">'
-    + sfDonut('자산 구성', cy + '년 말', [
-      { name: '유동자산', v: sfV('currentAssets', 'current'), color: SF_ASSET[0] },
-      { name: '비유동자산', v: sfV('nonCurrentAssets', 'current'), color: SF_ASSET[1] },
-    ], '자산총계', sfV('assetsTotal', 'current'))
+    + sfDonut('자산 구성', cy + '년 말', sfAssetParts(), '자산총계', sfV('assetsTotal', 'current'))
     + sfDonut('부채·자본 구성', cy + '년 말', [
-      { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_CAP[0] },
-      { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_CAP[1] },
+      /* 큰 쪽(자본)이 진한 네이비 — 도넛 안에서 크기 순서와 색 농도를 맞춘다 */
+      { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_TONE[0] },
+      { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_TONE[2] },
     ], '자산총계', sfV('assetsTotal', 'current'))
     + sfBars('주요 자산·부채 항목', vs,
       ['assetsTotal', 'currentAssets', 'nonCurrentAssets', 'liabilitiesTotal', 'equityTotal'])
@@ -2077,6 +2082,36 @@ function sfPanelsHtml() {
     + sfMargins('수익성 지표', vs)
     + sfTrend('연도별 손익 추이', (_sfData.history || []).length + '개 연도')
     + '</div>';
+}
+
+/** 자산 구성 도넛의 조각.
+ *  ★ 감사보고서의 자산 세부(assetBreakdown)가 있으면 큰 항목은 그대로 두고
+ *    투자·무형·기타비유동처럼 작은 것들을 '기타자산' 하나로 묶어 따로 보여 준다.
+ *    예전에는 유동/비유동 2조각이라 209억짜리 기타비유동자산이 비유동 덩어리
+ *    안에 묻혀 보이지 않았다.
+ *  ★ 세부가 없으면(수집기가 못 찾았거나 옛 JSON) 예전 그대로 유동/비유동 2조각으로
+ *    되돌아간다 — 화면이 비지 않게. */
+function sfAssetParts() {
+  const b = (_sfData && _sfData.assetBreakdown) || null;
+  const g = (k) => (b && b[k] && b[k].current != null) ? b[k].current : null;
+  const quick = g('quickAssets'), inv = g('inventories'), tan = g('tangibleAssets');
+  const etc = ['investmentAssets', 'intangibleAssets', 'otherNonCurrentAssets']
+    .map(g).filter((v) => v != null).reduce((a, v) => a + v, 0);
+  if (quick == null || inv == null || tan == null) {
+    return [
+      { name: '유동자산', v: sfV('currentAssets', 'current'), color: SF_TONE[0] },
+      { name: '비유동자산', v: sfV('nonCurrentAssets', 'current'), color: SF_TONE[2] },
+    ];
+  }
+  /* 큰 조각부터 진한 색을 준다 — 도넛에서 크기와 농도가 같은 방향을 보게 */
+  return [
+    { name: '유형자산', v: tan },
+    { name: '당좌자산', v: quick },
+    { name: '재고자산', v: inv },
+    { name: '기타자산', v: etc || null },
+  ].filter((p) => p.v != null && p.v > 0)
+    .sort((a, z) => z.v - a.v)
+    .map((p, i) => Object.assign({ color: SF_TONE[Math.min(i, SF_TONE.length - 1)] }, p));
 }
 
 /** 카드 머리의 출처 배지 — 예전 '기사 기준 수기 입력'과 달리 감사받은 수치다. */

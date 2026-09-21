@@ -81,6 +81,22 @@ WANT = [
     ("operatingProfit",  "손익계산서", ("영업이익", "영업손실")),
     ("netIncome",        "손익계산서", ("당기순이익", "당기순손실")),
 ]
+# 자산 구성 도넛에서 소액 항목을 따로 떼어 내려고 더 받는 세부 계정.
+# ★ 위 WANT(계정 9개)와 섞지 않는다 — 다른 패널이 보는 값은 그대로 두고,
+#   이쪽은 없으면 없는 대로 둔다(도넛이 알아서 유동/비유동 2분할로 되돌아간다).
+WANT_ASSET = [
+    ("quickAssets",           ("당좌자산",)),
+    ("inventories",           ("재고자산",)),
+    ("investmentAssets",      ("투자자산",)),
+    ("tangibleAssets",        ("유형자산",)),
+    ("intangibleAssets",      ("무형자산",)),
+    ("otherNonCurrentAssets", ("기타비유동자산",)),
+]
+LABEL_ASSET = {
+    "quickAssets": "당좌자산", "inventories": "재고자산",
+    "investmentAssets": "투자자산", "tangibleAssets": "유형자산",
+    "intangibleAssets": "무형자산", "otherNonCurrentAssets": "기타비유동자산",
+}
 LABEL_KO = {
     "assetsTotal": "자산총계", "currentAssets": "유동자산",
     "nonCurrentAssets": "비유동자산", "liabilitiesTotal": "부채총계",
@@ -118,6 +134,10 @@ def _norm(s):
     s = re.sub(r"<[^>]+>", "", s or "")
     s = re.sub(r"\(주석[^)]*\)", "", s)
     s = re.sub(r"\s+", "", s)
+    # 앞머리 번호를 벗긴다. 재무상태표는 대분류가 'Ⅰ.유동자산', 중분류가
+    # '(1)당좌자산' 처럼 괄호 번호다 — 괄호꼴을 빼먹으면 세부 계정이 하나도
+    # 안 잡힌다(자산 구성 도넛의 '기타자산' 분리가 그래서 비어 있었다).
+    s = re.sub(r"^\((\d+)\)", "", s)
     s = re.sub(r"^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ0-9]+[.\)]?", "", s)
     return s
 
@@ -292,12 +312,19 @@ def parse_document(doc):
         got[key_] = (cur, pre)
     if missing:
         raise RuntimeError("계정을 찾지 못했습니다: %s" % ", ".join(missing))
+    # ★ 자산 세부는 '있으면 담는다'. 못 찾아도 예외를 내지 않는다 —
+    #   도넛이 유동/비유동 2분할로 되돌아갈 뿐 나머지 패널은 멀쩡하다.
+    brk = {}
+    for key_, names in WANT_ASSET:
+        cur, pre = _pick(bs, names)
+        if cur is not None or pre is not None:
+            brk[key_] = (cur, pre)
     # 기수 라벨(제 34(당) 기 / 제 33(전) 기)
     terms = re.findall(r"제\s*(\d+)\s*\((?:당|전)\)\s*기", secs.get("재무상태표", ""))
     labels = {}
     if len(terms) >= 2:
         labels = {"current": "제%s기" % terms[0], "previous": "제%s기" % terms[1]}
-    return got, labels
+    return got, labels, brk
 
 
 def _check_sums(got, warn):
@@ -328,7 +355,7 @@ def collect(key, years):
 
     latest = reports[0]
     doc = fetch_document(key, latest["rceptNo"])
-    got, labels = parse_document(doc)
+    got, labels, brk = parse_document(doc)
     _check_sums(got, warn)
 
     accounts = {}
@@ -336,11 +363,25 @@ def collect(key, years):
         cur, pre = got[key_]
         accounts[key_] = {"label": LABEL_KO[key_], "current": _eok(cur), "previous": _eok(pre)}
 
+    asset_brk = {}
+    for key_, _names in WANT_ASSET:
+        if key_ in brk:
+            cur, pre = brk[key_]
+            asset_brk[key_] = {"label": LABEL_ASSET[key_],
+                               "current": _eok(cur), "previous": _eok(pre)}
+    # 세부 합이 자산총계와 맞는지 — 어긋나면 경고만(화면은 총계 기준으로 그린다)
+    if asset_brk:
+        tot = (got.get("assetsTotal") or (None,))[0]
+        ssum = sum((brk[k][0] or 0) for k in brk)
+        if tot and abs(ssum - tot) > 1:
+            warn.append("자산 세부 합(%d) ≠ 자산총계(%d) — 도넛은 총계 기준으로 그립니다"
+                        % (ssum, tot))
+
     # 추이 그래프용 — 보고서마다 (당기) 손익 3개만 모은다. 실패한 해는 건너뛴다.
     history, seen = [], set()
     for rep in reports:
         try:
-            g2, _ = parse_document(doc if rep is latest else fetch_document(key, rep["rceptNo"]))
+            g2, _, _b = parse_document(doc if rep is latest else fetch_document(key, rep["rceptNo"]))
         except Exception as e:  # noqa: BLE001 — 한 해가 실패해도 나머지는 살린다
             errs.append({"year": rep["year"], "error": str(e)[:160]})
             continue
@@ -375,6 +416,7 @@ def collect(key, years):
         "previous": {"year": cur_year - 1,
                      "label": labels.get("previous") or ("%d년" % (cur_year - 1))},
         "accounts": accounts,
+        "assetBreakdown": asset_brk,
         "history": history,
         "lastUpdated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "warnings": warn,
