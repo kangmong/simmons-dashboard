@@ -3562,8 +3562,21 @@ function iiFit(vals) {
  *    두고, 그 줄에서 쓴 실제 숫자를 옆에 붙여 눈으로 따라가게 한다.
  *  steps: [[문장, 예시(선택)], ...] */
 function howToBox(title, steps, note) {
-  const li = steps.map((st) => '<li>' + st[0]
-    + (st[1] ? '<span class="howto__ex">' + st[1] + '</span>' : '') + '</li>').join('');
+  /* ★ 단계를 두 가지 모양으로 받는다.
+       ['설명', '예시']  — 한 줄 + 오른쪽 알약 배지(스폰지 주원료·해상 정시성)
+       { t, d, r }       — 굵은 소제목 / 설명 한 줄 / '→ 값' 한 줄(운임지수)
+     운임지수는 단계마다 값이 길어(원화 환산까지) 한 줄에 밀어 넣으면 배지가
+     설명보다 길어져 어디까지가 설명인지 눈에 안 들어왔다. 값을 아래 줄로
+     내리고 단계마다 이름을 붙인다. */
+  const li = steps.map((st) => {
+    if (!Array.isArray(st)) {
+      return '<li class="howto__s"><b class="howto__st">' + st.t + '</b>'
+        + (st.d ? '<span class="howto__d">' + st.d + '</span>' : '')
+        + (st.r ? '<span class="howto__r">\u2192 ' + st.r + '</span>' : '') + '</li>';
+    }
+    return '<li>' + st[0]
+      + (st[1] ? '<span class="howto__ex">' + st[1] + '</span>' : '') + '</li>';
+  }).join('');
   return '<div class="howto"><b class="howto__t">' + escapeHtml(title) + '</b>'
     + '<ol class="howto__l">' + li + '</ol>'
     + (note ? '<span class="howto__n">' + escapeHtml(note) + '</span>' : '') + '</div>';
@@ -6008,32 +6021,31 @@ function xsiFcTargetYm(lastDate) {
 function xsiExtendHowText(fc) {
   const n = (v) => Math.round(v).toLocaleString('ko-KR');
   const perDay = fc.slope;
-  const sign = perDay >= 0 ? '+' : '−';
-  /* ★ 달러 숫자만 적으면 두 가지가 안 잡힌다 — '13.4 USD' 가 어디서 나온
-     값인지, 그리고 그게 큰 돈인지. 그래서
-       ① 어느 구간에 직선을 맞춘 것인지(fc.from~fc.to)를 값 앞에 적고,
-       ② 원화 환산을 괄호로 덧붙인다(환율은 화면이 이미 쓰는 krwRate).
-     환율을 못 구하면 원화는 조용히 빠진다(달러만 남는다). */
+  const sign = perDay >= 0 ? '+' : '\u2212';
+  /* ★ 원화 환산은 남겨 둔다 — 달러 숫자만으로는 그게 큰 돈인지 가늠이 안 된다.
+     환율(krwRate)을 못 구하면 원화는 조용히 빠지고 달러만 남는다. */
   const rate = krwRate('USD');
   const won = (v) => {
     const t = (rate != null) ? fmtKrwShort(v * rate) : null;
-    return t ? '(약 ' + t + ')' : '';
+    return t ? ' <span class="howto__w">(약 ' + escapeHtml(t) + ')</span>' : '';
   };
-  const span = (fc.from && fc.to) ? fc.from + '~' + fc.to + ' 기울기 → ' : '';
+  const span = (fc.from && fc.to) ? '(' + fc.from + '~' + fc.to + ')' : '';
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
-    ['최근 <b>' + XSI_FC_MONTHS + '개월</b> 값에 직선 하나를 맞춰 <b>하루에 얼마씩</b> '
-      + '움직였는지 잽니다',
-      span + '하루 ' + sign + Math.abs(perDay).toFixed(1) + ' USD ' + won(Math.abs(perDay))],
-    ['마지막 값에서 그만큼씩 <b>' + XSI_FC_DAYS + '거래일(약 3개월)</b> 더합니다',
-      n(fc.base) + ' ' + won(fc.base) + ' → ' + n(fc.med) + ' ' + won(fc.med)],
-    ['같은 기간 <b>하루 등락폭</b>을 3개월치로 늘려 위아래 폭을 잡습니다',
-      '±' + Math.abs(fc.sd3).toFixed(0) + '% → ' + n(fc.dn) + ' ~ ' + n(fc.up) + ' USD'],
-    ['<b>점선을 감싼</b> 옅은 띠가 그 폭입니다 — 넓을수록 그동안 많이 출렁였다는 뜻입니다', ''],
-  ], '여기 숫자는 컨테이너 한 개를 배로 보내는 값입니다 — 한 개 보내는 데 '
-    + n(fc.base) + '달러' + won(fc.base) + ' 하던 것이 3개월 뒤 '
-    + n(fc.med) + '달러' + won(fc.med) + ' 쯤 된다는 뜻입니다. '
-    + '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
-    + '운임은 성수기·항로 사정에 따라 크게 벗어날 수 있습니다.');
+    { t: '최근 흐름 계산',
+      d: '최근 <b>' + XSI_FC_MONTHS + '개월</b>' + span + '의 가격 흐름을 직선 하나로 요약합니다.',
+      r: '하루 평균 ' + sign + Math.abs(perDay).toFixed(1) + ' USD' + won(Math.abs(perDay)) },
+    { t: '마지막 실제값 확인',
+      d: '점선은 마지막 실제 가격 <b>' + n(fc.base) + ' USD</b>' + won(fc.base) + '에서 시작합니다.',
+      r: '' },
+    { t: '3개월 뒤 추세값 계산',
+      d: '이 흐름이 그대로 이어진다고 가정해 <b>' + XSI_FC_DAYS
+        + '거래일(약 3개월)</b> 뒤 값을 계산합니다.',
+      r: n(fc.base) + ' USD \u2192 ' + n(fc.med) + ' USD' + won(fc.med) },
+    { t: '변동 가능 범위 표시',
+      d: '그동안의 가격 변동폭 <b>\u00b1' + Math.abs(fc.sd3).toFixed(0)
+        + '%</b>를 반영해 위\u00b7아래 범위를 함께 표시합니다 \u2014 점선을 감싼 옅은 띠가 그 폭입니다.',
+      r: n(fc.dn) + ' ~ ' + n(fc.up) + ' USD' },
+  ], '\u203b 점선은 가격 예측이 아니라, 최근 흐름을 앞으로 연장해 본 참고 추세선입니다.');
 }
 function xsiForecast(series) {
   const w = xsiRecent(series);
