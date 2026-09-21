@@ -5953,19 +5953,33 @@ function xsiRecent(series) {
 function xsiExtendHowText(fc) {
   const n = (v) => Math.round(v).toLocaleString('ko-KR');
   const perDay = fc.slope;
-  const sign = perDay >= 0 ? '+' : '\u2212';
+  const sign = perDay >= 0 ? '+' : '−';
+  /* ★ 달러 숫자만 적으면 두 가지가 안 잡힌다 — '13.4 USD' 가 어디서 나온
+     값인지, 그리고 그게 큰 돈인지. 그래서
+       ① 어느 구간에 직선을 맞춘 것인지(fc.from~fc.to)를 값 앞에 적고,
+       ② 원화 환산을 괄호로 덧붙인다(환율은 화면이 이미 쓰는 krwRate).
+     환율을 못 구하면 원화는 조용히 빠진다(달러만 남는다). */
+  const rate = krwRate('USD');
+  const won = (v) => {
+    const t = (rate != null) ? fmtKrwShort(v * rate) : null;
+    return t ? '(약 ' + t + ')' : '';
+  };
+  const span = (fc.from && fc.to) ? fc.from + '~' + fc.to + ' 기울기 → ' : '';
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
     ['최근 <b>' + XSI_FC_MONTHS + '개월</b> 값에 직선 하나를 맞춰 <b>하루에 얼마씩</b> '
-      + '움직였는지 잽니다', '하루 ' + sign + Math.abs(perDay).toFixed(1) + ' USD'],
+      + '움직였는지 잽니다',
+      span + '하루 ' + sign + Math.abs(perDay).toFixed(1) + ' USD ' + won(Math.abs(perDay))],
     ['마지막 값에서 그만큼씩 <b>' + XSI_FC_DAYS + '거래일(약 3개월)</b> 더합니다',
-      n(fc.base) + ' \u2192 ' + n(fc.med) + ' USD/40ft'],
+      n(fc.base) + ' ' + won(fc.base) + ' → ' + n(fc.med) + ' ' + won(fc.med)],
     ['같은 기간 <b>하루 등락폭</b>을 3개월치로 늘려 위아래 폭을 잡습니다',
-      '\u00b1' + Math.abs(fc.sd3).toFixed(0) + '% \u2192 ' + n(fc.dn) + ' ~ ' + n(fc.up)],
-    ['<b>점선을 감싼</b> 옅은 띠가 그 폭입니다 \u2014 넓을수록 그동안 많이 출렁였다는 뜻입니다', ''],
-  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
+      '±' + Math.abs(fc.sd3).toFixed(0) + '% → ' + n(fc.dn) + ' ~ ' + n(fc.up) + ' USD'],
+    ['<b>점선을 감싼</b> 옅은 띠가 그 폭입니다 — 넓을수록 그동안 많이 출렁였다는 뜻입니다', ''],
+  ], '여기 숫자는 컨테이너 한 개를 배로 보내는 값입니다 — 한 개 보내는 데 '
+    + n(fc.base) + '달러' + won(fc.base) + ' 하던 것이 3개월 뒤 '
+    + n(fc.med) + '달러' + won(fc.med) + ' 쯤 된다는 뜻입니다. '
+    + '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
     + '운임은 성수기·항로 사정에 따라 크게 벗어날 수 있습니다.');
 }
-
 function xsiForecast(series) {
   const w = xsiRecent(series);
   if (!w) return null;
