@@ -4880,8 +4880,13 @@ function renderOilProductHtml() {
       + '<div class="oc-tools">'
       + '<button type="button" class="oc-tool' + (_opView === 'table' ? ' is-on' : '') + '" data-op-view="table">표보기</button>'
       + '<button type="button" class="oc-tool' + (_opView === 'chart' ? ' is-on' : '') + '" data-op-view="chart">차트보기</button>'
-      + '<button type="button" class="oc-tool" data-op-exp="csv">csv 저장</button>'
-      + '<button type="button" class="oc-tool" data-op-exp="xls">엑셀저장</button>'
+      /* ★ [csv 저장]과 [엑셀저장]을 하나로 합쳤다. 둘 다 결국 엑셀에서 열리는
+         같은 표라 버튼만 둘로 보였다. 남긴 쪽은 CSV 다 — 엑셀이 '형식이
+         확장자와 다릅니다' 경고 없이 바로 열고, 다른 프로그램에서도 읽힌다.
+         (옛 .xls 는 표를 HTML 로 적어 확장자만 바꾼 것이었다.)
+         opExportXls 함수는 남겨 뒀으니 되살리려면 버튼만 다시 붙이면 된다. */
+      + '<button type="button" class="oc-tool" data-op-exp="csv" title="'
+        + NOTE_EXPORT + '">엑셀 저장</button>'
       + '<button type="button" class="oc-tool" data-op-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_opView === 'chart')
@@ -7132,6 +7137,9 @@ function ocFileName(q, ext) {
     + '-' + String(q.y1) + (q.term === 'y' ? '' : q.m1) + '.' + ext;
 }
 
+/** 저장 버튼 툴팁 — 받는 파일이 무엇인지 미리 알려 준다. */
+const NOTE_EXPORT = 'CSV 파일로 내려받습니다 — 엑셀에서 바로 열립니다';
+
 function ocExportCsv(q, win) {
   const csv = ocMatrix(q, win)
     .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
@@ -7483,8 +7491,9 @@ function renderOilPricesHtml() {
       + '<div class="oc-tools">'
       + '<button type="button" class="oc-tool' + (_ocView === 'table' ? ' is-on' : '') + '" data-oc-view="table">표보기</button>'
       + '<button type="button" class="oc-tool' + (_ocView === 'chart' ? ' is-on' : '') + '" data-oc-view="chart">차트보기</button>'
-      + '<button type="button" class="oc-tool" data-oc-exp="csv">csv 저장</button>'
-      + '<button type="button" class="oc-tool" data-oc-exp="xls">엑셀저장</button>'
+      /* ★ 두 버튼을 하나로 — 석유제품 카드와 같은 이유(위 주석 참고). */
+      + '<button type="button" class="oc-tool" data-oc-exp="csv" title="'
+        + NOTE_EXPORT + '">엑셀 저장</button>'
       + '<button type="button" class="oc-tool" data-oc-exp="print">인쇄하기</button>'
       + '</div></div>';
     const result = (_ocView === 'chart')
