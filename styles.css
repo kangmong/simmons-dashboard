@@ -1135,7 +1135,9 @@ body {
   margin: 12px 0 4px; padding: 11px 13px;
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--field);
 }
-.ms-factors__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+/* ★ 한 칸만 남아 1열이다('구조적 요인' 칸을 내렸다). 2열로 두면 남은 칸이
+   왼쪽 절반만 쓰고 오른쪽이 빈다. 되살릴 때 1fr 1fr 로 돌리면 된다. */
+.ms-factors__cols { display: grid; grid-template-columns: 1fr; gap: 10px 20px; }
 .ms-factor__h {
   font-size: 11.5px; font-weight: 800; color: var(--ink);
   padding-bottom: 5px; border-bottom: 1px solid var(--line);

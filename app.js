@@ -3351,18 +3351,22 @@ function msWireEvents(root) {
 
 /* ── 요인 해설 2단 ───────────────────────────────────────────────────── */
 
-/** 구조적 요인 / 단기 요인 + 갱신 캡션. 해설이 없으면 ''(빈 칸을 만들지 않는다). */
+/** 단기 요인 + 갱신 캡션. 해설이 없으면 ''(빈 칸을 만들지 않는다).
+ *  ★ '구조적 요인' 칸은 내렸다 — 두 칸 중 왼쪽만 쓰던 structural_factor 를
+ *    더는 그리지 않는다. 남은 한 칸이 폭을 다 쓰도록 .ms-factors__cols 는
+ *    1열이다.
+ *  ★ JSON 의 structural_factor 값은 지우지 않았다. 되살리려면 아래 col() 을
+ *    한 번 더 부르고 CSS 를 2열로 되돌리면 된다. */
 function msFactorsHtml(key) {
   const d = msFor(key);
   if (!d) return '';
-  const st = String(d.structural_factor || '').trim();
   const sh = String(d.short_term_factor || '').trim();
-  if (!st && !sh) return '';
+  if (!sh) return '';
   const upd = (_msData && _msData.updated) ? String(_msData.updated) : null;
   const col = (h, t) => (t ? '<div class="ms-factor"><div class="ms-factor__h">' + escapeHtml(h)
     + '</div><p class="ms-factor__b">' + escapeHtml(t) + '</p></div>' : '');
   return '<div class="ms-factors">'
-    + '<div class="ms-factors__cols">' + col('구조적 요인', st) + col('단기 요인', sh) + '</div>'
+    + '<div class="ms-factors__cols">' + col('단기 요인', sh) + '</div>'
     + '<div class="ms-factors__cap">시황 해설은 주기적으로 갱신됩니다'
     + (upd ? ' (최종 갱신: ' + escapeHtml(upd) + ')' : '') + '</div>'
     + '</div>';
