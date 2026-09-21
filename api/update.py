@@ -115,8 +115,25 @@ _IMG_METAS = [
 ]
 
 
-def _decode_gnews_url(link, timeout=8):
-    """Google News RSS 리다이렉트 링크 → 실제 기사 URL(batchexecute). 실패 시 원 링크."""
+# 디코드 결과 캐시 — 한 번 실행에서 같은 기사를 여러 단계가 다시 부른다
+# (주제 판정 → 썸네일 → 보충). GIL 아래 dict 읽기/쓰기는 원자적이라 잠금은 없다.
+_GNEWS_DEC_CACHE = {}
+
+
+def _decode_gnews_url(link, timeout=15, _retry=1):
+    """Google News RSS 리다이렉트 링크 → 실제 기사 URL(batchexecute). 실패 시 원 링크.
+
+    ★ 타임아웃이 8초였다. 이 GET 이 받아 오는 Google News 페이지는 약 590KB 라,
+      썸네일 단계가 16갈래로 동시에 부르면 8초 안에 다 못 받고 예외가 났다.
+      그러면 원 링크(news.google.com)를 돌려주고, 뒤이어 _page_image 가 그
+      구글 페이지에서 기사 사진을 찾다 실패한다 — 카드에 워드마크만 남았다.
+      실측: 동시 16 → 17회 중 1회 성공 / 순차 → 5회 중 5회 성공.
+    ★ 한 번 더 시도한다. 일시적인 끊김이면 두 번째에 대개 붙는다.
+    ★ 성공한 결과는 캐시에 둔다(실패는 담지 않는다 — 다음에 다시 시도).
+    """
+    hit = _GNEWS_DEC_CACHE.get(link)
+    if hit:
+        return hit
     try:
         from bs4 import BeautifulSoup
         m = re.search(r'/articles/([^?/]+)', link)
@@ -148,9 +165,13 @@ def _decode_gnews_url(link, timeout=8):
             u = re.sub(r"\\u([0-9a-fA-F]{4})", lambda mm: chr(int(mm.group(1), 16)), u)
             u = u.replace("\\/", "/").replace("\\", "")  # 남은 escape 백슬래시 제거
             if u.startswith("http"):
+                _GNEWS_DEC_CACHE[link] = u
                 return u
     except Exception:  # noqa: BLE001
         pass
+    if _retry > 0:
+        time.sleep(0.6)
+        return _decode_gnews_url(link, timeout=timeout, _retry=_retry - 1)
     return link
 
 
@@ -236,10 +257,22 @@ def _page_image(page_url, timeout=8, _depth=0):
     return None
 
 
+# 썸네일 동시 실행 수. ★ 16이었다 — 디코드가 590KB 짜리 페이지를 받아 오므로
+# 갈래가 많으면 서로 대역폭을 빼앗아 다 같이 시간 초과로 죽었다. 4갈래면
+# 17건에 9초쯤 걸리고(예전 11초) 대신 거의 다 성공한다.
+SIMMONS_IMG_WORKERS = 4
+
+
 def _simmons_thumb(link):
     """Google News 링크 → 실제 기사 URL 디코드 → 대표 이미지. 실패 시 None."""
     try:
-        return _page_image(_decode_gnews_url(link))
+        real = _decode_gnews_url(link)
+        # ★ 디코드가 실패하면 원 링크(news.google.com)가 그대로 돌아온다. 그
+        #   페이지에는 기사 사진이 없으니 읽어 봐야 헛일이고 요청만 한 번 더
+        #   나간다 — 다른 기사 디코드의 시간만 잡아먹는다.
+        if not real or "news.google.com" in real:
+            return None
+        return _page_image(real)
     except Exception:  # noqa: BLE001
         return None
 
@@ -706,7 +739,8 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
                 to_img.append(m)
     if to_img:
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(to_img))) as ex:
+            with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=min(SIMMONS_IMG_WORKERS, len(to_img))) as ex:
                 for m, img in zip(to_img, ex.map(lambda it: _simmons_thumb(it["link"]), to_img)):
                     m["image"] = img
         except Exception:  # noqa: BLE001
@@ -771,7 +805,55 @@ def _simmons_dedup(cands, kw_thr=0.5, str_thr=0.7):
             chosen.append(rep)
             if len(chosen) >= 6:
                 break
+    _simmons_fill_missing(chosen, merged)   # 표시할 것 중 빈 사진만 한 번 더
     return chosen, merged
+
+
+def _simmons_fill_missing(chosen, groups):
+    """표시할 기사 중 사진이 빈 것만 한 번 더 채운다.
+
+    ★ 위 단계는 '상위 12개 그룹의 최신 2건'에만 사진을 붙인다. 그 밖의 그룹이
+      매체 다양성 규칙으로 뽑히면 사진을 아예 시도조차 못 하고, 시도한 2건이
+      나란히 실패한 그룹도 대표가 빈손으로 남는다.
+    ★ 같은 그룹의 다른 기사도 받아 본다 — 같은 보도자료를 받아쓴 기사라
+      사진이 사실상 같다. 그래도 못 구하면 그대로 둔다(없는 사진을 지어내지
+      않는다 — 프런트가 워드마크로 대신한다).
+    ★ 대상이 최대 6건이라 비용이 거의 늘지 않는다."""
+    need = [it for it in chosen if not it.get("image")]
+    if not need:
+        return
+    by_rep = {id(g.get("rep")): g for g in (groups or []) if g.get("rep") is not None}
+
+    def _links_for(it):
+        out, seen = [], set()
+        for u in [it.get("link")] + [m.get("link") for m in
+                                     sorted(by_rep.get(id(it), {}).get("items", []),
+                                            key=lambda x: -_date_ord(x.get("date")))]:
+            if u and u not in seen:
+                seen.add(u)
+                out.append(u)
+        return out[:3]                       # 한 기사당 최대 3번까지만
+
+    def _first(links):
+        for u in links:
+            img = _simmons_thumb(u)
+            if img:
+                return img
+        return None
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(SIMMONS_IMG_WORKERS, len(need))) as ex:
+            for it, img in zip(need, ex.map(lambda x: _first(_links_for(x)), need)):
+                if img:
+                    it["image"] = img
+                    it["_imn"] = _img_norm(img)
+    except Exception:  # noqa: BLE001
+        pass
+    left = [it["title"] for it in chosen if not it.get("image")]
+    print("[simmons_news] 사진 보충: %d건 시도 → %d건 채움%s"
+          % (len(need), len(need) - len(left),
+             (" · 못 구함: " + " / ".join(left)) if left else ""))
 
 
 def _simmons_plain_top(cands, n):
@@ -779,7 +861,8 @@ def _simmons_plain_top(cands, n):
     top = cands[:max(n + 3, 9)]
     imgs = [None] * len(top)
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(top) or 1)) as ex:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=min(SIMMONS_IMG_WORKERS, len(top) or 1)) as ex:
             imgs = list(ex.map(lambda it: _simmons_thumb(it["link"]), top))
     except Exception:  # noqa: BLE001
         pass
