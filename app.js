@@ -5570,6 +5570,21 @@ function xsiValueTip() {
     + ' 이며, Compass 가 영업일마다 계산해 유럽 중부시간 18시에 발표합니다.';
 }
 
+/** 지수 이름(코드)과 집계 시작일이 무슨 뜻인지 — 리드 박스 ⓘ 에 들어간다. */
+function xsiCodeTip(r) {
+  const parts = [];
+  if (r.code) {
+    parts.push(r.code + ' 는 이 항로'
+      + (r.name ? '(' + r.name + ')' : '') + ' 운임지수에 붙은 이름표입니다. '
+      + '항로마다 이름이 달라서, 이 이름으로 찾으면 같은 항로의 값을 볼 수 있습니다.');
+  }
+  if (r.inception) {
+    parts.push(r.inception + ' 은 이 지수를 처음 계산해 발표하기 시작한 날입니다. '
+      + '그보다 이전 값은 없습니다.');
+  }
+  return parts.join(' ');
+}
+
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
 const XSI_STATS = [
   { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return', icon: '📈',
@@ -5668,14 +5683,22 @@ function buildXsiChart(slice, color, fc) {
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>${vizKrwTick(padL - 6, y, val, krwRate('USD'))}`;
   }).join('');
 
-  const xticks = vizTickIdx(n, plotW, VIZ_TICK_GAP).map((i) => {
-    const d = slice.dates[i];
-    const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
-    return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
-  }).join('');
-  /* ★ 전망 끝점에는 눈금을 적지 않는다. 전체 보기에서 3개월은 축의 2%(약 13px)라
-     마지막 실측 눈금과 글자가 겹쳐 둘 다 읽을 수 없었다. 점선이 어디까지인지는
-     '추세 연장' 표시와 아래 계산 순서(63거래일 ≈ 3개월)가 알려 준다. */
+  /* ★ 전망 점선이 '언제까지'인지 축에서 바로 읽히게 끝점에도 연·월을 적는다.
+     예전에 이 눈금을 뺐던 이유는 전체 보기에서 3개월이 축의 2%(약 14단위)뿐이라
+     마지막 실측 눈금과 글자가 겹쳐 둘 다 못 읽었기 때문이다. 이제는 눈금을 빼는
+     대신, 전망 눈금 자리와 겹치는 실측 눈금만 건너뛴다 — 1년·3년 보기처럼 자리가
+     넉넉하면 둘 다 그대로 남는다. 전망 눈금은 점선과 같은 청록이라 실측 날짜와
+     구분된다. */
+  const fcX = fc ? X(nx - 1) : null;
+  const XT_W = 52;                         // 'YYYY-MM' 한 칸이 차지하는 폭(폰트 8.5)
+  const xticks = vizTickIdx(n, plotW, VIZ_TICK_GAP)
+    .filter((i) => fcX == null || X(i) < fcX - XT_W)
+    .map((i) => {
+      const d = slice.dates[i];
+      const a = i === 0 ? 'start' : ((!fc && i === n - 1) ? 'end' : 'middle');
+      return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
+    }).join('')
+    + (fc ? `<text x="${fcX.toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" font-weight="700" fill="var(--cyan)">${escapeHtml(xsiFcTargetYm(slice.dates[n - 1]))}</text>` : '');
 
 
   // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
@@ -5946,6 +5969,15 @@ function xsiRecent(series) {
   while (i < dts.length && dts[i] < cut) i += 1;
   const v = series.values.slice(i);
   return (v.length >= 60) ? { dates: dts.slice(i), values: v } : null;
+}
+
+/** 전망 점선이 닿는 달(YYYY-MM). 마지막 실측일에서 XSI_FC_DAYS 거래일 뒤인데,
+ *  거래일은 주말·휴일을 뺀 날이라 달력으로는 대략 1.4배로 잡는다(표기용). */
+function xsiFcTargetYm(lastDate) {
+  const d = new Date(String(lastDate) + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + Math.round(XSI_FC_DAYS * 1.4));
+  return d.toISOString().slice(0, 7);
 }
 
 /** 3개월 전망. { base, med, up, dn, sd3, slope, chgPct, dir } · 못 내면 null */
@@ -6305,7 +6337,14 @@ function renderXsiHtml() {
       <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}<span class="xsi-lead__unit">${escapeHtml(xsiUnit())}</span></div>
       ${(st.last != null && krwRate('USD') != null)
         ? `<div class="xsi-lead__krw">≈ ${escapeHtml(fmtKrwShort(st.last * krwRate('USD')) || '')}</div>` : ''}
-      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준 · ${escapeHtml(r.code || '')}${r.inception ? ' · 산출 개시 ' + escapeHtml(r.inception) : ''}</div>
+      ${''/* ★ 예전에는 'XSICFENE · 산출 개시 2015-01-05' 이라고만 적혀 있었다.
+             앞의 대문자 덩어리가 무엇인지, '산출 개시' 가 무슨 날인지 알 수 없어
+             숫자보다 먼저 읽는 줄인데도 그냥 지나치게 됐다. 우리말로 풀고,
+             자세한 설명은 ⓘ 에 담는다(줄이 길어지지 않게). */}
+      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준${r.code
+        ? ' · 지수 이름 ' + escapeHtml(r.code) : ''}${r.inception
+        ? ' · ' + escapeHtml(r.inception) + '부터 집계' : ''}${(r.code || r.inception)
+        ? gcAbbr('ⓘ', xsiCodeTip(r)) : ''}</div>
     </div>
     <div class="xsi-lead__name">${escapeHtml(r.name || '')}
       <a class="src-link" href="${escapeHtml(safeUrl(r.url) || '#')}" target="_blank" rel="noopener noreferrer">원본 페이지 ›</a></div>
