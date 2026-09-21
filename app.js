@@ -3610,16 +3610,26 @@ function iiFit(vals) {
  *  steps: [[문장, 예시(선택)], ...] */
 function howToBox(title, steps, note) {
   /* ★ 단계를 두 가지 모양으로 받는다.
-       ['설명', '예시']  — 한 줄 + 오른쪽 알약 배지(스폰지 주원료·해상 정시성)
-       { t, d, r }       — 굵은 소제목 / 설명 한 줄 / '→ 값' 한 줄(운임지수)
-     운임지수는 단계마다 값이 길어(원화 환산까지) 한 줄에 밀어 넣으면 배지가
-     설명보다 길어져 어디까지가 설명인지 눈에 안 들어왔다. 값을 아래 줄로
-     내리고 단계마다 이름을 붙인다. */
-  const li = steps.map((st) => {
+       ['설명', '예시']        — 한 줄 + 오른쪽 알약 배지(스폰지 주원료·해상 정시성)
+       { t, d, f, r, n }      — 여러 줄짜리 풀이(운임지수)
+         t 소제목(값을 제목에 넣는다) · d 설명(문자열 또는 여러 줄 배열) ·
+         f 식 한 줄 · r '→ 결과' · n 그 숫자를 어떻게 읽어야 하는지 덧말
+     운임지수는 '13.4 USD/일' 같은 숫자가 무엇을 뜻하는지가 한 줄로는 전해지지
+     않았다(매일 13.4달러씩 올랐다는 말로 읽힌다). 단계마다 자료 범위·계산
+     방법·읽는 법을 따로 줄을 나눠 적는다.
+     ★ 번호는 ①②③ 로 직접 붙인다 — 목록 표식으로는 이 모양을 낼 수 없고,
+       여기만 list-style:none 이라 다른 상자(1. 2. 3.)는 그대로다. */
+  const CIRCLED = ['\u2460', '\u2461', '\u2462', '\u2463', '\u2464',
+    '\u2465', '\u2466', '\u2467', '\u2468'];
+  const li = steps.map((st, i) => {
     if (!Array.isArray(st)) {
-      return '<li class="howto__s"><b class="howto__st">' + st.t + '</b>'
-        + (st.d ? '<span class="howto__d">' + st.d + '</span>' : '')
-        + (st.r ? '<span class="howto__r">\u2192 ' + st.r + '</span>' : '') + '</li>';
+      const ds = Array.isArray(st.d) ? st.d : (st.d ? [st.d] : []);
+      return '<li class="howto__s"><b class="howto__st">'
+        + (CIRCLED[i] || (i + 1) + '.') + ' ' + st.t + '</b>'
+        + ds.map((x) => '<span class="howto__d">' + x + '</span>').join('')
+        + (st.f ? '<span class="howto__f">' + st.f + '</span>' : '')
+        + (st.r ? '<span class="howto__r">\u2192 ' + st.r + '</span>' : '')
+        + (st.n ? '<span class="howto__nn">' + st.n + '</span>' : '') + '</li>';
     }
     return '<li>' + st[0]
       + (st[1] ? '<span class="howto__ex">' + st[1] + '</span>' : '') + '</li>';
@@ -6101,29 +6111,52 @@ function xsiFcTargetYm(lastDate) {
 function xsiExtendHowText(fc) {
   const n = (v) => Math.round(v).toLocaleString('ko-KR');
   const perDay = fc.slope;
-  const sign = perDay >= 0 ? '+' : '\u2212';
-  /* ★ 원화 환산은 남겨 둔다 — 달러 숫자만으로는 그게 큰 돈인지 가늠이 안 된다.
+  const up = perDay >= 0;
+  const sign = up ? '+' : '\u2212';
+  const amt = Math.abs(perDay).toFixed(1);
+  const dirWord = up ? '상승' : '하락';
+  const rose = up ? '올랐다' : '내렸다';
+  const MON = Math.max(1, Math.round(XSI_FC_DAYS / 21));   // 거래일 → 달 어림
+  /* 'YYYY-MM-DD' \u2192 '2025년 9월' — 날짜 열 개를 그대로 적으면 문장이 읽히지 않는다 */
+  const ym = (v) => {
+    const m = /^(\d{4})-(\d{2})/.exec(String(v || ''));
+    return m ? (m[1] + '년 ' + Number(m[2]) + '월') : '';
+  };
+  /* ★ 원화 환산은 남겨 둔다 — 달러 숫자만으로는 큰 돈인지 가늠이 안 된다.
      환율(krwRate)을 못 구하면 원화는 조용히 빠지고 달러만 남는다. */
   const rate = krwRate('USD');
   const won = (v) => {
     const t = (rate != null) ? fmtKrwShort(v * rate) : null;
     return t ? ' <span class="howto__w">(약 ' + escapeHtml(t) + ')</span>' : '';
   };
-  const span = (fc.from && fc.to) ? '(' + fc.from + '~' + fc.to + ')' : '';
+  const span = (fc.from && fc.to) ? (ym(fc.from) + ' ~ ' + ym(fc.to)) : '';
+  const target = ym(xsiFcTargetYm(fc.to));
+
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
-    { t: '최근 흐름 계산',
-      d: '최근 <b>' + XSI_FC_MONTHS + '개월</b>' + span + '의 가격 흐름을 직선 하나로 요약합니다.',
-      r: '하루 평균 ' + sign + Math.abs(perDay).toFixed(1) + ' USD' + won(Math.abs(perDay)) },
-    { t: '마지막 실제값 확인',
-      d: '점선은 마지막 실제 가격 <b>' + n(fc.base) + ' USD</b>' + won(fc.base) + '에서 시작합니다.',
-      r: '' },
-    { t: '3개월 뒤 추세값 계산',
-      d: '이 흐름이 그대로 이어진다고 가정해 <b>' + XSI_FC_DAYS
-        + '거래일(약 3개월)</b> 뒤 값을 계산합니다.',
+    { t: '최근 <b>' + XSI_FC_MONTHS + '개월</b> 가격 흐름을 분석합니다',
+      d: [(span ? span + '의 ' : '') + '일별 운임 데이터를 모두 사용합니다.',
+        '가격은 매일 오르내리기 때문에 단순히 처음 가격과 마지막 가격만 비교하지 않고, '
+        + XSI_FC_MONTHS + '개월 전체 가격의 흐름을 가장 잘 나타내는 '
+        + '<b>직선(추세선)</b>을 계산합니다.'] },
+    { t: '하루 평균 변화폭 <b>' + sign + amt + ' USD</b>를 계산합니다',
+      d: '계산된 추세선의 기울기를 하루 단위로 환산한 값입니다.',
+      f: '하루 평균 변화폭 = 추세선이 하루 동안 움직이는 가격',
+      r: '계산 결과 ' + sign + amt + ' USD/일' + won(Math.abs(perDay)),
+      n: '즉, 실제 가격이 매일 정확히 ' + amt + '달러씩 ' + rose + '는 뜻이 아니라, '
+        + '최근 ' + XSI_FC_MONTHS + '개월 전체 흐름을 직선으로 봤을 때 하루 평균 약 '
+        + amt + '달러씩 ' + dirWord + '하는 방향이었다는 의미입니다.' },
+    { t: '마지막 실제 가격에서 점선을 시작합니다',
+      d: '마지막 실제 데이터인 ' + (ym(fc.to) ? ym(fc.to) + ' ' : '') + '가격 <b>'
+        + n(fc.base) + ' USD</b>를 점선의 출발점으로 사용합니다.',
+      r: '마지막 실제값: ' + n(fc.base) + ' USD' + won(fc.base) },
+    { t: '최근 흐름을 앞으로 <b>' + MON + '개월</b> 연장합니다',
+      d: '앞에서 계산한 최근 ' + dirWord + ' 흐름을 앞으로 이어서 '
+        + (target ? '<b>' + target + '</b>까지 ' : '') + '참고 추세선을 그립니다.',
       r: n(fc.base) + ' USD \u2192 ' + n(fc.med) + ' USD' + won(fc.med) },
-    { t: '변동 가능 범위 표시',
-      d: '그동안의 가격 변동폭 <b>\u00b1' + Math.abs(fc.sd3).toFixed(0)
-        + '%</b>를 반영해 위\u00b7아래 범위를 함께 표시합니다 \u2014 점선을 감싼 옅은 띠가 그 폭입니다.',
+    { t: '가격 변동 가능 범위도 함께 표시합니다',
+      d: '실제 가격은 추세선대로 움직이지 않기 때문에 과거 가격의 변동폭을 반영해 '
+        + '<b>\u00b1' + Math.abs(fc.sd3).toFixed(0) + '%</b> 범위도 함께 보여줍니다 '
+        + '\u2014 점선을 감싼 옅은 띠가 그 폭입니다.',
       r: n(fc.dn) + ' ~ ' + n(fc.up) + ' USD' },
   ], '\u203b 점선은 가격 예측이 아니라, 최근 흐름을 앞으로 연장해 본 참고 추세선입니다.');
 }

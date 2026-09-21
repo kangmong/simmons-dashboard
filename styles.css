@@ -4632,15 +4632,25 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
   font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .howto__n { display: block; margin-top: 6px; font-size: 10.5px; color: var(--muted); }
-/* 단계마다 '소제목 / 설명 / → 값' 세 줄로 적는 모양(운임지수 추세 연장) */
-.howto__s { margin-top: 3px; }
-.howto__s:first-child { margin-top: 0; }
+/* 여러 줄짜리 단계 풀이(운임지수 추세 연장).
+   ★ 번호를 ①②③ 로 직접 찍으므로 목록 표식은 끈다 — 이 모양은 list-style
+     로는 낼 수 없다. 다른 계산 상자(스폰지·정시성)는 1. 2. 3. 그대로다. */
+.howto__l .howto__s { list-style: none; margin: 7px 0 0 -14px; }
+.howto__l .howto__s:first-child { margin-top: 0; }
 .howto__st { display: block; color: var(--ink); font-weight: 800; }
-.howto__d { display: block; color: var(--text); }
+.howto__d { display: block; color: var(--text); margin-top: 1px; }
+/* 식 한 줄 — 본문에서 한 칸 들여 세로선을 긋는다(문장과 구분) */
+.howto__f {
+  display: block; margin: 4px 0 4px 10px; padding: 2px 0 2px 9px;
+  border-left: 2px solid var(--line);
+  color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums;
+}
 .howto__r {
-  display: block; color: var(--navy-2); font-weight: 800;
+  display: block; margin-top: 2px; color: var(--navy-2); font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
+/* 그 숫자를 어떻게 읽어야 하는지 — 결과 아래 덧말 */
+.howto__nn { display: block; margin-top: 3px; color: var(--muted); }
 .howto__w { color: var(--muted); font-weight: 600; }
 
 /* 추세 해석 방향 표식 — 색 점 대신 화살표(차트 선 색과 헷갈리지 않게) */
