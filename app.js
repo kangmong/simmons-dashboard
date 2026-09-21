@@ -7341,7 +7341,8 @@ function oilEras(bands) {
     ? '차트의 같은 색 음영이 이 구간입니다. 카드에 마우스를 올리면 차트에서 그 구간이 진해집니다.'
     : '연도 기준으로 보면 구간(월 단위)을 차트에 표시할 수 없어 음영을 그리지 않습니다.';
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">① 주요 원유 가격 추이 및 핵심 이벤트</h3>
+    ${''/* ★ 번호(①)를 뗀다 — ②③④(변동요인·전망·시사점)가 없어졌다. */}
+    <h3 class="subhead ii-h">주요 원유 가격 추이 및 핵심 이벤트</h3>
     <div class="ii-cap">${escapeHtml(note)} 구간 구분과 설명은 참고용입니다.</div>
     <div class="xsii-eras oil-eras">${cards}</div>
   </div>`;
@@ -7446,8 +7447,11 @@ function renderOilPricesHtml() {
       <div class="viz-sub">일일국제원유가격 · Dubai/Brent(ICE)/WTI(NYMEX)/Oman (${escapeHtml(unit)})</div>
       <div class="viz-sub2">지역별 대표 원유(유종)의 가격을 비교하는 그래프</div>
     </div></div>`
-    // ★ 최근가·기간별 상승률·인사이트 3박스는 [조회] 뒤에만 낸다(섹션 공통 규칙)
-    + (_ocQuery ? oilSummary3() : '');
+    /* ★ 뺀 것 — 최근가·기간별 상승률·주요 인사이트 3박스(oilSummary3).
+       최근가는 바로 아래 유종별 요약 4박스와 같은 값이고, 기간별 상승률·인사이트는
+       차트가 보여 주는 흐름을 글로 다시 적던 자리였다.
+       함수는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+    + '';
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
   // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
   // ★ [조회]를 누르기 전에는 내지 않는다(섹션 공통 규칙).
@@ -7486,13 +7490,14 @@ function renderOilPricesHtml() {
     const result = (_ocView === 'chart')
       ? vizUnitCap(unit, 'USD') + buildOilChart(win, ocOnSeries(q), q.term, ocBands) + '<div class="viz-tooltip" id="oilTooltip"></div>'
       : ocTableHtml(q, win);
-    // 인사이트 패널 — 조회한 창(win)과 기준 유종으로 계산한다
-    const ocFc = oilForecast(ocPts);
-    const ocBaseLabel = ((_ocData.series || []).find((x) => x.key === OIL_BASE_KEY) || {}).label || 'Dubai';
-    body = tools + result + msFactorsHtml('oil_price')
-      + oilEras(ocBands) + oilFactors()
-      + oilScenarios(ocFc, ocBaseLabel) + oilActions()
-      + oilInsightBox(ocFc);
+    /* ★ 뺀 것 — 단기 요인(msFactorsHtml) · 최근 가격 변동요인 분석(oilFactors) ·
+       향후 3개월 전망(oilScenarios) · 시사점 및 대응 방안(oilActions) ·
+       하단 핵심 인사이트(oilInsightBox). 모두 서술 카드라 차트가 말하는 것 위에
+       문장을 덧대던 자리다. 구간별 흐름(oilEras)만 남긴다 — 차트에 그려진 음영
+       구간이 무엇인지 설명하는 것이라 그림과 붙어 있어야 한다.
+       함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다.
+       (석유제품 동향의 msFactorsHtml('oil_price') 은 그대로 둔다 — 다른 카드다.) */
+    body = tools + result + oilEras(ocBands);
   }
   const note = (_ocData.note ? '<div class="g-note">' + escapeHtml(_ocData.note) + '</div>' : '');
   return `<div class="viz-root viz-figure oil-figure">${head}${ocSum}${controls}${body}${note}${cap}</div>`;
