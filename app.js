@@ -3278,6 +3278,7 @@ function iiTimelineEvents(periods) {
     const mid = Math.floor((from + to) / 2);
     out.push({
       date: msYmOfNo(mid),
+      what: String(e.what || '').trim(),
       label: iiEventLabel(e.event),
       /* 툴팁에는 원래 표기·문장·영향을 그대로 (라벨은 줄여 놓았으므로) */
       detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
@@ -3343,6 +3344,7 @@ function vizEventsSvg(evs, keys, X, padT, plotH, W) {
       : '';
     return '<g class="ms-ev" tabindex="0"'
       + ' data-label="' + escapeHtml(it.label) + '"'
+      + (it.e.what ? ' data-what="' + escapeHtml(it.e.what) + '"' : '')
       + ' data-detail="' + escapeHtml(it.e.detail || '') + '"'
       + ' data-date="' + escapeHtml(it.e.date || '') + '">'
       + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + y0 + '" x2="' + it.x.toFixed(1) + '" y2="' + y1.toFixed(1) + '"'
@@ -3376,8 +3378,12 @@ function msTipShow(g) {
   const label = g.getAttribute('data-label') || '';
   const detail = g.getAttribute('data-detail') || '';
   const date = g.getAttribute('data-date') || '';
+  /* ★ 사건 이름만으로는 무슨 말인지 모르는 것이 있다('얼라이언스 재편' 등).
+     JSON 의 what 에 한 줄 풀이를 적어 두면 여기 먼저 보여 준다. */
+  const what = g.getAttribute('data-what') || '';
   el.innerHTML = '<div class="ms-evtip__h">' + escapeHtml(label) + '</div>'
     + (date ? '<div class="ms-evtip__d">' + escapeHtml(date) + '</div>' : '')
+    + (what ? '<div class="ms-evtip__w">' + escapeHtml(what) + '</div>' : '')
     + (detail ? '<div class="ms-evtip__b">' + escapeHtml(detail) + '</div>' : '');
   el.classList.add('is-on');
   const r = g.getBoundingClientRect();
@@ -6425,6 +6431,7 @@ function sriEventsSvg(months, series, X, padT, plotH, W) {
         x: X(mi), color: s.color,
         label: (showYear ? y + ' ' : '') + iiEventLabel(e.event),
         date: String(e.date || ''),
+        what: String(e.what || '').trim(),
         detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
           .filter(Boolean).join(' — '),
       });
@@ -6450,6 +6457,7 @@ function sriEventsSvg(months, series, X, padT, plotH, W) {
   const y1 = padT + plotH;
   const out = items.map((it) => '<g class="ms-ev" tabindex="0"'
     + ' data-label="' + escapeHtml(it.label) + '"'
+    + (it.what ? ' data-what="' + escapeHtml(it.what) + '"' : '')
     + ' data-detail="' + escapeHtml(it.detail) + '"'
     + ' data-date="' + escapeHtml(it.date) + '">'
     + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + padT
@@ -6567,11 +6575,14 @@ function buildSrChart(months, series, avg, ext) {
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
       ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}
-      ${sriEventsSvg(months, series, X, padT, plotH, W)}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="sr-dots"></g>
       <rect class="sr-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${''/* ★ 마커는 반드시 .sr-overlay 뒤(= 위)에 둔다. 앞에 두면 투명한
+             오버레이 사각형이 플롯 전체를 덮어 마커의 마우스 이벤트를 다 먹는다
+             — 툴팁이 아예 뜨지 않았다. ICIS 차트도 같은 이유로 마커가 맨 끝이다. */}
+      ${sriEventsSvg(months, series, X, padT, plotH, W)}
     </svg>`;
 }
 

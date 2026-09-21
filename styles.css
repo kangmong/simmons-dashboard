@@ -1126,6 +1126,14 @@ body {
   opacity: 0; visibility: hidden; transition: opacity .12s ease; pointer-events: none;
 }
 .ms-evtip.is-on { opacity: 1; visibility: visible; }
+/* 용어 풀이 — 사건 이름만으로 무슨 말인지 모를 때 먼저 보여 준다 */
+.ms-evtip__w {
+  margin-top: 5px; padding: 6px 8px; border-radius: 6px;
+  /* ★ 툴팁이 흰 바탕이라 연회색 면과 왼쪽 줄로 구분한다.
+     처음에 어두운 툴팁을 생각하고 흰색 반투명을 줘서 거의 안 보였다. */
+  background: var(--field); border-left: 2px solid var(--blue);
+  color: var(--text); font-size: 11px; line-height: 1.55;
+}
 .ms-evtip__h { font-size: 12.5px; font-weight: 800; color: var(--ink); }
 .ms-evtip__d { margin-top: 1px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ms-evtip__b { margin-top: 6px; }
