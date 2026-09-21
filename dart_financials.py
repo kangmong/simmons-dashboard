@@ -69,6 +69,18 @@ CORP_NAME = "시몬스"
 
 UNIT_DIV = 100000000.0        # 원 → 억원
 
+# 동종업계 비교 대상. corp_code 는 corpCode.xml 에서 한 번 찾아 둔 값이다.
+# ★ 상장사는 정기보고서(fnlttSinglAcntAll)가, 비상장사는 감사보고서 원문이
+#   길이다. 회사마다 자동으로 되는 쪽을 쓴다(아래 collect_company).
+# ★ 상장사는 '별도(OFS)' 재무제표를 쓴다 — 시몬스·다른 비상장사가 모두 개별
+#   재무제표라 연결(CFS)과 섞으면 규모를 견줄 수 없다.
+PEERS = [
+    ("지누스",        "00150633"),
+    ("템퍼코리아",     "01470297"),
+    ("씰리코리아",     "01445927"),
+    ("금성침대",       "01224254"),
+]
+
 # 찾을 계정 9개. 값은 (구획, 이름 후보들). 이름은 공백·번호·주석을 지우고 맞춘다.
 WANT = [
     ("assetsTotal",      "재무상태표", ("자산총계",)),
@@ -139,6 +151,11 @@ def _norm(s):
     # 안 잡힌다(자산 구성 도넛의 '기타자산' 분리가 그래서 비어 있었다).
     s = re.sub(r"^\((\d+)\)", "", s)
     s = re.sub(r"^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ0-9]+[.\)]?", "", s)
+    # ★ 회사마다 로마숫자를 전각(Ⅰ)으로도, 알파벳(I·II·III)으로도 쓴다.
+    #   템퍼코리아가 'I. 유동자산' 꼴이라 전각만 벗기던 예전 코드로는 계정을
+    #   하나도 못 찾았다. 알파벳꼴은 뒤에 구분자(.·))가 붙은 경우만 벗긴다 —
+    #   그냥 벗기면 'I' 로 시작하는 멀쩡한 이름까지 깎을 수 있다.
+    s = re.sub(r"^[IVXivx]+[.\)]", "", s)
     return s
 
 
@@ -226,6 +243,40 @@ def try_fnltt_all(key, corp_code, year):
         if d.get("status") == "000" and (d.get("list") or []):
             return d["list"]
     return None
+
+
+# 정기보고서(fnlttSinglAcntAll)의 계정 이름 → 우리 9계정.
+# ★ sj_div 를 함께 본다. 자본변동표(SCE)에도 '자본총계'·'당기순이익' 행이 있어서
+#   이름만 맞추면 엉뚱한 값을 집는다(지누스에서 실제로 4번 겹쳤다).
+FNLTT_MAP = [
+    ("assetsTotal",      ("BS",),       ("자산총계",)),
+    ("currentAssets",    ("BS",),       ("유동자산",)),
+    ("nonCurrentAssets", ("BS",),       ("비유동자산",)),
+    ("liabilitiesTotal", ("BS",),       ("부채총계",)),
+    ("equityTotal",      ("BS",),       ("자본총계",)),
+    ("revenue",          ("IS", "CIS"), ("매출액", "수익(매출액)", "영업수익")),
+    ("grossProfit",      ("IS", "CIS"), ("매출총이익",)),
+    ("operatingProfit",  ("IS", "CIS"), ("영업이익", "영업이익(손실)")),
+    ("netIncome",        ("IS", "CIS"), ("당기순이익", "당기순이익(손실)")),
+]
+
+
+def _fnltt_accounts(rows):
+    """fnlttSinglAcntAll 응답 → {계정키: (당기 원, 전기 원)}. 못 채우면 None."""
+    got = {}
+    for key_, divs, names in FNLTT_MAP:
+        hit = None
+        for it in rows:
+            if (it.get("sj_div") or "") not in divs:
+                continue
+            nm = re.sub(r"\s+", "", it.get("account_nm") or "")
+            if nm in names:
+                hit = it
+                break
+        if hit is None:
+            return None
+        got[key_] = (_money(hit.get("thstrm_amount")), _money(hit.get("frmtrm_amount")))
+    return got
 
 
 def fetch_document(key, rcept_no):
@@ -398,6 +449,21 @@ def collect(key, years):
     history = [h for h in history if h["revenue"] is not None]
     history.sort(key=lambda x: x["year"])
 
+    # ── 동종업계 비교 ────────────────────────────────────────────────
+    # ★ 한 곳이 실패해도 수집 전체를 세우지 않는다 — 그 회사만 빠지고 사유가 남는다.
+    peers = []
+    for pname, pcode in PEERS:
+        p = collect_company(key, pname, pcode)
+        if p.get("error"):
+            errs.append({"peer": pname, "error": p["error"]})
+            print("[peer] %s 실패 — %s" % (pname, p["error"]))
+        else:
+            print("[peer] %-10s %s %s기준 매출 %s 영업이익 %s"
+                  % (pname, p["via"], p["basis"],
+                     p["accounts"]["revenue"]["current"],
+                     p["accounts"]["operatingProfit"]["current"]))
+        peers.append(p)
+
     cur_year = latest["year"]
     return {
         "status": "ok",
@@ -417,11 +483,44 @@ def collect(key, years):
                      "label": labels.get("previous") or ("%d년" % (cur_year - 1))},
         "accounts": accounts,
         "assetBreakdown": asset_brk,
+        "peers": peers,
         "history": history,
         "lastUpdated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "warnings": warn,
         "errors": errs,
     }
+
+
+def collect_company(key, name, corp_code):
+    """비교 대상 한 곳의 9계정. 상장사면 정기보고서, 아니면 감사보고서 원문.
+       실패하면 사유를 담아 돌려준다(한 곳이 막혀도 나머지는 살린다)."""
+    today = datetime.date.today()
+    # 1) 정기보고서 — 상장사는 이쪽이 정확하고 빠르다(별도 기준)
+    for yr in (today.year, today.year - 1):
+        try:
+            rows = try_fnltt_all(key, corp_code, yr)
+        except Exception:  # noqa: BLE001
+            rows = None
+        if not rows:
+            continue
+        got = _fnltt_accounts(rows)
+        if got:
+            return {"name": name, "corpCode": corp_code, "fiscalYear": yr,
+                    "basis": "별도", "via": "정기보고서",
+                    "accounts": {k: {"label": LABEL_KO[k], "current": _eok(v[0]),
+                                     "previous": _eok(v[1])} for k, v in got.items()}}
+    # 2) 감사보고서 원문
+    try:
+        reps = latest_reports(key, corp_code, 1)
+        if not reps:
+            return {"name": name, "corpCode": corp_code, "error": "감사보고서를 찾지 못했습니다"}
+        got, _labels, _brk = parse_document(fetch_document(key, reps[0]["rceptNo"]))
+        return {"name": name, "corpCode": corp_code, "fiscalYear": reps[0]["year"],
+                "basis": "개별", "via": "감사보고서", "rceptNo": reps[0]["rceptNo"],
+                "accounts": {k: {"label": LABEL_KO[k], "current": _eok(v[0]),
+                                 "previous": _eok(v[1])} for k, v in got.items()}}
+    except Exception as e:  # noqa: BLE001
+        return {"name": name, "corpCode": corp_code, "error": str(e)[:160]}
 
 
 def _existing_ok(path):

@@ -2093,7 +2093,61 @@ function sfPanelsHtml() {
     /* ★ 이 패널만 단위가 %다(금액이 아니라 매출 대비 비율). 증감은 %p 로 적는다. */
     + sfMargins('수익성 지표', sfSub(vs, '%'))
     + sfTrend('연도별 손익 추이', sfSub((_sfData.history || []).length + '개 연도', u))
+    /* ★ 동종업계 비교 두 칸 — 시몬스 옆에 같은 항목을 나란히 놓는다.
+       규모(매출액)와 수익성(영업이익률)을 따로 본다: 매출이 크다고 남는 것도
+       큰 것은 아니라서, 둘을 한 막대로 합치면 어느 쪽 이야기인지 흐려진다. */
+    + sfPeerBars('동종업계 매출액', u, (a) => (a.revenue || {}).current, (v) => sfNum(v))
+    + sfPeerBars('동종업계 영업이익률', '%', (a) => {
+      const rev = (a.revenue || {}).current, op = (a.operatingProfit || {}).current;
+      return (rev && op != null) ? (op / rev * 100) : null;
+    }, (v) => v.toFixed(1) + '%')
     + '</div>';
+}
+
+/* ── 동종업계 비교 ────────────────────────────────────────────────────
+   시몬스 옆에 같은 항목을 나란히 두고 견준다. 값은 모두 DART 에서 온 감사받은
+   수치다(상장사는 정기보고서 별도 기준, 비상장사는 감사보고서 개별 기준).
+   ★ 시몬스만 네이비로 세우고 나머지는 스카이블루로 둔다 — 이 카드의 주인공이
+     누구인지 색으로 바로 보이게. */
+const SF_ME = '시몬스';
+
+/** 시몬스 + 비교 대상을 한 줄씩. 값이 없는 회사는 빼고, 큰 순으로 세운다. */
+function sfPeerRows(pickFn) {
+  const out = [];
+  const mine = pickFn(_sfData.accounts || {});
+  if (mine != null) {
+    out.push({ name: SF_ME, v: mine, year: (_sfData.current || {}).year, me: true });
+  }
+  (_sfData.peers || []).forEach((p) => {
+    if (!p || p.error || !p.accounts) return;
+    const v = pickFn(p.accounts);
+    if (v == null) return;
+    out.push({ name: p.name, v: v, year: p.fiscalYear, basis: p.basis, me: false });
+  });
+  return out.sort((a, z) => z.v - a.v);
+}
+
+/** 가로 막대로 견주기. fmt 는 숫자를 글자로 바꾸는 함수. */
+function sfPeerBars(title, unitLabel, pickFn, fmt) {
+  const rows = sfPeerRows(pickFn);
+  if (rows.length < 2) {
+    return sfPanel(title, unitLabel, '<div class="exh-note">비교할 회사 자료가 없습니다.</div>');
+  }
+  const max = Math.max.apply(null, rows.map((r) => Math.abs(r.v))) || 1;
+  const years = [...new Set(rows.map((r) => r.year))].sort();
+  const body = rows.map((r) => {
+    const w = Math.max(1, Math.abs(r.v) / max * 100);
+    return '<div class="sf-pr__g' + (r.me ? ' is-me' : '') + '">'
+      + '<div class="sf-pr__k">' + escapeHtml(r.name) + '</div>'
+      + '<div class="sf-pr__bar"><i style="width:' + w.toFixed(1) + '%;background:'
+      + (r.me ? SF_CUR : SF_PRE) + '"><span class="sf-bar__tip">'
+      + escapeHtml(r.name + ' ' + r.year + '년 ' + fmt(r.v)) + '</span></i></div>'
+      + '<b class="sf-pr__v">' + escapeHtml(fmt(r.v)) + '</b></div>';
+  }).join('');
+  /* 회사마다 결산 연도가 다를 수 있어 그대로 밝힌다 */
+  const note = '<div class="sf-pr__foot">기준 ' + years.join('·') + '년 · '
+    + '상장사는 정기보고서 <b>별도</b>, 비상장사는 감사보고서 <b>개별</b> 기준</div>';
+  return sfPanel(title, unitLabel, '<div class="sf-pr">' + body + '</div>' + note);
 }
 
 /** 자산 구성 도넛의 조각.

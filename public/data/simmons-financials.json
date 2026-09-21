@@ -97,6 +97,227 @@
       "previous": 284.3
     }
   },
+  "peers": [
+    {
+      "name": "지누스",
+      "corpCode": "00150633",
+      "fiscalYear": 2025,
+      "basis": "별도",
+      "via": "정기보고서",
+      "accounts": {
+        "assetsTotal": {
+          "label": "자산총계",
+          "current": 7233.1,
+          "previous": 7412.8
+        },
+        "currentAssets": {
+          "label": "유동자산",
+          "current": 3755.0,
+          "previous": 3875.6
+        },
+        "nonCurrentAssets": {
+          "label": "비유동자산",
+          "current": 3478.1,
+          "previous": 3537.3
+        },
+        "liabilitiesTotal": {
+          "label": "부채총계",
+          "current": 2117.1,
+          "previous": 2324.6
+        },
+        "equityTotal": {
+          "label": "자본총계",
+          "current": 5116.0,
+          "previous": 5088.2
+        },
+        "revenue": {
+          "label": "매출액",
+          "current": 3875.9,
+          "previous": 3091.2
+        },
+        "grossProfit": {
+          "label": "매출총이익",
+          "current": 1091.5,
+          "previous": 810.8
+        },
+        "operatingProfit": {
+          "label": "영업이익",
+          "current": 203.1,
+          "previous": 64.3
+        },
+        "netIncome": {
+          "label": "당기순이익",
+          "current": 45.0,
+          "previous": 137.7
+        }
+      }
+    },
+    {
+      "name": "템퍼코리아",
+      "corpCode": "01470297",
+      "fiscalYear": 2025,
+      "basis": "개별",
+      "via": "감사보고서",
+      "rceptNo": "20260330000712",
+      "accounts": {
+        "assetsTotal": {
+          "label": "자산총계",
+          "current": 435.1,
+          "previous": 426.7
+        },
+        "currentAssets": {
+          "label": "유동자산",
+          "current": 398.3,
+          "previous": 388.8
+        },
+        "nonCurrentAssets": {
+          "label": "비유동자산",
+          "current": 36.9,
+          "previous": 37.8
+        },
+        "liabilitiesTotal": {
+          "label": "부채총계",
+          "current": 198.1,
+          "previous": 230.2
+        },
+        "equityTotal": {
+          "label": "자본총계",
+          "current": 237.0,
+          "previous": 196.5
+        },
+        "revenue": {
+          "label": "매출액",
+          "current": 1228.8,
+          "previous": 1118.7
+        },
+        "grossProfit": {
+          "label": "매출총이익",
+          "current": 526.7,
+          "previous": 489.2
+        },
+        "operatingProfit": {
+          "label": "영업이익",
+          "current": 47.8,
+          "previous": 48.8
+        },
+        "netIncome": {
+          "label": "당기순이익",
+          "current": 38.9,
+          "previous": 39.1
+        }
+      }
+    },
+    {
+      "name": "씰리코리아",
+      "corpCode": "01445927",
+      "fiscalYear": 2025,
+      "basis": "개별",
+      "via": "감사보고서",
+      "rceptNo": "20260326001035",
+      "accounts": {
+        "assetsTotal": {
+          "label": "자산총계",
+          "current": 269.9,
+          "previous": 270.5
+        },
+        "currentAssets": {
+          "label": "유동자산",
+          "current": 244.4,
+          "previous": 243.4
+        },
+        "nonCurrentAssets": {
+          "label": "비유동자산",
+          "current": 25.5,
+          "previous": 27.1
+        },
+        "liabilitiesTotal": {
+          "label": "부채총계",
+          "current": 150.6,
+          "previous": 156.4
+        },
+        "equityTotal": {
+          "label": "자본총계",
+          "current": 119.2,
+          "previous": 114.1
+        },
+        "revenue": {
+          "label": "매출액",
+          "current": 889.3,
+          "previous": 810.6
+        },
+        "grossProfit": {
+          "label": "매출총이익",
+          "current": 580.7,
+          "previous": 537.2
+        },
+        "operatingProfit": {
+          "label": "영업이익",
+          "current": 145.6,
+          "previous": 138.8
+        },
+        "netIncome": {
+          "label": "당기순이익",
+          "current": 116.9,
+          "previous": 111.8
+        }
+      }
+    },
+    {
+      "name": "금성침대",
+      "corpCode": "01224254",
+      "fiscalYear": 2025,
+      "basis": "개별",
+      "via": "감사보고서",
+      "rceptNo": "20260401004705",
+      "accounts": {
+        "assetsTotal": {
+          "label": "자산총계",
+          "current": 478.5,
+          "previous": 402.3
+        },
+        "currentAssets": {
+          "label": "유동자산",
+          "current": 245.9,
+          "previous": 214.1
+        },
+        "nonCurrentAssets": {
+          "label": "비유동자산",
+          "current": 232.7,
+          "previous": 188.2
+        },
+        "liabilitiesTotal": {
+          "label": "부채총계",
+          "current": 191.3,
+          "previous": 157.1
+        },
+        "equityTotal": {
+          "label": "자본총계",
+          "current": 287.3,
+          "previous": 245.2
+        },
+        "revenue": {
+          "label": "매출액",
+          "current": 721.2,
+          "previous": 662.2
+        },
+        "grossProfit": {
+          "label": "매출총이익",
+          "current": 296.9,
+          "previous": 251.1
+        },
+        "operatingProfit": {
+          "label": "영업이익",
+          "current": 53.6,
+          "previous": 47.4
+        },
+        "netIncome": {
+          "label": "당기순이익",
+          "current": 42.1,
+          "previous": 38.3
+        }
+      }
+    }
+  ],
   "history": [
     {
       "year": 2020,
@@ -135,7 +356,7 @@
       "netIncome": 302.3
     }
   ],
-  "lastUpdated": "2026-09-21 16:44:34",
+  "lastUpdated": "2026-09-21 17:02:27",
   "warnings": [],
   "errors": []
 }
