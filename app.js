@@ -1885,15 +1885,22 @@ function sfDelta(cur, pre) {
 
 /** 패널 부제에 단위를 덧붙인다 — 카드 머리에 한 번 적혀 있어도, 패널마다
  *  숫자의 단위가 무엇인지(억원이냐 %냐) 그 자리에서 보이는 편이 낫다. */
+/** 패널 부제 — 기간(text)과 단위(unit)를 나눠 담는다.
+ *  ★ 예전엔 '2025년 말 · 억원' 한 줄로 합쳐 넘겼다. 단위만 오른쪽 끝으로
+ *    보내려면 둘이 따로 있어야 한다. */
 function sfSub(text, unit) {
-  return [text, unit].filter(Boolean).join(' · ');
+  return { text: text || '', unit: unit || '' };
 }
 
 /** 패널 껍데기 */
 function sfPanel(title, sub, body) {
+  /* sub 은 sfSub 이 만든 { text, unit } 이거나, 단위만 적은 문자열이다
+     (동종업계 두 패널은 '억원'·'%' 만 넘긴다). 둘 다 받는다. */
+  const o = (sub && typeof sub === 'object') ? sub : { text: '', unit: sub || '' };
   return '<section class="sf-p"><div class="sf-p__h">'
     + '<span class="sf-p__t">' + escapeHtml(title) + '</span>'
-    + (sub ? '<span class="sf-p__s">' + escapeHtml(sub) + '</span>' : '')
+    + (o.text ? '<span class="sf-p__s">' + escapeHtml(o.text) + '</span>' : '')
+    + (o.unit ? '<span class="sf-p__u">단위: ' + escapeHtml(o.unit) + '</span>' : '')
     + '</div>' + body + '</section>';
 }
 
