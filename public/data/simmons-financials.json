@@ -99,6 +99,60 @@
   },
   "peers": [
     {
+      "name": "에이스침대",
+      "corpCode": "00140052",
+      "fiscalYear": 2025,
+      "basis": "별도",
+      "via": "정기보고서",
+      "accounts": {
+        "assetsTotal": {
+          "label": "자산총계",
+          "current": 8192.0,
+          "previous": 7828.0
+        },
+        "currentAssets": {
+          "label": "유동자산",
+          "current": 2308.1,
+          "previous": 1785.1
+        },
+        "nonCurrentAssets": {
+          "label": "비유동자산",
+          "current": 5883.9,
+          "previous": 6042.9
+        },
+        "liabilitiesTotal": {
+          "label": "부채총계",
+          "current": 695.2,
+          "previous": 749.9
+        },
+        "equityTotal": {
+          "label": "자본총계",
+          "current": 7496.8,
+          "previous": 7078.1
+        },
+        "revenue": {
+          "label": "매출액",
+          "current": 3130.2,
+          "previous": 3223.9
+        },
+        "grossProfit": {
+          "label": "매출총이익",
+          "current": 1941.3,
+          "previous": 2071.2
+        },
+        "operatingProfit": {
+          "label": "영업이익",
+          "current": 538.6,
+          "previous": 664.9
+        },
+        "netIncome": {
+          "label": "당기순이익",
+          "current": 561.3,
+          "previous": 659.9
+        }
+      }
+    },
+    {
       "name": "지누스",
       "corpCode": "00150633",
       "fiscalYear": 2025,
@@ -356,7 +410,7 @@
       "netIncome": 302.3
     }
   ],
-  "lastUpdated": "2026-09-21 17:02:27",
+  "lastUpdated": "2026-09-21 17:09:48",
   "warnings": [],
   "errors": []
 }

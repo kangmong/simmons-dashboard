@@ -1776,21 +1776,10 @@ function smKoreaHtml() {
       + escapeHtml(_smData.reason || '로드 실패') + '</div>';
   }
   const d = _smData;
-  const perf = (d.simmonsPerformance || []).slice().sort((a, b) => a.year - b.year);
-  const lastYear = perf.length ? perf[perf.length - 1].year : null;
-  const prov = d.isProvisional === true
-    || (perf.length > 0 && perf[perf.length - 1].provisional === true);
-  const badge = '<div class="sm-badge">'
-    + (prov ? '<span class="sm-badge__prov">잠정치</span>' : '')
-    + (lastYear ? escapeHtml(lastYear + '년 12월 결산 기준') + ' · ' : '')
-    + '최종 업데이트 ' + escapeHtml(d.lastUpdated || '—')
-    + '<span class="sm-info" tabindex="0" role="note" aria-label="' + escapeHtml(SM_TIP)
-    + '" title="' + escapeHtml(SM_TIP) + '">ⓘ<span class="sm-info__bub">'
-    + escapeHtml(SM_TIP) + '</span></span></div>';
-  const unit = escapeHtml(d.unit || '억원');
-  const cy = d.competitorRevenueLastYear && d.competitorRevenueLastYear.year;
-  const sy = (d.marketShare2025 && d.marketShare2025.year) || 2025;
-
+  /* ★ 예전에 있던 badge(잠정치·수기 입력 안내)는 지웠다. 실적 추이 카드가
+     DART 감사보고서로 바뀌면서 sfBadge() 가 그 자리를 맡았고, 이 값을 쓰던
+     카드('업계 매출 비교'·'점유율')도 내려서 아무 데서도 쓰이지 않는다.
+     SM_TIP('공시 API 자동 조회 불가') 도 이제 사실과 맞지 않는다. */
   return '<div class="sm-wrap">'
     /* ★ 이 카드만 DART 감사보고서 데이터(simmons-financials.json)로 그린다.
        아래 다른 카드들(업계 매출 비교·점유율·기술분류도·시장규모·슬립테크)은
@@ -1801,14 +1790,12 @@ function smKoreaHtml() {
     + '<div class="sm-h">시몬스 최근 실적 추이 <span class="sm-h__u">(단위: '
     + escapeHtml((_sfData && _sfData.unit) || '억원') + ')</span>'
     + sfBadge() + '</div>' + sfPanelsHtml() + '</div>'
-    + '<div class="sm-grid2">'
-    + '<div class="sm-card"><div class="sm-h">국내 침대·매트리스 업계 매출 비교'
-    + ' <span class="sm-h__u">(단위: ' + unit + ' · 기준 연도는 회사마다 표기)</span></div>'
-    + smRevCompare(d) + '</div>'
-    + '<div class="sm-card"><div class="sm-h">' + escapeHtml(String(sy))
-    + '년 침대 매트리스 시장 점유율</div>'
-    + smShareDonut(d) + '</div>'
-    + '</div>'
+    /* ★ 여기 있던 두 카드('국내 침대·매트리스 업계 매출 비교', '침대 매트리스
+       시장 점유율')를 뺐다. 매출 비교는 기사 기준 수기 입력값이라 위 실적 추이
+       카드의 DART 동종업계 비교(감사받은 수치)와 같은 회사를 다른 숫자로 보여
+       줬다(지누스 443억 vs 별도 3,876억). 점유율 도넛도 함께 내렸다.
+       ★ 그리는 함수(smRevCompare·smShareDonut)와 JSON 의 해당 항목은 지우지
+         않았다 — 되돌리려면 이 자리에 다시 불러 오기만 하면 된다. */
     /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
        ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
          위, 오른쪽(그래프)이 아래로 쌓인다. */
