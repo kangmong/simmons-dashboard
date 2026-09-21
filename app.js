@@ -3514,6 +3514,23 @@ function iiMaLast(vals, win) {
   return s2 / w;
 }
 
+/** 최근 win 개월 평균을 '(a + b + c) ÷ 3 = m' 식으로 펼친다.
+ *  ★ 평균값 하나만 적어 두면 '그 숫자는 또 어디서 나왔나'가 남는다. 더한 세 달
+ *    값을 그대로 보여 주면 그래프의 마지막 세 점과 눈으로 맞춰 볼 수 있다.
+ *  round: 화면에 적을 자리수로 줄이는 함수 · fmt: 그 값을 글자로 바꾸는 함수.
+ *  반올림한 세 값의 합을 나눈 결과가 실제 평균과 다르게 보이면 '=' 대신 '≈'. */
+function iiMaExpr(vals, win, round, fmt) {
+  const v = (vals || []).filter((x) => x != null && isFinite(x));
+  const w = win || II_MA_WIN;
+  if (v.length < w) return '';
+  const raw = v.slice(-w);
+  const shown = raw.map(round);
+  const mean = raw.reduce((a, b) => a + b, 0) / w;
+  const meanOfShown = shown.reduce((a, b) => a + b, 0) / w;
+  const eq = (fmt(meanOfShown) === fmt(mean)) ? ' = ' : ' \u2248 ';
+  return '(' + shown.map(fmt).join(' + ') + ') \u00f7 ' + w + eq + fmt(mean);
+}
+
 function iiFit(vals) {
   const v = (vals || []).filter((x) => x != null && isFinite(x));
   if (v.length < II_MA_WIN + II_SLOPE_WIN - 1) return null;
@@ -3573,16 +3590,21 @@ function iiExtendHowText(ext) {
       + (e.values[1] != null ? ' \u2192 ' + n(e.values[1]) : '') + ' USD/톤';
   }
   /* ★ ①에도 실제 숫자를 적는다. '3개월 평균으로 고릅니다'만 쓰면 그 결과가
-     얼마인지 알 수 없어 다음 줄의 기울기가 어디서 나온 값인지 따라가지 못한다. */
-  /* ★ 값만 적으면 '이 숫자는 어디서 나왔나'가 남는다. 어느 달을 평균한 것인지
-     함께 적는다(ICIS_DATA.periods 의 마지막 II_MA_WIN 개월). */
+     얼마인지 알 수 없어 다음 줄의 기울기가 어디서 나온 값인지 따라가지 못한다.
+     ★ 평균값만 적던 것을 '(6월 + 7월 + 8월) ÷ 3 = 1,398' 처럼 식으로 펼친다 —
+       어느 달을 더했고 왜 그 값이 나왔는지가 한 줄에 다 보이게.
+     ★ 달과 값을 짝지어 거른다. 원료마다 값이 빠진 달이 있어(null) 값만 걸러
+       내면 기간 표기와 실제로 더한 달이 어긋난다. */
   let exMa = '';
   if (first) {
-    const m = iiMaLast(ICIS_DATA[first.key], II_MA_WIN);
-    const ps = ICIS_DATA.periods.slice(-II_MA_WIN);
-    if (m != null) {
-      exMa = (ps.length ? ps[0] + '~' + ps[ps.length - 1].slice(5) + ' 평균 ' : '')
-        + first.key + ' ' + Math.round(m).toLocaleString('ko-KR') + ' USD/톤';
+    const pairs = ICIS_DATA.periods
+      .map((p, i) => ({ p: p, v: (ICIS_DATA[first.key] || [])[i] }))
+      .filter((x) => x.v != null && isFinite(x.v));
+    const w = pairs.slice(-II_MA_WIN);
+    if (w.length === II_MA_WIN) {
+      const fmt = (x) => Math.round(x).toLocaleString('ko-KR');
+      exMa = first.key + ' ' + w[0].p + '~' + w[w.length - 1].p.slice(5) + ' '
+        + iiMaExpr(w.map((x) => x.v), II_MA_WIN, Math.round, fmt) + ' USD/톤';
     }
   }
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
@@ -5236,12 +5258,13 @@ function sriExtendHowText(ext) {
   const one = (v) => v.toFixed(1) + '%';
   const exPath = one(ext.from.v) + ' \u2192 ' + one(ext.values[0].v)
     + (ext.values[1] ? ' \u2192 ' + one(ext.values[1].v) : '');
-  /* ★ 정시성도 마찬가지 — 어느 달을 평균한 값인지 밝힌다 */
-  const pts = msPtsSr();
-  const ma = iiMaLast(pts.map((x) => x.v), II_MA_WIN);
-  const win = pts.slice(-II_MA_WIN).map((x) => x.k).filter(Boolean);
-  const exMa = (ma != null)
-    ? (win.length ? win[0] + '~' + win[win.length - 1].slice(5) + ' 평균 ' : '') + ma.toFixed(1) + '%'
+  /* ★ 정시성도 마찬가지 — 어느 달을 더해 나온 평균인지 식으로 펼친다 */
+  const pts = msPtsSr().filter((x) => x.v != null && isFinite(x.v));
+  const win = pts.slice(-II_MA_WIN);
+  const fmt1 = (x) => x.toFixed(1);
+  const exMa = (win.length === II_MA_WIN)
+    ? (win[0].k ? win[0].k + '~' + String(win[win.length - 1].k).slice(5) + ' ' : '')
+      + iiMaExpr(win.map((x) => x.v), II_MA_WIN, (x) => Math.round(x * 10) / 10, fmt1) + '%'
     : '';
   return howToBox(ext.year + '년 점선은 이렇게 그립니다', [
     ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
