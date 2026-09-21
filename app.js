@@ -3574,10 +3574,16 @@ function iiExtendHowText(ext) {
   }
   /* ★ ①에도 실제 숫자를 적는다. '3개월 평균으로 고릅니다'만 쓰면 그 결과가
      얼마인지 알 수 없어 다음 줄의 기울기가 어디서 나온 값인지 따라가지 못한다. */
+  /* ★ 값만 적으면 '이 숫자는 어디서 나왔나'가 남는다. 어느 달을 평균한 것인지
+     함께 적는다(ICIS_DATA.periods 의 마지막 II_MA_WIN 개월). */
   let exMa = '';
   if (first) {
     const m = iiMaLast(ICIS_DATA[first.key], II_MA_WIN);
-    if (m != null) exMa = first.key + ': ' + Math.round(m).toLocaleString('ko-KR') + ' USD/톤';
+    const ps = ICIS_DATA.periods.slice(-II_MA_WIN);
+    if (m != null) {
+      exMa = (ps.length ? ps[0] + '~' + ps[ps.length - 1].slice(5) + ' 평균 ' : '')
+        + first.key + ' ' + Math.round(m).toLocaleString('ko-KR') + ' USD/톤';
+    }
   }
   return howToBox('오른쪽 점선은 이렇게 그립니다', [
     ['값이 달마다 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
@@ -5230,8 +5236,13 @@ function sriExtendHowText(ext) {
   const one = (v) => v.toFixed(1) + '%';
   const exPath = one(ext.from.v) + ' \u2192 ' + one(ext.values[0].v)
     + (ext.values[1] ? ' \u2192 ' + one(ext.values[1].v) : '');
-  const ma = iiMaLast(msPtsSr().map((x) => x.v), II_MA_WIN);
-  const exMa = (ma != null) ? ma.toFixed(1) + '%' : '';
+  /* ★ 정시성도 마찬가지 — 어느 달을 평균한 값인지 밝힌다 */
+  const pts = msPtsSr();
+  const ma = iiMaLast(pts.map((x) => x.v), II_MA_WIN);
+  const win = pts.slice(-II_MA_WIN).map((x) => x.k).filter(Boolean);
+  const exMa = (ma != null)
+    ? (win.length ? win[0] + '~' + win[win.length - 1].slice(5) + ' 평균 ' : '') + ma.toFixed(1) + '%'
+    : '';
   return howToBox(ext.year + '년 점선은 이렇게 그립니다', [
     ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
     ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
@@ -5550,9 +5561,13 @@ function xsiUnit() {
 /** 최근값이 무엇인지 — Compass 정의 문장을 우리말로 옮긴 것. */
 function xsiValueTip() {
   const cur = (_xsiData && _xsiData.currency) || 'USD';
-  return '해당 항로에서 40피트(40\u2019) 컨테이너 1개를 32일 미만 단기로 실을 때의 '
-    + 'FAK(Freight All Kind, 품목을 가리지 않는 일괄 운임) 수준입니다. 단위는 ' + cur
-    + ' 이며, Compass 가 매 영업일 산출해 유럽 중부시간 18시에 공표합니다.';
+  /* ★ 원문 정의를 그대로 옮기면 '40피트 FAK 스팟' 처럼 아는 사람만 아는 말이
+     된다. 무엇을 세는 값인지부터 풀어 쓴다. */
+  return '이 항로에서 큰 컨테이너 한 개를 보내는 값입니다. '
+    + '컨테이너는 길이 12m 짜리 40피트형(가정집 이삿짐 한두 채 분량)이고, '
+    + '미리 장기 계약을 맺지 않고 그때그때 자리를 사서 싣는 단기 운임입니다. '
+    + '무엇을 담았든 같은 값을 매깁니다(FAK). 단위는 ' + cur
+    + ' 이며, Compass 가 영업일마다 계산해 유럽 중부시간 18시에 발표합니다.';
 }
 
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
@@ -6143,15 +6158,22 @@ function xsiFill(text, map) {
 
 /** 추세 해석 줄 — 세 국면을 모두 보여 주고 지금 국면만 진하게 강조한다. */
 function xsiTrendRow(t, dir, st, fc) {
+  /* ★ 예전에는 🔴상승세 🟢하락세 🔵횡보 처럼 색 점을 썼다. 그런데 이 차트의
+     운임 선이 파랑(var(--blue))이고 추세 연장이 청록이라, 파란 점이 '횡보'를
+     뜻하는지 '저 파란 선'을 뜻하는지 알 수 없었다. 빨강·초록도 그래프에는
+     없는 색이라 무엇을 가리키는지 헷갈렸다.
+     방향은 색이 아니라 화살표로 말한다 — 대시보드의 증감 표기(▲▼)와 같은 규칙.
+     글자색은 오를수록 비용이 늘어 나쁜 쪽이라 빨강, 내리면 초록이다. */
   const items = [
-    { key: 'up', dot: '🔴', label: '상승세' },
-    { key: 'down', dot: '🟢', label: '하락세' },
-    { key: 'flat', dot: '🔵', label: '횡보' },
+    { key: 'up', mark: '▲', cls: 'up', label: '상승세' },
+    { key: 'down', mark: '▼', cls: 'down', label: '하락세' },
+    { key: 'flat', mark: '–', cls: 'flat', label: '횡보' },
   ];
   const cells = items.map((it) => {
     const on = (it.key === dir);
     return '<span class="xsi-tr' + (on ? ' is-on' : '') + '">'
-      + it.dot + ' ' + escapeHtml(it.label) + ' → '
+      + '<b class="xsi-tr__m ' + it.cls + '">' + it.mark + '</b> '
+      + escapeHtml(it.label) + ' → '
       + escapeHtml((t.trend && t.trend[it.key]) || '') + '</span>';
   }).join('');
   // 무엇을 근거로 지금 국면을 골랐는지 밝힌다(숫자를 지어내지 않는다)
@@ -6211,9 +6233,14 @@ function xsiTermsHtml(r, fc) {
 /** 위젯 전체 HTML. 데이터가 없으면 안내만 내고 레이아웃을 흔들지 않는다. */
 function renderXsiHtml() {
   const head = xsiHero() + `<div class="viz-head"><div>
-      <div class="viz-sub">주요 8개 항로 컨테이너 스팟 운임지수 · 일별</div>
-      <div class="viz-sub2">항로를 고르면 그 구간의 공표 통계와 지수 추이를 보여줍니다${_xsiData
-        && _xsiData.unitNote ? ' · ' + escapeHtml(_xsiData.unitNote) : ''}</div>
+      <div class="viz-sub">주요 8개 항로 · 컨테이너 한 개를 보내는 값 · 날마다 갱신</div>
+      ${''/* ★ 예전 문구는 '40피트(40\u2019) 컨테이너 1개 기준, 32일 미만 단기
+             FAK(Freight All Kind) 운임' 이었다. 맞는 말이지만 세 개의 전문용어가
+             한 줄에 겹쳐 처음 보는 사람은 무엇을 세는 값인지 알 수 없다.
+             JSON 의 unitNote 는 그대로 두고(원문 보존) 화면에는 풀어 쓴다. */}
+      <div class="viz-sub2">항로를 고르면 그 구간의 운임 흐름을 보여줍니다 ·
+        <b>큰 컨테이너(40피트, 길이 12m) 한 개</b>를 싣는 값 ·
+        미리 계약하지 않고 그때그때 자리를 사는 <b>단기 운임</b></div>
     </div></div>`;
   /* ★ 링크로 바꿀 토막은 반드시 각주 문구 안에 실제로 들어 있는 말이어야 한다.
      예전에는 'XSI-C 지수 목록' 을 넘겼는데 그 말은 각주에 없어(gLinkify 는 문구 안에서
