@@ -4846,6 +4846,19 @@ function orTickIdx(n, max) {
 
 /** 리포트 전용 그래프. 라벨은 대표 계열의 최고·최저·최근 3곳에만 단다.
     ★ 카드 본문의 buildOilChart / buildProductChart 는 건드리지 않는다. */
+/** 단위에 '배럴' 이 들어 있으면 그게 얼마만큼인지 옆에 적는다.
+ *  ★ 배럴은 장 볼 때 쓰는 단위가 아니라 '$/배럴' 만 봐서는 양이 가늠되지 않는다.
+ *    (원유 1배럴 = 42 US 갤런 ≈ 159 L)
+ *  ★ 단위 문자열을 보고 판단한다 — 단위가 바뀌는 카드(원/리터 등)에서
+ *    엉뚱한 설명이 붙지 않게.
+ *  ★ who 는 '원유' 처럼 무엇을 재는 배럴인지. 석유제품 카드에서는 비워 둔다 —
+ *    부피는 같지만 '원유 기준' 이라고 적으면 휘발유·경유 표 위에서 어긋난다. */
+function barrelNote(unit, who) {
+  if (!/배럴/.test(String(unit || ''))) return '';
+  return ' <span class="oc-unit">· ' + (who ? escapeHtml(who) + ' 기준으로 ' : '')
+    + '1배럴 ≈ 159리터입니다</span>';
+}
+
 function renderOilProductHtml() {
   const unit = (_opData && !_opData.error && _opData.unit) || '$/배럴';
   // 배너의 '데이터 기준'은 대표 제품의 마지막 관측월(수집 시각이 아니다)
@@ -4876,7 +4889,8 @@ function renderOilProductHtml() {
     const q = _opQuery, win = opWindow(q);
     const tools = '<div class="oc-result__head">'
       + '<div class="oc-span">' + escapeHtml(opSpanText(q, win))
-      + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span></div>'
+      + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span>'
+      + barrelNote(unit) + '</div>'
       + '<div class="oc-tools">'
       + '<button type="button" class="oc-tool' + (_opView === 'table' ? ' is-on' : '') + '" data-op-view="table">표보기</button>'
       + '<button type="button" class="oc-tool' + (_opView === 'chart' ? ' is-on' : '') + '" data-op-view="chart">차트보기</button>'
@@ -7487,7 +7501,8 @@ function renderOilPricesHtml() {
     const ocBands = oilBandRanges(win, q.term);
     const tools = '<div class="oc-result__head">'
       + '<div class="oc-span">' + escapeHtml(ocSpanText(q, win))
-      + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span></div>'
+      + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span>'
+      + barrelNote(unit, '원유') + '</div>'
       + '<div class="oc-tools">'
       + '<button type="button" class="oc-tool' + (_ocView === 'table' ? ' is-on' : '') + '" data-oc-view="table">표보기</button>'
       + '<button type="button" class="oc-tool' + (_ocView === 'chart' ? ' is-on' : '') + '" data-oc-view="chart">차트보기</button>'
