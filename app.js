@@ -5627,16 +5627,24 @@ function xsiPct(v, plain) {
 }
 
 /** 지수값 라인차트. 다른 차트와 같은 VIZ_* 규격을 쓴다. */
-function buildXsiChart(slice, color) {
+function buildXsiChart(slice, color, fc) {
   const n = slice ? slice.dates.length : 0;
   if (!n) { _xsiChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const vals = slice.values;
+  /* ★ 전망을 오른쪽에 이어 그리려고 축을 XSI_FC_DAYS 만큼 늘린다.
+     fc 가 없으면(항로 자료 부족) 예전과 똑같이 그려진다 — nx === n. */
+  const ext = fc ? XSI_FC_DAYS : 0;
+  const nx = n + ext;
   let ymin = Math.min(...vals), ymax = Math.max(...vals);
+  if (fc) {                                  // 전망 띠가 잘리지 않게 축을 넓힌다
+    ymin = Math.min(ymin, fc.dn);
+    ymax = Math.max(ymax, fc.up);
+  }
   const yp = (ymax - ymin) * 0.1 || 10; ymin = Math.max(0, ymin - yp); ymax += yp;
 
   const W = VIZ_W, H = VIZ_H, padL = 46, padR = 16, padT = VIZ_PAD_T, padB = VIZ_PAD_B;
   const plotW = W - padL - padR, plotH = H - padT - padB;
-  const X = (i) => (n === 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const X = (i) => (nx === 1 ? padL + plotW / 2 : padL + (i / (nx - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
   const grid = vizYFractions().map((t) => {
@@ -5650,12 +5658,39 @@ function buildXsiChart(slice, color) {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(d.slice(0, 7))}</text>`;
   }).join('');
+  /* ★ 전망 끝점에는 눈금을 적지 않는다. 전체 보기에서 3개월은 축의 2%(약 13px)라
+     마지막 실측 눈금과 글자가 겹쳐 둘 다 읽을 수 없었다. 점선이 어디까지인지는
+     '추세 연장' 표시와 아래 계산 순서(63거래일 ≈ 3개월)가 알려 준다. */
 
 
   // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
   let path = '';
   vals.forEach((v, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; });
   const area = `${path}L${X(n - 1).toFixed(1)} ${(padT + plotH).toFixed(1)} L${X(0).toFixed(1)} ${(padT + plotH).toFixed(1)} Z`;
+
+  /* ── 추세 연장 ── 마지막 실측점에서 중앙값까지 점선, 상·하단 사이는 옅은 띠.
+     색은 청록으로 고정한다 — 실측선(항로 색)과 섞이지 않게(해상 정시성과 같은 규칙). */
+  let fcShapes = '';
+  if (fc) {
+    const x0 = X(n - 1), x1 = X(nx - 1), y0 = Y(fc.base);
+    const c = 'var(--cyan)';
+    fcShapes = '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + Y(fc.up).toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + Y(fc.dn).toFixed(1) + ' Z" fill="' + c + '" opacity=".10"/>'
+      + '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' L' + x1.toFixed(1) + ' '
+      + Y(fc.med).toFixed(1) + '" fill="none" stroke="' + c + '" stroke-width="1.8"'
+      + ' stroke-dasharray="4 3" stroke-linecap="round"/>'
+      + '<line x1="' + x0.toFixed(1) + '" y1="' + padT + '" x2="' + x0.toFixed(1)
+      + '" y2="' + (padT + plotH).toFixed(1) + '" stroke="var(--muted)" stroke-width="1"'
+      + ' stroke-dasharray="2 3" opacity=".5"/>'
+      + '<text x="' + (x0 + 4).toFixed(1) + '" y="' + (padT + 8).toFixed(1) + '" font-size="7.5"'
+      + ' font-weight="700" fill="var(--muted)" paint-order="stroke" stroke="var(--surface-1)"'
+      + ' stroke-width="2.5">추세 연장</text>'
+      + '<text x="' + (x1 - 2).toFixed(1) + '" y="' + (Y(fc.med) - 5).toFixed(1) + '"'
+      + ' text-anchor="end" font-size="8.5" font-weight="800" fill="' + c + '"'
+      + ' paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5">'
+      + Math.round(fc.med).toLocaleString('en-US') + '</text>';
+  }
 
   _xsiChart = { dates: slice.dates, values: vals, color: color, geom: { X, Y, n, W, padL } };
 
@@ -5666,10 +5701,13 @@ function buildXsiChart(slice, color) {
       ${grid}${bands}${xticks}
       <path d="${area}" fill="${color}" opacity=".08"/>
       <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      ${fcShapes}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="xsi-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="xsi-dots"></g>
-      <rect class="xsi-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
+      ${''/* ★ 마우스 영역은 실측 구간까지만 — 전망 칸까지 덮으면 크로스헤어가
+             데이터 없는 자리를 가리킨다. */}
+      <rect class="xsi-overlay" x="${padL}" y="${padT}" width="${(X(n - 1) - padL).toFixed(1)}" height="${plotH}" fill="transparent"/>
     </svg>`;
 }
 
@@ -5829,7 +5867,7 @@ function xsiiEras(slice) {
     : `<div class="xsii-note">이 구간 설명은 <b>${escapeHtml(base)}</b> 항로 기준 참고용이며,
         지금 보고 있는 항로의 실제 흐름과 다를 수 있습니다.</div>`;
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">① 운임지수 추이 — 구간별 흐름</h3>
+    <h3 class="subhead ii-h">운임지수 추이 — 구간별 흐름</h3>
     ${warn}
     <div class="xsii-eras">${cards}</div>
   </div>`;
@@ -5896,6 +5934,23 @@ function xsiRecent(series) {
 }
 
 /** 3개월 전망. { base, med, up, dn, sd3, slope, chgPct, dir } · 못 내면 null */
+/** 추세 연장을 어떻게 구했는지 — ICIS·해상정시성과 같은 계산 순서 상자. */
+function xsiExtendHowText(fc) {
+  const n = (v) => Math.round(v).toLocaleString('ko-KR');
+  const perDay = fc.slope;
+  const sign = perDay >= 0 ? '+' : '\u2212';
+  return howToBox('오른쪽 점선은 이렇게 그립니다', [
+    ['최근 <b>' + XSI_FC_MONTHS + '개월</b> 값에 직선 하나를 맞춰 <b>하루에 얼마씩</b> '
+      + '움직였는지 잽니다', '하루 ' + sign + Math.abs(perDay).toFixed(1) + ' USD'],
+    ['마지막 값에서 그만큼씩 <b>' + XSI_FC_DAYS + '거래일(약 3개월)</b> 더합니다',
+      n(fc.base) + ' \u2192 ' + n(fc.med) + ' USD/40ft'],
+    ['같은 기간 <b>하루 등락폭</b>을 3개월치로 늘려 위아래 폭을 잡습니다',
+      '\u00b1' + Math.abs(fc.sd3).toFixed(0) + '% \u2192 ' + n(fc.dn) + ' ~ ' + n(fc.up)],
+    ['<b>점선을 감싼</b> 옅은 띠가 그 폭입니다 \u2014 넓을수록 그동안 많이 출렁였다는 뜻입니다', ''],
+  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
+    + '운임은 성수기·항로 사정에 따라 크게 벗어날 수 있습니다.');
+}
+
 function xsiForecast(series) {
   const w = xsiRecent(series);
   if (!w) return null;
@@ -6225,6 +6280,10 @@ function renderXsiHtml() {
      항로만 고른 상태에서는 안내 문구만 두고, 통계·전망·②③④는 그대로 낸다
      (그 값들은 기간과 무관한 항로 단위 수치다). */
   let chart;
+  // 3개월 전망 — 차트의 추세 연장선과 아래 계산 순서 상자가 같은 값을 나눠 쓴다.
+  // ★ 차트보다 먼저 구한다 — buildXsiChart 가 이 값으로 점선을 그린다.
+  const fc = hasSeries ? xsiForecast(r.series) : null;
+
   if (!hasSeries) {
     chart = '<div class="ii-cap">이 항로는 그래프 데이터를 받지 못해 통계만 표시합니다.</div>';
   } else if (!slice) {
@@ -6232,15 +6291,12 @@ function renderXsiHtml() {
     chart = '<div class="icis-prompt">기간을 선택하세요</div>';
   } else {
     chart = vizUnitCap(xsiUnit(), (_xsiData && _xsiData.currency) || 'USD')
-      + buildXsiChart(slice, color) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
+      + buildXsiChart(slice, color, fc) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
       + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`;
   }
 
   const note = _xsiData.statsNote
     ? `<div class="ii-cap">${escapeHtml(_xsiData.statsNote)}${_xsiData.updatedAt ? ' · 수집 ' + escapeHtml(_xsiData.updatedAt) : ''}</div>` : '';
-
-  // 3개월 전망 — ① 우측 박스와 ③ 시나리오 표가 같은 계산을 나눠 쓴다
-  const fc = hasSeries ? xsiForecast(r.series) : null;
 
   // ① 차트(좌) + 향후 3개월 전망(우)
   /* ★ 기간 칩을 직접 누른 뒤에만 아래 전부를 낸다(섹션 공통 규칙).
@@ -6250,19 +6306,18 @@ function renderXsiHtml() {
        핵심 인사이트 · 지표 설명은 전부 기간 선택 뒤로 보낸다. 이 값들은
        항로 단위로도 계산되지만, 기간을 고르지 않았는데 해설이 먼저 떠 있는
        것을 없애는 것이 이 규칙의 목적이다. */
-  const chartRow = slice
-    // ★ 들여쓰기를 예전 그대로 둔다 — 기간을 고른 뒤의 출력이 수정 전과
-    //   한 글자도 달라지지 않게 해서 무변경을 증명할 수 있게 한다.
-    ? `<div class="xsi-row">
-    <div class="xsi-row__main">${chips}${chart}</div>
-    ${xsiFcBox(fc, st)}
-  </div>`
-    // 기간 미선택 — 칩만 두고 오른쪽 전망 박스는 만들지 않는다(빈 칸이 남지 않게)
-    : `${chips}${chart}`;
+  /* ★ 오른쪽 '향후 3개월 전망' 박스(xsiFcBox)를 뺐다. 같은 값을 차트 위에
+     점선으로 이어 그리는 편이(ICIS·해상정시성과 같은 방식) 값의 흐름과 함께
+     읽힌다 — 표로 따로 두면 '지금 얼마에서 얼마로'가 눈으로 이어지지 않는다.
+     계산 순서는 차트 바로 아래 상자에 적는다. */
+  const chartRow = `${chips}${chart}` + (slice && fc ? xsiExtendHowText(fc) : '');
 
-  const panels = slice
-    ? xsiiEras(slice) + xsiiFactors() + xsiiOutlook() + xsiScenarios(fc, st) + xsiActions()
-    : '';
+  /* ★ 뺀 것들 — ②주요 변동요인 · 정성 전망 · ③시나리오별 전망 · ④시사점 ·
+     하단 핵심 인사이트. 모두 서술 카드라 차트가 말하는 것 위에 문장을 덧대던
+     자리다. 구간별 흐름(xsiiEras)만 남긴다 — 차트의 색 구간이 무엇인지
+     설명하는 것이라 그림과 붙어 있어야 한다.
+     함수는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+  const panels = slice ? xsiiEras(slice) : '';
 
   return `<div class="viz-root viz-figure xsi-figure">${head}
     ${tabs}
@@ -6271,7 +6326,6 @@ function renderXsiHtml() {
     ${chartRow}
     ${note}
     ${panels}
-    ${slice ? xsiInsightBox(fc) : ''}
     ${cap}
     ${slice ? xsiTermsHtml(r, fc) : ''}
   </div>`;
