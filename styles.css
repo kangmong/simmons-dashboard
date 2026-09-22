@@ -2329,6 +2329,16 @@ body {
 .koima-facs { grid-template-columns: repeat(5, 1fr); }
 
 /* ③ 최근 12개월 표 — 기존 표 그대로. 패널 안이라 제목 위 여백만 줄인다 */
+/* 기간별 변동률을 그래프 위에 겹쳐 보는 버튼(범례 줄 오른쪽) */
+.koima-legend { display: flex; align-items: center; gap: 8px; }
+.koima-spanbtn {
+  margin-left: auto; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card);
+  color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.koima-spanbtn:hover { border-color: var(--slate); color: var(--ink); }
+.koima-spanbtn.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
+
 .koima-recent .koima-t__head { margin-top: 0; }
 
 /* ④ 향후 전망 */

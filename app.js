@@ -7935,6 +7935,8 @@ let _koimaIns = null;
 // ① 차트 뷰박스 높이 — 옆에 붙는 '기간별 변동률' 패널(5행, 약 290px)과 키를 맞춘다.
 // 공용 VIZ_H(158)로는 너무 납작해 오른쪽 패널 아래가 크게 빈다.
 const KOIMA_CHART_H = 250;
+// 기간별 변동률을 그래프 위에 구간 자로 겹쳐 볼지 (범례 줄의 [구간 변동률] 버튼)
+let _koimaSpans = true;
 const KOIMA_FC_H = 168;        // ④ 전망 미니차트 높이
 const KOIMA_FC_MONTHS = 6;     // 전망 지평(개월) — 3개월·6개월 두 지점을 읽는다
 const KOIMA_TREND_WIN = 12;    // 추세를 재는 창(개월)
@@ -8412,13 +8414,19 @@ function renderKoimaHtml() {
       const evItems = koimaEventItems(cat);
       const refN = evItems.filter((e) => e.ref).length;
       const chartCell = vizUnitCap(unitLbl, false)
-        + buildKoimaChart(rows, cat, KOIMA_CHART_H, evItems)
+        + buildKoimaChart(rows, cat, KOIMA_CHART_H, evItems, st)
         + '<div class="viz-tooltip" id="koimaTooltip"></div>'
         + '<div class="ii-cap ii-cap--chart">' + escapeHtml(unitCap)
           + ' 표시 구간은 위 기간 버튼과 기준 년월을 따릅니다.'
           + (evItems.length ? ' 주요 사건 마커는 이 부문 데이터로 검증한 것이며'
             + (refN ? ', * 표시 ' + refN + '건은 이 부문에서 변동이 뚜렷하지 않아 참고용입니다'
               : '') + '.' : '')
+          /* ★ 보이는 기간 밖의 비교 시점은 괄호를 그릴 자리가 없어 빠진다.
+             그림에 없다고 값이 없는 게 아니라는 것을 한 줄로 밝힌다. */
+          + (_koimaSpans
+            ? ' 오른쪽 표의 구간 변동률을 그래프 위에 겹쳐 그립니다 — '
+              + '비교 시점이 보이는 기간 밖이면 표에만 남습니다.'
+            : '')
         + '</div>';
       trendBody = '<div class="koima-row"><div class="koima-row__main">' + chartCell + '</div>'
         + koimaChangePanel(cat, st) + '</div>';
@@ -8463,8 +8471,79 @@ function koimaRecentPanel(cat, st) {
     + '<div class="koima-recent">' + koimaRecentTable(rows, cat) + '</div></div>';
 }
 
+/** 기간별 변동률을 차트 위에 '구간 자'로 얹는다(표의 다섯 줄과 같은 값).
+ *
+ *  ★ 왜 이 모양인가: 다섯 구간은 모두 같은 기준월에서 끝난다. 시작점만 다르고
+ *    끝이 같으니, 오른쪽 끝을 공유하는 중첩 괄호가 가장 정직한 그림이다.
+ *    화살표를 다섯 개 그으면 서로 엉켜 어느 선이 어느 구간인지 알 수 없다.
+ *  ★ 보이는 구간 안에 비교 시점이 있는 것만 그린다 — '1년' 으로 보는데
+ *    12개월 전 점이 화면 밖이면 괄호를 그릴 자리가 없다.
+ *  ★ 비교 시점이 같은 구간끼리는 한 줄로 합친다. 기준월이 6월이면
+ *    '전년 동월 대비' 와 '최근 12개월' 이 같은 점을 가리킨다.
+ */
+function koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) {
+  if (!st) return '';
+  const iEnd = periods.lastIndexOf(st.ym);
+  if (iEnd < 1) return '';
+  const defs = [
+    { s: '전월', pct: st.mom, at: st.momAt },
+    { s: '전년 동월', pct: st.yoy, at: st.yoyAt },
+    { s: '3개월', pct: st.c3, at: st.at3 },
+    { s: '6개월', pct: st.c6, at: st.at6 },
+    { s: '12개월', pct: st.c12, at: st.at12 },
+  ];
+  const byRef = new Map();
+  defs.forEach((d) => {
+    if (d.pct == null || !isFinite(d.pct) || !d.at) return;
+    const i = periods.indexOf(d.at.period);
+    if (i < 0 || i >= iEnd) return;
+    const cur = byRef.get(d.at.period);
+    if (cur) { cur.names.push(d.s); return; }
+    byRef.set(d.at.period, { i: i, pct: d.pct, names: [d.s], at: d.at });
+  });
+  const items = [...byRef.values()].sort((a, b) => b.i - a.i);   // 짧은 구간부터
+  if (!items.length) return '';
+
+  /* 괄호를 놓을 밴드 — 괄호가 걸치는 구간의 선이 위쪽에 있으면 아래에 둔다.
+     ★ 위쪽 padT+13 / +22 줄은 주요 사건 마커 라벨이 쓰고 있다. 위에 둘 때는
+       그 아래(+32)부터 시작해 겹치지 않게 한다. */
+  const iFrom = items[items.length - 1].i;
+  const seg = values.slice(iFrom, iEnd + 1).filter((v) => v != null);
+  const yTopOfLine = seg.length ? Y(Math.max.apply(null, seg)) : padT + plotH;
+  const ROW = 12, FS = 7.5;
+  const useTop = (yTopOfLine > padT + plotH * 0.45);   // 선이 아래쪽에 모여 있다
+  const y0 = useTop ? (padT + 32) : (padT + plotH - 8);
+  const rowY = (k) => (useTop ? y0 + k * ROW : y0 - k * ROW);
+
+  const out = items.map((it, k) => {
+    const up = it.pct >= 0;
+    const c = up ? 'var(--accent)' : 'var(--blue)';
+    const x0 = X(it.i), x1 = X(iEnd), y = rowY(k);
+    const txt = it.names.join('·') + '  ' + (up ? '▲ +' : '▼ ')
+      + it.pct.toFixed(2) + '%';
+    const tw = vizTextW(txt, FS);
+    // 괄호가 글자보다 좁으면 라벨을 괄호 왼쪽 바깥에 붙인다(뷰박스 안으로 당긴다)
+    const fits = (x1 - x0) > tw + 10;
+    const lx = fits ? (x0 + x1) / 2 : Math.max(padL + tw / 2, x0 - 5 - tw / 2);
+    const stub = 3.5, dir = useTop ? 1 : -1;          // 괄호 끝을 선 쪽으로 꺾는다
+    return '<g class="koima-span">'
+      + '<path d="M' + x0.toFixed(1) + ' ' + (y + stub * dir).toFixed(1)
+      + ' L' + x0.toFixed(1) + ' ' + y.toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + y.toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + (y + stub * dir).toFixed(1) + '"'
+      + ' fill="none" stroke="' + c + '" stroke-width="1.1" opacity=".85"/>'
+      + '<circle cx="' + x0.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.9" fill="' + c + '"/>'
+      + '<circle cx="' + x1.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.9" fill="' + c + '"/>'
+      + '<text x="' + lx.toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" text-anchor="middle"'
+      + ' font-size="' + FS + '" font-weight="800" fill="' + c + '"'
+      + ' paint-order="stroke" stroke="var(--card)" stroke-width="2.6">'
+      + escapeHtml(txt) + '</text></g>';
+  }).join('');
+  return '<g class="koima-spans" aria-hidden="true">' + out + '</g>';
+}
+
 /** 단일 시리즈 월별 선그래프 (dot 없음, Y축 auto — 0에서 시작하지 않음) */
-function buildKoimaChart(rows, cat, hOpt, evItems) {
+function buildKoimaChart(rows, cat, hOpt, evItems, st) {
   const n = rows.length;
   if (!n || !cat) { _koimaChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const color = KOIMA_COLORS[cat.key] || 'var(--accent)';
@@ -8507,8 +8586,13 @@ function buildKoimaChart(rows, cat, hOpt, evItems) {
   _koimaChart = { periods, values, label: cat.label, color, geom: { X, Y, n, W, padL } };
   console.log('[koima] 차트 · %s · %s~%s · %d개 점', cat.label, periods[0], periods[n - 1], n);
 
+  /* ★ 구간 자는 켜고 끌 수 있게 둔다 — 값이 다섯 줄이라 짧은 기간으로 보면
+       선 위가 빽빽해진다. 기본값은 켜 둔다(오른쪽 표와 같은 값을 그림에서
+       바로 짚을 수 있는 게 이 카드의 요점이라서). */
   return `<div class="viz-legend koima-legend"><span class="viz-legend__item">
-      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(cat.label)} 지수</span></div>
+      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(cat.label)} 지수</span>
+      <button type="button" class="koima-spanbtn${_koimaSpans ? ' is-on' : ''}" data-koima-spans
+        title="오른쪽 '기간별 변동률' 다섯 줄을 그래프 위에 구간으로 표시합니다">구간 변동률</button></div>
     <svg class="viz-svg koima-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(cat.label)} 월간 지수">
       <text x="2" y="7.5" font-size="7.5" fill="var(--muted)">${escapeHtml((_koimaIns && _koimaIns.unitLabel) || '지수 (2010.12=100 기준)')}</text>
       ${grid}${xticks}${line}
@@ -8517,6 +8601,7 @@ function buildKoimaChart(rows, cat, hOpt, evItems) {
       <g class="koima-dots"></g>
       <rect class="koima-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
       ${vizEventsSvg(evItems || [], rows.map((r) => r.period), X, padT, plotH, W)}
+      ${_koimaSpans ? koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) : ''}
     </svg>`;
 }
 
@@ -8599,6 +8684,12 @@ function wireKoimaControls(root) {
     const b = e.target.closest('.koima-range');
     if (!b || b.disabled) return;
     _koimaRange = b.dataset.range;
+    renderMaterial();
+  });
+  fig.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-koima-spans]');
+    if (!b) return;
+    _koimaSpans = !_koimaSpans;
     renderMaterial();
   });
   const yEl = fig.querySelector('.koima-year');
