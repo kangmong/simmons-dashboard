@@ -8550,6 +8550,12 @@ function koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) {
     const fits = (x1 - x0) > tw + 10;
     const lx = fits ? (x0 + x1) / 2 : Math.max(padL + tw / 2, x0 - 5 - tw / 2);
     const stub = 3.5, dir = useTop ? 1 : -1;          // 괄호 끝을 선 쪽으로 꺾는다
+    /* ★ 점은 괄호 줄이 아니라 '곡선 위 그 값 자리'에 찍는다.
+       예전에는 괄호 줄에 같이 붙여 놨더니, 전년 동월 57.93 인데 점은 y축
+       30 근처에 있어 그 시점의 값처럼 잘못 읽혔다. 괄호 줄은 구간 길이를
+       보여 주는 자일 뿐이므로, 값은 곡선 위에 찍고 둘을 점선으로 잇는다. */
+    const v0 = (values[it.i] != null) ? values[it.i] : it.at.index;
+    const yv = Y(v0);
     return '<g class="koima-span">'
       + '<path d="M' + x0.toFixed(1) + ' ' + (y + stub * dir).toFixed(1)
       + ' L' + x0.toFixed(1) + ' ' + y.toFixed(1)
@@ -8562,11 +8568,27 @@ function koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) {
       + ' font-size="' + FS + '" font-weight="800" fill="' + c + '"'
       + ' paint-order="stroke" stroke="var(--card)" stroke-width="2.6">'
       + escapeHtml(txt) + '</text>'
-      + dot(x0, y, c, '비교 ' + it.at.period + ' \u00b7 ' + n2(it.at.index))
-      + dot(x1, y, c, '기준 ' + st.ym + ' \u00b7 ' + n2(st.v))
+      // 괄호 줄 ↔ 곡선 위 실제 값 — 가는 점선으로 잇는다
+      + '<line x1="' + x0.toFixed(1) + '" y1="' + y.toFixed(1)
+      + '" x2="' + x0.toFixed(1) + '" y2="' + yv.toFixed(1) + '" stroke="' + c
+      + '" stroke-width="0.9" stroke-dasharray="2 2" opacity=".45"/>'
+      + dot(x0, yv, c, '비교 ' + it.at.period + ' \u00b7 ' + n2(v0))
       + '</g>';
   }).join('');
-  return '<g class="koima-spans" aria-hidden="true">' + out + '</g>';
+
+  /* 기준월 점은 하나만 찍는다 — 네 구간이 모두 같은 점에서 끝난다.
+     세로 점선은 곡선 위 값부터 가장 먼 괄호 줄까지 한 번에 긋는다. */
+  const vEnd = (values[iEnd] != null) ? values[iEnd] : st.v;
+  const yEnd = Y(vEnd);
+  const ys = items.map((it, k) => rowY(k)).concat([yEnd]);
+  const base = '<g class="koima-span">'
+    + '<line x1="' + X(iEnd).toFixed(1) + '" y1="' + Math.min.apply(null, ys).toFixed(1)
+    + '" x2="' + X(iEnd).toFixed(1) + '" y2="' + Math.max.apply(null, ys).toFixed(1)
+    + '" stroke="var(--slate)" stroke-width="0.9" stroke-dasharray="2 2" opacity=".45"/>'
+    + dot(X(iEnd), yEnd, 'var(--ink)', '기준 ' + st.ym + ' \u00b7 ' + n2(vEnd))
+    + '</g>';
+
+  return '<g class="koima-spans" aria-hidden="true">' + out + base + '</g>';
 }
 
 /** 단일 시리즈 월별 선그래프 (dot 없음, Y축 auto — 0에서 시작하지 않음) */
