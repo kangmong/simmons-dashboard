@@ -9102,7 +9102,6 @@ function kpiChangePanel(item, st) {
     + '<td class="koima-chgt__v">' + matBadge(pct, 2) + '</td>'
     + '<td class="koima-chgt__b">' + (ref ? escapeHtml(ref.k) + ' 평균 ' + kpPrice(ref.v)
       : '자료 제공값') + '</td></tr>';
-  const cur = (st.monthly && st.monthly.length) ? st.monthly[st.monthly.length - 1] : null;
   return '<div class="koima-side">'
     + '<div class="koima-side__h">기간별 변동률 <i>' + escapeHtml(st.date) + ' 기준</i></div>'
     + '<div class="koima-chgt-wrap"><table class="koima-chgt">'
@@ -9114,19 +9113,9 @@ function kpiChangePanel(item, st) {
     + row('최근 6개월', st.c6, st.at6)
     + row('최근 12개월', st.c12, st.at12)
     + '</tbody></table></div>'
-    + '<div class="ii-cap">전일·전주·전월 대비는 KOIMA 가 주는 값을 그대로 옮긴 것이라 '
-    + '비교 시점을 따로 밝히지 않습니다. 3·6·12개월은 <b>월 평균</b>끼리 직접 계산한 '
-    + '값입니다'
-    + (cur ? ' — 기준은 ' + escapeHtml(cur.k) + ' 평균 ' + kpPrice(cur.v)
-      + '(' + escapeHtml(String(st.date).slice(0, 7)) + ' 은 아직 달이 끝나지 않아 '
-      + '지금까지의 평균입니다)' : '')
-    + '. 비교 시점에 자료가 없으면 &mdash;로 둡니다.'
-    /* ★ 그래프에 무엇을 그리고 무엇을 안 그리는지 밝힌다. 전일·전주·전월은
-       비교 시점을 모르니 시작점을 찍을 수가 없다 — 지어내지 않는다. */
-    + ' 그래프 위 구간 자에는 <b>3·6·12개월만</b> 그립니다. 전일·전주·전월은 '
-    + '비교 시점을 알 수 없어 시작점을 찍을 수 없습니다. 구간 끝의 짧은 '
-    + '가로 막대는 <b>그 달 평균값의 높이</b>이며, 그날의 가격이 아닙니다.'
-    + '</div>'
+    /* ★ 표 아래 설명 문단을 뺐다. 표가 이미 줄마다 '자료 제공값' 인지
+       '2026-06 평균 714.64' 인지 적고 있어, 같은 말을 문단으로 한 번 더
+       늘어놓던 자리였다. */
     + '</div>';
 }
 
