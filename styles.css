@@ -2404,6 +2404,10 @@ body {
 .kpi-regbox__cap { margin-top: auto; padding-top: 4px; font-size: 10.5px; color: var(--muted); }
 
 /* ③ 최근 12개월 가격 현황 */
+/* 전주·전월 평균 칸 — 값 아래에 어느 구간인지 작게 */
+.kpi-avg__s td { padding: 0 8px 5px; text-align: right; font-size: 10.5px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.kpi-avgbox .kpi-rt tbody tr:last-child td { border-bottom: 0; }
+
 /* 일별 시세 표 — KOIMA 원본 화면과 같은 2열 배치 */
 .kpi-dt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
 .kpi-dt { width: 100%; border-collapse: collapse; font-size: 12px; }
