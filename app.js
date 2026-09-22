@@ -9025,6 +9025,7 @@ function kpiEvents(rows) {
   const span = rows.length;
   const agg = kpiAgg(rows, span <= 80 ? 'w' : 'm');
   if (agg.length < 4) return [];
+  const gran = span <= 80 ? '주' : '월';
   const segs = [];
   let i = 0;
   while (i < agg.length - 1) {
@@ -9035,21 +9036,71 @@ function kpiEvents(rows) {
     if (a > 0) {
       const pct = ((b - a) / a) * 100;
       if (Math.abs(pct) >= KP_EV_MIN_PCT) {
-        segs.push({ mid: agg[Math.floor((i + j) / 2)].date, pct: pct, up: pct > 0 });
+        segs.push({
+          mid: agg[Math.floor((i + j) / 2)].date, pct: pct, up: pct > 0,
+          from: agg[i].date, to: agg[j].date, a: a, b: b, n: j - i,
+        });
       }
     }
     i = j;
   }
   segs.sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct));
-  return segs.slice(0, KP_EV_MAX).map((s) => {
-    const t = s.up ? txt.up : txt.down;
+  /* ★ 원인은 적지 않는다. 예전에는 '공급 차질·재고 감소·수요 강세 등 상승
+     요인이 겹치는 구간입니다' 라고 적어 놓고 바로 다음 문장에서 '개별 사건은
+     확인하지 않았습니다' 라고 덧붙였다. 확인하지 않은 원인을 먼저 적으면
+     읽는 사람은 그걸 근거로 받는다.
+     대신 잰 것만 적는다 — 언제부터 언제까지, 얼마에서 얼마로, 몇 %,
+     그리고 그 구간을 어떻게 잘랐는지. 전부 화면의 그 자료에서 나온 값이다. */
+  return segs.slice(0, KP_EV_MAX).map((g) => {
+    const t = g.up ? txt.up : txt.down;
+    const sg = (v) => ((v > 0 ? '+' : '') + v.toFixed(1) + '%');
     return {
-      date: s.mid,
-      label: (t.label || '') + ' ' + (s.pct > 0 ? '+' : '') + s.pct.toFixed(1) + '%',
-      detail: (t.detail || '') + ' (이 구간 실측 변동 ' + (s.pct > 0 ? '+' : '')
-        + s.pct.toFixed(1) + '%)',
+      date: g.mid,
+      label: (t.label || (g.up ? '상승 구간' : '하락 구간')) + ' ' + sg(g.pct),
+      detail: g.from + ' \u2192 ' + g.to + ' · ' + kpPrice(g.a) + ' \u2192 ' + kpPrice(g.b)
+        + ' (' + sg(g.pct) + '). ' + gran + ' 평균이 ' + g.n
+        + (gran === '월' ? '개월' : '주')
+        + ' 동안 같은 방향으로 이어진 구간을 이 품목의 자료에서 잘라낸 것입니다. '
+        + '왜 그랬는지는 확인하지 않았습니다.',
     };
   });
+}
+
+/** 기간별 변동률 — 부문별 지수 카드(koimaChangePanel)와 같은 표를 품목 가격으로.
+ *
+ *  ★ 값은 원래부터 다 있었다(kpiStat). 없던 것은 표뿐이었다.
+ *  ★ 어디서 온 값인지를 줄마다 밝힌다 — 섞어 두면 어느 것이 제공값이고 어느
+ *    것이 우리가 계산한 값인지 구분할 수 없다.
+ *      전일·전주·전월 대비 → KOIMA 가 그대로 주는 값(비교 시점을 밝히지 않는다)
+ *      3·6·12개월       → 월 평균끼리 직접 계산, 비교 시점을 같이 적는다
+ *  ★ 3·6·12개월은 '일별 가격' 이 아니라 '월 평균' 끼리의 비교다. 이번 달은
+ *    아직 끝나지 않아 지금까지의 평균이라는 점도 적는다. */
+function kpiChangePanel(item, st) {
+  if (!item || !st) return '';
+  const row = (lbl, pct, ref) => '<tr><th scope="row">' + escapeHtml(lbl) + '</th>'
+    + '<td class="koima-chgt__v">' + matBadge(pct, 2) + '</td>'
+    + '<td class="koima-chgt__b">' + (ref ? escapeHtml(ref.k) + ' 평균 ' + kpPrice(ref.v)
+      : '자료 제공값') + '</td></tr>';
+  const cur = (st.monthly && st.monthly.length) ? st.monthly[st.monthly.length - 1] : null;
+  return '<div class="koima-side">'
+    + '<div class="koima-side__h">기간별 변동률 <i>' + escapeHtml(st.date) + ' 기준</i></div>'
+    + '<div class="koima-chgt-wrap"><table class="koima-chgt">'
+    + '<thead><tr><th>구간</th><th>변동률</th><th>비교 시점</th></tr></thead><tbody>'
+    + row('전일 대비', st.dom, null)
+    + row('전주 대비', st.wow, null)
+    + row('전월 대비', st.mom, null)
+    + row('최근 3개월', st.c3, st.at3)
+    + row('최근 6개월', st.c6, st.at6)
+    + row('최근 12개월', st.c12, st.at12)
+    + '</tbody></table></div>'
+    + '<div class="ii-cap">전일·전주·전월 대비는 KOIMA 가 주는 값을 그대로 옮긴 것이라 '
+    + '비교 시점을 따로 밝히지 않습니다. 3·6·12개월은 <b>월 평균</b>끼리 직접 계산한 '
+    + '값입니다'
+    + (cur ? ' — 기준은 ' + escapeHtml(cur.k) + ' 평균 ' + kpPrice(cur.v)
+      + '(' + escapeHtml(String(st.date).slice(0, 7)) + ' 은 아직 달이 끝나지 않아 '
+      + '지금까지의 평균입니다)' : '')
+    + '. 비교 시점에 자료가 없으면 &mdash;로 둡니다.</div>'
+    + '</div>';
 }
 
 /** 원본 자료가 한 값으로만 채워진 품목 안내.
@@ -9366,12 +9417,16 @@ function renderKoimaPriceHtml() {
         + escapeHtml(rows[rows.length - 1].date) + ' (' + rows.length + '일)</span>' : '')
       + '</h3>'
       + unitLine
+      + '<div class="koima-row"><div class="koima-row__main">'
       + buildKpChart(rows, item, cat, KP_CHART_H, evs)
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + kpiFlatNote(item)
-      + '<div class="ii-cap ii-cap--chart">마커는 표시 구간에서 변동폭이 큰 '
-        + '연속 상승·하락 구간을 데이터에서 찾아 표시한 것입니다. 방향과 변동폭은 실측값이지만 '
-        + '개별 사건은 확인하지 않았으므로, 원인은 일반화된 문구로 두었습니다.'
+      + '</div>' + kpiChangePanel(item, st) + '</div>'
+      + '<div class="ii-cap ii-cap--chart">마커는 이 품목의 가격이 '
+        + '한 방향으로 이어진 구간 가운데 변동폭이 ' + KP_EV_MIN_PCT + '% 이상인 곳을 '
+        + '자료에서 잘라낸 것입니다. 마커를 누르면 그 구간의 시작·끝 날짜와 가격, '
+        + '변동률이 나옵니다 — 전부 실측값이며, 그렇게 움직인 원인은 확인하지 '
+        + '않았으므로 적지 않습니다.'
         + (evs.length ? '' : ' (이 구간에서는 기준치를 넘는 구간이 없어 마커가 없습니다.)')
       + '</div>'
       + '</div>'
