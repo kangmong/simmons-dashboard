@@ -8915,8 +8915,10 @@ let _kpSpans = true;
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
-const KP_EV_MAX = 4;         // ① 마커 최대 개수
-const KP_EV_MIN_PCT = 4;     // 이 정도는 움직인 구간만 마커로 낸다(%)
+const KP_EV_MAX = 4;         // ① 마커 최대 개수(지금은 쓰지 않는다 — 사건 수가 적다)
+const KP_EV_MIN_PCT = 4;     // (예전 자동 구간 탐지용 — 지금은 쓰지 않는다)
+const KP_EV_WIN = 60;        // 사건 뒤 영향을 재는 기간(거래일, 약 3개월)
+const KP_EV_REF_PCT = 5;     // 이만큼도 안 움직였으면 * 참고용으로 표시
 
 async function fetchKpInsights() {
   try {
@@ -9020,54 +9022,46 @@ function kpiForecast(monthly) {
 /** ① 이벤트 마커 — 표시 구간에서 '연속 상승/하락 구간'을 찾아 변동폭 큰 것만.
  *  ★ 개별 사건을 단정하지 않는다. 방향과 실제 변동폭은 데이터에서 계산하고
  *    원인은 일반화된 문구(JSON eventText)로 둔다. */
-function kpiEvents(rows) {
-  const txt = (_kpIns && _kpIns.eventText) || null;
-  if (!txt || !rows || rows.length < 8) return [];
-  // 표시 구간이 짧으면 주 단위로 잡아야 구간이 생긴다
-  const span = rows.length;
-  const agg = kpiAgg(rows, span <= 80 ? 'w' : 'm');
-  if (agg.length < 4) return [];
-  const gran = span <= 80 ? '주' : '월';
-  const segs = [];
-  let i = 0;
-  while (i < agg.length - 1) {
-    const up = agg[i + 1].v >= agg[i].v;
-    let j = i + 1;
-    while (j < agg.length - 1 && ((agg[j + 1].v >= agg[j].v) === up)) j += 1;
-    const a = agg[i].v, b = agg[j].v;
-    if (a > 0) {
-      const pct = ((b - a) / a) * 100;
-      if (Math.abs(pct) >= KP_EV_MIN_PCT) {
-        segs.push({
-          mid: agg[Math.floor((i + j) / 2)].date, pct: pct, up: pct > 0,
-          from: agg[i].date, to: agg[j].date, a: a, b: b, n: j - i,
-        });
-      }
+function kpiEvents(rows, cat, item) {
+  const evs = (_kpIns && Array.isArray(_kpIns.events)) ? _kpIns.events : [];
+  const rs = (rows || []).filter((r) => r.price != null && isFinite(r.price));
+  if (!evs.length || rs.length < 2) return [];
+  const ck = (cat && cat.key) || '';
+  const nm = String((item && item.name) || '');
+  const out = [];
+  evs.forEach((e) => {
+    // 이 부문/품목의 사건인가
+    if (Array.isArray(e.cats) && e.cats.length && e.cats.indexOf(ck) < 0) return;
+    if (Array.isArray(e.nameHas) && e.nameHas.length
+      && !e.nameHas.some((t) => nm.indexOf(t) >= 0)) return;
+    // 지금 보고 있는 구간 안에 있는 사건만 — 밖이면 찍을 자리가 없다
+    if (!e.date || e.date < rs[0].date || e.date > rs[rs.length - 1].date) return;
+    const i0 = rs.findIndex((r) => r.date >= e.date);
+    if (i0 < 0) return;
+    const b = rs[i0].price;
+    if (!b) return;
+    /* ★ 사건 뒤에 이 품목이 실제로 얼마나 움직였는지는 자료로 직접 잰다.
+       해설이 주장하는 폭을 옮겨 적지 않는다 — 품목마다 다르게 움직인다. */
+    const win = (e.winDays && isFinite(e.winDays)) ? e.winDays : KP_EV_WIN;
+    let ext = b, extAt = rs[i0].date, k = 0;
+    for (let x = i0; x < rs.length && k <= win; x += 1, k += 1) {
+      if (Math.abs(rs[x].price - b) > Math.abs(ext - b)) { ext = rs[x].price; extAt = rs[x].date; }
     }
-    i = j;
-  }
-  segs.sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct));
-  /* ★ 원인은 적지 않는다. 예전에는 '공급 차질·재고 감소·수요 강세 등 상승
-     요인이 겹치는 구간입니다' 라고 적어 놓고 바로 다음 문장에서 '개별 사건은
-     확인하지 않았습니다' 라고 덧붙였다. 확인하지 않은 원인을 먼저 적으면
-     읽는 사람은 그걸 근거로 받는다.
-     대신 잰 것만 적는다 — 언제부터 언제까지, 얼마에서 얼마로, 몇 %,
-     그리고 그 구간을 어떻게 잘랐는지. 전부 화면의 그 자료에서 나온 값이다. */
-  return segs.slice(0, KP_EV_MAX).map((g) => {
-    const t = g.up ? txt.up : txt.down;
-    const sg = (v) => ((v > 0 ? '+' : '') + v.toFixed(1) + '%');
-    return {
-      date: g.mid,
-      label: (t.label || (g.up ? '상승 구간' : '하락 구간')) + ' ' + sg(g.pct),
-      detail: g.from + ' \u2192 ' + g.to + ' · ' + kpPrice(g.a) + ' \u2192 ' + kpPrice(g.b)
-        + ' (' + sg(g.pct) + '). ' + gran + ' 평균이 ' + g.n
-        + (gran === '월' ? '개월' : '주')
-        + ' 동안 같은 방향으로 이어진 구간을 이 품목의 자료에서 잘라낸 것입니다. '
-        + '왜 그랬는지는 확인하지 않았습니다.',
-    };
+    const imp = ((ext - b) / b) * 100;
+    const ref = Math.abs(imp) < KP_EV_REF_PCT;
+    out.push({
+      date: e.date, ref: ref,
+      label: String(e.label || '') + (ref ? ' *' : ''),
+      detail: String(e.detail || '')
+        + ' | 이 품목은 사건 뒤 ' + win + '거래일 안에 ' + kpPrice(b) + ' \u2192 '
+        + kpPrice(ext) + ' (' + (imp > 0 ? '+' : '') + imp.toFixed(1) + '%, ' + extAt
+        + ') 움직였습니다 — 이 값은 화면의 자료로 직접 잰 것입니다.'
+        + (ref ? ' 변동이 뚜렷하지 않아 참고용으로만 표시합니다.' : '')
+        + (e.source ? ' | 출처: ' + e.source : ''),
+    });
   });
+  return out;
 }
-
 /** 기간별 변동률 — 부문별 지수 카드(koimaChangePanel)와 같은 표를 품목 가격으로.
  *
  *  ★ 값은 원래부터 다 있었다(kpiStat). 없던 것은 표뿐이었다.
@@ -9512,7 +9506,7 @@ function renderKoimaPriceHtml() {
     const rows = kpSliceRows(item);
     const st = kpSt;
     const fc = st ? kpiForecast(st.monthly) : null;
-    const evs = kpiEvents(rows);
+    const evs = kpiEvents(rows, cat, item);
     const unitLine = (krwFactor(item.unit) != null) ? vizUnitCap(item.unit || '', 'USD')
       : '<div class="viz-unit">단위: ' + escapeHtml(item.unit || '-') + '</div>';
     body = '<div class="ii-panel koima-panel--first">'
@@ -9528,12 +9522,13 @@ function renderKoimaPriceHtml() {
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + kpiFlatNote(item)
       + '</div>' + kpiChangePanel(item, st) + '</div>'
-      + '<div class="ii-cap ii-cap--chart">마커는 이 품목의 가격이 '
-        + '한 방향으로 이어진 구간 가운데 변동폭이 ' + KP_EV_MIN_PCT + '% 이상인 곳을 '
-        + '자료에서 잘라낸 것입니다. 마커를 누르면 그 구간의 시작·끝 날짜와 가격, '
-        + '변동률이 나옵니다 — 전부 실측값이며, 그렇게 움직인 원인은 확인하지 '
-        + '않았으므로 적지 않습니다.'
-        + (evs.length ? '' : ' (이 구간에서는 기준치를 넘는 구간이 없어 마커가 없습니다.)')
+      + '<div class="ii-cap ii-cap--chart">마커는 <b>실제로 일어난 사건</b>을 '
+        + '그 날짜에 찍은 것입니다. 마커를 누르면 무슨 일이었는지와 <b>출처</b>, '
+        + '그리고 사건 뒤 이 품목이 실제로 얼마나 움직였는지가 나옵니다 — 움직인 '
+        + '폭은 이 화면의 자료로 직접 잰 값입니다. <b>*</b> 표시는 이 품목에서는 '
+        + '변동이 뚜렷하지 않아(' + KP_EV_REF_PCT + '% 미만) 참고용이라는 뜻입니다.'
+        + (evs.length ? '' : ' (이 부문·기간에는 확인된 사건이 없어 마커를 두지 '
+          + '않았습니다. 근거를 찾지 못한 사건은 지어내지 않습니다.)')
       + '</div>'
       + '</div>'
       /* ★ 뺀 것 — 주요 변동요인 분석(kpiFactors) · 향후 3개월 시나리오별

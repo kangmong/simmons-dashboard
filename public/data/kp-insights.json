@@ -5,15 +5,73 @@
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
     "badgePrefix": "데이터 기준"
   },
-  "eventText": {
-    "up": {
-      "label": "상승 구간"
+  "eventNote": "마커는 실제로 일어난 사건만 넣는다. date·label·detail·source·url 은 사람이 찾아 확인한 것이고, 그 사건 뒤에 품목 값이 얼마나 움직였는지는 화면(kpiEvents)이 koima-price.json 자료로 직접 잰다. cats/nameHas 에 맞는 품목에만 표시하고, 움직임이 뚜렷하지 않으면 * 를 단다. 근거를 찾지 못한 부문(비철금속·희소금속)에는 마커를 두지 않는다.",
+  "events": [
+    {
+      "date": "2026-02-28",
+      "cats": [
+        "petchem"
+      ],
+      "label": "미·이스라엘 이란 공습",
+      "detail": "미국과 이스라엘이 이란을 공습했다(Operation Epic Fury). 3월 2일 이란 혁명수비대가 호르무즈 해협 폐쇄를 공식 선언했고, 3월 4일에는 해협을 장악했다고 밝혔다. 아시아가 들여오는 납사의 60% 이상이 이 해협을 지난다.",
+      "source": "Wikipedia '2026 Strait of Hormuz crisis' · S&P Global Commodity Insights",
+      "url": "https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis"
     },
-    "down": {
-      "label": "하락 구간"
+    {
+      "date": "2026-04-08",
+      "cats": [
+        "petchem"
+      ],
+      "label": "임시 휴전 — 해협 재개",
+      "detail": "임시 휴전이 합의되며 해협을 다시 열기로 했다. 4월 17일 상업 운항이 일부 재개됐지만 실제 통과한 유조선은 13척에 그쳤고, 4월 18일 이란이 다시 폐쇄했다.",
+      "source": "Wikipedia '2026 Strait of Hormuz crisis'",
+      "url": "https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis"
     },
-    "_note": "원인 문구는 두지 않는다. 예전에는 '공급 차질·재고 감소·수요 강세 등 …' 처럼 확인하지 않은 원인을 적어 두고 바로 뒤에 '개별 사건은 확인하지 않았습니다' 라고 덧붙였다. 마커 설명은 화면 코드가 실측값(구간 시작·끝 날짜와 가격, 변동률, 구간을 자른 방법)으로만 만든다."
-  },
+    {
+      "date": "2026-06-17",
+      "cats": [
+        "petchem"
+      ],
+      "label": "이슬라마바드 각서 — 전쟁 종료",
+      "detail": "미국과 이란이 전쟁과 봉쇄를 끝내는 각서에 서명했다. 다만 6월 20일 이란이 이스라엘의 합의 위반을 이유로 해협을 다시 닫겠다고 밝혔다.",
+      "source": "Wikipedia '2026 Strait of Hormuz crisis'",
+      "url": "https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis"
+    },
+    {
+      "date": "2026-07-08",
+      "cats": [
+        "petchem"
+      ],
+      "label": "휴전 붕괴 — 해협 재봉쇄",
+      "detail": "이란이 상선 여러 척을 공격하면서 임시 휴전이 깨졌다. 해협이 다시 막히자 납사 값이 6월 저점 대비 24% 올랐다고 보도됐다.",
+      "source": "Wikipedia '2026 Strait of Hormuz crisis' · BigGo Finance",
+      "url": "https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis"
+    },
+    {
+      "date": "2026-02-06",
+      "cats": [
+        "textile"
+      ],
+      "label": "면화 2026년 최저",
+      "detail": "이 자료에서 2026년 가장 낮은 값이다(파운드당 61.06센트). ICE 면화는 이후 8월 말까지 올랐고, 시장은 낮은 값에 재배면적이 줄어든 점, 텍사스 작황 우려, 타이트한 세계 재고, 중국의 비축 매입, 약달러를 이유로 든다 — 어느 것이 얼마나 작용했는지는 가려낼 수 없다.",
+      "source": "Fibre2Fashion (ICE 면화 시황)",
+      "url": "https://www.fibre2fashion.com/news/textile-news/ice-cotton-witnesses-powerful-rally-on-supply-concerns-313102-newsdetails.htm"
+    },
+    {
+      "date": "2025-06-04",
+      "cats": [
+        "steel"
+      ],
+      "nameHas": [
+        "(미국)"
+      ],
+      "winDays": 300,
+      "label": "미국 철강 232조 관세 50%",
+      "detail": "미국이 철강·알루미늄에 매기는 무역확장법 232조 관세를 25%에서 50%로 올렸다(2025년 6월 4일 발효). 관세는 하루 만에 값을 올리기보다 수입가와의 격차를 통해 서서히 반영된다 — 미국 열연강판은 1년 전 약 800달러/숏톤에서 2026년 8월 약 1,200달러/숏톤이 됐다.",
+      "source": "Steel Market Update · FT Mercati",
+      "url": "https://www.steelmarketupdate.com/2026/07/02/us-prices-move-higher-imports-drawing-more-attention/"
+    }
+  ],
   "scenarios": [
     {
       "key": "up",
