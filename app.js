@@ -8515,6 +8515,30 @@ function koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) {
   const y0 = useTop ? (padT + 32) : (padT + plotH - 8);
   const rowY = (k) => (useTop ? y0 + k * ROW : y0 - k * ROW);
 
+  /* 양 끝 동그라미 — 올리면 그 시점의 년월·지수를 낸다.
+     ★ 괄호만 보면 '이 점이 언제 얼마였나' 가 빠진다. 오른쪽 표의 '비교 시점'
+       칸을 눈으로 옮기지 않아도 되게 점 위에서 바로 알려 준다.
+     ★ 자바스크립트 배선 없이 CSS :hover 로만 — 이 차트는 부문·기간·기준월을
+       건드릴 때마다 통째로 다시 그려져서, 배선을 걸면 매번 다시 걸어야 한다. */
+  const n2 = (v) => (v == null || !isFinite(v) ? '\u2014' : v.toFixed(2));
+  const dot = (cx, cy, c, label) => {
+    const FS2 = 7.5, bh = 13;
+    const bw = vizTextW(label, FS2) + 12;
+    const bx = Math.max(padL, Math.min(cx - bw / 2, padL + plotW - bw));
+    const above = (cy - bh - 5) > padT;
+    const by = above ? (cy - bh - 5) : (cy + 5);
+    return '<g class="koima-sp__pt">'
+      + '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="1.9" fill="' + c + '"/>'
+      + '<circle class="koima-sp__hit" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1)
+      + '" r="7" fill="transparent"/>'
+      + '<g class="koima-sp__tip">'
+      + '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1)
+      + '" height="' + bh + '" rx="4"/>'
+      + '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + 9).toFixed(1)
+      + '" text-anchor="middle" font-size="' + FS2 + '">' + escapeHtml(label) + '</text>'
+      + '</g></g>';
+  };
+
   const out = items.map((it, k) => {
     const up = it.pct >= 0;
     const c = up ? 'var(--accent)' : 'var(--blue)';
@@ -8532,12 +8556,15 @@ function koimaSpansSvg(st, periods, values, X, Y, padL, padT, plotW, plotH) {
       + ' L' + x1.toFixed(1) + ' ' + y.toFixed(1)
       + ' L' + x1.toFixed(1) + ' ' + (y + stub * dir).toFixed(1) + '"'
       + ' fill="none" stroke="' + c + '" stroke-width="1.1" opacity=".85"/>'
-      + '<circle cx="' + x0.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.9" fill="' + c + '"/>'
-      + '<circle cx="' + x1.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="1.9" fill="' + c + '"/>'
+      /* ★ 구간 이름표를 점보다 먼저 그린다. 뒤에 그리면 흰 테두리를 두른
+         이 글자가 말풍선 위에 얹혀 두 글자가 겹쳐 읽혔다. */
       + '<text x="' + lx.toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" text-anchor="middle"'
       + ' font-size="' + FS + '" font-weight="800" fill="' + c + '"'
       + ' paint-order="stroke" stroke="var(--card)" stroke-width="2.6">'
-      + escapeHtml(txt) + '</text></g>';
+      + escapeHtml(txt) + '</text>'
+      + dot(x0, y, c, '비교 ' + it.at.period + ' \u00b7 ' + n2(it.at.index))
+      + dot(x1, y, c, '기준 ' + st.ym + ' \u00b7 ' + n2(st.v))
+      + '</g>';
   }).join('');
   return '<g class="koima-spans" aria-hidden="true">' + out + '</g>';
 }

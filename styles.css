@@ -2338,6 +2338,14 @@ body {
 }
 .koima-spanbtn:hover { border-color: var(--slate); color: var(--ink); }
 .koima-spanbtn.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
+/* 구간 자 — 괄호·라벨은 마우스를 막지 않는다(크로스헤어가 그대로 따라오게).
+   양 끝 동그라미만 받아서, 올리면 그 시점의 년월·지수를 낸다. */
+.koima-spans { pointer-events: none; }
+.koima-sp__hit { pointer-events: auto; cursor: pointer; }
+.koima-sp__tip { opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.koima-sp__pt:hover .koima-sp__tip { opacity: 1; }
+.koima-sp__tip rect { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+.koima-sp__tip text { fill: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 
 .koima-recent .koima-t__head { margin-top: 0; }
 
