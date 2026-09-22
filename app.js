@@ -8802,6 +8802,7 @@ let _kpData = null;    // {baseDate,categories:[...]} | {error} | null
 let _kpCat = null;     // 선택 부문 key
 let _kpItem = null;    // 선택 품목 no (숫자)
 let _kpRange = null;   // 선택 기간(null=미선택 → "품목과 기간을 선택하세요")
+let _kpDate = null;    // 기준일(YYYY-MM-DD) — null 이면 품목의 마지막 관측일
 let _kpChart = null;
 let _kpBusy = false;   // 수집 진행 중(업데이트 버튼이 켠다)
 
@@ -8831,14 +8832,33 @@ function kpFirstItemNo(cat) {
 }
 
 /** 기간 칩 → 표시할 rows. 마지막 날짜에서 N일 소급. */
+/** 기준일 — 고른 날짜를 이 품목이 실제로 가진 관측일로 맞춘다.
+ *  ★ 품목마다 수집 구간이 다르고 주말·휴일은 값이 없다. 고른 날에 값이 없으면
+ *    그 이전의 가장 가까운 관측일을 쓴다(원본 화면도 그렇게 동작한다).
+ *  ★ 고른 날이 수집 구간보다 앞이면 첫 관측일로 붙인다. */
+function kpEndRow(item) {
+  const rs = (item && item.rows) || [];
+  if (!rs.length) return null;
+  if (!_kpDate) return rs[rs.length - 1];
+  let hit = null;
+  for (let i = 0; i < rs.length; i += 1) {
+    if (rs[i].date <= _kpDate) hit = rs[i]; else break;
+  }
+  return hit || rs[0];
+}
+
 function kpSliceRows(item) {
   if (!item || !item.rows.length || !_kpRange) return [];
+  // ★ 끝점을 기준일로 잡는다 — 날짜를 고치면 그래프도 같이 그 날까지만 그린다
+  const endRow = kpEndRow(item);
+  const upto = endRow ? item.rows.filter((r) => r.date <= endRow.date) : item.rows;
   const rng = KP_RANGES.find((r) => r.key === _kpRange);
-  if (!rng || rng.days == null) return item.rows;
-  const end = new Date(item.rows[item.rows.length - 1].date + 'T00:00:00');
+  if (!rng || rng.days == null) return upto;
+  if (!upto.length) return upto;
+  const end = new Date(upto[upto.length - 1].date + 'T00:00:00');
   const from = new Date(end.getTime() - rng.days * 86400000);
   const fromStr = from.toISOString().slice(0, 10);
-  return item.rows.filter((r) => r.date >= fromStr);
+  return upto.filter((r) => r.date >= fromStr);
 }
 
 /** 숫자 표기(가격) — 소수 2자리 + 천단위 구분 */
@@ -8915,6 +8935,7 @@ let _kpSpans = true;
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
+const KP_DAY_ROWS = 12;      // 일별 시세 표에 싣는 줄 수(원본처럼 2열 × 6줄)
 const KP_EV_MAX = 4;         // ① 마커 최대 개수(지금은 쓰지 않는다 — 사건 수가 적다)
 const KP_EV_MIN_PCT = 4;     // (예전 자동 구간 탐지용 — 지금은 쓰지 않는다)
 const KP_EV_WIN = 60;        // 사건 뒤 영향을 재는 기간(거래일, 약 3개월)
@@ -8965,7 +8986,11 @@ function kpiAgg(rows, gran) {
 
 /** 품목 통계 — 요약박스·시나리오·요약문이 모두 이 값을 쓴다 */
 function kpiStat(item) {
-  const rows = ((item && item.rows) || []).filter((r) => r.price != null && isFinite(r.price));
+  // ★ 기준일까지만 본다 — 요약·기간별 변동률이 고른 날짜를 따라간다
+  const endRow = kpEndRow(item);
+  const rows = ((item && item.rows) || [])
+    .filter((r) => r.price != null && isFinite(r.price)
+      && (!endRow || r.date <= endRow.date));
   if (rows.length < 2) return null;
   const last = rows[rows.length - 1];
   const m = kpiAgg(rows, 'm');
@@ -9332,6 +9357,161 @@ function kpiFactors(cat, item) {
 }
 
 /** ③ 최근 12개월 가격 현황 — 평균가격·전월대비·전년동월대비·주요이슈 */
+/** 일별 시세 표 — KOIMA 원본 화면(price/detailView.do)의 아래쪽 표와 같은 모양.
+ *
+ *  기간 | 품목별 가격 | 전일비(%) | 전주비(%) | 전월비(%)  · 2열로 나눠 싣는다.
+ *  ★ 값은 KOIMA 가 그대로 주는 것이다(domValue/domPct · wowValue/wowPct ·
+ *    momValue/momPct). 우리가 계산하거나 고쳐 쓰지 않는다.
+ *  ★ 예전의 '최근 12개월 가격 현황' 에 있던 '주요이슈' 칸은 없앴다.
+ *    '급등 / 상승 전환 / 보합권' 은 우리가 변동폭을 보고 붙인 말이지 사건이
+ *    아니었다 — 사건은 그래프 위 마커가 출처와 함께 보여 준다.
+ */
+function kpiDayTable(item, st) {
+  const endRow = kpEndRow(item);
+  const rs = ((item && item.rows) || [])
+    .filter((r) => r.price != null && isFinite(r.price)
+      && (!endRow || r.date <= endRow.date));
+  if (!rs.length) return '';
+  const recent = rs.slice(-KP_DAY_ROWS).reverse();          // 최신 → 과거
+  const half = Math.ceil(recent.length / 2);
+  const left = recent.slice(0, half), right = recent.slice(half);
+  /* 값과 퍼센트를 함께 — 원본이 '141.00 (▲16.93%)' 로 싣는 그대로 */
+  const cell = (v, p) => '<td class="kpi-dt__c">'
+    + (v == null ? '-' : '<span class="kpi-dt__d">' + kpPrice(v) + '</span>')
+    + ' ' + matBadge(p, 2) + '</td>';
+  const tr = (r) => '<tr><th scope="row">' + escapeHtml(r.date) + '</th>'
+    + '<td class="kpi-dt__v">' + kpPrice(r.price) + '</td>'
+    + cell(r.domValue, r.domPct) + cell(r.wowValue, r.wowPct) + cell(r.momValue, r.momPct)
+    + '</tr>';
+  const head = '<thead><tr><th>기간</th><th>품목별 가격</th><th>전일비</th>'
+    + '<th>전주비</th><th>전월비</th></tr></thead>';
+  const tbl = (list) => (list.length
+    ? '<table class="kpi-dt">' + head + '<tbody>' + list.map(tr).join('') + '</tbody></table>'
+    : '');
+  return '<div class="ii-panel"><h3 class="subhead ii-h">일별 시세 '
+    + '<span class="koima-h__cat">' + escapeHtml(item.unit || '')
+    + (endRow ? ' · ' + escapeHtml(endRow.date) + ' 기준 최근 ' + recent.length + '일' : '')
+    + '</span></h3>'
+    + '<div class="kpi-dt-grid">' + tbl(left) + tbl(right) + '</div>'
+    + '<div class="ii-cap">전일비·전주비·전월비는 KOIMA 가 주는 값을 그대로 옮긴 것입니다'
+    + '(왼쪽 숫자는 가격 차이, 괄호 안은 %). 값이 없는 날(주말·휴일)은 표에 없습니다. '
+    + '위 <b>기준일</b>을 바꾸면 그 날까지로 표와 그래프가 함께 맞춰집니다.</div>'
+    + '</div>';
+}
+/** 요약박스 4번째 칸 — 같은 기반 품목명의 지역 변형이 있으면 지역별 현재가,
+ *  없으면 거래시장 정보로 대체한다(없는 지역가를 만들어내지 않는다). */
+function kpiRegional(cat, item) {
+  if (!cat || !item) return '';
+  const base = String(item.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const sibs = (cat.items || []).filter((x) => {
+    const b = String(x.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+    return b === base && (x.rows || []).length;
+  });
+  if (sibs.length > 1) {
+    const rows = sibs.map((x) => {
+      const r = x.rows[x.rows.length - 1];
+      const m = String(x.name || '').match(/\(([^)]*)\)\s*$/);
+      const reg = m ? m[1] : x.name;
+      const on = String(x.no) === String(item.no);
+      return '<tr' + (on ? ' class="is-on"' : '') + '><th scope="row">' + escapeHtml(reg) + '</th>'
+        + '<td class="kpi-rt__v">' + kpPrice(r.price) + '</td>'
+        + '<td>' + matBadge(r.momPct, 2) + '</td></tr>';
+    }).join('');
+    return '<div class="sr-sum__box kpi-regbox">'
+      + '<div class="sr-sum__lbl">주요 지역가격 <i>' + escapeHtml(base) + '</i></div>'
+      + '<table class="kpi-rt"><tbody>' + rows + '</tbody></table>'
+      + '<div class="kpi-regbox__cap">전월대비 · 조회 품목은 진하게<br>'
+      + escapeHtml(item.market || '-') + ' · ' + escapeHtml(item.spotFutures || '-')
+      + '</div></div>';
+  }
+  /* ★ 지역 변형이 없는 품목에 내던 '거래 시장 정보' 대체 상자를 뺐다.
+     ('이 품목은 지역별 자료가 없어 시장 정보로 대체' 라고 스스로 밝히던
+      빈칸 메우기였다. 거래시장·현물/선물은 품목마다 고정값이고, 전주·전월
+      평균은 앞 칸의 현재가·12개월 평균과 겹친다.)
+     ★ 지역 변형이 있는 품목의 '주요 지역가격' 표는 그대로 둔다 — 같은
+       원자재를 지역별로 견주는 실측값이라 다른 데서는 볼 수 없다. */
+  return '';
+}
+
+/** 핵심 인사이트 4줄 — 전부 그 품목 실측값에서 만든다 */
+function kpiBullets(item, st, fc) {
+  if (!item || !st) return [];
+  const u = item.unit || '';
+  const pc = (v, d) => (v == null || !isFinite(v) ? '—'
+    : (v > 0 ? '+' : '') + v.toFixed(d == null ? 1 : d) + '%');
+  const dirWord = (v) => (v == null || !isFinite(v) ? '보합'
+    : (v > 3 ? '상승' : (v < -3 ? '하락' : '보합')));
+  const out = [];
+  out.push(item.name + ' 현재가는 **' + kpPrice(st.price) + ' ' + u + '**('
+    + st.date + ' 기준)로 전일대비 ' + pc(st.dom, 2) + ', 전월대비 ' + pc(st.mom, 2) + '입니다.');
+  const vsAvg = st.avg12 ? ((st.curMonth - st.avg12) / st.avg12) * 100 : null;
+  out.push('최근 3개월 ' + pc(st.c3) + ' · 12개월 ' + pc(st.c12) + '로 ' + dirWord(st.c3)
+    + ' 흐름이며, 최근 12개월 평균(' + kpPrice(st.avg12) + ') 대비 ' + pc(vsAvg) + ' 수준입니다.');
+  const fromMax = st.max.v ? ((st.price - st.max.v) / st.max.v) * 100 : null;
+  const fromMin = st.min.v ? ((st.price - st.min.v) / st.min.v) * 100 : null;
+  out.push('수집 구간 최고 ' + kpPrice(st.max.v) + '(' + st.max.date + ') 대비 ' + pc(fromMax)
+    + ', 최저 ' + kpPrice(st.min.v) + '(' + st.min.date + ') 대비 ' + pc(fromMin) + ' 위치입니다.');
+  out.push(fc
+    ? '월별 변동성은 ±' + fc.sd.toFixed(1) + '%/월 수준이며, 추세를 연장하면 '
+      + KP_FC_MONTHS + '개월 후 ' + pc(fc.chgPct) + ' 부근이나 이는 통계적 추정입니다.'
+    : '추세와 변동성을 잴 만큼의 월별 관측치가 모이지 않아 전망은 내지 않았습니다.');
+  return out;
+}
+
+/** 요약 5박스 */
+function kpiSum5(cat, item, st, fc) {
+  if (!cat || !item || !st) return '';
+  const u = item.unit || '';
+  const boxes = matSum([
+    {
+      label: '현재가격', val: kpPrice(st.price) + '<span class="sr-sum__u">' + escapeHtml(u) + '</span>',
+      sub: escapeHtml(st.date) + ' 기준 · 전일대비 ' + matBadge(st.dom, 2),
+    },
+    {
+      label: '전월대비', val: matBadge(st.mom, 2),
+      sub: '자료 제공값 · 전주대비 ' + matBadge(st.wow, 2),
+    },
+    {
+      label: '최근 12개월 평균', val: kpPrice(st.avg12),
+      sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
+    },
+  ]);
+  /* ★ 뺀 것 — 5번째 칸 '핵심 인사이트'(kpiBullets 4줄). 앞 세 칸의 수치와
+     아래 표가 이미 말하는 것을 문장으로 다시 적던 자리다.
+     kpiBullets 는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+  const reg = kpiRegional(cat, item);
+  // matSum 이 만든 .sr-sum 그리드 끝에 4번째 칸(지역가격)을 위치로 끼워 넣는다
+  const k = boxes.lastIndexOf('</div>');
+  const grid = k < 0 ? boxes + reg : boxes.slice(0, k) + reg + boxes.slice(k);
+  return grid.replace('class="sr-sum"', 'class="sr-sum kpi-sum5"');
+}
+
+/** ② 주요 변동요인 5카드 */
+function kpiFactors(cat, item) {
+  const ins = kpiInsOf(cat, item);
+  const list = (ins && Array.isArray(ins.factors)) ? ins.factors : [];
+  if (!list.length) return '';
+  const tone = { up: 'hi', down: 'bal', both: 'neu' };
+  const cards = list.map((f) => '<div class="sr-fac sr-fac--' + escapeHtml(tone[f.dir] || 'neu') + '">'
+    + '<div class="sr-fac__top">'
+    + '<span class="sr-fac__ico" aria-hidden="true">' + escapeHtml(f.icon || '•') + '</span>'
+    + '<span class="sr-fac__title">' + escapeHtml(f.title || '') + '</span></div>'
+    + '<div class="xsii-fac__tags">'
+    + (f.dirLabel ? '<span class="xsii-dir xsii-dir--' + escapeHtml(f.dir || 'both') + '">'
+      + escapeHtml(f.dirLabel) + '</span>' : '')
+    + '</div>'
+    + '<p class="sr-fac__desc">' + escapeHtml(f.desc || '') + '</p></div>').join('');
+  const own = !!(_kpIns && _kpIns.items && _kpIns.items[String(item.no)]);
+  return '<div class="ii-panel"><h3 class="subhead ii-h">② 주요 변동요인 분석 '
+    + '<span class="koima-h__cat">' + escapeHtml(item.name) + '</span></h3>'
+    + '<div class="sr-facs koima-facs">' + cards + '</div>'
+    + '<div class="ii-cap">판정 배지는 해당 요인이 가격을 끌어올리는 쪽(상승요인)인지 '
+    + '끌어내리는 쪽(하락요인)인지에 대한 정성 판단이며, 계산값이 아닙니다. '
+    + (own ? '이 품목에 맞춘 해설입니다.'
+      : escapeHtml(cat.label) + ' 부문 공통 해설입니다.') + '</div></div>';
+}
+
+/** ③ 최근 12개월 가격 현황 — 평균가격·전월대비·전년동월대비·주요이슈 */
 function kpiMonthTable(item, st) {
   if (!item || !st || !st.monthly.length) return '';
   const m = st.monthly;
@@ -9468,10 +9648,21 @@ function renderKoimaPriceHtml() {
   // 2) 품목 드롭다운 — 선택된 부문의 품목만
   const opts = (ok && cat) ? cat.items.map((i) =>
     `<option value="${escapeHtml(String(i.no))}"${String(i.no) === String(_kpItem) ? ' selected' : ''}>${escapeHtml(i.name)}</option>`).join('') : '';
+  /* ★ 기준일 — KOIMA 원본 화면처럼 날짜를 고르면 그 날까지로 요약·그래프·
+     일별 표가 모두 맞춰진다. min/max 는 이 품목이 실제로 가진 구간이라
+     수집하지 않은 날짜는 아예 고를 수 없다. */
+  const endRow = (ok && item) ? kpEndRow(item) : null;
+  const dFrom = (item && item.rows.length) ? item.rows[0].date : '';
+  const dTo = (item && item.rows.length) ? item.rows[item.rows.length - 1].date : '';
   const controls = `<div class="kp-controls">
     <label class="kp-sel"><span>품목</span>
       <select class="kp-item"${dis}>${opts}</select></label>
-    ${(ok && cat) ? `<span class="kp-meta">${escapeHtml(cat.label)} ${cat.items.length}개 품목${_kpData.baseDate ? ` · 기준일 ${escapeHtml(_kpData.baseDate)}` : ''}</span>` : ''}
+    <label class="kp-sel kp-sel--date"><span>기준일</span>
+      <input type="date" class="kp-date" value="${escapeHtml((endRow && endRow.date) || dTo)}"
+        min="${escapeHtml(dFrom)}" max="${escapeHtml(dTo)}"${dis}></label>
+    ${(_kpDate && endRow && _kpDate !== endRow.date)
+      ? `<span class="kp-meta kp-meta--warn">${escapeHtml(_kpDate)} 은 값이 없는 날이라 직전 관측일(${escapeHtml(endRow.date)})로 맞췄습니다</span>` : ''}
+    ${(ok && cat) ? `<span class="kp-meta">${escapeHtml(cat.label)} ${cat.items.length}개 품목${dFrom ? ` · 수집 ${escapeHtml(dFrom)}~${escapeHtml(dTo)}` : ''}</span>` : ''}
   </div>`;
 
   // 3) 기간 칩
@@ -9537,7 +9728,7 @@ function renderKoimaPriceHtml() {
          문장을 덧대던 자리다.
        ★ 남긴 것 — 가격 추이 그래프와 최근 12개월 가격 현황 표(실측값).
          함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
-      + kpiMonthTable(item, st);
+      + kpiDayTable(item, st);
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
@@ -9654,12 +9845,19 @@ function wireKpControls(root) {
     // 새 부문에서 기간을 다시 골라야 그래프가 나온다(섹션 공통 규칙).
     _kpCat = b.dataset.cat;
     _kpItem = kpFirstItemNo(kpCatOf(_kpCat));
-    _kpRange = null; _kpChart = null;
+    // ★ 기준일도 비운다 — 품목마다 수집 구간이 달라 남겨 두면 엉뚱한 날이 된다
+    _kpRange = null; _kpChart = null; _kpDate = null;
     renderMaterial();
   });
   const selEl = fig.querySelector('.kp-item');
   if (selEl) selEl.addEventListener('change', () => {
     _kpItem = selEl.value;
+    renderMaterial();
+  });
+  const dateEl = fig.querySelector('.kp-date');
+  if (dateEl) dateEl.addEventListener('change', () => {
+    // 빈 값으로 지우면 '마지막 관측일' 로 되돌린다
+    _kpDate = dateEl.value || null;
     renderMaterial();
   });
   fig.addEventListener('click', (e) => {
@@ -12900,7 +13098,8 @@ function resetDashboard() {
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
-  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null; _kpBusy = false;
+  _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null;
+  _kpDate = null; _kpBusy = false;
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기

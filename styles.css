@@ -2404,6 +2404,32 @@ body {
 .kpi-regbox__cap { margin-top: auto; padding-top: 4px; font-size: 10.5px; color: var(--muted); }
 
 /* ③ 최근 12개월 가격 현황 */
+/* 일별 시세 표 — KOIMA 원본 화면과 같은 2열 배치 */
+.kpi-dt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.kpi-dt { width: 100%; border-collapse: collapse; font-size: 12px; }
+.kpi-dt th {
+  padding: 6px 8px; text-align: right; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--field); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.kpi-dt th:first-child { text-align: left; }
+.kpi-dt td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.kpi-dt tbody th {
+  padding: 6px 8px; text-align: left; background: transparent; font-weight: 600;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.kpi-dt tbody tr:hover { background: var(--row-hover); }
+.kpi-dt__v { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kpi-dt__c { font-variant-numeric: tabular-nums; }
+.kpi-dt__d { font-size: 11px; color: var(--muted); }
+.kpi-dt .ms-badge__val { font-size: 11.5px; }
+@media (max-width: 860px) { .kpi-dt-grid { grid-template-columns: 1fr; } }
+/* 기준일 입력칸 */
+.kp-sel--date input[type="date"] {
+  padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--ink); font-size: 12px; font-family: inherit;
+}
+.kp-meta--warn { color: var(--accent); font-weight: 600; }
+
 .kpi-mt-wrap { overflow-x: auto; }
 .kpi-mt { width: 100%; border-collapse: collapse; font-size: 12px; }
 .kpi-mt th {
