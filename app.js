@@ -9093,18 +9093,13 @@ function kpiRegional(cat, item) {
       + escapeHtml(item.market || '-') + ' · ' + escapeHtml(item.spotFutures || '-')
       + '</div></div>';
   }
-  // 지역 변형이 없는 품목 — 거래시장/현물선물/평균으로 채운다
-  const cell = (k, v) => '<tr><th scope="row">' + escapeHtml(k) + '</th>'
-    + '<td class="kpi-rt__v" colspan="2">' + v + '</td></tr>';
-  return '<div class="sr-sum__box kpi-regbox">'
-    + '<div class="sr-sum__lbl">거래 시장 정보</div>'
-    + '<table class="kpi-rt"><tbody>'
-    + cell('거래시장', escapeHtml(item.market || '-'))
-    + cell('현물/선물', escapeHtml(item.spotFutures || '-'))
-    + cell('전주평균', kpPrice(item.weekAvg))
-    + cell('전월평균', kpPrice(item.monthAvg))
-    + '</tbody></table>'
-    + '<div class="kpi-regbox__cap">이 품목은 지역별 자료가 없어 시장 정보로 대체</div></div>';
+  /* ★ 지역 변형이 없는 품목에 내던 '거래 시장 정보' 대체 상자를 뺐다.
+     ('이 품목은 지역별 자료가 없어 시장 정보로 대체' 라고 스스로 밝히던
+      빈칸 메우기였다. 거래시장·현물/선물은 품목마다 고정값이고, 전주·전월
+      평균은 앞 칸의 현재가·12개월 평균과 겹친다.)
+     ★ 지역 변형이 있는 품목의 '주요 지역가격' 표는 그대로 둔다 — 같은
+       원자재를 지역별로 견주는 실측값이라 다른 데서는 볼 수 없다. */
+  return '';
 }
 
 /** 핵심 인사이트 4줄 — 전부 그 품목 실측값에서 만든다 */
@@ -9150,15 +9145,13 @@ function kpiSum5(cat, item, st, fc) {
       sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
     },
   ]);
+  /* ★ 뺀 것 — 5번째 칸 '핵심 인사이트'(kpiBullets 4줄). 앞 세 칸의 수치와
+     아래 표가 이미 말하는 것을 문장으로 다시 적던 자리다.
+     kpiBullets 는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
   const reg = kpiRegional(cat, item);
-  const bl = kpiBullets(item, st, fc).map((t) => '<li>' + iiEmph(t) + '</li>').join('');
-  const ins = bl
-    ? '<div class="sr-sum__box koima-insbox"><div class="sr-sum__lbl">핵심 인사이트</div>'
-      + '<ul class="koima-insbox__ul">' + bl + '</ul></div>'
-    : '';
-  // matSum 이 만든 .sr-sum 그리드 끝에 4·5번째 칸을 위치로 끼워 넣는다
+  // matSum 이 만든 .sr-sum 그리드 끝에 4번째 칸(지역가격)을 위치로 끼워 넣는다
   const k = boxes.lastIndexOf('</div>');
-  const grid = k < 0 ? boxes + reg + ins : boxes.slice(0, k) + reg + ins + boxes.slice(k);
+  const grid = k < 0 ? boxes + reg : boxes.slice(0, k) + reg + boxes.slice(k);
   return grid.replace('class="sr-sum"', 'class="sr-sum kpi-sum5"');
 }
 
@@ -9217,7 +9210,8 @@ function kpiMonthTable(item, st) {
       + '<td>' + matBadge(yoy, 2) + '</td>'
       + '<td class="kpi-mt__i">' + escapeHtml(issue) + '</td></tr>';
   }).join('');
-  return '<div class="ii-panel"><h3 class="subhead ii-h">③ 최근 12개월 가격 현황 '
+  /* ★ 번호(③)를 뗀다 — 위와 같은 이유. */
+  return '<div class="ii-panel"><h3 class="subhead ii-h">최근 12개월 가격 현황 '
     + '<span class="koima-h__cat">' + escapeHtml(item.unit || '') + '</span></h3>'
     + '<div class="kpi-mt-wrap"><table class="kpi-mt">'
     + '<thead><tr><th>기간</th><th>평균가격</th><th>전월대비</th><th>전년동월대비</th>'
@@ -9365,7 +9359,8 @@ function renderKoimaPriceHtml() {
     const unitLine = (krwFactor(item.unit) != null) ? vizUnitCap(item.unit || '', 'USD')
       : '<div class="viz-unit">단위: ' + escapeHtml(item.unit || '-') + '</div>';
     body = '<div class="ii-panel koima-panel--first">'
-      + '<h3 class="subhead ii-h">① 가격 추이 및 주요 이벤트'
+      /* ★ 번호(①)를 뗀다 — ②④⑤ 가 없어져 번호가 건너뛰었다. */
+      + '<h3 class="subhead ii-h">가격 추이 및 주요 이벤트'
       + (rows.length ? ' <span class="koima-h__cat">' + escapeHtml(item.name)
         + ' · 표시 ' + escapeHtml(rows[0].date) + '~'
         + escapeHtml(rows[rows.length - 1].date) + ' (' + rows.length + '일)</span>' : '')
@@ -9380,11 +9375,13 @@ function renderKoimaPriceHtml() {
         + (evs.length ? '' : ' (이 구간에서는 기준치를 넘는 구간이 없어 마커가 없습니다.)')
       + '</div>'
       + '</div>'
-      + kpiFactors(cat, item)
-      + kpiMonthTable(item, st)
-      + kpiScenarios(item, fc)
-      + kpiActions(cat, item)
-      + kpiInsightBox(cat, item, st, fc);
+      /* ★ 뺀 것 — 주요 변동요인 분석(kpiFactors) · 향후 3개월 시나리오별
+         전망(kpiScenarios) · 시사점 및 대응 방안(kpiActions) · 하단 핵심
+         요약(kpiInsightBox). 모두 서술 카드라 그래프와 표가 말하는 것 위에
+         문장을 덧대던 자리다.
+       ★ 남긴 것 — 가격 추이 그래프와 최근 12개월 가격 현황 표(실측값).
+         함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+      + kpiMonthTable(item, st);
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
