@@ -8088,18 +8088,11 @@ function koimaSum4(cat, st, fc) {
       sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
     },
   ]);
-  const bullets = koimaAutoBullets(cat, st, fc)
-    .map((t) => '<li>' + iiEmph(t) + '</li>').join('');
-  const ins = bullets
-    ? '<div class="sr-sum__box koima-insbox"><div class="sr-sum__lbl">주요 인사이트 요약</div>'
-      + '<ul class="koima-insbox__ul">' + bullets + '</ul></div>'
-    : '';
-  // matSum 이 만든 .sr-sum 그리드의 '맨 끝'에 4번째 칸으로 끼워 넣는다(칸 폭·테두리 재사용).
-  // ★ 문자열 치환으로 찾으면 1번 박스 끝의 '</div></div>' 에 먼저 걸려 순서가 뒤바뀐다 —
-  //   마지막 </div>(= .sr-sum 을 닫는 것) 앞에 위치로 넣는다.
-  if (!ins) return boxes;
-  const k = boxes.lastIndexOf('</div>');
-  return k < 0 ? boxes + ins : boxes.slice(0, k) + ins + boxes.slice(k);
+  /* ★ 뺀 것 — 4번째 칸 '주요 인사이트 요약'(koimaAutoBullets 3줄).
+     앞 세 칸의 수치(지수·전년 동월 대비·12개월 평균)와 오른쪽 '기간별 변동률'
+     표가 이미 말하는 것을 문장으로 다시 적던 자리다. 앞 세 칸은 그대로 둔다.
+     koimaAutoBullets 는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
+  return boxes;
 }
 
 /** 요약 3줄 — 전부 그 부문 실측값에서 만든다(부문마다 문장이 달라진다) */
