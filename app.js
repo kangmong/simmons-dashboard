@@ -8909,7 +8909,9 @@ async function fetchKoimaPrice() {
 const KP_INS_URL = 'public/data/kp-insights.json';
 let _kpIns = null;
 
-const KP_CHART_H = 250;      // ① 차트 뷰박스 높이 — 옆 지역가격 패널과 키를 맞춘다
+const KP_CHART_H = 250;      // ① 차트 뷰박스 높이 — 옆 패널과 키를 맞춘다
+// 기간별 변동률을 그래프 위에 구간 자로 겹쳐 볼지 (범례 줄의 [구간 변동률] 버튼)
+let _kpSpans = true;
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
@@ -9099,8 +9101,112 @@ function kpiChangePanel(item, st) {
     + (cur ? ' — 기준은 ' + escapeHtml(cur.k) + ' 평균 ' + kpPrice(cur.v)
       + '(' + escapeHtml(String(st.date).slice(0, 7)) + ' 은 아직 달이 끝나지 않아 '
       + '지금까지의 평균입니다)' : '')
-    + '. 비교 시점에 자료가 없으면 &mdash;로 둡니다.</div>'
+    + '. 비교 시점에 자료가 없으면 &mdash;로 둡니다.'
+    /* ★ 그래프에 무엇을 그리고 무엇을 안 그리는지 밝힌다. 전일·전주·전월은
+       비교 시점을 모르니 시작점을 찍을 수가 없다 — 지어내지 않는다. */
+    + ' 그래프 위 구간 자에는 <b>3·6·12개월만</b> 그립니다. 전일·전주·전월은 '
+    + '비교 시점을 알 수 없어 시작점을 찍을 수 없습니다. 구간 끝의 짧은 '
+    + '가로 막대는 <b>그 달 평균값의 높이</b>이며, 그날의 가격이 아닙니다.'
+    + '</div>'
     + '</div>';
+}
+
+/** 기간별 변동률을 차트 위에 구간 자로 얹는다(오른쪽 표의 3·6·12개월 줄).
+ *
+ *  ★ 부문별 지수 카드(koimaSpansSvg)와 같은 모양이지만 끝점 표시가 다르다.
+ *    여기 비교 대상은 '월 평균' 이라 일별 가격 곡선 위의 점이 아니다. 동그라미로
+ *    찍으면 '그날 그 가격이었다' 로 읽히므로, 그 달 평균값 높이에 짧은 가로
+ *    막대로 찍는다 — 점이 아니라 '수준' 이라는 뜻이다.
+ *  ★ 전일·전주·전월 대비는 그리지 않는다. KOIMA 가 변동률만 주고 어느 시점과
+ *    견준 것인지는 주지 않아, 시작점을 지어내지 않으면 그릴 수가 없다.
+ *    (값은 오른쪽 표에 그대로 있다.)
+ *  ★ 비교 시점이 보이는 기간 밖이면 그리지 않는다.
+ */
+function kpiSpansSvg(st, dates, X, Y, padL, padT, plotW, plotH) {
+  if (!st || !st.monthly || !st.monthly.length) return '';
+  const cur = st.monthly[st.monthly.length - 1];
+  const iEnd = dates.lastIndexOf(cur.date);
+  if (iEnd < 1) return '';
+  const defs = [
+    { s: '3개월', pct: st.c3, at: st.at3 },
+    { s: '6개월', pct: st.c6, at: st.at6 },
+    { s: '12개월', pct: st.c12, at: st.at12 },
+  ];
+  const items = [];
+  defs.forEach((d) => {
+    if (d.pct == null || !isFinite(d.pct) || !d.at) return;
+    const i = dates.indexOf(d.at.date);
+    if (i < 0 || i >= iEnd) return;
+    items.push({ i: i, pct: d.pct, name: d.s, at: d.at });
+  });
+  if (!items.length) return '';
+  items.sort((a, b) => b.i - a.i);            // 짧은 구간부터
+
+  const seg = items.map((it) => Y(it.at.v)).concat([Y(cur.v)]);
+  const ROW = 12, FS = 7.5;
+  const useTop = (Math.min.apply(null, seg) > padT + plotH * 0.45);
+  const y0 = useTop ? (padT + 32) : (padT + plotH - 8);
+  const rowY = (k) => (useTop ? y0 + k * ROW : y0 - k * ROW);
+
+  /* 끝점 — 그 달 평균값 '높이'에 짧은 가로 막대 + 올리면 값이 뜬다 */
+  const BARW = 9;
+  const mark = (cx, cy, c, label) => {
+    const FS2 = 7.5, bh = 13;
+    const bw = vizTextW(label, FS2) + 12;
+    const bx = Math.max(padL, Math.min(cx - bw / 2, padL + plotW - bw));
+    const above = (cy - bh - 5) > padT;
+    const by = above ? (cy - bh - 5) : (cy + 5);
+    return '<g class="koima-sp__pt">'
+      + '<line x1="' + (cx - BARW / 2).toFixed(1) + '" y1="' + cy.toFixed(1)
+      + '" x2="' + (cx + BARW / 2).toFixed(1) + '" y2="' + cy.toFixed(1)
+      + '" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/>'
+      + '<circle class="koima-sp__hit" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1)
+      + '" r="7" fill="transparent"/>'
+      + '<g class="koima-sp__tip">'
+      + '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1)
+      + '" height="' + bh + '" rx="4"/>'
+      + '<text x="' + (bx + bw / 2).toFixed(1) + '" y="' + (by + 9).toFixed(1)
+      + '" text-anchor="middle" font-size="' + FS2 + '">' + escapeHtml(label) + '</text>'
+      + '</g></g>';
+  };
+
+  const out = items.map((it, k) => {
+    const up = it.pct >= 0;
+    const c = up ? 'var(--accent)' : 'var(--blue)';
+    const x0 = X(it.i), x1 = X(iEnd), y = rowY(k);
+    const txt = it.name + '  ' + (up ? '▲ +' : '▼ ') + it.pct.toFixed(2) + '%';
+    const tw = vizTextW(txt, FS);
+    const fits = (x1 - x0) > tw + 10;
+    const lx = fits ? (x0 + x1) / 2 : Math.max(padL + tw / 2, x0 - 5 - tw / 2);
+    const stub = 3.5, dir = useTop ? 1 : -1;
+    const yv = Y(it.at.v);
+    return '<g class="koima-span">'
+      + '<path d="M' + x0.toFixed(1) + ' ' + (y + stub * dir).toFixed(1)
+      + ' L' + x0.toFixed(1) + ' ' + y.toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + y.toFixed(1)
+      + ' L' + x1.toFixed(1) + ' ' + (y + stub * dir).toFixed(1) + '"'
+      + ' fill="none" stroke="' + c + '" stroke-width="1.1" opacity=".85"/>'
+      + '<text x="' + lx.toFixed(1) + '" y="' + (y - 3).toFixed(1) + '" text-anchor="middle"'
+      + ' font-size="' + FS + '" font-weight="800" fill="' + c + '"'
+      + ' paint-order="stroke" stroke="var(--card)" stroke-width="2.6">'
+      + escapeHtml(txt) + '</text>'
+      + '<line x1="' + x0.toFixed(1) + '" y1="' + y.toFixed(1)
+      + '" x2="' + x0.toFixed(1) + '" y2="' + yv.toFixed(1) + '" stroke="' + c
+      + '" stroke-width="0.9" stroke-dasharray="2 2" opacity=".45"/>'
+      + mark(x0, yv, c, '비교 ' + it.at.k + ' 월평균 ' + kpPrice(it.at.v))
+      + '</g>';
+  }).join('');
+
+  const yEnd = Y(cur.v);
+  const ys = items.map((it, k) => rowY(k)).concat([yEnd]);
+  const base = '<g class="koima-span">'
+    + '<line x1="' + X(iEnd).toFixed(1) + '" y1="' + Math.min.apply(null, ys).toFixed(1)
+    + '" x2="' + X(iEnd).toFixed(1) + '" y2="' + Math.max.apply(null, ys).toFixed(1)
+    + '" stroke="var(--slate)" stroke-width="0.9" stroke-dasharray="2 2" opacity=".45"/>'
+    + mark(X(iEnd), yEnd, 'var(--ink)', '기준 ' + cur.k + ' 월평균 ' + kpPrice(cur.v))
+    + '</g>';
+
+  return '<g class="koima-spans" aria-hidden="true">' + out + base + '</g>';
 }
 
 /** 원본 자료가 한 값으로만 채워진 품목 안내.
@@ -9418,7 +9524,7 @@ function renderKoimaPriceHtml() {
       + '</h3>'
       + unitLine
       + '<div class="koima-row"><div class="koima-row__main">'
-      + buildKpChart(rows, item, cat, KP_CHART_H, evs)
+      + buildKpChart(rows, item, cat, KP_CHART_H, evs, st)
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + kpiFlatNote(item)
       + '</div>' + kpiChangePanel(item, st) + '</div>'
@@ -9448,7 +9554,7 @@ function renderKoimaPriceHtml() {
 }
 
 /** 단일 품목 일별 선그래프 (dot 없음, Y축 auto) */
-function buildKpChart(rows, item, cat, hOpt, evItems) {
+function buildKpChart(rows, item, cat, hOpt, evItems, st) {
   const n = rows.length;
   if (!n || !item) { _kpChart = null; return '<div class="chart-empty">표시할 데이터가 없습니다.</div>'; }
   const color = KP_COLORS[cat && cat.key] || 'var(--accent)';
@@ -9492,8 +9598,10 @@ function buildKpChart(rows, item, cat, hOpt, evItems) {
   _kpChart = { dates, values, label: item.name, unit: item.unit, color, geom: { X, Y, n, W, padL } };
   console.log('[koima-price] 차트 · %s · %s~%s · %d개 점', item.name, dates[0], dates[n - 1], n);
 
-  return `<div class="viz-legend kp-legend"><span class="viz-legend__item">
-      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(item.name)}${item.unit ? ` (${escapeHtml(item.unit)})` : ''}</span></div>
+  return `<div class="viz-legend kp-legend koima-legend"><span class="viz-legend__item">
+      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(item.name)}${item.unit ? ` (${escapeHtml(item.unit)})` : ''}</span>
+      <button type="button" class="koima-spanbtn${_kpSpans ? ' is-on' : ''}" data-kp-spans
+        title="오른쪽 '기간별 변동률' 의 3·6·12개월 줄을 그래프 위에 구간으로 표시합니다">구간 변동률</button></div>
     <svg class="viz-svg kp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(item.name)} 일별 가격">
       ${grid}${xticks}${line}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
@@ -9501,6 +9609,7 @@ function buildKpChart(rows, item, cat, hOpt, evItems) {
       <g class="kp-dots"></g>
       <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
       ${vizEventsSvg(evItems || [], rows.map((r) => r.date), X, padT, plotH, W)}
+      ${_kpSpans ? kpiSpansSvg(st, dates, X, Y, padL, padT, plotW, plotH) : ''}
     </svg>`;
 }
 
@@ -9556,6 +9665,12 @@ function wireKpControls(root) {
   const selEl = fig.querySelector('.kp-item');
   if (selEl) selEl.addEventListener('change', () => {
     _kpItem = selEl.value;
+    renderMaterial();
+  });
+  fig.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-kp-spans]');
+    if (!b) return;
+    _kpSpans = !_kpSpans;
     renderMaterial();
   });
   const chipsEl = fig.querySelector('.kp-ranges');
