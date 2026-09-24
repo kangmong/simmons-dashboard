@@ -1,6 +1,6 @@
 {
  "status": "ok",
- "generatedAt": "2026-09-23T21:43:29+09:00",
+ "generatedAt": "2026-09-24T21:41:54+09:00",
  "items": [
   {
    "key": "simmons",
@@ -285,7 +285,7 @@
    "currency": "KRW",
    "exchange": "KSC",
    "longName": "Zinus, Inc",
-   "week52High": 16300.0,
+   "week52High": 16250.0,
    "week52Low": 7100.0,
    "now": 7340.0,
    "prev": 7510.027,
@@ -636,15 +636,14 @@
    "longName": "Somnigroup International Inc.",
    "week52High": 98.56,
    "week52Low": 60.39,
-   "now": 64.73,
-   "prev": 63.3602,
-   "change": 1.3698,
-   "changePct": 2.162,
-   "changePctMeta": 2.162,
-   "changePctSeries": 2.1622,
-   "asOf": "2026-09-22 20:00",
+   "now": 62.87,
+   "prev": 64.7297,
+   "change": -1.8597,
+   "changePct": -2.873,
+   "changePctMeta": -2.873,
+   "changePctSeries": -0.7734,
+   "asOf": "2026-09-23 20:00",
    "spark": [
-    73.85,
     76.52,
     78.59,
     77.94,
@@ -706,8 +705,10 @@
     64.21,
     65.04,
     63.36,
-    63.36
-   ]
+    63.36,
+    62.87
+   ],
+   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -2.87% vs 시계열 -0.77%)"
   }
  ],
  "currencies": [
