@@ -1,6 +1,6 @@
 {
  "status": "ok",
- "generatedAt": "2026-09-24T21:41:54+09:00",
+ "generatedAt": "2026-09-25T21:43:47+09:00",
  "items": [
   {
    "key": "simmons",
@@ -636,16 +636,14 @@
    "longName": "Somnigroup International Inc.",
    "week52High": 98.56,
    "week52Low": 60.39,
-   "now": 62.87,
-   "prev": 64.7297,
-   "change": -1.8597,
-   "changePct": -2.873,
-   "changePctMeta": -2.873,
-   "changePctSeries": -0.7734,
-   "asOf": "2026-09-23 20:00",
+   "now": 62.31,
+   "prev": 62.8702,
+   "change": -0.5602,
+   "changePct": -0.891,
+   "changePctMeta": -0.891,
+   "changePctSeries": -0.8907,
+   "asOf": "2026-09-24 20:00",
    "spark": [
-    76.52,
-    78.59,
     77.94,
     78.15,
     78.4,
@@ -706,9 +704,10 @@
     65.04,
     63.36,
     63.36,
-    62.87
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -2.87% vs 시계열 -0.77%)"
+    64.73,
+    62.87,
+    62.31
+   ]
   }
  ],
  "currencies": [
