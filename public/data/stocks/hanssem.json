@@ -4,25 +4,11 @@
  "symbol": "009240.KS",
  "market": "KOSPI",
  "note": "종합 인테리어·가구",
- "generatedAt": "2026-09-11T13:40:00+09:00",
+ "generatedAt": "2026-10-02T11:05:37+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-09-11", 43250.0, 43950.0, 42900.0, 43950.0, 34295],
-   ["2025-09-12", 43900.0, 43900.0, 43400.0, 43400.0, 25972],
-   ["2025-09-15", 43650.0, 44850.0, 43600.0, 44350.0, 37654],
-   ["2025-09-16", 44350.0, 44900.0, 44300.0, 44650.0, 22927],
-   ["2025-09-17", 44700.0, 45000.0, 44350.0, 44750.0, 16451],
-   ["2025-09-18", 44700.0, 45400.0, 44700.0, 45150.0, 21184],
-   ["2025-09-22", 46850.0, 46850.0, 45850.0, 46100.0, 30846],
-   ["2025-09-23", 45850.0, 46600.0, 45150.0, 45350.0, 21899],
-   ["2025-09-24", 45800.0, 45900.0, 45050.0, 45450.0, 22545],
-   ["2025-09-25", 45350.0, 45500.0, 44700.0, 45300.0, 20104],
-   ["2025-09-26", 45100.0, 45300.0, 44400.0, 44800.0, 18059],
-   ["2025-09-29", 44850.0, 45500.0, 44850.0, 45000.0, 26296],
-   ["2025-09-30", 44850.0, 45500.0, 44450.0, 45300.0, 28325],
-   ["2025-10-01", 44800.0, 44900.0, 43600.0, 43750.0, 36162],
    ["2025-10-02", 44000.0, 44350.0, 43650.0, 44000.0, 33040],
    ["2025-10-10", 43650.0, 45700.0, 43650.0, 45600.0, 86789],
    ["2025-10-13", 45250.0, 45600.0, 44050.0, 45250.0, 46556],
@@ -251,12 +237,22 @@
    ["2026-09-08", 38650.0, 39350.0, 38150.0, 38900.0, 24317],
    ["2026-09-09", 39200.0, 39200.0, 38600.0, 38950.0, 19924],
    ["2026-09-10", 38050.0, 39250.0, 38050.0, 39200.0, 32827],
-   ["2026-09-11", 38450.0, 39550.0, 38150.0, 39450.0, 19294]
+   ["2026-09-11", 38450.0, 39550.0, 38150.0, 39350.0, 26708],
+   ["2026-09-14", 39000.0, 39750.0, 38700.0, 39550.0, 23926],
+   ["2026-09-15", 39050.0, 39600.0, 38800.0, 39000.0, 22675],
+   ["2026-09-16", 39100.0, 39650.0, 38800.0, 38950.0, 19325],
+   ["2026-09-17", 39650.0, 39650.0, 38700.0, 39050.0, 19947],
+   ["2026-09-18", 39300.0, 39800.0, 38850.0, 39000.0, 28679],
+   ["2026-09-21", 38650.0, 39550.0, 38650.0, 39250.0, 20569],
+   ["2026-09-22", 39300.0, 39800.0, 39300.0, 39650.0, 19328],
+   ["2026-09-23", 39950.0, 39950.0, 39250.0, 39800.0, 20952],
+   ["2026-09-28", 39650.0, 41000.0, 39450.0, 40750.0, 43562],
+   ["2026-09-29", 40850.0, 40900.0, 39650.0, 40150.0, 23166],
+   ["2026-09-30", 40150.0, 40300.0, 38700.0, 39050.0, 28339],
+   ["2026-10-01", 39500.0, 39500.0, 38650.0, 39000.0, 21892],
+   ["2026-10-02", 39200.0, 39200.0, 38700.0, 39150.0, 6202]
   ],
   "1wk": [
-   ["2021-09-13", 116000.0, 128000.0, 111000.0, 123000.0, 1125768],
-   ["2021-09-20", 123000.0, 124500.0, 118000.0, 119500.0, 316682],
-   ["2021-09-27", 118000.0, 127000.0, 113000.0, 114000.0, 850613],
    ["2021-10-04", 114000.0, 114000.0, 101000.0, 102500.0, 570669],
    ["2021-10-11", 102500.0, 113000.0, 99300.0, 111500.0, 539536],
    ["2021-10-18", 112000.0, 116000.0, 106000.0, 112000.0, 543342],
@@ -514,11 +510,13 @@
    ["2026-08-17", 40100.0, 41400.0, 37100.0, 38050.0, 185681],
    ["2026-08-24", 38000.0, 40000.0, 37800.0, 39700.0, 168459],
    ["2026-08-31", 39650.0, 39950.0, 36650.0, 37400.0, 381531],
-   ["2026-09-07", 37950.0, 39350.0, 37650.0, 39200.0, 111907],
-   ["2026-09-11", 38450.0, 39550.0, 38150.0, 39450.0, 19406]
+   ["2026-09-07", 37950.0, 39550.0, 37650.0, 39350.0, 138615],
+   ["2026-09-14", 39000.0, 39800.0, 38700.0, 39000.0, 114552],
+   ["2026-09-21", 38650.0, 39950.0, 38650.0, 39800.0, 60849],
+   ["2026-09-28", 39650.0, 41000.0, 38650.0, 39000.0, 116959],
+   ["2026-10-02", 39200.0, 39200.0, 38700.0, 39150.0, 6202]
   ],
   "1mo": [
-   ["2016-10-01", 176000.0, 188000.0, 165000.0, 177500.0, 1527016],
    ["2016-11-01", 180500.0, 209500.0, 166000.0, 206500.0, 1681064],
    ["2016-12-01", 208000.0, 208500.0, 186000.0, 199000.0, 956253],
    ["2017-01-01", 199000.0, 215500.0, 190500.0, 208500.0, 1004372],
@@ -637,8 +635,8 @@
    ["2026-06-01", 30850.0, 35650.0, 28300.0, 32800.0, 1089088],
    ["2026-07-01", 32950.0, 39450.0, 32500.0, 38900.0, 1065469],
    ["2026-08-01", 38400.0, 42850.0, 37100.0, 39200.0, 1102584],
-   ["2026-09-01", 38750.0, 39350.0, 36650.0, 39200.0, 229677],
-   ["2026-09-11", 38450.0, 39550.0, 38150.0, 39450.0, 19406]
+   ["2026-09-01", 38750.0, 41000.0, 36650.0, 39050.0, 526853],
+   ["2026-10-02", 39200.0, 39200.0, 38700.0, 39150.0, 6202]
   ]
  },
  "candleFormat": [
@@ -679,13 +677,13 @@
   }
  ],
  "quote": {
-  "now": 39450.0,
-  "prev": 39199.9046,
-  "change": 250.0954,
-  "changePct": 0.638,
-  "changePctMeta": 0.638,
-  "changePctSeries": 0.6378,
-  "asOf": "2026-09-11 13:18"
+  "now": 39150.0,
+  "prev": 38999.8506,
+  "change": 150.1494,
+  "changePct": 0.385,
+  "changePctMeta": 0.385,
+  "changePctSeries": 0.3846,
+  "asOf": "2026-10-02 10:44"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -700,23 +698,23 @@
    "city": "Ansan-si",
    "country": "South Korea",
    "employees": 2078,
-   "shares": 16600322,
+   "shares": 16426322,
    "ceo": "Eugene  Kim (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 38150.0,
-   "dayHigh": 39550.0,
+   "dayLow": 38700.0,
+   "dayHigh": 39200.0,
    "week52Low": 28300.0,
    "week52High": 54800.0,
-   "marketCap": 654882701312.0,
-   "volume": 19406,
-   "avgVolume": 49342,
-   "avgVolume10": 52729
+   "marketCap": 643090481152.0,
+   "volume": 6202,
+   "avgVolume": 42821,
+   "avgVolume10": 25810
   },
   "valuation": {
-   "forwardPE": 24.159836,
-   "psr": 0.39491,
-   "dividendYield": 0.1531,
+   "forwardPE": 24.102245,
+   "psr": 0.387799,
+   "dividendYield": 0.1538,
    "dividendRate": 6000.0,
    "payoutRatio": 2.0718,
    "beta": 0.815,
@@ -724,38 +722,38 @@
    "operatingMargin": 0.02705,
    "revenue": 1658307870720.0,
    "revenueGrowth": -0.092,
-   "change52w": -0.096774,
-   "ma50": 37697.0
+   "change52w": -0.113636,
+   "ma50": 39110.0
   },
   "holding": {
-   "heldInstitutions": 0.17009,
-   "heldInsiders": 0.36242
+   "heldInstitutions": 0.16752,
+   "heldInsiders": 0.35727
   }
  },
  "news": [
   {
-   "title": "[공시]한샘, 주가 부양 총력전… 대표까지 자사주 취득",
-   "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFA0dWFkalhvXzNuRnBJMmRqdnlpeWp0RGFuMmhaV0JlZTJvNC10T3NWU0lmYVdfYzEtd3l4VF8xOEVQTTdXMkc2RmdQYXE0Z1VHU0E5eWE5S042UjlwN2RiUnVweUlzWkZ5NmJn0gFvQVVfeXFMTmcwYl85MEtNdjl5M1pPVWwzaVBkTDhZUFNFWmZkQlQzdVhaTnM2RDJnUU9rVnJBZkRfcmlnTDJZc0h1eUdsRWJja18xZWNVV1ZHQUpaSU5sX0dSTi16UHpqOThkZ1R4RFFSTEtMZW13?oc=5",
-   "media": "한스경제",
-   "published": "Thu, 10 Sep 2026 09:37:15 GMT"
+   "title": "13분기 흑자 속 그늘…김유진 한샘 대표, 매출·주가 부진 극복 카드는?",
+   "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE5peUlpZk9Zbl9DZFhnRC1rQ251MWp4R1lLVGR3RkxDaVIxOTFhQmZzVXVHS1hDZU0xLUp5WmRzZ1pxalU3T3p0ak1MV1Zad01tQVEyNtIBVEFVX3lxTE5peUlpZk9Zbl9DZFhnRC1rQ251MWp4R1lLVGR3RkxDaVIxOTFhQmZzVXVHS1hDZU0xLUp5WmRzZ1pxalU3T3p0ak1MV1Zad01tQVEyNg?oc=5",
+   "media": "더팩트",
+   "published": "Tue, 29 Sep 2026 15:00:00 GMT"
+  },
+  {
+   "title": "[애널리스트 뷰] 한샘 주가에 얽힌 자사주 셈법",
+   "link": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE1peVBwbEpaYzJ3ZUZEZTBtdmcySVNFSzZqTTBLSHVpQzFPdjhVOHhMeHZySlhHRmpqYWtvSnFDa2Uwc29pU1lLanZWMFVuY2dtRU05Mnk2X25aMFFsZFEw?oc=5",
+   "media": "스마트투데이",
+   "published": "Tue, 18 Aug 2026 07:00:00 GMT"
+  },
+  {
+   "title": "KB증권 “한샘 자사주 소각 가능성 주목”",
+   "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBDUGtGN0E5NGNXWDJfS0daN0VXUDhsSXBkOXlncWxDVmRlRzNYbjhHamI5cjdoSGh6LW1VQ3lnRjRiRlE4RWtRWEpldzdxZ2ZuakI3OENNQ0oxZ0xyQzdOWW01UGQwdXZWblN3V1dYZVLSAXRBVV95cUxOeWx2REdSQnI0MFZoUHhRVk5JdHEwNnlkbXVrcUlKc0c4djM1Wmp0YTB5Z1RjOEVrdTc3eElWYUZDZUM5NHZnUmd3MklfRnJQRHlOek94bXc5RWNVdTFhdEF3bGF3bFBlMGZaLUYtZy1LNl9EUQ?oc=5",
+   "media": "뉴스클레임",
+   "published": "Wed, 30 Sep 2026 04:53:37 GMT"
   },
   {
    "title": "한샘 인수금융 연장 속도전…만기 1년반 줄이고 매각 추진 카드까지",
    "link": "https://news.google.com/rss/articles/CBMigwFBVV95cUxPalpleUNyRzhQSENFM245bVp5YXJZb0p4TVF6czVsZmN1bE1hdXJkUG11ZWM4dHBGXzZUeDFzVHItN2MyaUp2eDBlYzA3M3llbXZKNFBkRVJJYzM0N3plektBZGlwb0FGcjFKZUI0OG95TUZJeTlOaU4zODdjQ3huWTNJbw?oc=5",
    "media": "인베스트조선",
-   "published": "Mon, 07 Sep 2026 22:00:30 GMT"
-  },
-  {
-   "title": "8000억 리파이낸싱 나선 IMM PE…한샘 ‘몸값 회복’ 시험대",
-   "link": "https://news.google.com/rss/articles/CBMickFVX3lxTFBPdVJWOW9aZ0FDal9ZSzRKYjN0R2pacVdSanVuSExhVjNLNjlTejNqSnZrVHA3M3Q3dTB5VWZzRWdjZTdpMnBrbUYtc0dzV3ZXb3RtX19zdlJMYmwtUHN3Q1hXS1VKMlktNE40bnY0SWtMdw?oc=5",
-   "media": "마켓인",
-   "published": "Tue, 08 Sep 2026 08:26:13 GMT"
-  },
-  {
-   "title": "김유진 한샘 대표, 23.5억 규모 주식 장내 매수…책임경영 의지",
-   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE1wV3hZc1lkeGRkSVVwNUVGRlJINVVTUXJ1ejVOVHNDUmNuWjdhc2M5REdLelRtaUw4US1DWGo2N25qZFBaTjJJMUZYaUViR1Y5UFNQVExwNkVZdzJm0gFiQVVfeXFMT2RrY1RfWWc3YW1pdU04TWdpNk5jOW43TTQ1UXdKLVJES1pJU0VkTFFhaUJnM01FLWFMbjJWZVpseHdXMkhXOGo3b2lld2x6Wi1rOXRYLVBhMDZNaDJGbTNueEE?oc=5",
-   "media": "뉴스1",
-   "published": "Tue, 25 Aug 2026 07:00:00 GMT"
+   "published": "Mon, 07 Sep 2026 07:00:00 GMT"
   }
  ]
 }

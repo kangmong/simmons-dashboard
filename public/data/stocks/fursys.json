@@ -4,25 +4,11 @@
  "symbol": "016800.KS",
  "market": "KOSPI",
  "note": "가구. 시디즈·일룸 계열",
- "generatedAt": "2026-09-11T13:39:31+09:00",
+ "generatedAt": "2026-10-02T11:05:20+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-09-11", 43150.0, 44650.0, 42600.0, 42700.0, 746],
-   ["2025-09-12", 42650.0, 43450.0, 41950.0, 42500.0, 1398],
-   ["2025-09-15", 42500.0, 44950.0, 42500.0, 43750.0, 968],
-   ["2025-09-16", 43900.0, 44850.0, 43600.0, 43600.0, 504],
-   ["2025-09-17", 43600.0, 44800.0, 43600.0, 43850.0, 294],
-   ["2025-09-18", 44450.0, 44500.0, 43600.0, 44200.0, 179],
-   ["2025-09-22", 45600.0, 45700.0, 44700.0, 44700.0, 429],
-   ["2025-09-23", 45500.0, 46000.0, 44550.0, 45900.0, 867],
-   ["2025-09-24", 45550.0, 46000.0, 44850.0, 44850.0, 456],
-   ["2025-09-25", 44850.0, 45600.0, 44750.0, 45000.0, 207],
-   ["2025-09-26", 44300.0, 46200.0, 44300.0, 45500.0, 407],
-   ["2025-09-29", 45150.0, 46200.0, 45000.0, 45050.0, 449],
-   ["2025-09-30", 45050.0, 45900.0, 44900.0, 44900.0, 296],
-   ["2025-10-01", 44900.0, 46650.0, 44900.0, 45350.0, 2179],
    ["2025-10-02", 45150.0, 48600.0, 45000.0, 46200.0, 4825],
    ["2025-10-10", 46950.0, 49200.0, 45550.0, 47000.0, 5700],
    ["2025-10-13", 46950.0, 47800.0, 46400.0, 46500.0, 1766],
@@ -251,12 +237,22 @@
    ["2026-09-08", 27900.0, 27950.0, 27200.0, 27200.0, 2136],
    ["2026-09-09", 27900.0, 27900.0, 27400.0, 27400.0, 94],
    ["2026-09-10", 27400.0, 27600.0, 27050.0, 27350.0, 419],
-   ["2026-09-11", 27800.0, 27800.0, 26800.0, 27550.0, 939]
+   ["2026-09-11", 27800.0, 27800.0, 26800.0, 27450.0, 973],
+   ["2026-09-14", 27850.0, 27850.0, 27200.0, 27400.0, 410],
+   ["2026-09-15", 27300.0, 27400.0, 26800.0, 27100.0, 678],
+   ["2026-09-16", 27000.0, 27050.0, 27000.0, 27000.0, 11],
+   ["2026-09-17", 27100.0, 27150.0, 25850.0, 26500.0, 2197],
+   ["2026-09-18", 26300.0, 26300.0, 25850.0, 25850.0, 797],
+   ["2026-09-21", 25600.0, 25950.0, 25350.0, 25350.0, 785],
+   ["2026-09-22", 25850.0, 25850.0, 24850.0, 24850.0, 686],
+   ["2026-09-23", 25350.0, 25350.0, 24150.0, 24350.0, 1464],
+   ["2026-09-28", 24500.0, 24600.0, 23650.0, 24550.0, 1041],
+   ["2026-09-29", 24550.0, 24900.0, 23650.0, 23950.0, 818],
+   ["2026-09-30", 23950.0, 24450.0, 23900.0, 24100.0, 297],
+   ["2026-10-01", 24350.0, 24400.0, 23800.0, 24200.0, 788],
+   ["2026-10-02", 24750.0, 24800.0, 23850.0, 23900.0, 1054]
   ],
   "1wk": [
-   ["2021-09-13", 38800.0, 39800.0, 38350.0, 38900.0, 10809],
-   ["2021-09-20", 38900.0, 39700.0, 38050.0, 39150.0, 5698],
-   ["2021-09-27", 39000.0, 40250.0, 37000.0, 37750.0, 15202],
    ["2021-10-04", 37750.0, 37800.0, 35450.0, 36400.0, 12821],
    ["2021-10-11", 36400.0, 38300.0, 35700.0, 38200.0, 7620],
    ["2021-10-18", 37950.0, 39350.0, 37800.0, 38800.0, 11679],
@@ -514,11 +510,13 @@
    ["2026-08-17", 27800.0, 28450.0, 26650.0, 27250.0, 3064],
    ["2026-08-24", 27250.0, 28050.0, 26400.0, 28050.0, 2862],
    ["2026-08-31", 28600.0, 28600.0, 26700.0, 26900.0, 3696],
-   ["2026-09-07", 27100.0, 27950.0, 27050.0, 27350.0, 2791],
-   ["2026-09-11", 27800.0, 27800.0, 26800.0, 27550.0, 939]
+   ["2026-09-07", 27100.0, 27950.0, 26800.0, 27450.0, 3764],
+   ["2026-09-14", 27850.0, 27850.0, 25850.0, 25850.0, 4093],
+   ["2026-09-21", 25600.0, 25950.0, 24150.0, 24350.0, 2935],
+   ["2026-09-28", 24500.0, 24900.0, 23650.0, 24200.0, 2944],
+   ["2026-10-02", 24750.0, 24800.0, 23850.0, 23900.0, 1054]
   ],
   "1mo": [
-   ["2016-10-01", 32650.0, 35200.0, 32000.0, 33950.0, 26481],
    ["2016-11-01", 34050.0, 34500.0, 33050.0, 33250.0, 22360],
    ["2016-12-01", 33100.0, 33750.0, 32350.0, 33000.0, 18734],
    ["2017-01-01", 32750.0, 33000.0, 31750.0, 32250.0, 30446],
@@ -637,8 +635,8 @@
    ["2026-06-01", 29100.0, 29500.0, 23500.0, 24450.0, 38086],
    ["2026-07-01", 24600.0, 28500.0, 24100.0, 25000.0, 19136],
    ["2026-08-01", 25000.0, 28600.0, 25000.0, 28000.0, 18460],
-   ["2026-09-01", 27800.0, 28300.0, 26700.0, 27350.0, 5714],
-   ["2026-09-11", 27800.0, 27800.0, 26800.0, 27550.0, 939]
+   ["2026-09-01", 27800.0, 28300.0, 23650.0, 24100.0, 15871],
+   ["2026-10-02", 24750.0, 24800.0, 23850.0, 23900.0, 1054]
   ]
  },
  "candleFormat": [
@@ -679,13 +677,13 @@
   }
  ],
  "quote": {
-  "now": 27550.0,
-  "prev": 27350.071,
-  "change": 199.929,
-  "changePct": 0.731,
-  "changePctMeta": 0.731,
-  "changePctSeries": 0.7313,
-  "asOf": "2026-09-11 13:17"
+  "now": 23900.0,
+  "prev": 24200.081,
+  "change": -300.081,
+  "changePct": -1.24,
+  "changePctMeta": -1.24,
+  "changePctSeries": -1.2397,
+  "asOf": "2026-10-02 10:41"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -693,7 +691,7 @@
    "longName": "Fursys Inc.",
    "exchange": "KSE",
    "delayMin": 20,
-   "summary": "Fursys Inc. designs, manufactures, and sells office and home furniture products primarily in South Korea. It primarily offers desks and panels, executive and multi-use chairs, benches chairs, stools, bar stools, sofas, armchair, storage, shelves, worktools, bookshelves, and study tables. It markets its products under the FURSYS, iloom, and SIDIZ brands. Fursys Inc. was founded in 1983 and is based in Seoul, Korea.",
+   "summary": "Fursys Inc. designs, manufactures, and sells office and home furniture products primarily in South Korea. It primarily offers desks and panels, executive and multi-use chairs, benches chairs, stools, bar stools, sofas, armchair, storage, shelves, worktools, bookshelves, and study tables. It markets its products under the FURSYS, iloom, and SIDIZ brands. Fursys Inc. was founded in 1983 and is based in Seoul, South Korea.",
    "website": "https://www.fursys.com",
    "industry": "Furnishings, Fixtures & Appliances",
    "sector": "Consumer Cyclical",
@@ -704,18 +702,18 @@
    "ceo": "Mr. Jong-Tae  Lee (Chief Executive Officer, President and Representative Director)"
   },
   "summaryBar": {
-   "dayLow": 26800.0,
-   "dayHigh": 27800.0,
+   "dayLow": 23850.0,
+   "dayHigh": 24800.0,
    "week52Low": 23500.0,
    "week52High": 50800.0,
-   "marketCap": 246543630336.0,
-   "volume": 939,
-   "avgVolume": 1166,
-   "avgVolume10": 697
+   "marketCap": 213879947264.0,
+   "volume": 1054,
+   "avgVolume": 860,
+   "avgVolume10": 834
   },
   "valuation": {
-   "psr": 0.689927,
-   "dividendYield": 0.0366,
+   "psr": 0.598521,
+   "dividendYield": 0.0413,
    "dividendRate": 1000.0,
    "payoutRatio": 0.1485,
    "beta": 0.289,
@@ -723,38 +721,38 @@
    "operatingMargin": -0.06184,
    "revenue": 357347328000.0,
    "revenueGrowth": 0.064,
-   "change52w": -0.359485,
-   "ma50": 26979.0
+   "change52w": -0.47619,
+   "ma50": 26514.0
   },
   "holding": {
-   "heldInstitutions": 0.16504,
+   "heldInstitutions": 0.16512,
    "heldInsiders": 0.54573
   }
  },
  "news": [
   {
+   "title": "퍼시스 투자분석 2026. 09. 27",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1VdUlyQVFwRTFpdllTSEhreWx5OFhzdjRpamVseUszYUtnODhBcmVoeHVRM18wRXZTbjhiV1NJSVAxdVNuanliZjEyUWMxLTkwY3QzOXZESEVORmVvMW8zUzZER0hPRUZJR1lHZERhNjdFNkk?oc=5",
+   "media": "주달",
+   "published": "Sun, 27 Sep 2026 09:51:43 GMT"
+  },
+  {
    "title": "2개 지주사 체제 전환 마무리…마지막 퍼즐은 '합병'",
    "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFBPRzZ2WlVfQnhvYktITWFsMGxQZGR1d3hwVEhDQlVKRXlIdENDRUwtSkV0Q1JBVWdzckdNc1dZcUZPb2k0c2NhOHE2Y3dEQ2Vs?oc=5",
-   "media": "topdaily.kr",
+   "media": "톱데일리",
    "published": "Wed, 22 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "[자사주 점검] 퍼시스, 주주 친화 행보에 자사주 소각 기대",
-   "link": "https://news.google.com/rss/articles/CBMickFVX3lxTE5haTZTWTdnY1JNbU03bzVMeTBIYzhqRE9nQ2FmZVlZYmpweUJlQVdsN3NZR3FpelFFcm0td0gxSkV5MmcxZVhYQTNSbk8ySlJnRVY3OGhqVmFUSHZDRVBrMjN0Vm5ZdnhOMFRKU1NDQUc5UQ?oc=5",
-   "media": "KB Think",
-   "published": "Sun, 19 Apr 2026 07:00:00 GMT"
+   "title": "이노진, 기준주가 대비 8.86% 할증 유상증자…8억 4000만 원 규모",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9vMWNlcmJtUFJiZldDUTFUY01MMnAyWl83MC1taU5nUW9uTG00RVRsZEgzU1BoTk5HUjhoWGpVd05VNE9WdWlyV2FCYlhUUmV2RmNhYnRpRDh1M2pINDhzdkg5ZERlTXIyM3NWZjRZcHFYNFE?oc=5",
+   "media": "데이터투자",
+   "published": "Fri, 07 Aug 2026 07:00:00 GMT"
   },
   {
-   "title": "퍼시스 투자분석 2026. 08. 30",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBBdUtIdXIxam5jX3lCVEVINHBYeFprekt3cHNId09xc091VEYwYVdnQXdMRVlwTDlnOG1ORnBCMmFuVFl0MTE1UjlWalZyZHVnZnBieTZTbkpDQ0JBVW1lR0ZMemZQYm1DN3Ayc0pMTGE0bjg?oc=5",
+   "title": "퍼시스 투자분석 2026. 09. 20",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5tbWJOaUpZNGZQZ21JaWs2QmV1VzZHZnFCaFlrYzRaSE5WckU4NzBrUWVEUlQteFNSdllPaFhoV1g2elJHT2l3R1ZTU05mXzdwSjVXM21TbXJlYkdwRm1Oc2lrV3BlSDI4VkprMzNHc0tIWnc?oc=5",
    "media": "주달",
-   "published": "Sun, 30 Aug 2026 07:00:00 GMT"
-  },
-  {
-   "title": "이노진 10%이상주주 메타몰퍼시스, 소유 주식 수량 57만주 증가…소유 지분율 3.16%p 상승",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5leHRaSEJIVzBaaXV4eHZ0VkdNX3QybWVNN1pMYVB0Umg3amlpakhzUTA4MlRKblhtcy1PWEpZQWYwc3VRZVluZWNMVTE4ZzgxdVpUYkVrbklwbHM2d0MwY3hNZlgxVzhsRExSMFYzMU8xWHM?oc=5",
-   "media": "디지털투데이",
-   "published": "Mon, 24 Aug 2026 07:00:00 GMT"
+   "published": "Sun, 20 Sep 2026 09:51:24 GMT"
   }
  ]
 }

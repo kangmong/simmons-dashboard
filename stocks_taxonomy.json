@@ -83,6 +83,14 @@
       "note": "주방·가구"
     },
     {
+      "key": "kiswire",
+      "name": "고려제강",
+      "symbol": "002240.KS",
+      "listed": true,
+      "market": "KOSPI",
+      "note": "경강선(Hard Drawn Steel Wire) 생산 — 침대 스프링용 강선 포함"
+    },
+    {
       "key": "somnigroup",
       "name": "Somnigroup",
       "symbol": "SGI",
