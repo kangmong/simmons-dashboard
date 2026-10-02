@@ -1574,9 +1574,13 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
     #   기사마다 언론사가 달라 특정 호스트에 몰리지 않으므로 sleep 없이 동시 4개로 제한.
     img_cache, img_stat, img_fail = {}, {"rss": 0, "meta": 0}, []
 
-    def _fetch_images(link_list):
-        """주어진 링크들의 대표 이미지를 병렬로 받아 img_cache 에 담는다."""
-        link_list = [l for l in link_list if l and l not in img_cache]
+    def _fetch_images(link_list, retry=False):
+        """주어진 링크들의 대표 이미지를 병렬로 받아 img_cache 에 담는다.
+           retry=True 면 이미 실패로 남아 있는 링크도 다시 받는다
+           (망 오류로 한 번 놓친 것을 되살리기 위해서다)."""
+        link_list = [l for l in link_list
+                     if l and (l not in img_cache
+                               or (retry and not img_cache[l][0]))]
         if not link_list:
             return
         with concurrent.futures.ThreadPoolExecutor(
@@ -1710,6 +1714,30 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
         picked.add(id(r))
         per_brand[r["brand"]] = per_brand.get(r["brand"], 0) + 1
     items = sorted(items[:items_max], key=lambda x: x["date"], reverse=True)
+
+    # ★ 마지막 확인 — 화면에 나갈 기사 중 사진이 빈 것만 다시 받는다.
+    #   위의 1·2차는 '브랜드별 앞 BRAND_SHOW_PER_BRAND 건' 을 대상으로 한다.
+    #   그런데 실제로 화면에 나가는 기사는 중복 제거·브랜드 배분을 거쳐 그 뒤
+    #   순번에서 뽑히기도 해서, 사진을 시도조차 못 하고 '링크 없음' 으로 남았다
+    #   (지누스 '모션베드 신제품 선봬' — 기사에 og:image 가 멀쩡히 있었다).
+    #   망 오류로 놓친 것도 여기서 한 번 더 시도한다(retry=True).
+    #   대상이 '빈 것' 뿐이라 평소에는 요청이 거의 늘지 않는다.
+    show = [it for it in (featured + items) if it.get("link") and not it.get("image")]
+    if show:
+        print("[brand_news] 화면에 나갈 기사 중 사진 없는 %d건 → 마지막으로 다시 확인"
+              % len(show))
+        _fetch_images([it["link"] for it in show], retry=True)
+        got = 0
+        for it in show:
+            img, how = img_cache.get(it["link"], (None, "링크 없음"))
+            if img:
+                it["image"] = img
+                got += 1
+                print("  · 보충 [%s] %s — %s" % (it["brand"], it["title"][:38], how))
+            else:
+                print("  · 못 구함 [%s] %s — %s" % (it["brand"], it["title"][:38], how))
+        print("[brand_news] 마지막 확인: %d건 중 %d건 보충" % (len(show), got))
+
     # 그래도 모자라면 빈 칸 대신 안내 카드를 채운다.
     while len(featured) < 3:
         featured.append({"brand": "", "title": "최근 관련 기사 없음", "source": "",
