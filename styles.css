@@ -2096,7 +2096,7 @@ body {
      (예: '2025년 시장 점유율' 제목만 1장 끝에 남고 도넛은 2장으로 넘어가던 것) */
   .dash-card__head, .sk-subhead, .subhead,
   .sm-h, .viz-title, .viz-head, .pt-h, .sqi-sec__h, .fxa-h,
-  .stm2-maph, .stm2-sep, .sm-sec, .stb { break-after: avoid; page-break-after: avoid; }
+  .stm2-maph, .stm2-sep, .stb, .srb { break-after: avoid; page-break-after: avoid; }
   /* ★ .sm-st__hd(기업 카드 머리)에도 break-after:avoid 를 걸어 봤지만 뺐다 —
      제목이 본문을 따라 내려가면서 앞 장이 잉크 17% → 7% 로 비어 버렸다.
      제목만 남는 것보다 장이 통째로 비는 쪽이 더 나쁘다. */
@@ -2698,6 +2698,84 @@ body {
   padding: 14px 16px 12px; background: var(--card, #fff); min-width: 0; }
 .sm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
+/* ══ 참고자료·교차검증 배너 (국외 탭) ══════════════════════════════════
+   '시장 숫자' 와 '그 숫자의 출처' 사이.
+   ★ 국내 'SLEEP TECH' 배너와 톤을 나눈다 — 저쪽은 산업을 소개하는 자리라
+     격자·발광·일러스트를 쓰고, 이쪽은 '어디서 가져온 숫자인가' 를 말하는
+     자리라 장식을 걷고 글자와 기관 카드만 둔다. 높이도 낮다(약 108px).
+   ★ 어두운 면 위 글자는 --nav-ink/--nav-muted 만 쓴다(토큰 주석의 규칙). */
+.srb {
+  position: relative; overflow: hidden;
+  margin: 12px 0 10px; border-radius: var(--radius-sm);
+  background: linear-gradient(100deg, #1A2B5C 0%, #223763 55%, #2A3F6D 100%);
+  box-shadow: 0 6px 18px -12px rgba(26, 43, 92, .7);
+}
+.srb__in {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 14px 22px; min-height: 108px; padding: 16px 20px;
+}
+
+/* ── 좌: 아이콘 + 제목 ── */
+.srb-t { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
+.srb-t__i {
+  width: 26px; height: 26px; flex: 0 0 auto; margin-top: 3px;
+  color: #9FC0F0; opacity: .95;
+}
+.srb-t__b { min-width: 0; }
+.srb-t__en {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16);
+  font-size: 9px; font-weight: 800; letter-spacing: .12em; color: var(--nav-muted);
+}
+.srb-t__ko {
+  margin-top: 5px; font-size: clamp(15px, 1.5vw, 19px); font-weight: 800;
+  color: #fff; letter-spacing: -.015em; line-height: 1.2;
+}
+.srb-t__d {
+  margin: 4px 0 0; max-width: 56ch;
+  font-size: 11.5px; line-height: 1.5; color: var(--nav-muted);
+  word-break: keep-all;        /* 한글을 낱말 가운데서 끊지 않는다 */
+}
+
+/* ── 우: 조사기관 카드 ── */
+.srb-os { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.srb-o {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  min-width: 96px; max-width: 132px; padding: 9px 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+}
+.srb-o__t { display: flex; align-items: center; gap: 5px; }
+.srb-o__t b {
+  font-size: 14px; font-weight: 900; color: #fff; letter-spacing: .02em;
+}
+.srb-o__c { width: 11px; height: 11px; flex: 0 0 auto; color: #86E3B5; }
+.srb-o__n {
+  font-size: 9.5px; line-height: 1.35; color: var(--nav-muted);
+  word-break: keep-all;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .srb__in { grid-template-columns: 1fr; gap: 12px; }
+  .srb-os { justify-content: flex-start; }
+}
+@media (max-width: 560px) {
+  .srb-o { min-width: 0; flex: 1 1 92px; padding: 8px 10px; }
+  .srb-t__d { font-size: 11px; }
+}
+/* 인쇄 — 잉크를 먹는 큰 면이라 배경을 지우고 글자만 남긴다 */
+@media print {
+  .srb { background: none !important; box-shadow: none !important;
+    border: 1px solid var(--line); }
+  .srb-t__ko, .srb-o__t b { color: var(--ink) !important; }
+  .srb-t__d, .srb-t__en, .srb-o__n { color: var(--muted) !important; }
+  .srb-t__i { color: var(--slate) !important; }
+  .srb-o { background: none; border-color: var(--line); }
+}
+
 /* ══ 슬립테크 전환 히어로 배너 (국내 탭) ═══════════════════════════════
    '경쟁사 실적' 과 '슬립테크 산업' 사이에서 장을 넘기는 자리다.
    ★ 순수 장식 + 제목이다 — 클릭도 데이터 연결도 없다.
@@ -2842,62 +2920,7 @@ body {
   .stb-r { display: none; }
 }
 
-/* ── 섹션 구분 라벨 ── 동종업계(실적) ↔ 슬립테크(산업) 경계
-   ★ 파란 물결선을 가로로 깔고, 그 위에 알약 배지를 띄운다. 배지 뒤에 카드와
-     같은 배경을 깔아서 선이 배지 뒤로 지나가는 것처럼 보이게 한다.
-   ★ 물결은 인라인 SVG 한 조각을 가로로 반복한다 — 이미지 파일을 늘리지 않고,
-     폭이 바뀌어도 파형이 일그러지지 않는다(preserveAspectRatio=none + repeat-x).
-   ★ 색은 대시보드가 이미 쓰는 토큰(--blue/--navy)만 쓴다. */
-.sm-sec {
-  position: relative; display: flex; flex-direction: column; align-items: center;
-  gap: 6px; margin: 6px 0 4px; padding: 13px 0 0; text-align: center;
-}
-/* 물결 두 겹 — 뒤쪽을 반 칸 어긋나게 연하게 깔아 평평하지 않게 한다.
-   ★ 양 끝은 mask 로 흐리게 지운다. 그냥 두면 카드 모서리에서 선이 뚝 끊겨
-     '잘린 그림' 처럼 보였다. */
-.sm-sec::before, .sm-sec::after {
-  content: ''; position: absolute; left: 0; right: 0; height: 12px;
-  background-repeat: repeat-x; background-size: 44px 12px; pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 13%, #000 87%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 13%, #000 87%, transparent 100%);
-}
-/* 앞 물결 */
-.sm-sec::before {
-  top: 23px; opacity: .6;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q 5.5 1.5 11 6 T 22 6 T 33 6 T 44 6' fill='none' stroke='%232563EB' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
-}
-/* 뒷 물결 — 반 칸 밀고 더 연하게 */
-.sm-sec::after {
-  top: 26px; opacity: .45; background-position: 22px 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 12' preserveAspectRatio='none'%3E%3Cpath d='M0 6 Q 5.5 2.5 11 6 T 22 6 T 33 6 T 44 6' fill='none' stroke='%2393B4E8' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
-}
-.sm-sec__pill {
-  position: relative;            /* 물결선 위로 */
-  display: inline-flex; align-items: center; gap: 9px;
-  padding: 6px 17px; border-radius: 999px;
-  background: linear-gradient(135deg, var(--navy-2) 0%, var(--navy) 62%, #111E3A 100%);
-  color: #fff;
-  /* ① 카드색 테두리로 물결을 끊고 ② 그 바깥으로 옅은 그림자를 흘린다
-     ③ 윗면에 아주 옅은 하이라이트를 넣어 납작해 보이지 않게 */
-  box-shadow:
-    0 0 0 6px var(--card),
-    0 7px 18px -7px rgba(22, 38, 74, .55),
-    inset 0 1px 0 rgba(255, 255, 255, .17);
-}
-.sm-sec__pill b {
-  font-size: 10.5px; font-weight: 800; letter-spacing: .11em;
-  color: var(--navy-ink);        /* 영문은 한 톤 눌러 우리말이 먼저 읽히게 */
-}
-.sm-sec__pill span {
-  font-size: 12.5px; font-weight: 700; letter-spacing: -.01em;
-  padding-left: 9px; border-left: 1px solid rgba(255, 255, 255, .24);
-}
-.sm-sec__sub { font-size: 11px; color: var(--muted); letter-spacing: -.01em; }
-@media (max-width: 560px) {
-  .sm-sec__pill { flex-direction: column; align-items: center; gap: 2px; padding: 6px 15px; }
-  .sm-sec__pill span { padding-left: 0; border-left: 0; }
-  .sm-sec__sub { padding: 0 12px; }
-}
+
 }
 @media (max-width: 900px) { .sm-grid2 { grid-template-columns: 1fr; } }
 .sm-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;

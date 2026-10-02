@@ -1143,23 +1143,60 @@ function smSleepArtSvg() {
     + '</svg>';
 }
 
-/** 섹션 경계 라벨 — 파란 물결선 위에 알약 배지를 얹는다.
+/** 조사기관 이름 → 짧은 약어. 'Global Market Insights' → 'GMI'
+ *  ★ 이미 짧거나 대문자 약어면(MRFR) 그대로 둔다. */
+function gmmOrgAbbr(name) {
+  const t = String(name || '').trim();
+  if (!t) return '';
+  if (t.length <= 5 && !/\s/.test(t)) return t.toUpperCase();
+  const ini = t.split(/[\s.&-]+/).filter(Boolean)
+    .map((w) => (w.match(/[A-Za-z가-힣]/) || [''])[0]).join('');
+  return (ini || t).slice(0, 4).toUpperCase();
+}
+
+/** 참고자료·교차검증 배너 — 국외 탭에서 '시장 숫자' 와 '그 숫자의 출처' 사이.
  *
- *  카드가 쭉 이어져 있으면 어디서 주제가 바뀌는지 알 수 없다. 그 경계에
- *  '여기부터는 다른 이야기' 라고 한 줄 세워 둔다.
- *    badge 짧은 영문(대문자) · title 우리말 제목 · sub 아래 한 줄 안내(생략 가능)
- *    aria  스크린리더용 문구(생략하면 title)
- *  ★ 국내·국외 탭이 같은 함수를 쓴다 — 한쪽만 모양이 바뀌는 일이 없게.
- *  ★ 모양은 styles.css 의 .sm-sec 한 곳에만 있다.
+ *  순수 장식 + 섹션 제목이다. 클릭도 데이터 연결도 없다.
+ *  ★ 오른쪽 기관 카드는 바로 아래 표(gmmEstimates)가 쓰는 같은 d.estimates 에서
+ *    '이름만' 가져온다. 코드에 박아 두면 수집 결과가 바뀌는 날 아래 표와
+ *    어긋난다. 값(추정치)은 가져오지 않는다 — 그건 아래 표가 할 일이다.
+ *  ★ 아이콘은 lucide(search-check · check)의 path 를 인라인 SVG 로 옮겼다.
  */
-function smSecLabel(badge, title, sub, aria) {
-  return '<div class="sm-sec" role="separator" aria-label="'
-    + escapeHtml(aria || title || '') + '">'
-    + '<div class="sm-sec__pill">'
-    + (badge ? '<b>' + escapeHtml(badge) + '</b>' : '')
-    + '<span>' + escapeHtml(title || '') + '</span></div>'
-    + (sub ? '<div class="sm-sec__sub">' + escapeHtml(sub) + '</div>' : '')
-    + '</div>';
+function gmmSourcesBanner(d) {
+  const orgs = (Array.isArray(d && d.estimates) ? d.estimates : [])
+    .map((e) => String(e.org || '').trim()).filter(Boolean);
+  const seen = {};
+  const uniq = orgs.filter((o) => (seen[o] ? false : (seen[o] = 1)));
+
+  const check = '<svg class="srb-o__c" viewBox="0 0 24 24" fill="none"'
+    + ' stroke="currentColor" stroke-width="3.2" stroke-linecap="round"'
+    + ' stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  const cards = uniq.slice(0, 4).map((o) => {
+    const ab = gmmOrgAbbr(o);
+    /* 이름 자체가 약어면(MRFR) 아래 작은 줄을 생략한다 — 같은 말을 두 번
+       적지 않게. 칸 높이는 CSS 가 맞춰 준다. */
+    const full = (ab === o.toUpperCase()) ? '' : o;
+    return '<div class="srb-o">'
+      + '<div class="srb-o__t"><b>' + escapeHtml(ab) + '</b>' + check + '</div>'
+      + (full ? '<span class="srb-o__n">' + escapeHtml(full) + '</span>' : '')
+      + '</div>';
+  }).join('');
+
+  return '<section class="srb" role="separator" aria-label="여기부터 참고자료와 교차검증">'
+    + '<div class="srb__in">'
+    + '<div class="srb-t">'
+    + '<svg class="srb-t__i" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="m8 11 2 2 4-4"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
+    + '</svg>'
+    + '<div class="srb-t__b">'
+    + '<span class="srb-t__en">SOURCES</span>'
+    + '<div class="srb-t__ko">참고자료·교차검증</div>'
+    + '<p class="srb-t__d">아래부터는 같은 지표를 다른 조사기관이 얼마로 추정했는지와 '
+    + '출처입니다</p>'
+    + '</div></div>'
+    + (cards ? '<div class="srb-os" aria-hidden="true">' + cards + '</div>' : '')
+    + '</div></section>';
 }
 
 /** 제품유형·유통 인사이트 — 무료 요약에서 확인된 것만 문장으로 */
@@ -1217,10 +1254,10 @@ function gmmBlock() {
        아래부터는 '그 숫자를 어디서 가져왔고 다른 기관은 얼마로 봤는가' 다.
        같은 해 같은 지표인데 기관마다 값이 다르다는 것을 읽는 사람이 알아야
        위 숫자를 바르게 받아들인다 — 그 전환점을 표시한다.
-       국내 탭과 같은 함수(smSecLabel)를 쓴다. */
-    + smSecLabel('SOURCES', '참고 자료·교차검증',
-      '아래부터는 같은 지표를 다른 조사기관이 얼마로 추정했는지와 출처입니다',
-      '여기부터 참고 자료와 교차검증')
+       ★ 국내 탭('슬립테크 산업 동향')과 톤을 나눈다 — 저쪽은 산업을
+         소개하는 자리라 감성적으로, 이쪽은 '이 숫자를 어디서 가져왔나' 를
+         말하는 자리라 격자·발광 없이 차분하게. */
+    + gmmSourcesBanner(d)
     + gmmEstimates(d)
     + krwNote('USD')
     + stale
@@ -1932,8 +1969,8 @@ function smKoreaHtml() {
          않았다 — 되돌리려면 이 자리에 다시 불러 오기만 하면 된다. */
     /* ★ 섹션이 바뀌는 자리를 표시한다 — 여기 위까지는 '시몬스와 경쟁사의 실적',
        여기 아래부터는 '슬립테크 산업 전체' 다.
-       ★ 국내 탭만 히어로 배너를 쓴다. 국외 탭의 'SOURCES' 는 성격이 다른
-         섹션이라 알약+물결선(smSecLabel) 그대로 둔다.
+       ★ 국내는 감성적인 히어로 배너, 국외('SOURCES')는 차분한 인포그래픽
+         배너다 — 섹션 성격이 달라 톤을 나눴다.
        ★ 배너만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다. */
     + smSleepTechBanner()
     /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
