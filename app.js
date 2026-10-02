@@ -1036,6 +1036,25 @@ function gmmPlayers(d) {
     + '</div>';
 }
 
+/** 섹션 경계 라벨 — 파란 물결선 위에 알약 배지를 얹는다.
+ *
+ *  카드가 쭉 이어져 있으면 어디서 주제가 바뀌는지 알 수 없다. 그 경계에
+ *  '여기부터는 다른 이야기' 라고 한 줄 세워 둔다.
+ *    badge 짧은 영문(대문자) · title 우리말 제목 · sub 아래 한 줄 안내(생략 가능)
+ *    aria  스크린리더용 문구(생략하면 title)
+ *  ★ 국내·국외 탭이 같은 함수를 쓴다 — 한쪽만 모양이 바뀌는 일이 없게.
+ *  ★ 모양은 styles.css 의 .sm-sec 한 곳에만 있다.
+ */
+function smSecLabel(badge, title, sub, aria) {
+  return '<div class="sm-sec" role="separator" aria-label="'
+    + escapeHtml(aria || title || '') + '">'
+    + '<div class="sm-sec__pill">'
+    + (badge ? '<b>' + escapeHtml(badge) + '</b>' : '')
+    + '<span>' + escapeHtml(title || '') + '</span></div>'
+    + (sub ? '<div class="sm-sec__sub">' + escapeHtml(sub) + '</div>' : '')
+    + '</div>';
+}
+
 /** 제품유형·유통 인사이트 — 무료 요약에서 확인된 것만 문장으로 */
 function gmmProducts(d) {
   const ps = Array.isArray(d.products) ? d.products : [];
@@ -1087,6 +1106,14 @@ function gmmBlock() {
   return gmmSummary(d)
     + '<div class="gmm-grid3">' + gmmBars(d) + gmmRegions(d) + gmmPlayers(d) + '</div>'
     + gmmProducts(d)
+    /* ★ 여기 위까지는 '시장을 어떻게 보는가'(규모·지역·업체·제품유형),
+       아래부터는 '그 숫자를 어디서 가져왔고 다른 기관은 얼마로 봤는가' 다.
+       같은 해 같은 지표인데 기관마다 값이 다르다는 것을 읽는 사람이 알아야
+       위 숫자를 바르게 받아들인다 — 그 전환점을 표시한다.
+       국내 탭과 같은 함수(smSecLabel)를 쓴다. */
+    + smSecLabel('SOURCES', '참고 자료·교차검증',
+      '아래부터는 같은 지표를 다른 조사기관이 얼마로 추정했는지와 출처입니다',
+      '여기부터 참고 자료와 교차검증')
     + gmmEstimates(d)
     + krwNote('USD')
     + stale
@@ -1797,14 +1824,11 @@ function smKoreaHtml() {
        ★ 그리는 함수(smRevCompare·smShareDonut)와 JSON 의 해당 항목은 지우지
          않았다 — 되돌리려면 이 자리에 다시 불러 오기만 하면 된다. */
     /* ★ 섹션이 바뀌는 자리를 표시한다 — 여기 위까지는 '시몬스와 경쟁사의 실적',
-       여기 아래부터는 '슬립테크 산업 전체' 다. 카드가 계속 이어져 있어 어디서
-       주제가 바뀌는지 알 수 없다는 말을 들었다.
-       ★ 라벨만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다.
-       ★ role="separator" + aria-label 로 스크린리더에도 구분점으로 읽힌다. */
-    + '<div class="sm-sec" role="separator" aria-label="여기부터 슬립테크 산업 동향">'
-    + '<div class="sm-sec__pill"><b>SLEEP TECH</b><span>슬립테크 산업 동향</span></div>'
-    + '<div class="sm-sec__sub">위는 시몬스와 경쟁사 실적, 아래부터는 슬립테크 산업 전체 흐름입니다</div>'
-    + '</div>'
+       여기 아래부터는 '슬립테크 산업 전체' 다.
+       ★ 라벨만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다. */
+    + smSecLabel('SLEEP TECH', '슬립테크 산업 동향',
+      '위는 시몬스와 경쟁사 실적, 아래부터는 슬립테크 산업 전체 흐름입니다',
+      '여기부터 슬립테크 산업 동향')
     /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
        ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
          위, 오른쪽(그래프)이 아래로 쌓인다. */
