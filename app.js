@@ -1036,6 +1036,113 @@ function gmmPlayers(d) {
     + '</div>';
 }
 
+/** 슬립테크 전환 배너 — 국내 탭에서 '경쟁사 실적' 과 '슬립테크 산업' 사이.
+ *
+ *  순수 장식 + 섹션 제목이다. 클릭도, 데이터 연결도 없다.
+ *  ★ 가운데 네 칸은 장식용 '예시' 수치다 — 화면에 그렇게 적어 두고
+ *    스크린리더에는 읽히지 않게 한다(없는 측정값을 사실처럼 두지 않는다).
+ *  ★ 오른쪽 그림은 .stb-art 안의 <svg> 하나뿐이다. 실제 사진이 생기면
+ *    그 자리에 <img> 를 넣으면 된다(바깥 틀은 그대로 쓴다).
+ *  ★ 아이콘은 lucide 의 path 를 그대로 옮겼다. 이 프로젝트는 리액트·번들러를
+ *    쓰지 않으므로 라이브러리를 더하지 않고 인라인 SVG 로 둔다.
+ */
+function smSleepTechBanner() {
+  const ico = (paths) => '<svg class="stb-m__i" viewBox="0 0 24 24" fill="none"'
+    + ' stroke="currentColor" stroke-width="2" stroke-linecap="round"'
+    + ' stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  // lucide: heart · wind · thermometer · droplet
+  const ICON = {
+    heart: ico('<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'),
+    wind: ico('<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>'),
+    temp: ico('<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>'),
+    drop: ico('<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>'),
+  };
+  const metric = (k, label, val, unit) => '<div class="stb-m">' + ICON[k]
+    + '<div class="stb-m__b"><span class="stb-m__l">' + escapeHtml(label) + '</span>'
+    + '<b class="stb-m__v">' + escapeHtml(val)
+    + '<em>' + escapeHtml(unit) + '</em></b></div></div>';
+
+  /* 수면 점수 막대 — 5칸 중 4칸(장식) */
+  const bars = [1, 1, 1, 1, 0].map((on) =>
+    '<i class="stb-sc__b' + (on ? ' is-on' : '') + '"></i>').join('');
+
+  return '<section class="stb" role="separator" aria-label="여기부터 슬립테크 산업 동향">'
+    + '<div class="stb__in">'
+
+    // ── 좌: 제목 ──
+    + '<div class="stb-t">'
+    + '<div class="stb-t__en">SLEEP&nbsp;TECH</div>'
+    + '<div class="stb-t__ko">슬립테크 산업 동향</div>'
+    + '<p class="stb-t__d">수면 데이터를 기반으로 ‘더 나은 수면과 건강한 일상’을 '
+    + '만드는 기술 산업</p>'
+    + '</div>'
+
+    // ── 중: 예시 수치 4칸 ──
+    + '<div class="stb-ms" aria-hidden="true">'
+    + '<span class="stb-ms__tag">예시 수치</span>'
+    + '<div class="stb-ms__g">'
+    + metric('heart', 'Heart Rate', '62', 'bpm')
+    + metric('wind', 'Breathing', '12', 'rpm')
+    + metric('temp', 'Temperature', '36.5', '℃')
+    + metric('drop', 'Humidity', '48', '%')
+    + '</div></div>'
+
+    // ── 우: 그림 + 수면 점수 ──
+    + '<div class="stb-r" aria-hidden="true">'
+    + '<div class="stb-art">' + smSleepArtSvg() + '</div>'
+    + '<div class="stb-sc">'
+    + '<svg class="stb-sc__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>'
+    + '<span class="stb-sc__l">SLEEP SCORE</span>'
+    + '<b class="stb-sc__v">87<em>점</em></b>'
+    + '<div class="stb-sc__bars">' + bars + '</div>'
+    + '</div></div>'
+
+    + '</div></section>';
+}
+
+/** 배너 오른쪽 그림 — 침대에서 자는 사람(실루엣) + 달·별.
+ *  ★ 사진을 쓸 수 없어 SVG 로 그렸다. 실제 이미지가 생기면 이 함수 대신
+ *    <img> 한 줄을 .stb-art 안에 넣으면 된다. */
+function smSleepArtSvg() {
+  return '<svg viewBox="0 0 220 120" fill="none" role="img"'
+    + ' aria-label="침대에서 자는 사람 일러스트">'
+    + '<defs><linearGradient id="stbBed" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#9FC0F0" stop-opacity=".55"/>'
+    + '<stop offset="1" stop-color="#9FC0F0" stop-opacity=".18"/>'
+    + '</linearGradient></defs>'
+    // 달·별
+    + '<path d="M181 24a11 11 0 0 0 16.5 16.5A13 13 0 1 1 181 24Z" fill="#FFE9A8" opacity=".9"/>'
+    + '<g fill="#CFE0FF" opacity=".75">'
+    + '<circle cx="152" cy="20" r="1.8"/><circle cx="167" cy="52" r="1.3"/>'
+    + '<circle cx="205" cy="62" r="1.5"/><circle cx="139" cy="40" r="1.1"/>'
+    + '</g>'
+    // zZZ
+    + '<g fill="#CFE0FF" opacity=".85" font-family="inherit" font-weight="800">'
+    + '<text x="96" y="30" font-size="15">Z</text>'
+    + '<text x="84" y="44" font-size="11">z</text>'
+    + '<text x="75" y="54" font-size="8">z</text>'
+    + '</g>'
+    // 침대 머리판
+    + '<rect x="10" y="40" width="9" height="56" rx="4" fill="#9FC0F0" opacity=".5"/>'
+    // 매트리스
+    + '<rect x="10" y="70" width="190" height="20" rx="7" fill="url(#stbBed)"/>'
+    // 다리
+    + '<rect x="22" y="90" width="7" height="12" rx="3" fill="#9FC0F0" opacity=".35"/>'
+    + '<rect x="182" y="90" width="7" height="12" rx="3" fill="#9FC0F0" opacity=".35"/>'
+    // 베개
+    + '<rect x="24" y="58" width="32" height="14" rx="6" fill="#EAF1FF" opacity=".85"/>'
+    // 머리
+    + '<circle cx="62" cy="60" r="9" fill="#EAF1FF" opacity=".95"/>'
+    // 이불 — 몸을 덮은 곡선
+    + '<path d="M70 70c14-9 34-11 52-6 16 4 34 5 52 1 8-2 14 1 16 5H70Z"'
+    + ' fill="#7FA8E8" opacity=".55"/>'
+    + '<path d="M70 70c14-9 34-11 52-6 16 4 34 5 52 1" stroke="#CFE0FF"'
+    + ' stroke-opacity=".5" stroke-width="1.5" fill="none"/>'
+    + '</svg>';
+}
+
 /** 섹션 경계 라벨 — 파란 물결선 위에 알약 배지를 얹는다.
  *
  *  카드가 쭉 이어져 있으면 어디서 주제가 바뀌는지 알 수 없다. 그 경계에
@@ -1825,10 +1932,10 @@ function smKoreaHtml() {
          않았다 — 되돌리려면 이 자리에 다시 불러 오기만 하면 된다. */
     /* ★ 섹션이 바뀌는 자리를 표시한다 — 여기 위까지는 '시몬스와 경쟁사의 실적',
        여기 아래부터는 '슬립테크 산업 전체' 다.
-       ★ 라벨만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다. */
-    + smSecLabel('SLEEP TECH', '슬립테크 산업 동향',
-      '위는 시몬스와 경쟁사 실적, 아래부터는 슬립테크 산업 전체 흐름입니다',
-      '여기부터 슬립테크 산업 동향')
+       ★ 국내 탭만 히어로 배너를 쓴다. 국외 탭의 'SOURCES' 는 성격이 다른
+         섹션이라 알약+물결선(smSecLabel) 그대로 둔다.
+       ★ 배너만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다. */
+    + smSleepTechBanner()
     /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
        ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
          위, 오른쪽(그래프)이 아래로 쌓인다. */
