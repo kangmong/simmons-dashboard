@@ -389,7 +389,9 @@ body {
 }
 .hero__brand { font-size: 25px; font-weight: 800; letter-spacing: .14em; }
 .hero__bar { width: 1px; height: 19px; background: rgba(255,255,255,.38); align-self: center; }
-.hero__what { font-weight: 700; }
+/* ★ word-break: 한글을 낱말 가운데서 끊지 않는다. 그냥 두면 좁은 폭에서
+   '동향 통 / 합 대시보드' 처럼 잘린다(아래 .hero__sub 와 같은 규칙). */
+.hero__what { font-weight: 700; word-break: keep-all; }
 .hero__sub {
   margin: 9px 0 0; font-size: 13px; line-height: 1.6;
   color: rgba(255,255,255,.82); word-break: keep-all;
@@ -1964,6 +1966,10 @@ body {
    ============================================================ */
 @media (max-width: 1180px) { .app-header { --hdr-photo-w: 250px; } }
 @media (max-width: 860px) { .app-header { --hdr-photo-w: 185px; } }
+/* ★ 940px 아래에서는 히어로 제목이 'SIMMONS' 아랫줄로 내려간다(실측).
+   그러면 가운데 구분선만 윗줄에 혼자 남아 짝을 잃은 막대로 보인다.
+   아래 720px 블록에 이미 있는 규칙을 줄바꿈이 시작되는 폭까지 끌어올린다. */
+@media (max-width: 940px) { .hero__bar { display: none; } }
 
 @media (max-width: 720px) {
   /* 좁은 화면에서는 로고와 버튼만 남긴다 — 사진까지 넣으면 둘 다 눌린다.
