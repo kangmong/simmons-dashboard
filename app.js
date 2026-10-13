@@ -14861,6 +14861,7 @@ const EXH_CATS = [
   { key: '소재·기술', cls: 'mat' },
   { key: '가전·테크', cls: 'tech' },
   { key: '수면건강', cls: 'health' },
+  { key: 'AI', cls: 'ai' },
 ];
 function exhCatCls(v) {
   const hit = EXH_CATS.filter((c) => c.key === sIdxStr(v))[0];
@@ -14882,6 +14883,7 @@ const EXH_COUNTRY_COLORS = {
   '콜롬비아': 'var(--cyan)',
   '이탈리아': 'var(--green)',
   'UAE': 'var(--accent)',
+  '한국': '#DB2777',
 };
 const EXH_COUNTRY_SPARE = ['#DB2777', '#4F46E5', '#B45309', '#65A30D', '#0F766E', '#9333EA'];
 let _exhCcSrc = null, _exhCc = null;
@@ -15289,7 +15291,7 @@ function renderExhList() {
 /** 분야 색 — 도넛·막대·점이 모두 같은 표를 본다 */
 function exhCatColor(key) {
   const M = { furn: 'var(--blue)', sleep: 'var(--accent)', mat: 'var(--green)',
-    tech: 'var(--violet)', health: 'var(--teal)', etc: 'var(--slate)' };
+    tech: 'var(--violet)', health: 'var(--teal)', ai: 'var(--amber)', etc: 'var(--slate)' };
   return M[exhCatCls(key)] || 'var(--slate)';
 }
 

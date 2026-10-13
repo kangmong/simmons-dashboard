@@ -6,7 +6,7 @@
     "   예전에 stats 라는 집계 블록을 따로 두었다가 items 를 바꿔도 차트는 옛 숫자를",
     "   그대로 보여 주는 문제가 있었습니다. 그래서 그 블록을 없앴습니다.",
     "category 는 지도 범례·목록 점·도넛이 함께 보는 분류입니다. 쓸 수 있는 값:",
-    "   가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 / 수면건강",
+    "   가구·인테리어 / 수면·매트리스 / 소재·기술 / 가전·테크 / 수면건강 / AI",
     "   (여기 없는 값을 쓰면 '기타'(회색)로 떨어집니다)",
     "lat/lon 은 지도 마커용 도시 좌표입니다. 도시를 바꾸면 좌표도 같이 바꿔 주세요.",
     "image 는 '다가오는 주요 행사' 카드 사진입니다. 행사 공식 사이트의 대표 이미지(og:image)를",
@@ -14,7 +14,7 @@
     "   비어 있으면 분야 색 배너로 표시됩니다."
   ],
   "provisional": false,
-  "updatedAt": "2026-09-15",
+  "updatedAt": "2026-10-13",
   "source": "각 행사 공식 사이트",
   "items": [
     {
@@ -54,16 +54,16 @@
       "image": "https://media.koelnmesse.io/imm2021/redaktionell/imm/img/layout/imm_cologne_840.jpg"
     },
     {
-      "name": "Interzum Guangzhou 2026",
-      "start": "2026-03-28",
-      "end": "2026-03-31",
-      "city": "광저우",
-      "country": "중국",
-      "category": "소재·기술",
-      "link": "https://www.interzum-guangzhou.com/",
-      "lat": 23.13,
-      "lon": 113.26,
-      "image": "https://www.interzum-guangzhou.com/upload/202207/1656930995.png"
+      "name": "서울리빙디자인페어 2027",
+      "start": "2027-02-23",
+      "end": "2027-02-27",
+      "city": "서울",
+      "country": "한국",
+      "category": "가구·인테리어",
+      "link": "https://livingdesignfair.co.kr/sldf",
+      "lat": 37.5126,
+      "lon": 127.0589,
+      "image": "https://sldf-public.s3.ap-northeast-2.amazonaws.com/static/1790737898822.jpg"
     },
     {
       "name": "ISPA Industry Conference 2027",
@@ -102,16 +102,27 @@
       "image": "https://sleepproducts.org/wp-content/uploads/Featured-Image.png"
     },
     {
-      "name": "Interzum Bogotá 2026",
-      "start": "2026-05-12",
-      "end": "2026-05-15",
-      "city": "보고타",
-      "country": "콜롬비아",
+      "name": "Interzum Guangzhou 2026",
+      "start": "2026-03-28",
+      "end": "2026-03-31",
+      "city": "광저우",
+      "country": "중국",
       "category": "소재·기술",
-      "link": "https://www.interzum-bogota.com/",
-      "lat": 4.71,
-      "lon": -74.07,
-      "image": "https://interzum-bogota.com/img/opengraph-general.jpg"
+      "link": "https://www.interzum-guangzhou.com/",
+      "lat": 23.13,
+      "lon": 113.26,
+      "image": "https://www.interzum-guangzhou.com/upload/202207/1656930995.png"
+    },
+    {
+      "name": "AI EXPO KOREA 2027 (국제인공지능대전)",
+      "start": "2027-04-14",
+      "end": "2027-04-16",
+      "city": "서울",
+      "country": "한국",
+      "category": "AI",
+      "link": "https://www.aiexpo.co.kr/",
+      "lat": 37.5126,
+      "lon": 127.0589
     },
     {
       "name": "Interzum Cologne 2027",
@@ -124,6 +135,18 @@
       "lat": 50.94,
       "lon": 6.96,
       "image": "https://media.koelnmesse.io/interzum2021/redaktionell/interzum/img/layout/interzum_logo_1200x675.jpg"
+    },
+    {
+      "name": "Interzum Bogotá 2026",
+      "start": "2026-05-12",
+      "end": "2026-05-15",
+      "city": "보고타",
+      "country": "콜롬비아",
+      "category": "소재·기술",
+      "link": "https://www.interzum-bogota.com/",
+      "lat": 4.71,
+      "lon": -74.07,
+      "image": "https://interzum-bogota.com/img/opengraph-general.jpg"
     },
     {
       "name": "Interzum Forum Italy 2026",
@@ -151,6 +174,30 @@
       "image": ""
     },
     {
+      "name": "Preview In SEOUL 2027 (국제섬유소재전)",
+      "start": "2027-08-18",
+      "end": "2027-08-20",
+      "city": "서울",
+      "country": "한국",
+      "category": "소재·기술",
+      "link": "https://previewinseoul.com/",
+      "lat": 37.5126,
+      "lon": 127.0589,
+      "image": "https://cdn2.micehub.com/home/2016/micehub/Files/20260825_093950_1724790393.png"
+    },
+    {
+      "name": "KOFURN 2027 (한국국제가구·인테리어산업대전)",
+      "start": "2027-08-26",
+      "end": "2027-08-29",
+      "city": "고양",
+      "country": "한국",
+      "category": "가구·인테리어",
+      "link": "http://www.kofurn.or.kr/aboutkofurn",
+      "lat": 37.6684,
+      "lon": 126.7459,
+      "image": "https://cdn.imweb.me/upload/S202301255ecabf7801e78/5a0e2511ef885.png"
+    },
+    {
       "name": "Sleep Expo Middle East 2026",
       "start": "2026-09-29",
       "end": "2026-09-30",
@@ -161,6 +208,18 @@
       "lat": 25.2,
       "lon": 55.27,
       "image": "https://www.sleepexpome.com/wp-content/uploads/2024/09/SLEEP@4x.png"
+    },
+    {
+      "name": "KES 2026 (제57회 한국전자전)",
+      "start": "2026-10-13",
+      "end": "2026-10-16",
+      "city": "서울",
+      "country": "한국",
+      "category": "가전·테크",
+      "link": "https://www.kes.org/",
+      "lat": 37.5126,
+      "lon": 127.0589,
+      "image": "https://www.kes.org/home/2026/kes2026/image/logo_w.png"
     }
   ]
 }
