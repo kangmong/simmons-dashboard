@@ -4,14 +4,11 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-10-02T11:05:03+09:00",
+ "generatedAt": "2026-10-14T09:45:26+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
   "1d": [
-   ["2025-10-02", 26900.0, 26950.0, 26550.0, 26650.0, 21889],
-   ["2025-10-10", 26900.0, 27450.0, 26700.0, 27300.0, 29375],
-   ["2025-10-13", 27200.0, 27750.0, 26900.0, 27650.0, 11400],
    ["2025-10-14", 27750.0, 27800.0, 27250.0, 27550.0, 12867],
    ["2025-10-15", 27550.0, 28550.0, 27500.0, 28300.0, 7309],
    ["2025-10-16", 28600.0, 28600.0, 27900.0, 28100.0, 10795],
@@ -250,11 +247,16 @@
    ["2026-09-29", 32500.0, 32750.0, 32250.0, 32500.0, 1146],
    ["2026-09-30", 32800.0, 32800.0, 32300.0, 32400.0, 1827],
    ["2026-10-01", 32400.0, 32600.0, 32100.0, 32150.0, 2372],
-   ["2026-10-02", 32200.0, 32500.0, 31850.0, 31950.0, 575]
+   ["2026-10-02", 32200.0, 32500.0, 31850.0, 32050.0, 1985],
+   ["2026-10-06", 32000.0, 32350.0, 31900.0, 32050.0, 1704],
+   ["2026-10-07", 32050.0, 32100.0, 31950.0, 31950.0, 2101],
+   ["2026-10-08", 32050.0, 32050.0, 31700.0, 31700.0, 1882],
+   ["2026-10-12", 32550.0, 32550.0, 31550.0, 31550.0, 2445],
+   ["2026-10-13", 31650.0, 32200.0, 31200.0, 31400.0, 3080],
+   ["2026-10-14", 31600.0, 31700.0, 31100.0, 31700.0, 50]
   ],
   "1wk": [
-   ["2021-10-04", 46450.0, 47300.0, 44800.0, 46150.0, 8147],
-   ["2021-10-11", 46150.0, 47650.0, 45000.0, 47650.0, 5116],
+   ["2021-10-11", 46300.0, 47650.0, 46200.0, 47650.0, 2528],
    ["2021-10-18", 48200.0, 48200.0, 45550.0, 45700.0, 8339],
    ["2021-10-25", 46000.0, 47700.0, 45450.0, 47600.0, 3352],
    ["2021-11-01", 48000.0, 48200.0, 46900.0, 47850.0, 4615],
@@ -513,8 +515,10 @@
    ["2026-09-07", 32500.0, 33200.0, 32150.0, 32700.0, 6471],
    ["2026-09-14", 32550.0, 33000.0, 32150.0, 32650.0, 7139],
    ["2026-09-21", 32650.0, 32750.0, 32200.0, 32350.0, 6633],
-   ["2026-09-28", 32250.0, 32800.0, 32100.0, 32150.0, 6200],
-   ["2026-10-02", 32200.0, 32500.0, 31850.0, 31950.0, 575]
+   ["2026-09-28", 32250.0, 32800.0, 31850.0, 32050.0, 8185],
+   ["2026-10-05", 32000.0, 32350.0, 31700.0, 31700.0, 5687],
+   ["2026-10-12", 32550.0, 32550.0, 31200.0, 31400.0, 5525],
+   ["2026-10-14", 31600.0, 31800.0, 31100.0, 31800.0, 124]
   ],
   "1mo": [
    ["2016-11-01", 30220.0, 32800.0, 29640.0, 31000.0, 27265],
@@ -636,7 +640,8 @@
    ["2026-07-01", 32350.0, 33500.0, 31000.0, 32550.0, 102722],
    ["2026-08-01", 32200.0, 33850.0, 30900.0, 33050.0, 50609],
    ["2026-09-01", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
-   ["2026-10-02", 32200.0, 32500.0, 31850.0, 31950.0, 575]
+   ["2026-10-01", 32400.0, 32600.0, 31700.0, 31700.0, 10044],
+   ["2026-10-14", 31600.0, 31800.0, 31100.0, 31800.0, 124]
   ]
  },
  "candleFormat": [
@@ -677,13 +682,13 @@
   }
  ],
  "quote": {
-  "now": 31950.0,
-  "prev": 32149.6493,
-  "change": -199.6493,
-  "changePct": -0.621,
-  "changePctMeta": -0.621,
-  "changePctSeries": -0.6221,
-  "asOf": "2026-10-02 10:42"
+  "now": 31700.0,
+  "prev": 31399.1957,
+  "change": 300.8043,
+  "changePct": 0.958,
+  "changePctMeta": 0.958,
+  "changePctSeries": 0.9554,
+  "asOf": "2026-10-14 09:24"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -702,27 +707,27 @@
    "ceo": "Mr. Sung-Ho  Ahn (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 31850.0,
-   "dayHigh": 32500.0,
+   "dayLow": 31100.0,
+   "dayHigh": 31800.0,
    "week52Low": 26400.0,
    "week52High": 39850.0,
-   "marketCap": 337294393344.0,
-   "volume": 575,
-   "avgVolume": 2954,
-   "avgVolume10": 1748
+   "marketCap": 335710846976.0,
+   "volume": 124,
+   "avgVolume": 2753,
+   "avgVolume10": 1734
   },
   "valuation": {
-   "psr": 1.024504,
-   "dividendYield": 0.0715,
+   "psr": 1.019694,
+   "dividendYield": 0.0729,
    "dividendRate": 2300.0,
    "payoutRatio": 0.397,
-   "beta": 0.349,
+   "beta": 0.355,
    "roe": 0.08223,
    "operatingMargin": 0.19604,
    "revenue": 329226911744.0,
    "revenueGrowth": 0.109,
-   "change52w": 0.206379,
-   "ma50": 32683.0
+   "change52w": 0.150635,
+   "ma50": 32639.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -731,10 +736,10 @@
  },
  "news": [
   {
-   "title": "에이스침대 투자분석 2026. 09. 27",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5jbGlnNFQyeU16SFhzbW1lTmowcm5SekxLTTJZS2d2YkdpRzlVZHFQVlp1MTRiTUxmZEpFTGp3VGpDaUl5Y29MMVNGdkM5RlBmc2lCNm50Q0htNktZYVFnaW9lUGhFWUFMSVJoVFlKS0tLcG8?oc=5",
+   "title": "에이스침대 투자분석 2026. 10. 11",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5UeTQ1WDJJTlEzLVNlYTE4eGd5M0VHRm45cWZRSVZqU3FkMm13dl91Q0VMZlhxS3hDbGtZRUw1aG1XcHJtdVJHQzFXZkdma3NPSU1OeHFJZDZKSWp1Y0pZSEhtNHU1bGtiR3p5S2Rzb2s3QUk?oc=5",
    "media": "주달",
-   "published": "Sun, 27 Sep 2026 08:07:26 GMT"
+   "published": "Sun, 11 Oct 2026 08:05:07 GMT"
   },
   {
    "title": "에이스침대, 스포츠토토 투자 5년…성과 못 내고 잔여 가치도 '뚝'",
@@ -743,16 +748,16 @@
    "published": "Fri, 10 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "에이스침대 투자분석 2026. 09. 20",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE8za0NiaVdBaDUtNEFyeDVWdlI3Z0xJWHE3SW1ZaHExZERpOUtQYmJBX1BsLTdHOE9ySG5YRFhFMHNZeVhPNWJmM0hsYXRkUnU0aFJPZ3JtLUNFM0pZQm1JZURjSGYtNkxQT01HZEMzVzJqc0k?oc=5",
-   "media": "주달",
-   "published": "Sun, 20 Sep 2026 07:00:00 GMT"
+   "title": "배당 늘린 에이스침대…지분 증여와 맞물린 '승계 시계'",
+   "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBreFNGVXd2ajRRVm9ldkdqenJrSFR4RmYyZTdRSkcwUG5NSW8zeFNIdnk1THFFM1NaRHpKVGJiTVp2UlA1MXNsQ01veXIwaHM?oc=5",
+   "media": "딜사이트",
+   "published": "Wed, 25 Feb 2026 08:00:00 GMT"
   },
   {
-   "title": "에이스침대 투자분석 2026. 09. 13",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE8zX3hYaHhqMGxfZEJxTDRfUGgzOWVTQjdWX25VWm9CZjJMUjgyTHg4M0ZDb044N1RDbmJGMXZ5ei1vYzNKVzY5ZU1jR01iZTBEeksyaDF6MzQxYWl5X0FudThqS3ZBdWo2eEtFMDJ2WGRucFE?oc=5",
-   "media": "주달",
-   "published": "Sun, 13 Sep 2026 08:09:08 GMT"
+   "title": "에이스침대, 배당소득세 최고세율 목전까지 배당…증여세 대비 관측",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
+   "media": "뉴스핌",
+   "published": "Wed, 04 Feb 2026 08:00:00 GMT"
   }
  ]
 }

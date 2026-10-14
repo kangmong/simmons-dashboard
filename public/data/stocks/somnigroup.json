@@ -4,19 +4,11 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-10-02T11:06:10+09:00",
+ "generatedAt": "2026-10-14T09:46:45+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
   "1d": [
-   ["2025-10-02", 82.93, 84.01, 82.44, 83.96, 1295400],
-   ["2025-10-03", 84.16, 84.88, 83.35, 84.24, 1371100],
-   ["2025-10-06", 84.5, 85.29, 83.39, 84.48, 1342200],
-   ["2025-10-07", 84.08, 84.78, 82.99, 83.82, 1180000],
-   ["2025-10-08", 84.04, 85.73, 83.41, 85.58, 1536800],
-   ["2025-10-09", 85.47, 85.69, 83.67, 83.93, 1744600],
-   ["2025-10-10", 84.79, 85.2, 83.41, 83.73, 2009200],
-   ["2025-10-13", 85.12, 85.74, 84.76, 85.05, 1653800],
    ["2025-10-14", 84.2, 87.65, 84.2, 87.35, 2307700],
    ["2025-10-15", 87.65, 87.79, 86.3, 86.43, 1919800],
    ["2025-10-16", 86.56, 86.68, 84.1, 85.01, 1838500],
@@ -259,12 +251,17 @@
    ["2026-09-28", 62.77, 63.53, 61.91, 62.28, 3097000],
    ["2026-09-29", 62.54, 62.95, 61.24, 62.26, 2609600],
    ["2026-09-30", 62.64, 62.97, 61.78, 62.11, 2583800],
-   ["2026-10-01", 62.0, 63.07, 60.08, 62.75, 3581000]
+   ["2026-10-01", 62.0, 63.07, 60.08, 62.75, 3581000],
+   ["2026-10-02", 64.36, 64.65, 61.92, 61.97, 2412700],
+   ["2026-10-05", 61.64, 63.18, 61.4, 62.29, 2764900],
+   ["2026-10-06", 62.59, 63.31, 62.0, 62.74, 1669600],
+   ["2026-10-07", 61.34, 62.05, 60.62, 61.76, 3156700],
+   ["2026-10-08", 61.4, 62.52, 60.67, 62.34, 3408100],
+   ["2026-10-09", 62.34, 62.59, 61.43, 62.19, 1171100],
+   ["2026-10-12", 62.12, 63.12, 61.9, 62.4, 1567400]
   ],
   "1wk": [
-   ["2021-09-27", 46.65, 47.02, 45.4, 46.53, 1827700],
-   ["2021-10-04", 46.36, 46.86, 44.17, 44.99, 8733900],
-   ["2021-10-11", 44.97, 45.76, 43.91, 44.61, 5922800],
+   ["2021-10-11", 44.77, 45.76, 43.91, 44.61, 4088100],
    ["2021-10-18", 44.51, 48.64, 44.5, 47.92, 4867000],
    ["2021-10-25", 47.84, 48.25, 43.9, 44.47, 11940300],
    ["2021-11-01", 44.91, 46.31, 44.29, 45.08, 7963900],
@@ -523,11 +520,12 @@
    ["2026-09-07", 70.18, 70.92, 65.16, 66.76, 13206400],
    ["2026-09-14", 66.8, 68.84, 62.75, 63.36, 18840800],
    ["2026-09-21", 63.92, 65.0, 60.99, 63.95, 13576200],
-   ["2026-09-28", 62.77, 63.53, 60.08, 62.75, 11871400],
-   ["2026-10-02", 62.0, 63.07, 60.08, 62.75, 3581048]
+   ["2026-09-28", 62.77, 64.65, 60.08, 61.97, 14284100],
+   ["2026-10-05", 61.64, 63.31, 60.62, 62.19, 12170400],
+   ["2026-10-12", 62.12, 63.12, 61.9, 62.4, 1567400],
+   ["2026-10-14", 62.83, 63.6, 62.5, 62.87, 1734399]
   ],
   "1mo": [
-   ["2016-10-01", 14.23, 14.4875, 12.6375, 13.5175, 121234400],
    ["2016-11-01", 13.4625, 16.37, 13.355, 15.825, 85763600],
    ["2016-12-01", 15.845, 17.39, 15.23, 17.07, 63276400],
    ["2017-01-01", 17.14, 17.6125, 10.6275, 10.75, 209526800],
@@ -646,7 +644,9 @@
    ["2026-06-01", 69.65, 79.77, 66.3, 78.4, 63431700],
    ["2026-07-01", 77.75, 79.19, 65.3, 65.33, 48135400],
    ["2026-08-01", 67.02, 70.54, 61.67, 64.75, 76313300],
-   ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000]
+   ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
+   ["2026-10-01", 62.0, 64.65, 60.08, 62.19, 18164100],
+   ["2026-10-14", 62.83, 63.6, 62.5, 62.87, 1734399]
   ]
  },
  "candleFormat": [
@@ -687,13 +687,13 @@
   }
  ],
  "quote": {
-  "now": 62.75,
-  "prev": 62.1103,
-  "change": 0.6397,
-  "changePct": 1.03,
-  "changePctMeta": 1.03,
-  "changePctSeries": 1.0304,
-  "asOf": "2026-10-02 05:03"
+  "now": 62.87,
+  "prev": 62.4001,
+  "change": 0.4699,
+  "changePct": 0.753,
+  "changePctMeta": 0.753,
+  "changePctSeries": 0.7532,
+  "asOf": "2026-10-14 05:00"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
@@ -701,7 +701,7 @@
   "identity": {
    "longName": "Somnigroup International Inc.",
    "exchange": "NYSE",
-   "delayMin": 0,
+   "delayMin": 20,
    "summary": "Somnigroup International Inc., together with its subsidiaries, designs, manufactures, distributes, and retails bedding products in the United States and internationally. It provides mattresses, foundations and adjustable foundations, and adjustable bases, as well as other products comprising pillows and other accessories under the Tempur-Pedic, Sealy, Stearns & Foster, and Sleepy's brands. The company operates a portfolio of retail brands, including Mattress Firm, Dreams, Tempur-Pedic retail stores, and SOVA; and licenses Sealy, Tempur, and Stearns & Foster brands, as well as technology and trademarks to other manufacturers. It sells its products through company-owned stores, online, and call centers; and third-party retailers, including third party distribution, hospitality, and healthcare. The company was formerly known as Tempur Sealy International, Inc. and changed its name to Somnigroup International Inc. in February 2025. The company was founded in 1846 and is based in Dallas, Texas.",
    "website": "https://somnigroup.com",
    "industry": "Furnishings, Fixtures & Appliances",
@@ -713,39 +713,45 @@
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 60.08,
-   "dayHigh": 63.07,
+   "dayLow": 62.5,
+   "dayHigh": 63.6,
    "week52Low": 60.08,
    "week52High": 98.56,
-   "marketCap": 14447508480.0,
-   "volume": 3581048,
-   "avgVolume": 3088209,
-   "avgVolume10": 3187000
+   "marketCap": 14475137024.0,
+   "volume": 1734399,
+   "avgVolume": 3087725,
+   "avgVolume10": 2492490
   },
   "valuation": {
-   "trailingPE": 24.607843,
-   "forwardPE": 15.956243,
-   "pbr": 4.08635,
-   "eps": 2.55,
+   "trailingPE": 25.047808,
+   "forwardPE": 16.123117,
+   "pbr": 4.094165,
+   "eps": 2.51,
    "bps": 15.356,
-   "psr": 1.896994,
+   "psr": 1.900622,
    "dividendYield": 0.0109,
    "dividendRate": 0.68,
-   "payoutRatio": 0.253,
-   "beta": 1.189,
+   "payoutRatio": 0.255,
+   "beta": 1.239,
    "roe": 0.17516,
    "operatingMargin": 0.11127,
    "revenue": 7616000000.0,
    "revenueGrowth": -0.03,
-   "change52w": -0.255104,
-   "ma50": 65.7944
+   "change52w": -0.285633,
+   "ma50": 64.7878
   },
   "holding": {
-   "heldInstitutions": 0.98206,
+   "heldInstitutions": 0.97714,
    "heldInsiders": 0.03102
   }
  },
  "news": [
+  {
+   "title": "BofA, Leggett 인수 후 Somnigroup 목표주가 상향 조정",
+   "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE04OElEbFc3ei1QQnNJN2F3OWJqZDFkZmh2LTdqNHVCLTh5VTJ1N193N0J2SmxzWm9fNkJQMUIzbUlVWlJwQ0R5UXRhS3VaSzB0Qk9vbkt1YWFoLTdKcV9nTE5JeEpuWTlaQUVOYW9tMnlLNXhs?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Thu, 03 Sep 2026 07:00:00 GMT"
+  },
   {
    "title": "SGI 주가 60.35달러로 52주 신저가 기록",
    "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5ESmpKVHpWNk1PT0NvYzJKVmFiYkpSUWlzMDI4U3d3ay1SOWhwRWJkak12eC0xUDNTWjNva3Y1U0ZHQ2FFX3V6V2FhNFNEYzNBSkRZY0ZHT0pBNm4zZUZHSlMxX25yMWd0Y3pTa2p3U00?oc=5",

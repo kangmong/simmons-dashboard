@@ -1,7 +1,8 @@
 name: 경쟁사 주가 수집 (하루 1회)
 
 # Yahoo Finance chart API 로 경쟁사·관련 상장사 시세를 받아
-# public/data/stock-quotes.json 으로 커밋한다. 화면은 이 파일만 읽는다.
+# public/data/stock-quotes.json(목록) + public/data/stocks/(상세)로 커밋한다.
+# 목록은 항상 읽고, 상세는 종목을 눌러 펼칠 때만 읽는다.
 #
 # ★ 키가 필요 없다(무키 엔드포인트). 대신 비공식 API 라 보장된 한도가 없으니
 #   하루 1회만 돌린다. 종목당 요청 3회(1일·1주·1년) + 뉴스 1회.
@@ -54,13 +55,16 @@ jobs:
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
-          if git diff --quiet -- public/data/stock-quotes.json; then
+          # ★ 상세(public/data/stocks)도 함께 커밋한다 — 예전에는 목록만 커밋해서
+          #   상세 화면의 캔들·종목정보가 몇 주씩 멈춰 있었고, 어느 봉이 왜 실패했는지를
+          #   남긴 candleErrors 도 보이지 않았다.
+          if git diff --quiet -- public/data/stock-quotes.json public/data/stocks; then
             echo "변경 없음 → 커밋 생략"
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/stock-quotes.json
+          git add public/data/stock-quotes.json public/data/stocks
           git commit -m "자동 수집: 경쟁사 주가 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'))"
           git push
 
