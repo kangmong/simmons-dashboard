@@ -1,6 +1,6 @@
 {
  "status": "ok",
- "generatedAt": "2026-10-13T23:58:22+09:00",
+ "generatedAt": "2026-10-14T09:20:28+09:00",
  "items": [
   {
    "key": "simmons",
@@ -26,16 +26,14 @@
    "longName": "Ace Bed Company Limited",
    "week52High": 39850.0,
    "week52Low": 26400.0,
-   "now": 31400.0,
-   "prev": 31549.8618,
-   "change": -149.8618,
-   "changePct": -0.475,
-   "changePctMeta": -0.475,
-   "changePctSeries": -0.9464,
-   "asOf": "2026-10-13 06:30",
+   "now": 31100.0,
+   "prev": 31399.8687,
+   "change": -299.8687,
+   "changePct": -0.955,
+   "changePctMeta": -0.955,
+   "changePctSeries": -0.9554,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    32200.0,
-    31700.0,
     32000.0,
     31650.0,
     31800.0,
@@ -96,9 +94,10 @@
     32050.0,
     31950.0,
     31700.0,
-    31400.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -0.47% vs 시계열 -0.95%)"
+    31550.0,
+    31400.0,
+    31100.0
+   ]
   },
   {
    "key": "coway",
@@ -114,16 +113,14 @@
    "longName": "COWAY Co., Ltd.",
    "week52High": 109200.0,
    "week52Low": 68800.0,
-   "now": 101200.0,
-   "prev": 102299.722,
-   "change": -1099.722,
-   "changePct": -1.075,
-   "changePctMeta": -1.075,
-   "changePctSeries": -0.1972,
-   "asOf": "2026-10-13 06:30",
+   "now": 103000.0,
+   "prev": 101198.6638,
+   "change": 1801.3362,
+   "changePct": 1.78,
+   "changePctMeta": 1.78,
+   "changePctSeries": 1.7787,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    91700.0,
-    85000.0,
     89900.0,
     91700.0,
     94200.0,
@@ -184,9 +181,10 @@
     100800.0,
     102200.0,
     101400.0,
-    101200.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -1.07% vs 시계열 -0.20%)"
+    102300.0,
+    101200.0,
+    103000.0
+   ]
   },
   {
    "key": "fursys",
@@ -201,16 +199,15 @@
    "exchange": "KSC",
    "longName": "Fursys Inc.",
    "week52High": 50800.0,
-   "week52Low": 22350.0,
+   "week52Low": 0.0,
    "now": 23800.0,
    "prev": 23949.9265,
    "change": -149.9265,
    "changePct": -0.626,
    "changePctMeta": -0.626,
-   "changePctSeries": -2.459,
-   "asOf": "2026-10-13 06:30",
+   "changePctSeries": -0.6263,
+   "asOf": "2026-10-13 15:30",
    "spark": [
-    27600.0,
     27250.0,
     26550.0,
     27550.0,
@@ -272,9 +269,9 @@
     24300.0,
     24050.0,
     24400.0,
+    23950.0,
     23800.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -0.63% vs 시계열 -2.46%)"
+   ]
   },
   {
    "key": "zinus",
@@ -289,17 +286,15 @@
    "exchange": "KSC",
    "longName": "Zinus, Inc",
    "week52High": 15450.0,
-   "week52Low": 6210.0,
-   "now": 6310.0,
-   "prev": 6409.9959,
-   "change": -99.9959,
-   "changePct": -1.56,
-   "changePctMeta": -1.56,
-   "changePctSeries": -5.3973,
-   "asOf": "2026-10-13 06:30",
+   "week52Low": 6160.0,
+   "now": 6290.0,
+   "prev": 6310.0027,
+   "change": -20.0027,
+   "changePct": -0.317,
+   "changePctMeta": -0.317,
+   "changePctSeries": -0.317,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    8970.0,
-    8850.0,
     8750.0,
     8710.0,
     8610.0,
@@ -360,9 +355,10 @@
     6820.0,
     6780.0,
     6670.0,
-    6310.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -1.56% vs 시계열 -5.40%)"
+    6410.0,
+    6310.0,
+    6290.0
+   ]
   },
   {
    "key": "hanssem",
@@ -378,16 +374,14 @@
    "longName": "Hanssem Co., Ltd.",
    "week52High": 54800.0,
    "week52Low": 28300.0,
-   "now": 40650.0,
-   "prev": 40800.1445,
-   "change": -150.1445,
-   "changePct": -0.368,
-   "changePctMeta": -0.368,
-   "changePctSeries": -0.9744,
-   "asOf": "2026-10-13 06:30",
+   "now": 40100.0,
+   "prev": 40649.9944,
+   "change": -549.9944,
+   "changePct": -1.353,
+   "changePctMeta": -1.353,
+   "changePctSeries": -1.353,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    34300.0,
-    35200.0,
     34800.0,
     34800.0,
     35100.0,
@@ -448,9 +442,10 @@
     40050.0,
     40500.0,
     41050.0,
-    40650.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -0.37% vs 시계열 -0.97%)"
+    40800.0,
+    40650.0,
+    40100.0
+   ]
   },
   {
    "key": "livart",
@@ -467,15 +462,13 @@
    "week52High": 9300.0,
    "week52Low": 5100.0,
    "now": 5390.0,
-   "prev": 5450.0046,
-   "change": -60.0046,
-   "changePct": -1.101,
-   "changePctMeta": -1.101,
-   "changePctSeries": -3.2316,
-   "asOf": "2026-10-13 06:30",
+   "prev": 5390.0,
+   "change": 0.0,
+   "changePct": 0.0,
+   "changePctMeta": 0.0,
+   "changePctSeries": 0.0,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    5810.0,
-    5670.0,
     5840.0,
     5600.0,
     5640.0,
@@ -536,9 +529,10 @@
     5600.0,
     5570.0,
     5570.0,
+    5450.0,
+    5390.0,
     5390.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -1.10% vs 시계열 -3.23%)"
+   ]
   },
   {
    "key": "enex",
@@ -554,16 +548,14 @@
    "longName": "ENEX Co., LTD.",
    "week52High": 4170.0,
    "week52Low": 908.0,
-   "now": 1747.0,
-   "prev": 1504.9966,
-   "change": 242.0034,
-   "changePct": 16.08,
-   "changePctMeta": 16.08,
-   "changePctSeries": 10.5696,
-   "asOf": "2026-10-13 06:30",
+   "now": 1729.0,
+   "prev": 1746.994,
+   "change": -17.994,
+   "changePct": -1.03,
+   "changePctMeta": -1.03,
+   "changePctSeries": -1.0303,
+   "asOf": "2026-10-14 09:00",
    "spark": [
-    966.0,
-    930.0,
     966.0,
     1255.0,
     1631.0,
@@ -624,9 +616,10 @@
     1314.0,
     1539.0,
     1580.0,
-    1747.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta +16.08% vs 시계열 +10.57%)"
+    1505.0,
+    1747.0,
+    1729.0
+   ]
   },
   {
    "key": "kiswire",
@@ -642,16 +635,14 @@
    "longName": "Kiswire Ltd.",
    "week52High": 28300.0,
    "week52Low": 15300.0,
-   "now": 16030.0,
-   "prev": 16149.9945,
-   "change": -119.9945,
-   "changePct": -0.743,
-   "changePctMeta": -0.743,
-   "changePctSeries": -2.9073,
-   "asOf": "2026-10-13 06:30",
+   "now": 16370.0,
+   "prev": 16029.5327,
+   "change": 340.4673,
+   "changePct": 2.124,
+   "changePctMeta": 2.124,
+   "changePctSeries": 2.121,
+   "asOf": "2026-10-14 09:01",
    "spark": [
-    17680.0,
-    17280.0,
     17670.0,
     17120.0,
     16910.0,
@@ -712,9 +703,10 @@
     17010.0,
     16720.0,
     16510.0,
-    16030.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta -0.74% vs 시계열 -2.91%)"
+    16150.0,
+    16030.0,
+    16370.0
+   ]
   },
   {
    "key": "somnigroup",
@@ -731,14 +723,15 @@
    "longName": "Somnigroup International Inc.",
    "week52High": 98.56,
    "week52Low": 60.08,
-   "now": 62.675,
-   "prev": 62.3998,
-   "change": 0.2752,
-   "changePct": 0.441,
-   "changePctMeta": 0.441,
-   "changePctSeries": 0.4407,
-   "asOf": "2026-10-13 14:58",
+   "now": 62.87,
+   "prev": 62.4001,
+   "change": 0.4699,
+   "changePct": 0.753,
+   "changePctMeta": 0.753,
+   "changePctSeries": 0.7532,
+   "asOf": "2026-10-14 05:00",
    "spark": [
+    73.27,
     75.21,
     72.73,
     70.3,
@@ -800,8 +793,7 @@
     61.76,
     62.34,
     62.19,
-    62.4,
-    62.675
+    62.4
    ]
   }
  ],

@@ -26,6 +26,13 @@
   직전 종가'다. 등락률은 meta.regularMarketChangePercent 와 일봉 계산을
   교차검증해서 쓴다.
 
+★★★★★ '전일대비'의 기준은 언제나 '직전 거래일 정규장 종가'다. 그래서 시계열
+  쪽 계산도 일봉(1d)에서만 한다 — 1d 가 실패했다고 주봉·월봉으로 넘어가면
+  '전일대비'가 조용히 '전주대비'가 된다. 2026-10-13 수집에서 한국 8종목의
+  1d 가 모두 실패해 전주 종가 대비로 계산됐고, 그 결과 멀쩡한 종목에
+  '검증 경고'가 붙었다(에이스침대 meta -0.47% vs 시계열 -0.95%).
+  스파크라인도 같은 이유로 일봉에서만 그린다.
+
 단독 실행:
     python stock_quotes.py                  # 전체 수집
     python stock_quotes.py --probe          # 진단만(파일 안 건드림)
@@ -243,16 +250,22 @@ def _news(cfg, name):
 
 
 # ── 한 종목 ───────────────────────────────────────────────────────────────
-def _quote_from(meta, daily, cfg, sym):
-    """현재가·전일대비. 등락률을 두 방식으로 구해 교차검증한다."""
+def _quote_from(meta, daily, anyser, cfg, sym):
+    """현재가·전일대비 — 기준은 언제나 '직전 거래일 정규장 종가'다.
+       같은 기준을 두 경로로 구해 교차검증한다:
+         (a) meta.regularMarketChangePercent  (b) 일봉 시계열에서 직접 계산
+       ★ daily 는 반드시 일봉이다. 주봉·월봉을 넣으면 (b)가 '전주/전월 대비'가
+         되어 (a)와 어긋나고, 멀쩡한 종목에 검증 경고가 붙는다.
+       ★★ 일봉이 없으면 (b)를 아예 구하지 않는다 — 대신 교차검증을 못 했다는
+         사실을 경고로 남긴다(조용히 넘어가지 않는다)."""
     now = meta.get("regularMarketPrice")
     if now is None:
-        now = daily[-1][4]
+        now = (daily or anyser)[-1][4]
     closes = [c[4] for c in daily]
-    last_d = daily[-1][0]
     today = datetime.date.today().isoformat()
     prev_series = None
     if len(closes) >= 2:
+        last_d = daily[-1][0]
         prev_series = closes[-2] if last_d == today else closes[-1]
         if last_d != today and abs(closes[-1] - now) < 1e-9:
             prev_series = closes[-2]
@@ -265,6 +278,11 @@ def _quote_from(meta, daily, cfg, sym):
     if pct_meta is not None and pct_series is not None and abs(pct_meta - pct_series) > tol:
         warn = ("전일대비가 두 방식에서 다릅니다 (meta %+.2f%% vs 시계열 %+.2f%%)"
                 % (pct_meta, pct_series))
+    elif pct_series is None:
+        warn = ("일봉 시계열을 받지 못해 전일대비를 교차검증하지 못했습니다"
+                if pct_meta is not None else
+                "일봉 시계열을 받지 못해 전일대비를 구하지 못했습니다")
+    if warn:
         print("   [%s] ★ %s" % (sym, warn))
     pct = pct_meta if pct_meta is not None else pct_series
     prev = None
@@ -277,8 +295,11 @@ def _quote_from(meta, daily, cfg, sym):
         "change": round(now - prev, 4) if prev is not None else None,
         "changePct": pct, "changePctMeta": pct_meta, "changePctSeries": pct_series,
         "asOf": (datetime.datetime.fromtimestamp(meta["regularMarketTime"]).strftime("%Y-%m-%d %H:%M")
-                 if meta.get("regularMarketTime") else last_d),
+                 if meta.get("regularMarketTime") else (daily or anyser)[-1][0]),
     }, warn
+
+
+DROP_DAILY = False          # --no-daily — 일봉 실패 상황 재현용 점검 스위치
 
 
 def fetch_one(cfg, co, sess=None, want_news=True, force_fail=False):
@@ -304,30 +325,40 @@ def fetch_one(cfg, co, sess=None, want_news=True, force_fail=False):
             node = _chart(cfg, sym, rg["range"], rg["interval"])
             if meta is None:
                 meta = node.get("meta") or {}
+            if DROP_DAILY and rg["key"] == "1d":
+                raise ValueError("--no-daily 점검: 일봉을 일부러 버렸습니다")
             candles[rg["key"]] = _candles(node, scale)
         except Exception as e:  # noqa: BLE001
             errors.append({"range": rg["key"], "error": str(e)[:140]})
             print("   [%s] %s 실패: %s" % (sym, rg["key"], str(e)[:85]))
         time.sleep(gap)
 
-    daily = candles.get("1d") or candles.get("1wk") or candles.get("1mo") or []
-    if meta is None or not daily:
+    # ★ 전일대비·스파크라인은 일봉에서만 구한다(주봉으로 대신하지 않는다).
+    #   1d 만 실패한 경우에도 주봉·월봉 차트는 그대로 보여 준다.
+    daily = candles.get("1d") or []
+    anyser = daily or candles.get("1wk") or candles.get("1mo") or []
+    if meta is None or not anyser:
         row.update({"status": "error",
                     "reason": "시세를 받지 못했습니다"
                               + (" (%s)" % errors[0]["error"] if errors else ""),
                     "errors": errors[:4]})
         return row, None
 
-    q, warn = _quote_from(meta, daily, cfg, sym)
+    q, warn = _quote_from(meta, daily, anyser, cfg, sym)
     row.update({"status": "ok", "currency": meta.get("currency"),
                 "exchange": meta.get("exchangeName"),
                 "longName": meta.get("longName") or meta.get("shortName") or "",
                 "week52High": meta.get("fiftyTwoWeekHigh"),
                 "week52Low": meta.get("fiftyTwoWeekLow")})
     row.update(q)
-    row["spark"] = [c[4] for c in daily][-63:]
+    if daily:
+        row["spark"] = [c[4] for c in daily][-63:]
     if warn:
         row["quoteWarning"] = warn
+    if errors:
+        # ★ 어느 봉이 왜 실패했는지 목록 파일에도 남긴다 — 예전에는 상세 파일에만
+        #   남겼는데 워크플로가 상세를 커밋하지 않아 원인이 보이지 않았다.
+        row["candleErrors"] = errors[:4]
 
     detail = {"key": co["key"], "name": co["name"], "symbol": sym,
               "market": co.get("market"), "note": co.get("note"),
@@ -483,8 +514,12 @@ def main():
     ap.add_argument("--only", default=None, help="쉼표로 구분한 key 만 수집")
     ap.add_argument("--probe", action="store_true", help="진단만 — 결과 파일을 쓰지 않는다")
     ap.add_argument("--fail-all", action="store_true", help="전부 실패시켜 화면 방어 테스트")
+    ap.add_argument("--no-daily", action="store_true",
+                    help="일봉을 일부러 버려 '일봉 실패' 처리를 점검한다")
     ap.add_argument("--force", action="store_true", help="실패해도 기존 파일을 덮어쓴다")
     a = ap.parse_args()
+    if a.no_daily:
+        globals()["DROP_DAILY"] = True
     cfg = load_cfg()
 
     if a.resolve:
