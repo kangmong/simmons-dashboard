@@ -1036,9 +1036,13 @@ function gmmPlayers(d) {
     + '</div>';
 }
 
-/** 슬립테크 전환 배너 — 국내 탭에서 '경쟁사 실적' 과 '슬립테크 산업' 사이.
+/** 슬립테크 전환 배너 — 국내 탭·국외 탭이 함께 쓰는 공용 컴포넌트.
  *
  *  순수 장식 + 섹션 제목이다. 클릭도, 데이터 연결도 없다.
+ *  ★ 달라지는 것은 왼쪽 글자 세 줄뿐이라 그것만 인자로 받는다 — 같은 배너를
+ *    탭마다 복사해 두면 한쪽만 고쳐져 어긋난다(예전 국외 탭의 'SOURCES'
+ *    배너가 .srb-* 라는 별도 CSS 를 통째로 들고 있었다).
+ *  ★ en 은 그대로 넣는 HTML 이다 — 줄바꿈을 막으려고 &nbsp; 를 쓴다.
  *  ★ 가운데 네 칸은 장식용 '예시' 수치다 — 화면에 그렇게 적어 두고
  *    스크린리더에는 읽히지 않게 한다(없는 측정값을 사실처럼 두지 않는다).
  *  ★ 오른쪽 그림은 .stb-art 안의 <svg> 하나뿐이다. 실제 사진이 생기면
@@ -1046,7 +1050,7 @@ function gmmPlayers(d) {
  *  ★ 아이콘은 lucide 의 path 를 그대로 옮겼다. 이 프로젝트는 리액트·번들러를
  *    쓰지 않으므로 라이브러리를 더하지 않고 인라인 SVG 로 둔다.
  */
-function smSleepTechBanner() {
+function sleepTechBanner(en, ko, desc, aria) {
   const ico = (paths) => '<svg class="stb-m__i" viewBox="0 0 24 24" fill="none"'
     + ' stroke="currentColor" stroke-width="2" stroke-linecap="round"'
     + ' stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
@@ -1066,15 +1070,14 @@ function smSleepTechBanner() {
   const bars = [1, 1, 1, 1, 0].map((on) =>
     '<i class="stb-sc__b' + (on ? ' is-on' : '') + '"></i>').join('');
 
-  return '<section class="stb" role="separator" aria-label="여기부터 슬립테크 산업 동향">'
+  return '<section class="stb" role="separator" aria-label="' + escapeHtml(aria) + '">'
     + '<div class="stb__in">'
 
     // ── 좌: 제목 ──
     + '<div class="stb-t">'
-    + '<div class="stb-t__en">SLEEP&nbsp;TECH</div>'
-    + '<div class="stb-t__ko">슬립테크 산업 동향</div>'
-    + '<p class="stb-t__d">수면 데이터를 기반으로 ‘더 나은 수면과 건강한 일상’을 '
-    + '만드는 기술 산업</p>'
+    + '<div class="stb-t__en">' + en + '</div>'
+    + '<div class="stb-t__ko">' + escapeHtml(ko) + '</div>'
+    + '<p class="stb-t__d">' + escapeHtml(desc) + '</p>'
     + '</div>'
 
     // ── 중: 예시 수치 4칸 ──
@@ -1089,7 +1092,7 @@ function smSleepTechBanner() {
 
     // ── 우: 그림 + 수면 점수 ──
     + '<div class="stb-r" aria-hidden="true">'
-    + '<div class="stb-art">' + smSleepArtSvg() + '</div>'
+    + '<div class="stb-art">' + sleepArtSvg() + '</div>'
     + '<div class="stb-sc">'
     + '<svg class="stb-sc__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
     + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
@@ -1105,7 +1108,7 @@ function smSleepTechBanner() {
 /** 배너 오른쪽 그림 — 침대에서 자는 사람(실루엣) + 달·별.
  *  ★ 사진을 쓸 수 없어 SVG 로 그렸다. 실제 이미지가 생기면 이 함수 대신
  *    <img> 한 줄을 .stb-art 안에 넣으면 된다. */
-function smSleepArtSvg() {
+function sleepArtSvg() {
   return '<svg viewBox="0 0 220 120" fill="none" role="img"'
     + ' aria-label="침대에서 자는 사람 일러스트">'
     + '<defs><linearGradient id="stbBed" x1="0" y1="0" x2="0" y2="1">'
@@ -1141,62 +1144,6 @@ function smSleepArtSvg() {
     + '<path d="M70 70c14-9 34-11 52-6 16 4 34 5 52 1" stroke="#CFE0FF"'
     + ' stroke-opacity=".5" stroke-width="1.5" fill="none"/>'
     + '</svg>';
-}
-
-/** 조사기관 이름 → 짧은 약어. 'Global Market Insights' → 'GMI'
- *  ★ 이미 짧거나 대문자 약어면(MRFR) 그대로 둔다. */
-function gmmOrgAbbr(name) {
-  const t = String(name || '').trim();
-  if (!t) return '';
-  if (t.length <= 5 && !/\s/.test(t)) return t.toUpperCase();
-  const ini = t.split(/[\s.&-]+/).filter(Boolean)
-    .map((w) => (w.match(/[A-Za-z가-힣]/) || [''])[0]).join('');
-  return (ini || t).slice(0, 4).toUpperCase();
-}
-
-/** 참고자료·교차검증 배너 — 국외 탭에서 '시장 숫자' 와 '그 숫자의 출처' 사이.
- *
- *  순수 장식 + 섹션 제목이다. 클릭도 데이터 연결도 없다.
- *  ★ 오른쪽 기관 카드는 바로 아래 표(gmmEstimates)가 쓰는 같은 d.estimates 에서
- *    '이름만' 가져온다. 코드에 박아 두면 수집 결과가 바뀌는 날 아래 표와
- *    어긋난다. 값(추정치)은 가져오지 않는다 — 그건 아래 표가 할 일이다.
- *  ★ 아이콘은 lucide(search-check · check)의 path 를 인라인 SVG 로 옮겼다.
- */
-function gmmSourcesBanner(d) {
-  const orgs = (Array.isArray(d && d.estimates) ? d.estimates : [])
-    .map((e) => String(e.org || '').trim()).filter(Boolean);
-  const seen = {};
-  const uniq = orgs.filter((o) => (seen[o] ? false : (seen[o] = 1)));
-
-  const check = '<svg class="srb-o__c" viewBox="0 0 24 24" fill="none"'
-    + ' stroke="currentColor" stroke-width="3.2" stroke-linecap="round"'
-    + ' stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-  const cards = uniq.slice(0, 4).map((o) => {
-    const ab = gmmOrgAbbr(o);
-    /* 이름 자체가 약어면(MRFR) 아래 작은 줄을 생략한다 — 같은 말을 두 번
-       적지 않게. 칸 높이는 CSS 가 맞춰 준다. */
-    const full = (ab === o.toUpperCase()) ? '' : o;
-    return '<div class="srb-o">'
-      + '<div class="srb-o__t"><b>' + escapeHtml(ab) + '</b>' + check + '</div>'
-      + (full ? '<span class="srb-o__n">' + escapeHtml(full) + '</span>' : '')
-      + '</div>';
-  }).join('');
-
-  return '<section class="srb" role="separator" aria-label="여기부터 참고자료와 교차검증">'
-    + '<div class="srb__in">'
-    + '<div class="srb-t">'
-    + '<svg class="srb-t__i" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
-    + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-    + '<path d="m8 11 2 2 4-4"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
-    + '</svg>'
-    + '<div class="srb-t__b">'
-    + '<span class="srb-t__en">SOURCES</span>'
-    + '<div class="srb-t__ko">참고자료·교차검증</div>'
-    + '<p class="srb-t__d">아래부터는 같은 지표를 다른 조사기관이 얼마로 추정했는지와 '
-    + '출처입니다</p>'
-    + '</div></div>'
-    + (cards ? '<div class="srb-os" aria-hidden="true">' + cards + '</div>' : '')
-    + '</div></section>';
 }
 
 /** 제품유형·유통 인사이트 — 무료 요약에서 확인된 것만 문장으로 */
@@ -1254,10 +1201,12 @@ function gmmBlock() {
        아래부터는 '그 숫자를 어디서 가져왔고 다른 기관은 얼마로 봤는가' 다.
        같은 해 같은 지표인데 기관마다 값이 다르다는 것을 읽는 사람이 알아야
        위 숫자를 바르게 받아들인다 — 그 전환점을 표시한다.
-       ★ 국내 탭('슬립테크 산업 동향')과 톤을 나눈다 — 저쪽은 산업을
-         소개하는 자리라 감성적으로, 이쪽은 '이 숫자를 어디서 가져왔나' 를
-         말하는 자리라 격자·발광 없이 차분하게. */
-    + gmmSourcesBanner(d)
+       ★ 국내 탭과 같은 배너를 쓴다(sleepTechBanner) — 글자만 다르다.
+         예전에는 이 자리에만 쓰는 'SOURCES' 배너를 따로 두었는데, 같은
+         구실을 하는 틀이 둘이 되어 한쪽만 손보면 어긋났다. */
+    + sleepTechBanner('GLOBAL SLEEP&nbsp;TECH', '글로벌 슬립테크 산업 동향',
+      '해외 수면 기술 시장의 규모와 수면 부족에 따른 경제 손실을 보여주는 섹션',
+      '여기부터 글로벌 슬립테크 산업 동향')
     + gmmEstimates(d)
     + krwNote('USD')
     + stale
@@ -1969,10 +1918,11 @@ function smKoreaHtml() {
          않았다 — 되돌리려면 이 자리에 다시 불러 오기만 하면 된다. */
     /* ★ 섹션이 바뀌는 자리를 표시한다 — 여기 위까지는 '시몬스와 경쟁사의 실적',
        여기 아래부터는 '슬립테크 산업 전체' 다.
-       ★ 국내는 감성적인 히어로 배너, 국외('SOURCES')는 차분한 인포그래픽
-         배너다 — 섹션 성격이 달라 톤을 나눴다.
+       ★ 국외 탭도 같은 배너를 쓴다 — 글자만 다르다(sleepTechBanner).
        ★ 배너만 더한다. 위아래 카드의 순서·내용·구조는 건드리지 않는다. */
-    + smSleepTechBanner()
+    + sleepTechBanner('SLEEP&nbsp;TECH', '슬립테크 산업 동향',
+      '수면 데이터를 기반으로 ‘더 나은 수면과 건강한 일상’을 만드는 기술 산업',
+      '여기부터 슬립테크 산업 동향')
     /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
        ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
          위, 오른쪽(그래프)이 아래로 쌓인다. */
