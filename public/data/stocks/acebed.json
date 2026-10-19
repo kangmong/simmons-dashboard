@@ -4,13 +4,11 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-10-16T21:19:58+09:00",
+ "generatedAt": "2026-10-19T23:37:15+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
   "1d": [
-   ["2025-10-16", 28600.0, 28600.0, 27900.0, 28100.0, 10795],
-   ["2025-10-17", 28100.0, 28100.0, 27300.0, 27550.0, 13426],
    ["2025-10-20", 27550.0, 28150.0, 27300.0, 27850.0, 11843],
    ["2025-10-21", 28000.0, 28100.0, 27500.0, 27700.0, 24611],
    ["2025-10-22", 27650.0, 27700.0, 27150.0, 27500.0, 31351],
@@ -253,10 +251,11 @@
    ["2026-10-13", 31650.0, 32200.0, 31200.0, 31400.0, 3080],
    ["2026-10-14", 31600.0, 32100.0, 31100.0, 31550.0, 1774],
    ["2026-10-15", 32100.0, 32100.0, 31000.0, 31400.0, 9657],
-   ["2026-10-16", 31500.0, 31800.0, 31350.0, 31750.0, 2307]
+   ["2026-10-16", 31500.0, 31800.0, 31350.0, 31750.0, 2307],
+   ["2026-10-19", 31750.0, 32150.0, 31200.0, 31900.0, 2376]
   ],
   "1wk": [
-   ["2021-10-17", 48200.0, 48200.0, 45550.0, 45700.0, 8339],
+   ["2021-10-17", 47600.0, 48200.0, 45550.0, 45700.0, 6709],
    ["2021-10-24", 46000.0, 47700.0, 45450.0, 47600.0, 3352],
    ["2021-10-31", 48000.0, 48200.0, 46900.0, 47850.0, 4615],
    ["2021-11-07", 47600.0, 47600.0, 45300.0, 46050.0, 5500],
@@ -516,8 +515,8 @@
    ["2026-09-20", 32650.0, 32750.0, 32200.0, 32350.0, 6633],
    ["2026-09-27", 32250.0, 32800.0, 31850.0, 32050.0, 8185],
    ["2026-10-04", 32000.0, 32350.0, 31700.0, 31700.0, 5687],
-   ["2026-10-11", 32550.0, 32550.0, 31000.0, 31400.0, 16956],
-   ["2026-10-16", 31500.0, 31800.0, 31350.0, 31750.0, 2307]
+   ["2026-10-11", 32550.0, 32550.0, 31000.0, 31750.0, 19263],
+   ["2026-10-19", 31750.0, 32150.0, 31200.0, 31900.0, 2376]
   ],
   "1mo": [
    ["2016-10-31", 30220.0, 32800.0, 29640.0, 31000.0, 27265],
@@ -639,8 +638,8 @@
    ["2026-06-30", 32350.0, 33500.0, 31000.0, 32550.0, 102722],
    ["2026-07-31", 32200.0, 33850.0, 30900.0, 33050.0, 50609],
    ["2026-08-31", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
-   ["2026-09-30", 32400.0, 32600.0, 31000.0, 31400.0, 27000],
-   ["2026-10-16", 31500.0, 31800.0, 31350.0, 31750.0, 2307]
+   ["2026-09-30", 32400.0, 32600.0, 31000.0, 31750.0, 29307],
+   ["2026-10-19", 31750.0, 32150.0, 31200.0, 31900.0, 2376]
   ]
  },
  "candleFormat": [
@@ -681,13 +680,13 @@
   }
  ],
  "quote": {
-  "now": 31750.0,
-  "prev": 31399.8912,
-  "change": 350.1088,
-  "changePct": 1.115,
-  "changePctMeta": 1.115,
-  "changePctSeries": 1.1146,
-  "asOf": "2026-10-16 06:30"
+  "now": 31900.0,
+  "prev": 31750.1393,
+  "change": 149.8607,
+  "changePct": 0.472,
+  "changePctMeta": 0.472,
+  "changePctSeries": 0.4724,
+  "asOf": "2026-10-19 06:19"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -706,26 +705,27 @@
    "ceo": "Mr. Sung-Ho  Ahn (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 31350.0,
-   "dayHigh": 31800.0,
+   "dayLow": 31200.0,
+   "dayHigh": 32150.0,
    "week52Low": 26400.0,
    "week52High": 39850.0,
-   "marketCap": 335183020032.0,
-   "volume": 2307,
-   "avgVolume": 2472,
-   "avgVolume10": 2882
+   "marketCap": 336766533632.0,
+   "volume": 2376,
+   "avgVolume": 2469,
+   "avgVolume10": 2930
   },
   "valuation": {
-   "psr": 1.018091,
-   "dividendYield": 0.0732,
+   "psr": 1.022901,
+   "dividendYield": 0.0724,
+   "dividendRate": 2300.0,
    "payoutRatio": 0.397,
    "beta": 0.355,
    "roe": 0.08223,
    "operatingMargin": 0.19604,
    "revenue": 329226911744.0,
    "revenueGrowth": 0.109,
-   "change52w": 0.139746,
-   "ma50": 32591.0
+   "change52w": 0.140036,
+   "ma50": 32570.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -734,10 +734,10 @@
  },
  "news": [
   {
-   "title": "에이스침대 투자분석 2026. 10. 11",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5UeTQ1WDJJTlEzLVNlYTE4eGd5M0VHRm45cWZRSVZqU3FkMm13dl91Q0VMZlhxS3hDbGtZRUw1aG1XcHJtdVJHQzFXZkdma3NPSU1OeHFJZDZKSWp1Y0pZSEhtNHU1bGtiR3p5S2Rzb2s3QUk?oc=5",
+   "title": "에이스침대 투자분석 2026. 10. 04",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5LYTJpdmJTUXg5SkM0UVBJdzMyLW9JYlZSMXBfakhicjBxOWt4WHVTcnFzTnhiTGduRWlmOVM1a1U5LW1mT2V3aUkxSy14MVdOVkhqUDZUdzdONHFzSWJLTmhxRm0wMXhGRGpzRWVNNi1LQTQ?oc=5",
    "media": "주달",
-   "published": "Sun, 11 Oct 2026 08:05:07 GMT"
+   "published": "Sun, 04 Oct 2026 07:00:00 GMT"
   },
   {
    "title": "에이스침대, 스포츠토토 투자 5년…성과 못 내고 잔여 가치도 '뚝'",
@@ -752,10 +752,10 @@
    "published": "Wed, 25 Feb 2026 08:00:00 GMT"
   },
   {
-   "title": "에이스침대 최대주주 안성호, 에이스침대 주식등 882만2350주 보유…총 지분율 79.55%",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9NQ1dscXRjNVhMbEVJbHJ5c05VSlZkdlpNWDVKbnVLSG1wTzMzQzlkX1VMSklRMXR6b2lSYjF4YVZpb2dUR19OcmVuWHVaV0ZOTi1iUlBKSlVXNlFlNW56RC1oTXZKTUg2aDlLeU41RXVsNnM?oc=5",
-   "media": "디지털투데이",
-   "published": "Fri, 17 Apr 2026 07:00:00 GMT"
+   "title": "에이스침대, 배당소득세 최고세율 목전까지 배당…증여세 대비 관측",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
+   "media": "뉴스핌",
+   "published": "Wed, 04 Feb 2026 08:00:00 GMT"
   }
  ]
 }
