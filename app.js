@@ -5529,7 +5529,8 @@ function renderScheduleReliabilityHtml() {
   // 배너의 '업데이트 기준'은 관측치의 마지막 달
   const srLast = _srData.error ? null : sriLast();
   const head = vizHero('compass', '해상 정시성 (Global Schedule Reliability)',
-    '월별 정시 도착 비율(%) · 연도별', srLast ? srLast.ym : '') + srBoxes;
+    '선사가 사전에 공표한 도착 예정일에 실제로 도착한 선박의 비율',
+    srLast ? srLast.ym : '') + srBoxes;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -6373,13 +6374,6 @@ function xsiTermsHtml(r, fc) {
 function renderXsiHtml() {
   const head = xsiHero() + `<div class="viz-head"><div>
       <div class="viz-sub">주요 8개 항로 · 컨테이너 한 개를 보내는 값 · 날마다 갱신</div>
-      ${''/* ★ 예전 문구는 '40피트(40\u2019) 컨테이너 1개 기준, 32일 미만 단기
-             FAK(Freight All Kind) 운임' 이었다. 맞는 말이지만 세 개의 전문용어가
-             한 줄에 겹쳐 처음 보는 사람은 무엇을 세는 값인지 알 수 없다.
-             JSON 의 unitNote 는 그대로 두고(원문 보존) 화면에는 풀어 쓴다. */}
-      <div class="viz-sub2">항로를 고르면 그 구간의 운임 흐름을 보여줍니다 ·
-        <b>큰 컨테이너(40피트, 길이 12m) 한 개</b>를 싣는 값 ·
-        미리 계약하지 않고 그때그때 자리를 사는 <b>단기 운임</b></div>
     </div></div>`;
   /* ★ 링크로 바꿀 토막은 반드시 각주 문구 안에 실제로 들어 있는 말이어야 한다.
      예전에는 'XSI-C 지수 목록' 을 넘겼는데 그 말은 각주에 없어(gLinkify 는 문구 안에서
