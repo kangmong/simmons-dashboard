@@ -4,7 +4,7 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-10-19T23:37:53+09:00",
+ "generatedAt": "2026-10-20T21:41:47+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
@@ -259,7 +259,7 @@
    ["2026-10-14", 62.11, 62.8, 60.86, 62.04, 2254300],
    ["2026-10-15", 63.18, 65.18, 63.06, 64.78, 3402300],
    ["2026-10-16", 64.76, 66.2, 62.73, 63.58, 2425100],
-   ["2026-10-19", 63.73, 64.13, 62.83, 63.37, 237147]
+   ["2026-10-19", 63.73, 64.13, 62.74, 62.8, 2194400]
   ],
   "1wk": [
    ["2021-10-18", 46.75, 48.64, 45.9, 47.92, 3417600],
@@ -523,7 +523,7 @@
    ["2026-09-28", 62.77, 64.65, 60.08, 61.97, 14284100],
    ["2026-10-05", 61.64, 63.31, 60.62, 62.19, 12170400],
    ["2026-10-12", 62.12, 66.2, 60.86, 63.58, 11383500],
-   ["2026-10-19", 63.73, 64.13, 62.83, 63.37, 237151]
+   ["2026-10-19", 63.73, 64.13, 62.74, 62.8, 2194400]
   ],
   "1mo": [
    ["2016-11-01", 13.4625, 16.37, 13.355, 15.825, 85763600],
@@ -646,7 +646,7 @@
    ["2026-08-01", 67.02, 70.54, 61.67, 64.75, 76313300],
    ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
    ["2026-10-01", 62.0, 66.2, 60.08, 63.58, 29547600],
-   ["2026-10-19", 63.73, 64.13, 62.83, 63.37, 237151]
+   ["2026-10-19", 63.73, 64.13, 62.745, 62.8, 2152271]
   ]
  },
  "candleFormat": [
@@ -687,13 +687,13 @@
   }
  ],
  "quote": {
-  "now": 63.37,
-  "prev": 63.5805,
-  "change": -0.2105,
-  "changePct": -0.331,
-  "changePctMeta": -0.331,
-  "changePctSeries": -0.3303,
-  "asOf": "2026-10-19 14:37"
+  "now": 62.8,
+  "prev": 63.5801,
+  "change": -0.7801,
+  "changePct": -1.227,
+  "changePctMeta": -1.227,
+  "changePctSeries": -1.2268,
+  "asOf": "2026-10-19 20:00"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
@@ -713,23 +713,23 @@
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 62.83,
+   "dayLow": 62.745,
    "dayHigh": 64.13,
    "week52Low": 60.08,
    "week52High": 98.56,
-   "marketCap": 14590257152.0,
-   "volume": 237151,
-   "avgVolume": 3150287,
-   "avgVolume10": 2355390
+   "marketCap": 14459020288.0,
+   "volume": 2152271,
+   "avgVolume": 3153565,
+   "avgVolume10": 2298340
   },
   "valuation": {
-   "trailingPE": 25.247011,
-   "forwardPE": 16.251343,
-   "pbr": 4.126726,
+   "trailingPE": 25.01992,
+   "forwardPE": 16.105165,
+   "pbr": 4.089607,
    "eps": 2.51,
    "bps": 15.356,
-   "psr": 1.915738,
-   "dividendYield": 0.0107,
+   "psr": 1.898506,
+   "dividendYield": 0.0108,
    "dividendRate": 0.68,
    "payoutRatio": 0.255,
    "beta": 1.239,
@@ -737,20 +737,20 @@
    "operatingMargin": 0.11127,
    "revenue": 7616000000.0,
    "revenueGrowth": -0.03,
-   "change52w": -0.243725,
-   "ma50": 64.4376
+   "change52w": -0.259696,
+   "ma50": 64.3886
   },
   "holding": {
-   "heldInstitutions": 0.97731,
+   "heldInstitutions": 0.97747,
    "heldInsiders": 0.03102
   }
  },
  "news": [
   {
-   "title": "SGI 주가 60.35달러로 52주 신저가 기록",
-   "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5ESmpKVHpWNk1PT0NvYzJKVmFiYkpSUWlzMDI4U3d3ay1SOWhwRWJkak12eC0xUDNTWjNva3Y1U0ZHQ2FFX3V6V2FhNFNEYzNBSkRZY0ZHT0pBNm4zZUZHSlMxX25yMWd0Y3pTa2p3U00?oc=5",
+   "title": "Raymond James, Somnigroup 목표주가 $80로 하향…침구 수요 회복 지연",
+   "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE9WelBCdjhfS0YtVHR1SlJRQWZUcjlCOEVLVFFBSEpaeEJmM2g3N1BMcHNadnQ5R1dEM2x5WHVfbzhJSXgtNUtadktRM2NLUG1sZFFYeTFobnVRb0R4TEpoeGduaWhLU25EZm4tZVhyeFZ0c0pz?oc=5",
    "media": "Investing.com 한국어",
-   "published": "Thu, 01 Oct 2026 14:35:00 GMT"
+   "published": "Tue, 20 Oct 2026 11:06:00 GMT"
   }
  ]
 }
