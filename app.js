@@ -3678,7 +3678,8 @@ function iiAddMonth(ym, n) {
  *  ★ sd 는 '원시 등락폭'이 아니라 '추세선이 얼마나 잘 맞았나(잔차)'다.
  *    원시 등락폭을 쓰면 2026년 급등장의 변동성이 그대로 반영돼 띠가 실측값의
  *    40% 가까이 벌어지고, 그만큼 y축이 늘어나 정작 실측 곡선이 눌려 보였다. */
-/** 최근 win 개월 이동평균의 '마지막 값'. 계산 순서 ①에 적을 숫자다. */
+/** 최근 win 개월 이동평균의 '마지막 값'.
+ *  ★ 지금은 부르는 곳이 없다 — 추세 연장 설명 상자에서 쓰던 값이다. */
 function iiMaLast(vals, win) {
   const v = (vals || []).filter((x) => x != null && isFinite(x));
   const w = win || II_MA_WIN;
@@ -3686,23 +3687,6 @@ function iiMaLast(vals, win) {
   let s2 = 0;
   for (let k = 0; k < w; k += 1) s2 += v[v.length - 1 - k];
   return s2 / w;
-}
-
-/** 최근 win 개월 평균을 '(a + b + c) ÷ 3 = m' 식으로 펼친다.
- *  ★ 평균값 하나만 적어 두면 '그 숫자는 또 어디서 나왔나'가 남는다. 더한 세 달
- *    값을 그대로 보여 주면 그래프의 마지막 세 점과 눈으로 맞춰 볼 수 있다.
- *  round: 화면에 적을 자리수로 줄이는 함수 · fmt: 그 값을 글자로 바꾸는 함수.
- *  반올림한 세 값의 합을 나눈 결과가 실제 평균과 다르게 보이면 '=' 대신 '≈'. */
-function iiMaExpr(vals, win, round, fmt) {
-  const v = (vals || []).filter((x) => x != null && isFinite(x));
-  const w = win || II_MA_WIN;
-  if (v.length < w) return '';
-  const raw = v.slice(-w);
-  const shown = raw.map(round);
-  const mean = raw.reduce((a, b) => a + b, 0) / w;
-  const meanOfShown = shown.reduce((a, b) => a + b, 0) / w;
-  const eq = (fmt(meanOfShown) === fmt(mean)) ? ' = ' : ' \u2248 ';
-  return '(' + shown.map(fmt).join(' + ') + ') \u00f7 ' + w + eq + fmt(mean);
 }
 
 function iiFit(vals) {
@@ -3731,88 +3715,6 @@ function iiFit(vals) {
 /** 추세 연장. { periods:[3개], byKey:{PPG:{values,band,base,slope}} } · 못 내면 null
  *  ★ 화면에 보이는 구간이 데이터의 마지막까지 닿아 있을 때만 낸다 — 2023년만 보는
  *    화면에 2027년을 그려 넣지 않기 위해서다. */
-/** 계산 순서 상자 — 번호를 매긴 짧은 문장으로 적는다.
- *  ★ 줄글로 적으면 '이동평균의 기울기' 같은 말에서 막힌다. 한 줄에 한 동작만
- *    두고, 그 줄에서 쓴 실제 숫자를 옆에 붙여 눈으로 따라가게 한다.
- *  steps: [[문장, 예시(선택)], ...] */
-function howToBox(title, steps, note) {
-  /* ★ 단계를 두 가지 모양으로 받는다.
-       ['설명', '예시']        — 한 줄 + 오른쪽 알약 배지(스폰지 주원료·해상 정시성)
-       { t, d, f, r, n }      — 여러 줄짜리 풀이(운임지수)
-         t 소제목(값을 제목에 넣는다) · d 설명(문자열 또는 여러 줄 배열) ·
-         f 식 한 줄 · r '→ 결과' · n 그 숫자를 어떻게 읽어야 하는지 덧말
-     운임지수는 '13.4 USD/일' 같은 숫자가 무엇을 뜻하는지가 한 줄로는 전해지지
-     않았다(매일 13.4달러씩 올랐다는 말로 읽힌다). 단계마다 자료 범위·계산
-     방법·읽는 법을 따로 줄을 나눠 적는다.
-     ★ 번호는 ①②③ 로 직접 붙인다 — 목록 표식으로는 이 모양을 낼 수 없고,
-       여기만 list-style:none 이라 다른 상자(1. 2. 3.)는 그대로다. */
-  const CIRCLED = ['\u2460', '\u2461', '\u2462', '\u2463', '\u2464',
-    '\u2465', '\u2466', '\u2467', '\u2468'];
-  const li = steps.map((st, i) => {
-    if (!Array.isArray(st)) {
-      const ds = Array.isArray(st.d) ? st.d : (st.d ? [st.d] : []);
-      return '<li class="howto__s"><b class="howto__st">'
-        + (CIRCLED[i] || (i + 1) + '.') + ' ' + st.t + '</b>'
-        + ds.map((x) => '<span class="howto__d">' + x + '</span>').join('')
-        + (st.f ? '<span class="howto__f">' + st.f + '</span>' : '')
-        + (st.r ? '<span class="howto__r">\u2192 ' + st.r + '</span>' : '')
-        + (st.n ? '<span class="howto__nn">' + st.n + '</span>' : '') + '</li>';
-    }
-    return '<li>' + st[0]
-      + (st[1] ? '<span class="howto__ex">' + st[1] + '</span>' : '') + '</li>';
-  }).join('');
-  return '<div class="howto"><b class="howto__t">' + escapeHtml(title) + '</b>'
-    + '<ol class="howto__l">' + li + '</ol>'
-    + (note ? '<span class="howto__n">' + escapeHtml(note) + '</span>' : '') + '</div>';
-}
-
-/** 추세 연장을 어떻게 구했는지 — 실제 숫자로 보여 준다.
- *  계산은 iiExtend/iiFit 이 하는 그대로다:
- *    ① 값이 달마다 튀니 3개월 평균으로 매끈하게 다듬고
- *    ② 그 평균이 최근 6개월 동안 '한 달에 얼마씩' 움직였는지를 잰다(기울기)
- *    ③ 마지막 실제 값에서 그만큼씩 3개월 더 보탠다
- *    ④ 옅은 띠는 그동안 값이 그 흐름에서 빗나가던 폭(멀어질수록 넓어진다)
- *  ★ 예시는 PPG 같은 대표 원료 하나의 실제 값으로 만든다 — 규칙만 적어 두면
- *    '기울기'가 무엇인지에서 다시 막힌다. */
-function iiExtendHowText(ext) {
-  const first = ICIS_SERIES.filter((x) => ext.byKey[x.key])[0];
-  let exSlope = '', exPath = '';
-  if (first) {
-    const e = ext.byKey[first.key];
-    const per = Math.round(e.slope);
-    const n = (v) => Math.round(v).toLocaleString('ko-KR');
-    exSlope = first.key + ': 한 달에 ' + (per >= 0 ? '+' : '\u2212')
-      + Math.abs(per).toLocaleString('ko-KR') + ' USD/톤';
-    exPath = n(e.base) + ' \u2192 ' + n(e.values[0])
-      + (e.values[1] != null ? ' \u2192 ' + n(e.values[1]) : '') + ' USD/톤';
-  }
-  /* ★ ①에도 실제 숫자를 적는다. '3개월 평균으로 고릅니다'만 쓰면 그 결과가
-     얼마인지 알 수 없어 다음 줄의 기울기가 어디서 나온 값인지 따라가지 못한다.
-     ★ 평균값만 적던 것을 '(6월 + 7월 + 8월) ÷ 3 = 1,398' 처럼 식으로 펼친다 —
-       어느 달을 더했고 왜 그 값이 나왔는지가 한 줄에 다 보이게.
-     ★ 달과 값을 짝지어 거른다. 원료마다 값이 빠진 달이 있어(null) 값만 걸러
-       내면 기간 표기와 실제로 더한 달이 어긋난다. */
-  let exMa = '';
-  if (first) {
-    const pairs = ICIS_DATA.periods
-      .map((p, i) => ({ p: p, v: (ICIS_DATA[first.key] || [])[i] }))
-      .filter((x) => x.v != null && isFinite(x.v));
-    const w = pairs.slice(-II_MA_WIN);
-    if (w.length === II_MA_WIN) {
-      const fmt = (x) => Math.round(x).toLocaleString('ko-KR');
-      exMa = first.key + ' ' + w[0].p + '~' + w[w.length - 1].p.slice(5) + ' '
-        + iiMaExpr(w.map((x) => x.v), II_MA_WIN, Math.round, fmt) + ' USD/톤';
-    }
-  }
-  return howToBox('오른쪽 점선은 이렇게 그립니다', [
-    ['값이 달마다 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
-    ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
-      escapeHtml(exSlope)],
-    ['마지막 실제값에 그만큼씩 <b>' + II_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
-    ['<b>점선을 감싼</b> 옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
-  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다.');
-}
-
 function iiExtend(viewPeriods) {
   const P = ICIS_DATA.periods;
   if (!P.length || !viewPeriods.length) return null;
@@ -4184,9 +4086,6 @@ function renderMaterial() {
       /* ★ 예전 문구는 '이동평균의 기울기를 연장', '추세선에서 벗어난 정도로 잡은
          참고 범위' 처럼 계산 절차를 그대로 옮겨 적어 읽기 어려웠다.
          무엇을 보고 있는지만 남긴다 — 자세한 방법은 코드(iiExtend)에 있다. */
-      /* ★ 계산을 말로만 설명하면 안 읽힌다. '한 달에 얼마씩 움직였나'를 구해
-         마지막 값에 그만큼씩 더한다는 것을, 실제 숫자 예시로 보여 준다. */
-      + (ext ? '<div class="ii-cap ii-cap--chart">' + iiExtendHowText(ext) + '</div>' : '')
       /* ★ 뺀 것들 — 화면에서 겹치거나 값을 더해 주지 않던 블록이다.
          · icisLatest()      최신값 KPI 줄. 바로 아래 '원자재별 변동요인' 카드가
                              같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
@@ -5477,34 +5376,6 @@ function msYmOfNo(no) {
 /** 추세 연장 — 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다.
  *  { year, from, values:[{mi,v}], band:[{mi,lo,hi}], slope } · 못 내면 null
  *  ★ 이어 그릴 칸이 12월을 넘으면 그 부분은 그리지 않는다(축이 1~12월이라서). */
-/** 해상 정시성 추세 연장 설명 — ICIS 와 같은 계산이라 같은 순서로 적는다.
- *  단위가 %라 '몇 %p 씩'으로 쓴다. */
-function sriExtendHowText(ext) {
-  const per = ext.slope;
-  const sign = per >= 0 ? '+' : '\u2212';
-  const exSlope = '한 달에 ' + sign + Math.abs(per).toFixed(1) + '%p';
-  const one = (v) => v.toFixed(1) + '%';
-  const exPath = one(ext.from.v) + ' \u2192 ' + one(ext.values[0].v)
-    + (ext.values[1] ? ' \u2192 ' + one(ext.values[1].v) : '');
-  /* ★ 정시성도 마찬가지 — 어느 달을 더해 나온 평균인지 식으로 펼친다 */
-  const pts = msPtsSr().filter((x) => x.v != null && isFinite(x.v));
-  const win = pts.slice(-II_MA_WIN);
-  const fmt1 = (x) => x.toFixed(1);
-  const exMa = (win.length === II_MA_WIN)
-    ? (win[0].k ? win[0].k + '~' + String(win[win.length - 1].k).slice(5) + ' ' : '')
-      + iiMaExpr(win.map((x) => x.v), II_MA_WIN, (x) => Math.round(x * 10) / 10, fmt1) + '%'
-    : '';
-  return howToBox(ext.year + '년 점선은 이렇게 그립니다', [
-    ['달마다 값이 튀어서 <b>' + II_MA_WIN + '개월 평균</b>으로 고릅니다', escapeHtml(exMa)],
-    ['그 평균이 최근 <b>' + II_SLOPE_WIN + '개월</b> 동안 <b>한 달에 얼마씩</b> 움직였는지 잽니다',
-      escapeHtml(exSlope)],
-    ['마지막 실제값에 그만큼씩 <b>' + SRI_EXT_MONTHS + '개월</b> 더합니다', escapeHtml(exPath)],
-    ['<b>점선을 감싼</b> 옅은 띠는 값이 그동안 이 흐름에서 <b>벗어나던 폭</b>입니다(멀수록 넓어집니다)', ''],
-  ], '지금 흐름이 그대로 이어진다는 가정일 뿐, 예측이 아닙니다. '
-    + '회색 점선(월평균)과는 다른 선입니다. '
-    + '배경의 옅은 가로 색은 아래 표의 수준 구간(원활·보통·지연·심각)입니다.');
-}
-
 function sriExtend() {
   const last = sriLast();
   if (!last) return null;
@@ -5678,7 +5549,7 @@ function renderScheduleReliabilityHtml() {
     const { months, series } = srViewData(_srYear);
     const avg = sriAvgProfile();
     body = buildSrChart(months, series, avg, srExt)
-      + (srExt ? sriExtendHowText(srExt)
+      + (srExt ? ''
         : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>');
     /* ★ 뺀 것들
        · sriTimeline()        '히스토리 이벤트와 정시성 변화' → 차트 위 마커로
@@ -6234,59 +6105,6 @@ function xsiFcTargetYm(lastDate) {
 }
 
 /** 3개월 전망. { base, med, up, dn, sd3, slope, chgPct, dir } · 못 내면 null */
-/** 추세 연장을 어떻게 구했는지 — ICIS·해상정시성과 같은 계산 순서 상자. */
-function xsiExtendHowText(fc) {
-  const n = (v) => Math.round(v).toLocaleString('ko-KR');
-  const perDay = fc.slope;
-  const up = perDay >= 0;
-  const sign = up ? '+' : '\u2212';
-  const amt = Math.abs(perDay).toFixed(1);
-  const dirWord = up ? '상승' : '하락';
-  const rose = up ? '올랐다' : '내렸다';
-  const MON = Math.max(1, Math.round(XSI_FC_DAYS / 21));   // 거래일 → 달 어림
-  /* 'YYYY-MM-DD' \u2192 '2025년 9월' — 날짜 열 개를 그대로 적으면 문장이 읽히지 않는다 */
-  const ym = (v) => {
-    const m = /^(\d{4})-(\d{2})/.exec(String(v || ''));
-    return m ? (m[1] + '년 ' + Number(m[2]) + '월') : '';
-  };
-  /* ★ 원화 환산은 남겨 둔다 — 달러 숫자만으로는 큰 돈인지 가늠이 안 된다.
-     환율(krwRate)을 못 구하면 원화는 조용히 빠지고 달러만 남는다. */
-  const rate = krwRate('USD');
-  const won = (v) => {
-    const t = (rate != null) ? fmtKrwShort(v * rate) : null;
-    return t ? ' <span class="howto__w">(약 ' + escapeHtml(t) + ')</span>' : '';
-  };
-  const span = (fc.from && fc.to) ? (ym(fc.from) + ' ~ ' + ym(fc.to)) : '';
-  const target = ym(xsiFcTargetYm(fc.to));
-
-  return howToBox('오른쪽 점선은 이렇게 그립니다', [
-    { t: '최근 <b>' + XSI_FC_MONTHS + '개월</b> 가격 흐름을 분석합니다',
-      d: [(span ? span + '의 ' : '') + '일별 운임 데이터를 모두 사용합니다.',
-        '가격은 매일 오르내리기 때문에 단순히 처음 가격과 마지막 가격만 비교하지 않고, '
-        + XSI_FC_MONTHS + '개월 전체 가격의 흐름을 가장 잘 나타내는 '
-        + '<b>직선(추세선)</b>을 계산합니다.'] },
-    { t: '하루 평균 변화폭 <b>' + sign + amt + ' USD</b>를 계산합니다',
-      d: '계산된 추세선의 기울기를 하루 단위로 환산한 값입니다.',
-      f: '하루 평균 변화폭 = 추세선이 하루 동안 움직이는 가격',
-      r: '계산 결과 ' + sign + amt + ' USD/일' + won(Math.abs(perDay)),
-      n: '즉, 실제 가격이 매일 정확히 ' + amt + '달러씩 ' + rose + '는 뜻이 아니라, '
-        + '최근 ' + XSI_FC_MONTHS + '개월 전체 흐름을 직선으로 봤을 때 하루 평균 약 '
-        + amt + '달러씩 ' + dirWord + '하는 방향이었다는 의미입니다.' },
-    { t: '마지막 실제 가격에서 점선을 시작합니다',
-      d: '마지막 실제 데이터인 ' + (ym(fc.to) ? ym(fc.to) + ' ' : '') + '가격 <b>'
-        + n(fc.base) + ' USD</b>를 점선의 출발점으로 사용합니다.',
-      r: '마지막 실제값: ' + n(fc.base) + ' USD' + won(fc.base) },
-    { t: '최근 흐름을 앞으로 <b>' + MON + '개월</b> 연장합니다',
-      d: '앞에서 계산한 최근 ' + dirWord + ' 흐름을 앞으로 이어서 '
-        + (target ? '<b>' + target + '</b>까지 ' : '') + '참고 추세선을 그립니다.',
-      r: n(fc.base) + ' USD \u2192 ' + n(fc.med) + ' USD' + won(fc.med) },
-    { t: '가격 변동 가능 범위도 함께 표시합니다',
-      d: '실제 가격은 추세선대로 움직이지 않기 때문에 과거 가격의 변동폭을 반영해 '
-        + '<b>\u00b1' + Math.abs(fc.sd3).toFixed(0) + '%</b> 범위도 함께 보여줍니다 '
-        + '\u2014 점선을 감싼 옅은 띠가 그 폭입니다.',
-      r: n(fc.dn) + ' ~ ' + n(fc.up) + ' USD' },
-  ], '\u203b 점선은 가격 예측이 아니라, 최근 흐름을 앞으로 연장해 본 참고 추세선입니다.');
-}
 function xsiForecast(series) {
   const w = xsiRecent(series);
   if (!w) return null;
@@ -6635,7 +6453,7 @@ function renderXsiHtml() {
      항로만 고른 상태에서는 안내 문구만 두고, 통계·전망·②③④는 그대로 낸다
      (그 값들은 기간과 무관한 항로 단위 수치다). */
   let chart;
-  // 3개월 전망 — 차트의 추세 연장선과 아래 계산 순서 상자가 같은 값을 나눠 쓴다.
+  // 3개월 전망 — 차트의 추세 연장선이 쓰는 값이다.
   // ★ 차트보다 먼저 구한다 — buildXsiChart 가 이 값으로 점선을 그린다.
   const fc = hasSeries ? xsiForecast(r.series) : null;
 
@@ -6663,9 +6481,8 @@ function renderXsiHtml() {
        것을 없애는 것이 이 규칙의 목적이다. */
   /* ★ 오른쪽 '향후 3개월 전망' 박스(xsiFcBox)를 뺐다. 같은 값을 차트 위에
      점선으로 이어 그리는 편이(ICIS·해상정시성과 같은 방식) 값의 흐름과 함께
-     읽힌다 — 표로 따로 두면 '지금 얼마에서 얼마로'가 눈으로 이어지지 않는다.
-     계산 순서는 차트 바로 아래 상자에 적는다. */
-  const chartRow = `${chips}${chart}` + (slice && fc ? xsiExtendHowText(fc) : '');
+     읽힌다 — 표로 따로 두면 '지금 얼마에서 얼마로'가 눈으로 이어지지 않는다. */
+  const chartRow = `${chips}${chart}`;
 
   /* ★ 뺀 것들 — ②주요 변동요인 · 정성 전망 · ③시나리오별 전망 · ④시사점 ·
      하단 핵심 인사이트. 모두 서술 카드라 차트가 말하는 것 위에 문장을 덧대던
