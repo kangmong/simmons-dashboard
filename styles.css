@@ -1289,7 +1289,10 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .ii-mat[data-k] { cursor: pointer; }
 .ii-mat[data-k]:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .ii-mat[data-k].is-on { box-shadow: 0 0 0 2px var(--ii-c) inset; }
-.icis-figure.is-iipick .ii-mat[data-k]:not(.is-on) { opacity: .5; }
+/* ★ 카드 전체를 흐리면 어느 원료 카드인지 읽을 수 없어진다.
+   흐리는 것은 값·전월비·설명까지로 한정하고, 제목 줄(아이콘·이름·역할)은
+   또렷하게 남긴다. 선택 구분은 테두리(.is-on 의 inset 그림자)가 맡는다. */
+.icis-figure.is-iipick .ii-mat[data-k]:not(.is-on) > :not(.ii-mat__top) { opacity: .5; }
 
 /* 툴팁 — 값 옆 전월비, 고른 원료 줄 강조, 급등 안내 */
 .ii-tt-mom { margin-left: 6px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -1317,10 +1320,41 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
   border: 1px solid var(--line); border-left: 3px solid var(--ii-c, var(--slate));
   border-radius: var(--radius-sm);
 }
-.ii-mat__top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.ii-mat__icon { font-size: 14px; }
-.ii-mat__key { font-size: 13.5px; font-weight: 800; color: var(--ink); }
-.ii-mat__role { font-size: 11px; color: var(--muted); }
+/* 제목 줄 — 왼쪽에 색 원 아이콘, 오른쪽에 이름(알약) + 역할을 두 줄로.
+   한 줄로 늘어놓으면 카드 폭(4등분)에서 '연질폼 경화제'가 어색하게 끊긴다.
+   ★ 알약 색은 차트 선 색(--ii-c)에서 바로 뽑는다 — 카드와 선이 같은 색이어야
+     눈으로 이어진다. 색 값을 따로 적어 두면 선 색이 바뀔 때 어긋난다. */
+.ii-mat__top {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon key" "icon role";
+  align-items: center; column-gap: 8px; row-gap: 1px;
+  margin-bottom: 2px;
+}
+.ii-mat__icon {
+  grid-area: icon; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+  background: color-mix(in srgb, var(--ii-c, var(--slate)) 16%, #fff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ii-c, var(--slate)) 26%, #fff) inset;
+}
+.ii-mat__key {
+  grid-area: key; justify-self: start;
+  padding: 1px 9px; border-radius: 999px;
+  font-size: 17.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3;
+  background: color-mix(in srgb, var(--ii-c, var(--slate)) 15%, #fff);
+  /* ★ 52% — 선 색을 그대로 쓰면(그리고 62% 로 섞어도) TDI 4.48:1 · MDI 4.10:1 로
+     WCAG AA(4.5:1)에 못 미친다. 52% 까지 어둡게 섞으면 네 색 모두 5.15:1 이상이
+     되면서도 무슨 색인지는 그대로 읽힌다. */
+  color: color-mix(in srgb, var(--ii-c, var(--slate)) 52%, #10182B);
+}
+.ii-mat__role {
+  grid-area: role; font-size: 12px; font-weight: 600; color: var(--text);
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+/* color-mix 를 모르는 브라우저 — 알약 없이 기존 모습으로 읽히게만 둔다 */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .ii-mat__icon { background: var(--field); }
+  .ii-mat__key { background: var(--field); color: var(--ink); }
+}
 .ii-mat__val {
   font-size: 19px; font-weight: 800; color: var(--ink);
   font-variant-numeric: tabular-nums; letter-spacing: -.02em;
