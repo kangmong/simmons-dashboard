@@ -1451,6 +1451,131 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
    — 두 위젯이 같은 문법을 쓰도록 클래스를 새로 만들지 않았다. */
 
 /* ② 핵심요약 4박스 — 차트 바로 위 가로 배치 */
+/* ══ 해상 정시성 — 상단 요약 두 그룹 ═══════════════════════════════════════
+   위: 전체 기간 기준 4개(대표 1 + 보조 3)   아래: 고른 연도 기준 3개
+   ★ 색 규칙이 이 카드만 뒤집힌다 — 정시성은 높을수록 좋은 지표라 오르면 초록,
+     내리면 빨강이다(원자재 가격 카드는 반대). 그래서 그룹 머리에 범례를 둔다.
+   ★ .sr-sum 은 유가·운임·시장규모 카드도 함께 쓰므로 건드리지 않고,
+     이 카드 전용으로 srq- 를 따로 판다. */
+.srq { margin: 12px 0 4px; }
+.srq--yr {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--line);      /* 두 그룹은 기준이 다르다는 표시 */
+}
+.srq__h {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.srq__t {
+  margin: 0; display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -.01em;
+}
+.srq__t i { font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--slate); }
+.srq__t b {
+  padding: 2px 9px; border-radius: 999px; background: var(--navy); color: #fff;
+  font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* 범례 — 이 카드만 색 규칙이 다르다는 안내 */
+.srq-lg {
+  display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: 10.5px; font-weight: 700; color: var(--slate);
+}
+.srq-lg__sw { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.srq-lg__sw--g { background: #0B7F5E; }
+.srq-lg__sw--r { background: var(--accent); margin-left: 7px; }
+
+/* 대표 1칸 + 보조 3칸 */
+.srq__g { display: grid; grid-template-columns: 1.55fr repeat(3, 1fr); gap: 10px; }
+.srq__g--3 { grid-template-columns: repeat(3, 1fr); }  /* 연도 3개는 폭을 꽉 채운다 */
+
+.srq-b, .srq-hero {
+  display: flex; flex-direction: column; min-width: 0;
+  padding: 10px 12px 11px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.srq-hero { background: var(--field); border-color: #E3E8F0; }
+
+/* 라벨 — 기존 11px/--muted(3.10:1) 는 너무 옅었다 */
+.srq__lbl { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.srq__v {
+  margin-top: 3px; font-size: 21px; font-weight: 800; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.2;
+}
+.srq-hero__v {
+  margin-top: 2px; font-size: 32px; font-weight: 900; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.1;
+}
+.srq__u { margin-left: 2px; font-size: 13px; font-weight: 700; color: var(--slate); letter-spacing: 0; }
+.srq-hero__v .srq__u { font-size: 16px; }
+/* 최고·최저의 '3월' — 값 옆에 붙여 한 줄로 읽히게 */
+.srq__at {
+  margin-left: 6px; font-style: normal; font-size: 12px; font-weight: 700;
+  color: var(--slate); letter-spacing: 0;
+}
+/* 보조 문구 — --muted(3.10:1) 대신 --slate(4.76:1) */
+.srq__sub {
+  margin-top: 4px; font-size: 11.5px; line-height: 1.45; color: var(--slate);
+  font-variant-numeric: tabular-nums;
+}
+.srq-b--est .srq__v { font-size: 18px; color: var(--slate); }
+.srq-b--good .srq__v, .srq-b--bad .srq__v { letter-spacing: -.02em; }
+.srq-b--good .srq__v { color: #0B7F5E; }
+.srq-b--bad .srq__v { color: var(--accent); }
+
+/* 방향 색 — 이 카드 전용(정시성이 오르면 좋은 것) */
+.srq-d { font-weight: 800; font-variant-numeric: tabular-nums; }
+.srq-d--good { color: #0B7F5E; }
+.srq-d--bad { color: var(--accent); }
+.srq-d--flat { color: var(--slate); }
+.srq-d--na { color: var(--muted); font-weight: 700; }
+
+/* 현재 값이 관측 범위 어디쯤인지 — 눈금은 과거 평균 */
+.srq-bar { position: relative; margin-top: auto; padding-top: 24px; }
+.srq-bar__k {
+  position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap;
+  font-size: 10px; font-weight: 700; color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
+.srq-bar__k::after {
+  content: ""; display: block; margin: 1px auto 0; width: 0; height: 0;
+  border-left: 3px solid transparent; border-right: 3px solid transparent;
+  border-top: 3px solid var(--navy);
+}
+.srq-bar__t {
+  position: relative; height: 6px; border-radius: 999px;
+  background: linear-gradient(90deg, #FBE3E7 0%, #EDF0F5 50%, #DCF2E9 100%);
+}
+.srq-bar__avg {
+  position: absolute; top: -3px; width: 2px; height: 12px; border-radius: 1px;
+  background: var(--navy); transform: translateX(-1px);
+}
+.srq-bar__now {
+  position: absolute; top: -3px; width: 12px; height: 12px; border-radius: 50%;
+  background: currentColor; box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(16,24,40,.35);
+  transform: translateX(-6px);
+}
+.srq-bar__ax {
+  display: flex; justify-content: space-between; gap: 6px; margin-top: 5px;
+  font-size: 10px; font-weight: 600; color: var(--slate); font-variant-numeric: tabular-nums;
+}
+
+/* 연도 탭을 그룹 안에 들일 때 위아래 여백만 살짝 */
+.srq--yr .sr-years { margin: 0 0 9px; }
+
+@media (max-width: 900px) {
+  .srq__g { grid-template-columns: repeat(2, 1fr); }
+  .srq-hero { grid-column: 1 / -1; }      /* 대표 카드는 맨 위 한 줄 */
+  /* ★ 아래 3개는 2열로 떨어뜨리지 않는다 — 둘째 줄에 한 칸만 남아
+     오른쪽이 비어 보인다. 세 칸이 줄 너비를 그대로 나눠 쓴다. */
+  .srq__g--3 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 520px) {
+  .srq__g, .srq__g--3 { grid-template-columns: 1fr; }
+  .srq-hero__v { font-size: 28px; }
+  .srq__h { gap: 6px; }
+}
+
 .sr-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 12px; }
 .sr-sum__box {
   padding: 9px 12px 10px; background: var(--field);

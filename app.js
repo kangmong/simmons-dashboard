@@ -6066,6 +6066,59 @@ function sriBox(label, val, cls, sub) {
     + '</div>';
 }
 
+/* ★ 이 카드만 색 규칙이 뒤집힌다.
+   원자재 가격 카드는 '오르면 빨강'(원가 상승이 나쁜 일)이지만, 정시성은
+   높을수록 좋은 지표라 오르면 초록·내리면 빨강이다. 같은 화면에 두 규칙이
+   있으면 헷갈리므로 그룹 머리에 범례 한 줄을 반드시 같이 낸다.
+   기존 iiCls()/ms-badge__val 은 다른 카드가 쓰므로 건드리지 않고 따로 둔다. */
+function srqDir(v) {
+  if (v == null || !isFinite(v)) return 'na';
+  return v > 0.05 ? 'good' : (v < -0.05 ? 'bad' : 'flat');
+}
+
+function srqBox(label, val, sub, cls) {
+  return '<div class="srq-b' + (cls ? ' ' + cls : '') + '">'
+    + '<div class="srq__lbl">' + escapeHtml(label) + '</div>'
+    + '<div class="srq__v">' + val + '</div>'
+    + (sub ? '<div class="srq__sub">' + sub + '</div>' : '')
+    + '</div>';
+}
+
+/** 현재 값이 '지금까지 본 범위' 안 어디쯤인지 보여 주는 얇은 막대.
+ *  ★ 양 끝(최저·최고)·평균 눈금·현재 값 모두 이미 불러온 값으로만 잡는다.
+ *    고정된 0~100 자로 그리면 바늘이 가운데서 거의 안 움직여 쓸모가 없다. */
+function srqBar(now, avg) {
+  const all = srAllStat();
+  if (!all || now == null || avg == null) return '';
+  const lo = Math.min(all.lo.v, avg, now);
+  const hi = Math.max(all.hi.v, avg, now);
+  if (!(hi > lo)) return '';
+  const at = (v) => ((v - lo) / (hi - lo)) * 100;
+  const d = now - avg;
+  const one = (v) => v.toFixed(1) + '%';
+  return '<div class="srq-bar" role="img" aria-label="'
+    + escapeHtml('관측 범위 ' + one(lo) + '~' + one(hi) + ' 안에서 현재 ' + one(now)
+      + ', 과거 평균 ' + one(avg)) + '">'
+    + '<div class="srq-bar__t">'
+    + '<span class="srq-bar__avg" style="left:' + at(avg).toFixed(1) + '%"></span>'
+    + '<span class="srq-bar__now srq-d--' + srqDir(d) + '"'
+    + ' style="left:' + at(now).toFixed(1) + '%"></span>'
+    + '</div>'
+    /* ★ 평균 글자는 눈금 바로 위에 붙인다. 가운데에 두면 평균이 한쪽으로
+       치우친 해에 엉뚱한 자리를 가리키는 것처럼 보인다. */
+    + '<div class="srq-bar__k" style="left:' + at(avg).toFixed(1) + '%">'
+    + '과거 평균 ' + escapeHtml(one(avg)) + '</div>'
+    + '<div class="srq-bar__ax"><span>최저 ' + escapeHtml(one(lo)) + '</span>'
+    + '<span>최고 ' + escapeHtml(one(hi)) + '</span></div>'
+    + '</div>';
+}
+
+function srqLegend() {
+  return '<span class="srq-lg">'
+    + '<i class="srq-lg__sw srq-lg__sw--g"></i>초록 = 정시성 개선'
+    + '<i class="srq-lg__sw srq-lg__sw--r"></i>빨강 = 정시성 악화</span>';
+}
+
 function sriSummary(ext) {
   const last = sriLast();
   if (!last) return '';
@@ -6076,19 +6129,28 @@ function sriSummary(ext) {
   const range = sriRangeText(ext);
   const yrs = sriAvgYears();
   const span = yrs.length ? yrs[0] + '~' + yrs[yrs.length - 1] : '';
+  const pp = (v) => '<b class="srq-d srq-d--' + srqDir(v) + '">' + sriPp(v) + '</b>';
 
-  return '<div class="sr-sum">'
-    + sriBox('최근 정시성', last.v.toFixed(1) + '<span class="sr-sum__u">%</span>', '',
-      escapeHtml(last.ym) + ' 기준 · 전월비 <b class="ms-badge__val '
-        + iiCls(mom) + '">' + sriPp(mom) + '</b>')
-    + sriBox('연간 추세 (전년 동월비)', '<span class="ms-badge__val ' + iiCls(yoy) + '">'
-      + sriPp(yoy) + '</span>', '',
+  return '<div class="srq">'
+    + '<div class="srq__h"><h4 class="srq__t">현재 상황'
+    + '<i>전체 기간 기준</i></h4>' + srqLegend() + '</div>'
+    + '<div class="srq__g">'
+    /* 대표 지표 — 가장 먼저 읽혀야 하는 숫자 하나 */
+    + '<div class="srq-hero">'
+    + '<div class="srq__lbl">최근 정시성</div>'
+    + '<div class="srq-hero__v">' + last.v.toFixed(1) + '<span class="srq__u">%</span></div>'
+    + '<div class="srq__sub">' + escapeHtml(last.ym) + ' 기준 · 전월비 ' + pp(mom) + '</div>'
+    + srqBar(last.v, avg)
+    + '</div>'
+    + srqBox('연간 추세 (전년 동월비)',
+      '<span class="srq-d srq-d--' + srqDir(yoy) + '">' + sriPp(yoy) + '</span>',
       ph ? '국면 ' + escapeHtml(ph.icon + ' ' + ph.text) : '국면 판정 보류')
-    + sriBox('과거 4개년 평균', avg == null ? '—' : avg.toFixed(1) + '<span class="sr-sum__u">%</span>', '',
+    + srqBox('과거 4개년 평균',
+      avg == null ? '—' : avg.toFixed(1) + '<span class="srq__u">%</span>',
       escapeHtml(span) + ' 실측 평균')
-    + sriBox('향후 3개월 전망 범위', range ? escapeHtml(range) : '—', 'sr-sum__val--est',
-      '추세 연장 기준 · 예측 아님')
-    + '</div>';
+    + srqBox('향후 3개월 참고 범위', range ? escapeHtml(range) : '—',
+      '추세 연장 기준 · 예측 아님', 'srq-b--est')
+    + '</div></div>';
 }
 
 /** 고른 연도 요약 3지표 — 연간 평균 · 최고 · 최저.
@@ -6102,12 +6164,14 @@ function srYearSummary(year) {
   const nNote = all
     ? st.n + '개월 기준'
     : (st.n < 12 ? st.n + '개월 기준' : '12개월 기준');
-  const pct = (v) => v.toFixed(1) + '<span class="sr-sum__u">%</span>';
-  return '<div class="sr-sum sr-sum--yr">'
-    + sriBox((all ? '전체' : year) + ' 정시성', pct(st.avg), '',
+  const pct = (v) => v.toFixed(1) + '<span class="srq__u">%</span>';
+  /* 최고·최저는 '언제'가 값만큼 중요하다 — 아랫줄로 떨어뜨리지 않고 옆에 붙인다 */
+  const withMonth = (v, x) => pct(v) + '<i class="srq__at">' + escapeHtml(when(x)) + '</i>';
+  return '<div class="srq__g srq__g--3">'
+    + srqBox((all ? '전체' : year) + ' 정시성', pct(st.avg),
       '월별 수치 단순 평균 · ' + escapeHtml(nNote))
-    + sriBox('최고 정시성', pct(st.hi.v), 'sr-sum__val--hi', escapeHtml(when(st.hi)))
-    + sriBox('최저 정시성', pct(st.lo.v), 'sr-sum__val--lo', escapeHtml(when(st.lo)))
+    + srqBox('최고 정시성', withMonth(st.hi.v, st.hi), '', 'srq-b--good')
+    + srqBox('최저 정시성', withMonth(st.lo.v, st.lo), '', 'srq-b--bad')
     + '</div>';
 }
 
@@ -6260,8 +6324,7 @@ function renderScheduleReliabilityHtml() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { months, series } = srViewData(_srYear);
-    body = srYearSummary(_srYear)
-      + srCompareBar(_srYear)
+    body = srCompareBar(_srYear)
       + buildSrChart(months, series, srExt)
       + (srExt ? ''
         : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>')
@@ -6276,8 +6339,15 @@ function renderScheduleReliabilityHtml() {
     /* ★ '최근 변동요인'(sriFactors)도 내렸다 — 함수는 남겨 뒀다. */
     extras = renderSrTermsHtml();
   }
+  /* ★ 연도 탭과 '연도 기준' 3지표는 같은 기준을 쓰는 한 덩어리다.
+     따로 떼어 놓으면 위 4개(전체 기간 기준)와 섞여 읽힌다.
+     소제목에 고른 연도를 적어 두면 어느 기준인지 매번 확인할 필요가 없다. */
+  const yrGroup = !_srYear ? toolbar
+    : '<div class="srq srq--yr"><div class="srq__h"><h4 class="srq__t">선택 연도 요약'
+      + '<b>' + escapeHtml(_srYear === 'all' ? '전체 기간' : _srYear) + '</b></h4></div>'
+      + toolbar + srYearSummary(_srYear) + '</div>';
   return `<div class="viz-root viz-figure sr-figure">${head}
-    ${toolbar}
+    ${yrGroup}
     ${body}
     <div class="viz-tooltip" id="srTooltip"></div>
     ${capSrc('출처: Sea-Intelligence', SRC_LINKS.sea)}
