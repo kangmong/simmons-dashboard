@@ -1182,6 +1182,68 @@ function gmmEstimates(d) {
 }
 
 /** 글로벌 매트리스 시장 규모 블록 전체 */
+/* ── 글로벌 매트리스 시장 규모 트리 ──────────────────────────────────
+   예전에는 시장규모 동향·지역별 우위·주요 기업을 3열로 나란히 두고 그 아래
+   제품유형 인사이트를 붙였다. 국내 탭과 같은 방식으로 고른 것 하나만 넓게
+   보여 준다 — 3열에서는 기업 칩·지역 수치가 서로 눌려 좁았다.
+   ★ 맨 위 요약 4박스(gmmSummary)는 트리에 넣지 않고 늘 보이게 둔다 —
+     '올해 얼마, 10년 뒤 얼마'는 한눈에 보여야 하는 머리 숫자라 클릭 뒤로
+     숨기면 카드의 구실이 사라진다(국내 탭에서 카드 머리말을 남긴 것과 같다).
+   ★ 그리는 함수(gmmBars·gmmRegions·gmmPlayers·gmmProducts)는 그대로 부른다. */
+const GM_TREE_KEY = 'gmTree';
+let _gmTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(GM_TREE_KEY) || 'null');
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
+  } catch (e) { /* 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: null, pick: null };
+})();
+function gmTreeSave() {
+  try { sessionStorage.setItem(GM_TREE_KEY, JSON.stringify(_gmTree)); } catch (e) { /* 무시 */ }
+}
+
+function gmTreeDefs() {
+  const d = _gmm;
+  if (!d || d.status !== 'ok') return [];
+  const items = [];
+  const yrs = [d.base, d.next, d.target].filter((x) => x && x.usdBn > 0).map((x) => x.year);
+  if (yrs.length >= 2) {
+    items.push({ id: 'bars', label: '시장규모 동향',
+      sub: yrs[0] + ' \u2192 ' + yrs[yrs.length - 1], icon: 'bars',
+      render: () => gmmBars(d) });
+  }
+  const r = d.regions;
+  if (r) {
+    items.push({ id: 'regions', label: '지역별 우위',
+      sub: [r.largest, r.fastest].filter(Boolean).join(' · '), icon: 'peer',
+      render: () => gmmRegions(d) });
+  }
+  if (d.leader || d.topPlayers) {
+    const n = ((d.topPlayers || {}).names || []).length;
+    items.push({ id: 'players', label: '주요 기업',
+      sub: n ? n + '개사' : ((d.leader || {}).name || ''), icon: 'donut',
+      render: () => gmmPlayers(d) });
+  }
+  const ps = Array.isArray(d.products) ? d.products : [];
+  if (ps.length) {
+    items.push({ id: 'products', label: '제품유형·유통 인사이트',
+      sub: ps.length + '개 항목', icon: 'line',
+      render: () => gmmProducts(d) });
+  }
+  if (!items.length) return [];
+  return [{ g: 'gmm', label: '시장 상세', hint: '규모 추이 · 지역 · 기업 · 제품유형',
+    items: items }];
+}
+
+const GM_TREE_HINT = '시장 상세를 눌러 항목을 확인하세요';
+const GM_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+
+function gmTreeHtml() {
+  const defs = gmTreeDefs();
+  if (!defs.length) return '';
+  return treeBlockHtml('gm', defs, _gmTree, GM_TREE_HINT, GM_TREE_EMPTY, '시장 상세 항목 선택');
+}
+
 function gmmBlock() {
   const d = _gmm;
   if (!d) return emptyState('업데이트 버튼을 누르면 표시됩니다');
@@ -1195,8 +1257,9 @@ function gmmBlock() {
       + '. 사유: ' + escapeHtml(d.last_error) + '</div>'
     : '';
   return gmmSummary(d)
-    + '<div class="gmm-grid3">' + gmmBars(d) + gmmRegions(d) + gmmPlayers(d) + '</div>'
-    + gmmProducts(d)
+    /* ★ 3열 그리드 + 제품유형 줄을 가지치기 하나로 바꿨다(gmTreeHtml).
+       요약 4박스는 위에 그대로 남는다. */
+    + gmTreeHtml()
     /* ★ 여기 위까지는 '시장을 어떻게 보는가'(규모·지역·업체·제품유형),
        아래부터는 '그 숫자를 어디서 가져왔고 다른 기관은 얼마로 봤는가' 다.
        같은 해 같은 지표인데 기관마다 값이 다르다는 것을 읽는 사람이 알아야
@@ -3152,6 +3215,7 @@ function renderCompetitor() {
   // 순수 추가: 국내 탭 가지치기 두 벌(실적 · 슬립테크) — 같은 공용 부품을 쓴다
   wireTree(el, 'sf', sfTreeDefs, _sfTree, sfTreeSave, SF_TREE_HINT, SF_TREE_EMPTY);
   wireTree(el, 'st', stTreeDefs, _stTree, stTreeSave, ST_TREE_HINT, ST_TREE_EMPTY);
+  wireTree(el, 'gm', gmTreeDefs, _gmTree, gmTreeSave, GM_TREE_HINT, GM_TREE_EMPTY);
   applySideView();
 }
 

@@ -3285,7 +3285,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 /* -- 글로벌 매트리스 시장 규모 -------------------------------------------
    요약박스는 .sr-sum 을 재사용하고, 3분할 카드와 칩만 여기서 정의한다. */
 .gmm-sum { grid-template-columns: repeat(4, 1fr); }
-.gmm-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .gmm-card {
   padding: 11px 13px 12px; min-width: 0;
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--field);
@@ -3340,8 +3339,7 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .gmm-est__i.is-self b { color: var(--blue-ink); }
 .gmm-stale { color: var(--accent); background: var(--accent-soft);
   padding: 8px 11px; border-radius: var(--radius-sm); margin-top: 8px; }
-@media (max-width: 1100px) { .gmm-grid3 { grid-template-columns: 1fr; }
-  .gmm-sum { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1100px) { .gmm-sum { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .gmm-sum { grid-template-columns: 1fr; } }
 
 /* ── 국내 수면시장 좌우 2분할 ──────────────────────────────────────────────
