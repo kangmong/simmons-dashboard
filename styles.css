@@ -1188,6 +1188,20 @@ body {
   .sr-sum--yr { grid-template-columns: 1fr; }
 }
 
+/* ══ 운임지수 차트 — 변곡점 · 최신 배지 · 툴팁 ═══════════════════════════ */
+.xsi-sp { cursor: pointer; }
+.xsi-sp__d { transition: r .12s ease; }
+.xsi-sp:hover .xsi-sp__d, .xsi-sp:focus-visible .xsi-sp__d { r: 4.2; }
+.xsi-sp:focus { outline: none; }
+.xsi-now { pointer-events: none; }
+/* 최고·최저 라벨은 이 차트에서는 늘 보인다(선이 하나라 겹치지 않는다) */
+.xsi-svg .ii-mm__l.is-on { opacity: 1; }
+.xsi-tt-d { display: block; margin-top: 1px; font-size: 10px; font-weight: 600;
+  color: var(--muted); font-variant-numeric: tabular-nums; }
+.xsi-tt-d b { font-weight: 800; }
+.xsi-tt-sp { margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  background: rgba(200, 16, 46, .14); color: #C8102E; font-size: 9.5px; font-weight: 800; }
+
 /* ══ 주요 시장 이벤트 (ICIS 차트 아래) ═══════════════════════════════════
    ★ 예전에는 차트 위 마커·세로 점선·라벨로 찍었다. 선 4개·급등 띠·최고최저
      마커와 한 화면에 겹치면서 어느 글자가 무엇인지 읽기 어려워 아래로 내렸다.
@@ -1513,15 +1527,18 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 /* ① 구간 설명 말풍선 — 차트 아래에서 위(차트)를 가리킨다 */
 .xsii-eras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .xsii-era {
+  /* ★ 위 테두리를 3px 진한 색 → 2px 옅은 색으로 낮췄다. 네 장이 나란히 서면
+     진한 색 막대 넷이 먼저 눈에 들어와 정작 글이 안 읽혔다. */
   position: relative; padding: 11px 12px 12px; background: var(--card);
-  border: 1px solid var(--line); border-top: 3px solid var(--xe, var(--slate));
+  border: 1px solid var(--line); border-top: 2px solid var(--xe, var(--slate));
   border-radius: var(--radius-sm); min-width: 0;
 }
+.xsii-era { border-top-color: color-mix(in srgb, var(--xe, var(--slate)) 55%, transparent); }
 /* 말풍선 꼬리 — 위쪽 테두리 색을 그대로 이어받는다 */
 .xsii-era::before {
-  content: ""; position: absolute; top: -7px; left: 16px;
-  border-left: 6px solid transparent; border-right: 6px solid transparent;
-  border-bottom: 7px solid var(--xe, var(--slate));
+  content: ""; position: absolute; top: -6px; left: 16px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-bottom: 6px solid color-mix(in srgb, var(--xe, var(--slate)) 55%, transparent);
 }
 /* 지금 보고 있는 구간 밖이면 흐리게 — 지우지는 않는다(맥락은 남긴다) */
 .xsii-era.is-off { opacity: .5; }

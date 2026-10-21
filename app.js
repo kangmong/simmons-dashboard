@@ -5906,6 +5906,13 @@ let _xsiRange = null;      // 차트 기간: null(미선택) | '1' | '3' | '5' |
                            // ★ null 이면 차트를 내지 않는다 — KOIMA 부문→기간과 같은 2단
 let _xsiChart = null;      // 툴팁이 쓸 좌표·값
 
+/* 변곡점 기준 — 직전 관측 대비 이만큼 움직인 날을 '눈에 띄는 급등·급락'으로 본다.
+   ★ 코드에 숨기지 않는다. 차트 아래 문구가 이 상수를 그대로 읽어 적는다.
+   ★ 값 선정 근거(실측): 일간 등락이 ±3%를 넘는 날이 전체 보기에서 300건이 넘어
+     점으로 뒤덮였다. ±10% 면 항로당 60~110건(1년 보기는 한 자릿수~십여 건)이라
+     '그날 무슨 일이 있었나'를 짚어 볼 만한 수로 남는다. */
+const XSI_SPIKE_PCT = 10;
+
 const XSI_RANGES = [
   { key: '1', label: '1년' }, { key: '3', label: '3년' },
   { key: '5', label: '5년' }, { key: 'all', label: '전체' },
@@ -6090,6 +6097,26 @@ function xsiSlice(series, range) {
   return { dates: series.dates.slice(i), values: series.values.slice(i) };
 }
 
+/** 보이는 구간이 몇 개월인가 — 첫 날짜와 끝 날짜의 달 수 차이(+1). 표기용. */
+function xsiSpanMonths(slice) {
+  if (!slice || !slice.dates || !slice.dates.length) return 0;
+  const a = slice.dates[0], b = slice.dates[slice.dates.length - 1];
+  const n = (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12
+    + (Number(b.slice(5, 7)) - Number(a.slice(5, 7))) + 1;
+  return Math.max(1, n);
+}
+
+/** 고른 기간보다 자료가 짧은가 — 그러면 xsiSlice 가 전 구간을 그대로 돌려준다. */
+function xsiShort(series, range) {
+  if (!series || !series.dates || !series.dates.length || !range || range === 'all') return false;
+  const yrs = Number(range);
+  if (!isFinite(yrs) || yrs <= 0) return false;
+  const a = series.dates[0], b = series.dates[series.dates.length - 1];
+  const months = (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12
+    + (Number(b.slice(5, 7)) - Number(a.slice(5, 7)));
+  return months < yrs * 12;
+}
+
 /** 수익률 표기 — 오르면 빨강 ▲ / 내리면 파랑 ▼ (다른 카드와 같은 규칙) */
 function xsiPct(v, plain) {
   if (v == null || !isFinite(v)) return '<span class="ms-badge__val na">—</span>';
@@ -6120,9 +6147,11 @@ function buildXsiChart(slice, color, fc) {
   const X = (i) => (nx === 1 ? padL + plotW / 2 : padL + (i / (nx - 1)) * plotW);
   const Y = (v) => padT + (1 - (v - ymin) / (ymax - ymin || 1)) * plotH;
 
+  /* 가로 보조선만 아주 옅게 — 선이 주인공이라 격자가 눈에 걸리지 않게 한다
+     (세로 격자는 원래 없다). */
   const grid = vizYFractions().map((t) => {
     const val = ymin + (ymax - ymin) * t, y = Y(val);
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + plotW}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1" opacity=".55"/>
       <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${Math.round(val).toLocaleString('en-US')}</text>${vizKrwTick(padL - 6, y, val, krwRate('USD'))}`;
   }).join('');
 
@@ -6144,10 +6173,76 @@ function buildXsiChart(slice, color, fc) {
     + (fc ? `<text x="${fcX.toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="end" font-size="${VIZ_FS_AXIS}" font-weight="700" fill="var(--cyan)">${escapeHtml(xsiFcTargetYm(slice.dates[n - 1]))}</text>` : '');
 
 
-  // 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
+  /* 점이 2천 개를 넘을 수 있어 선만 긋는다(점을 찍으면 뭉개진다 — 값은 툴팁으로).
+     ★ 곡선 보간(스무딩)은 쓰지 않는다 — 일간 2~3천 점에 곡선을 먹이면 실제
+       고점·저점이 깎여 '그날 얼마였나'가 그림과 달라진다. 선을 굵게 하고
+       이음새를 둥글게 하는 것으로만 매끄럽게 보이게 한다. */
   let path = '';
   vals.forEach((v, i) => { path += `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; });
   const area = `${path}L${X(n - 1).toFixed(1)} ${(padT + plotH).toFixed(1)} L${X(0).toFixed(1)} ${(padT + plotH).toFixed(1)} Z`;
+  /* 면적은 단색 반투명 대신 세로 그라데이션 — 아래로 갈수록 사라져 선이 떠 보인다.
+     id 가 한 화면에 겹치지 않게 항로 색에서 만든다(차트는 한 번에 하나뿐이지만
+     다시 그릴 때 옛 defs 가 남는 일을 막는다). */
+  const gid = 'xsiFill' + String(color).replace(/[^A-Za-z0-9]/g, '');
+  const defs = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity=".26"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+    </linearGradient></defs>`;
+
+  /* ── 기간 안의 최고·최저 ── 값·날짜 라벨을 함께 적는다(다른 카드와 같은 .ii-mm) */
+  let hi = 0, lo = 0;
+  vals.forEach((v, i) => { if (v > vals[hi]) hi = i; if (v < vals[lo]) lo = i; });
+  let peaks = '';
+  if (hi !== lo) {
+    [[hi, '최고', -1], [lo, '최저', 1]].forEach(([i, word, dir]) => {
+      const v = vals[i], x = X(i), y = Y(v);
+      let ly = y + dir * 9;
+      if (ly < padT + 8) ly = y + 11;
+      if (ly > padT + plotH - 2) ly = y - 7;
+      const anchor = (x < padL + 60) ? 'start' : ((x > padL + plotW - 60) ? 'end' : 'middle');
+      peaks += `<g class="ii-mm" tabindex="0">`
+        + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="none" stroke="${color}" stroke-width="1.6"/>`
+        + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.4" fill="${color}"/>`
+        + `<text class="ii-mm__l is-on" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}"`
+        + ` font-size="${VIZ_FS_LABEL}" font-weight="800" fill="${color}" paint-order="stroke"`
+        + ` stroke="var(--surface-1)" stroke-width="2.8">`
+        + escapeHtml(word + ' ' + Math.round(v).toLocaleString('en-US') + ' · ' + slice.dates[i])
+        + `</text></g>`;
+    });
+  }
+
+  /* ── 변곡점 ── 직전 관측 대비 ±XSI_SPIKE_PCT% 이상 움직인 날.
+     ★ 결측일은 0 으로 메우지 않는다 — 값이 없으면 그 쌍은 건너뛴다. */
+  const spikes = [];
+  for (let i = 1; i < n; i += 1) {
+    const a = vals[i - 1], b = vals[i];
+    if (a == null || b == null || !isFinite(a) || !isFinite(b) || !a) continue;
+    const pc = ((b - a) / Math.abs(a)) * 100;
+    if (Math.abs(pc) >= XSI_SPIKE_PCT) spikes.push({ i: i, pc: pc });
+  }
+  const spikeG = spikes.map((sp) => {
+    const x = X(sp.i), y = Y(vals[sp.i]);
+    const c = sp.pc > 0 ? '#C8102E' : 'var(--blue)';
+    return `<g class="xsi-sp" tabindex="0" data-i="${sp.i}" data-pc="${sp.pc.toFixed(2)}">`
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="transparent"/>`
+      + `<circle class="xsi-sp__d" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="${c}"`
+      + ` stroke="var(--surface-1)" stroke-width="1"/></g>`;
+  }).join('');
+
+  /* ── 최신 운임 배지 ── 오른쪽 끝(실측 마지막 점) */
+  const lastV = vals[n - 1], lx = X(n - 1), ly2 = Y(lastV);
+  const badgeTxt = Math.round(lastV).toLocaleString('en-US');
+  const bw = Math.max(36, badgeTxt.length * 5.2 + 12);
+  const bx = Math.min(padL + plotW - bw, Math.max(padL, lx - bw / 2));
+  const by = Math.max(padT + 1, Math.min(padT + plotH - 24, ly2 - 25));
+  const badge = `<g class="xsi-now" aria-hidden="true">`
+    + `<circle cx="${lx.toFixed(1)}" cy="${ly2.toFixed(1)}" r="3.2" fill="${color}" stroke="var(--surface-1)" stroke-width="1.4"/>`
+    + `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="22" rx="6" fill="${color}"/>`
+    + `<text x="${(bx + bw / 2).toFixed(1)}" y="${(by + 9.5).toFixed(1)}" text-anchor="middle"`
+    + ` font-size="9" font-weight="900" fill="#fff">${escapeHtml(badgeTxt)}</text>`
+    + `<text x="${(bx + bw / 2).toFixed(1)}" y="${(by + 18).toFixed(1)}" text-anchor="middle"`
+    + ` font-size="6.5" font-weight="700" fill="#fff" opacity=".85">${escapeHtml(slice.dates[n - 1])}</text>`
+    + `</g>`;
 
   /* ── 추세 연장 ── 마지막 실측점에서 중앙값까지 점선, 상·하단 사이는 옅은 띠.
      색은 청록으로 고정한다 — 실측선(항로 색)과 섞이지 않게(해상 정시성과 같은 규칙). */
@@ -6155,7 +6250,13 @@ function buildXsiChart(slice, color, fc) {
   if (fc) {
     const x0 = X(n - 1), x1 = X(nx - 1), y0 = Y(fc.base);
     const c = 'var(--cyan)';
-    fcShapes = '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1)
+    /* ★ 계산(xsiForecast)은 그대로다 — 보이는 방식만 손봤다.
+       추세 구간 전체에 옅은 바탕을 깔아 '여기부터는 실측이 아니다'를
+       한눈에 알 수 있게 한다. */
+    fcShapes = '<rect x="' + x0.toFixed(1) + '" y="' + padT + '" width="'
+      + Math.max(0, x1 - x0).toFixed(1) + '" height="' + plotH.toFixed(1)
+      + '" fill="' + c + '" opacity=".05"/>'
+      + '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1)
       + ' L' + x1.toFixed(1) + ' ' + Y(fc.up).toFixed(1)
       + ' L' + x1.toFixed(1) + ' ' + Y(fc.dn).toFixed(1) + ' Z" fill="' + c + '" opacity=".10"/>'
       + '<path d="M' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' L' + x1.toFixed(1) + ' '
@@ -6166,7 +6267,7 @@ function buildXsiChart(slice, color, fc) {
       + ' stroke-dasharray="2 3" opacity=".5"/>'
       + '<text x="' + (x0 + 4).toFixed(1) + '" y="' + (padT + 8).toFixed(1) + '" font-size="7.5"'
       + ' font-weight="700" fill="var(--muted)" paint-order="stroke" stroke="var(--surface-1)"'
-      + ' stroke-width="2.5">추세 연장</text>'
+      + ' stroke-width="2.5">참고 추세선</text>'
       + '<text x="' + (x1 - 2).toFixed(1) + '" y="' + (Y(fc.med) - 5).toFixed(1) + '"'
       + ' text-anchor="end" font-size="8.5" font-weight="800" fill="' + c + '"'
       + ' paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5">'
@@ -6178,10 +6279,12 @@ function buildXsiChart(slice, color, fc) {
   // 구간 음영은 격자 바로 뒤에 깐다 — 데이터 선이 그 위에 얹히도록.
   const bands = xsiiBandsSvg(slice, X, padT, plotH);
 
+  _xsiChart.spikes = spikes;
+
   return `<svg class="viz-svg xsi-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="컨테이너 운임지수 추이">
-      ${grid}${bands}${xticks}
-      <path d="${area}" fill="${color}" opacity=".08"/>
-      <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      ${defs}${grid}${bands}${xticks}
+      <path d="${area}" fill="url(#${gid})"/>
+      <path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
       ${fcShapes}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="xsi-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
@@ -6189,6 +6292,9 @@ function buildXsiChart(slice, color, fc) {
       ${''/* ★ 마우스 영역은 실측 구간까지만 — 전망 칸까지 덮으면 크로스헤어가
              데이터 없는 자리를 가리킨다. */}
       <rect class="xsi-overlay" x="${padL}" y="${padT}" width="${(X(n - 1) - padL).toFixed(1)}" height="${plotH}" fill="transparent"/>
+      ${''/* 변곡점·최고최저·최신 배지는 오버레이보다 뒤(= 위)에 둔다 —
+             앞에 두면 투명 오버레이가 마우스를 다 먹어 hover 가 안 걸린다. */}
+      ${spikeG}${peaks}${badge}
     </svg>`;
 }
 
@@ -6779,7 +6885,11 @@ function renderXsiHtml() {
   } else {
     chart = vizUnitCap(xsiUnit(), (_xsiData && _xsiData.currency) || 'USD')
       + buildXsiChart(slice, color, fc) + '<div class="viz-tooltip" id="xsiTooltip"></div>'
-      + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])} · ${slice.dates.length.toLocaleString('ko-KR')}일</div>`;
+      + `<div class="ii-cap">그래프 구간 ${escapeHtml(slice.dates[0])} ~ ${escapeHtml(slice.dates[slice.dates.length - 1])}`
+        + ` · 데이터 ${xsiSpanMonths(slice)}개월 기준 (${slice.dates.length.toLocaleString('ko-KR')}일)`
+        + `${xsiShort(r.series, _xsiRange) ? ' · 고른 기간보다 자료가 짧아 있는 만큼만 표시합니다' : ''}</div>`
+        + `<div class="ii-cap">변곡점(선 위 점) = 직전 관측 대비 ±${XSI_SPIKE_PCT}% 이상 움직인 날`
+        + `${fc ? ' · 청록 점선은 최근 흐름을 연장한 참고선이며 예측값이 아닙니다' : ''}</div>`;
   }
 
   const note = _xsiData.statsNote
@@ -6853,8 +6963,17 @@ function wireXsi(root) {
     dots.innerHTML = `<circle cx="${cx.toFixed(1)}" cy="${gm.Y(v).toFixed(1)}" r="3.5" fill="${c.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
     const rate = krwRate('USD');
     const krw = (rate != null) ? ` <span class="op-krw op-krw--tt">≈ ${escapeHtml(fmtKrwShort(v * rate) || '')}</span>` : '';
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}</div>`
-      + `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>운임</span><span class="viz-tt-val">${v.toLocaleString('en-US')} USD${krw}</span></div>`;
+    /* 직전 '관측값' 대비 — 달력 하루 전이 아니라 바로 앞 데이터 점이다(주말·휴일은
+       애초에 데이터에 없다). 앞 점이 없거나 값이 비면 '—'(0 으로 메우지 않는다). */
+    const pv = (i > 0) ? c.values[i - 1] : null;
+    const pc = (pv == null || !isFinite(pv) || !pv) ? null : ((v - pv) / Math.abs(pv)) * 100;
+    const spike = pc != null && Math.abs(pc) >= XSI_SPIKE_PCT;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.dates[i])}`
+      + (spike ? `<span class="xsi-tt-sp">변곡점 ±${XSI_SPIKE_PCT}% 이상</span>` : '') + `</div>`
+      + `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${c.color}"></span><span>운임</span>`
+      + `<span class="viz-tt-val">${v.toLocaleString('en-US')} USD/FEU${krw}`
+      + `<span class="xsi-tt-d">직전 관측 대비 <b class="${iiCls(pc)}">${pc == null ? '—' : iiPct(pc)}</b></span>`
+      + `</span></div>`;
     const fr = fig.getBoundingClientRect();
     let left = clientX - fr.left + 14;
     if (left + tip.offsetWidth > fr.width) left = clientX - fr.left - tip.offsetWidth - 14;
@@ -6872,6 +6991,23 @@ function wireXsi(root) {
     const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
   }, { passive: true });
   overlay.addEventListener('touchend', clear, { passive: true });
+
+  /* 변곡점 마커 — 선 위 작은 점이라 오버레이보다 위에 있다. 마우스를 올리면
+     그 날짜의 값·변동률을 같은 툴팁으로 띄운다(키보드 포커스도 같다). */
+  svg.querySelectorAll('.xsi-sp').forEach((g2) => {
+    const show = (evt) => {
+      const i = Number(g2.getAttribute('data-i'));
+      if (!isFinite(i)) return;
+      const r2 = svg.getBoundingClientRect();
+      const px = r2.left + (gm.X(i) / gm.W) * r2.width;
+      move(evt && evt.clientX != null ? evt.clientX : px,
+        evt && evt.clientY != null ? evt.clientY : r2.top + r2.height / 2);
+    };
+    g2.addEventListener('mouseenter', show);
+    g2.addEventListener('focus', show);
+    g2.addEventListener('mouseleave', clear);
+    g2.addEventListener('blur', clear);
+  });
 }
 
 /* 순수 추가: 정시성 '지표 설명' 정적 텍스트 (데이터 수집·API 없음).
