@@ -1923,14 +1923,9 @@ function smKoreaHtml() {
     + sleepTechBanner('SLEEP&nbsp;TECH', '슬립테크 산업 동향',
       '수면 데이터를 기반으로 ‘더 나은 수면과 건강한 일상’을 만드는 기술 산업',
       '여기부터 슬립테크 산업 동향')
-    /* 좌: 슬립테크 기술 분류도 · 우: 시장규모 막대그래프.
-       ★ 좁은 화면에서는 .sm-grid2 가 1열로 접히고, DOM 순서대로 왼쪽(기술분류)이
-         위, 오른쪽(그래프)이 아래로 쌓인다. */
-    + '<div class="sm-grid2 sm-grid2--mkt">'
-    + smTechMap(d)
-    + smMarketBars(d)
-    + '</div>'
-    + smSleepTech(d)
+    /* ★ 기술 분류도 · 시장규모 · 주요 기업 세 덩어리를 한꺼번에 쌓던 것을
+       위 실적과 같은 가지치기로 바꿨다(stTreeHtml). 그리는 함수는 그대로다. */
+    + stTreeHtml()
     + '</div>';
 }
 
@@ -2328,42 +2323,85 @@ function sfTreeIcon(kind) {
     + '<path d="M13 3 3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 }
 
-/** 트리(뿌리 + 펼친 가지)만 다시 그린다 */
-function sfTreeNavHtml() {
-  const defs = sfTreeDefs();
+/* ── 트리 공용 부품 ─────────────────────────────────────────────────────
+   같은 가지치기를 두 곳이 쓴다 — '시몬스 최근 실적 추이'(실적 8칸)와
+   '슬립테크 산업 동향'(3칸). 모양·동작·기억 방식을 한 벌로 두어 한쪽만
+   고쳐져 어긋나는 일을 막는다. ns 는 두 트리를 가르는 이름표다(sf · st).
+   defs: [{ g, label, hint, items:[{id,label,sub,icon,render}] }] */
+function treeNavHtml(ns, defs, st, hintText) {
   const roots = defs.map((r) => {
-    const on = _sfTree.open === r.g;
+    const on = st.open === r.g;
     return '<button type="button" class="sf-tr__root' + (on ? ' is-open' : '')
-      + '" data-sf-root="' + escapeHtml(r.g) + '" aria-expanded="' + on + '">'
+      + '" data-tree-root="' + escapeHtml(r.g) + '" aria-expanded="' + on + '">'
       + '<span class="sf-tr__rl">' + escapeHtml(r.label) + '</span>'
       + '<span class="sf-tr__rh">' + escapeHtml(r.hint) + '</span>'
       + '<span class="sf-tr__cv" aria-hidden="true">' + (on ? '\u2212' : '+') + '</span></button>';
   }).join('');
-  const open = defs.filter((r) => r.g === _sfTree.open)[0];
+  const open = defs.filter((r) => r.g === st.open)[0];
   const branch = open
     ? '<div class="sf-tr__branch">' + open.items.map((it) => {
-      const on = _sfTree.pick === it.id;
+      const on = st.pick === it.id;
       return '<button type="button" class="sf-tr__item' + (on ? ' is-on' : '')
-        + '" data-sf-item="' + escapeHtml(it.id) + '" aria-pressed="' + on + '">'
+        + '" data-tree-item="' + escapeHtml(it.id) + '" aria-pressed="' + on + '">'
         + sfTreeIcon(it.icon)
         + '<span class="sf-tr__b"><span class="sf-tr__l">' + escapeHtml(it.label) + '</span>'
-        + '<span class="sf-tr__s">' + escapeHtml(it.sub) + '</span></span></button>';
+        + (it.sub ? '<span class="sf-tr__s">' + escapeHtml(it.sub) + '</span>' : '')
+        + '</span></button>';
     }).join('') + '</div>'
     : '';
-  const hint = (!open && !_sfTree.pick)
-    ? '<div class="sf-tr__hint">시몬스를 눌러 항목을 확인하세요</div>' : '';
+  const hint = (!open && !st.pick)
+    ? '<div class="sf-tr__hint">' + escapeHtml(hintText) + '</div>' : '';
   return '<div class="sf-tr__roots">' + roots + '</div>' + branch + hint;
 }
 
 /** 고른 항목 하나만 그린다. 고른 것이 없으면 안내만. */
-function sfTreeOneHtml() {
-  const all = sfTreeDefs().reduce((a, r) => a.concat(r.items), []);
-  const it = all.filter((x) => x.id === _sfTree.pick)[0];
-  if (!it) {
-    return '<div class="sf-one__empty">왼쪽에서 보고 싶은 항목을 선택하세요.</div>';
-  }
+function treeOneHtml(defs, st, emptyText) {
+  const all = defs.reduce((a, r) => a.concat(r.items), []);
+  const it = all.filter((x) => x.id === st.pick)[0];
+  if (!it) return '<div class="sf-one__empty">' + escapeHtml(emptyText) + '</div>';
   return it.render();
 }
+
+function treeBlockHtml(ns, defs, st, hintText, emptyText, aria) {
+  return '<div class="sf-tree" data-tree="' + escapeHtml(ns) + '">'
+    + '<nav class="sf-tr" data-tree-nav aria-label="' + escapeHtml(aria) + '">'
+    + treeNavHtml(ns, defs, st, hintText) + '</nav>'
+    + '<div class="sf-one" data-tree-one>' + treeOneHtml(defs, st, emptyText) + '</div>'
+    + '</div>';
+}
+
+/** 트리 배선 — 뿌리는 펼침/접힘, 항목은 내용 교체. 트리 영역만 다시 그린다.
+ *  ★ 뿌리를 다시 눌러 접어도 보던 내용은 그대로 둔다 — 화면이 비면 '방금 뭘
+ *    보고 있었지'가 끊긴다. 고른 항목은 기억해 두었다가 다시 펼치면 강조된다. */
+function wireTree(root, ns, getDefs, st, save, hintText, emptyText) {
+  const box = root.querySelector('.sf-tree[data-tree="' + ns + '"]');
+  if (!box) return;
+  const nav = box.querySelector('[data-tree-nav]');
+  const one = box.querySelector('[data-tree-one]');
+  if (!nav) return;
+  const redraw = (both) => {
+    nav.innerHTML = treeNavHtml(ns, getDefs(), st, hintText);
+    if (both && one) one.innerHTML = treeOneHtml(getDefs(), st, emptyText);
+    save();
+  };
+  nav.addEventListener('click', (e) => {
+    const r = e.target.closest && e.target.closest('[data-tree-root]');
+    if (r) {
+      const g = r.getAttribute('data-tree-root');
+      st.open = (st.open === g) ? null : g;
+      redraw(false);
+      return;
+    }
+    const i = e.target.closest && e.target.closest('[data-tree-item]');
+    if (i) {
+      st.pick = i.getAttribute('data-tree-item');
+      redraw(true);
+    }
+  });
+}
+
+const SF_TREE_HINT = '시몬스를 눌러 항목을 확인하세요';
+const SF_TREE_EMPTY = '왼쪽에서 보고 싶은 항목을 선택하세요.';
 
 function sfPanelsHtml() {
   if (!_sfData) {
@@ -2374,40 +2412,60 @@ function sfPanelsHtml() {
     return '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> '
       + escapeHtml(_sfData.reason || '로드 실패') + '</div>';
   }
-  return '<div class="sf-tree">'
-    + '<nav class="sf-tr" id="sfTreeNav" aria-label="실적 항목 선택">' + sfTreeNavHtml() + '</nav>'
-    + '<div class="sf-one" id="sfTreeOne">' + sfTreeOneHtml() + '</div>'
-    + '</div>';
+  return treeBlockHtml('sf', sfTreeDefs(), _sfTree, SF_TREE_HINT, SF_TREE_EMPTY, '실적 항목 선택');
 }
 
-/** 트리 배선 — 뿌리는 펼침/접힘, 항목은 내용 교체. 둘 다 트리 영역만 다시 그린다.
- *  ★ 뿌리를 다시 눌러 접어도 보던 차트는 그대로 둔다 — 화면이 비면 '방금 뭘
- *    보고 있었지'가 끊긴다. 고른 항목은 기억해 두었다가 다시 펼치면 강조된다. */
-function wireSfTree(root) {
-  const nav = root.querySelector('#sfTreeNav');
-  if (!nav) return;
-  const redraw = (both) => {
-    nav.innerHTML = sfTreeNavHtml();
-    if (both) {
-      const one = root.querySelector('#sfTreeOne');
-      if (one) one.innerHTML = sfTreeOneHtml();
-    }
-    sfTreeSave();
-  };
-  nav.addEventListener('click', (e) => {
-    const r = e.target.closest && e.target.closest('[data-sf-root]');
-    if (r) {
-      const g = r.getAttribute('data-sf-root');
-      _sfTree.open = (_sfTree.open === g) ? null : g;
-      redraw(false);
-      return;
-    }
-    const i = e.target.closest && e.target.closest('[data-sf-item]');
-    if (i) {
-      _sfTree.pick = i.getAttribute('data-sf-item');
-      redraw(true);
-    }
-  });
+/* ── 슬립테크 산업 동향 트리 ──────────────────────────────────────────
+   예전에는 기술 분류도·시장규모·주요 기업 세 덩어리를 배너 아래에 한꺼번에
+   쌓았다(기업 카드만 여섯 장이라 화면이 길었다). 실적 트리와 같은 방식으로
+   고른 것 하나만 보여 준다.
+   ★ 그리는 함수(smTechMap·smMarketBars·smSleepTech)는 그대로 부른다 —
+     내용·숫자·출처 표기가 예전과 같은 이유다.
+   ★ 제목·보조 문구는 simmons-market.json 에서 읽는다(코드에 적지 않는다). */
+const ST_TREE_KEY = 'stTree';
+let _stTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(ST_TREE_KEY) || 'null');
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
+  } catch (e) { /* 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: null, pick: null };
+})();
+function stTreeSave() {
+  try { sessionStorage.setItem(ST_TREE_KEY, JSON.stringify(_stTree)); } catch (e) { /* 무시 */ }
+}
+
+function stTreeDefs() {
+  const d = _smData || {};
+  const tm = d.techMap || {}, mk = d.sleepMarket || {}, stc = d.sleepTech || {};
+  const pts = (mk.points || []).map((x) => x.year).sort();
+  const items = [];
+  if (tm.title || (tm.branches || []).length) {
+    items.push({ id: 'techmap', label: tm.title || '슬립테크 기술 분야',
+      sub: (tm.branches || []).length + '개 분야', icon: 'peer',
+      render: () => smTechMap(d) });
+  }
+  if ((mk.points || []).length >= 2) {
+    items.push({ id: 'market', label: mk.title || '시장 규모 추이',
+      sub: pts[0] + ' → ' + pts[pts.length - 1], icon: 'bars',
+      render: () => smMarketBars(d) });
+  }
+  if ((stc.companies || []).length) {
+    items.push({ id: 'players', label: stc.title || '주요 기업',
+      sub: stc.companies.length + '개 기업', icon: 'donut',
+      render: () => smSleepTech(d) });
+  }
+  if (!items.length) return [];
+  return [{ g: 'sleeptech', label: '슬립테크', hint: '기술 분야 · 시장 규모 · 주요 기업',
+    items: items }];
+}
+
+const ST_TREE_HINT = '슬립테크를 눌러 항목을 확인하세요';
+const ST_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+
+function stTreeHtml() {
+  const defs = stTreeDefs();
+  if (!defs.length) return '';
+  return treeBlockHtml('st', defs, _stTree, ST_TREE_HINT, ST_TREE_EMPTY, '슬립테크 항목 선택');
 }
 
 /* ── 동종업계 비교 ────────────────────────────────────────────────────
@@ -3091,7 +3149,9 @@ function renderCompetitor() {
     <div class="comp-ask">위 <b>국내</b> 또는 <b>국외</b> 탭을 선택해 주세요.</div>`;
   wireGtControls();
   wireCompTabs();
-  wireSfTree(el);          // 순수 추가: 국내 탭 실적 트리(뿌리 펼침 · 항목 선택)
+  // 순수 추가: 국내 탭 가지치기 두 벌(실적 · 슬립테크) — 같은 공용 부품을 쓴다
+  wireTree(el, 'sf', sfTreeDefs, _sfTree, sfTreeSave, SF_TREE_HINT, SF_TREE_EMPTY);
+  wireTree(el, 'st', stTreeDefs, _stTree, stTreeSave, ST_TREE_HINT, ST_TREE_EMPTY);
   applySideView();
 }
 

@@ -3348,8 +3348,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
    컨테이너는 기존 .sm-grid2 / .sm-card / .sm-h / .sm-foot 를 그대로 쓰고,
    여기서는 순서도(stm-*)와 막대그래프 부속(smb-*)만 정의한다.
    ★ 좌우 카드가 같은 높이로 끝나도록 stretch 를 준다(한쪽 아래가 비는 것 방지). */
-.sm-grid2--mkt { align-items: stretch; }
-.sm-grid2--mkt > .sm-card { display: flex; flex-direction: column; }
 
 /* 왼쪽 — 슬립테크 기술 분야 지도 */
 /* ── 슬립테크 기술 지도 — 헤더 → 3분기 → 카테고리 카드 ────────────────────
