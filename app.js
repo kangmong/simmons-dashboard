@@ -3533,12 +3533,14 @@ function iiEventList(periods) {
     .sort((a, b) => a.sort.localeCompare(b.sort));
 }
 
-/** 주요 시장 이벤트 — 차트 아래 가로 카드. 연도 탭을 따라 같이 바뀐다.
+/** 사건 카드 묶음 — 차트 아래 가로 배치. 스폰지 주원료·해상 정시성이 함께 쓴다.
+ *  한 장은 세 줄이다: 연·월 / 제목(굵게) / 한 줄 설명.
  *  ★ 비어도 영역을 감추지 않는다 — '없음'을 적어 두어야 '안 그려진 것'과
- *    '그 기간에 없는 것'을 구분할 수 있다. */
-function iiEventsPanel(periods) {
-  const list = iiEventList(periods);
-  const body = list.length
+ *    '그 기간에 없는 것'을 구분할 수 있다.
+ *  ★ 카드 모양을 두 카드에 따로 두지 않는다. 한쪽만 고쳐져 어긋나는 일을 막는다.
+ *  list: [{ when, title, desc, what, url }] · url 이 있으면 제목이 링크가 된다. */
+function evPanelHtml(title, list, emptyText) {
+  const body = (list && list.length)
     ? '<div class="ii-ev__row">' + list.map((e) => {
       const t = escapeHtml(e.title);
       const head = e.url
@@ -3550,9 +3552,14 @@ function iiEventsPanel(periods) {
         + (e.desc ? '<span class="ii-ev__s">' + escapeHtml(e.desc) + '</span>' : '')
         + '</div>';
     }).join('') + '</div>'
-    : '<div class="ii-ev__empty">해당 기간 주요 이벤트 없음</div>';
+    : '<div class="ii-ev__empty">' + escapeHtml(emptyText) + '</div>';
   return '<div class="ii-panel ii-ev">'
-    + '<h3 class="subhead ii-h">주요 시장 이벤트</h3>' + body + '</div>';
+    + '<h3 class="subhead ii-h">' + escapeHtml(title) + '</h3>' + body + '</div>';
+}
+
+/** 스폰지 주원료 — 주요 시장 이벤트 */
+function iiEventsPanel(periods) {
+  return evPanelHtml('주요 시장 이벤트', iiEventList(periods), '해당 기간 주요 이벤트 없음');
 }
 
 function msEventsSvg(key, keys, X, padT, plotH, W) {
@@ -5492,13 +5499,58 @@ function srFlatten(years) {
   return out.sort((a, b) => (a.ym < b.ym ? -1 : 1));
 }
 
+/* ── 위험 구간 기준 ───────────────────────────────────────────────────
+   ★ 코드에 숨기지 않는다 — 이 상수를 음영과 화면 문구가 함께 쓴다.
+     값은 아래 '지표 설명'의 SR_LEVELS 네 구간 중 '심각(40% 미만)'과 같은 선이다
+     (두 곳이 다른 기준을 말하지 않게 맞춰 둔다). */
+const SR_RISK_PCT = 40;
+let _srCmp = null;      // 비교로 겹쳐 볼 연도 · null 이면 비교 끔
+
+/** 고른 연도의 월별 값 [{m:1~12, v}] — 결측월은 아예 담지 않는다(0 으로 메우지 않는다). */
+function srYearPoints(year) {
+  const arr = (_srData && _srData.years && _srData.years[year]) || [];
+  const out = [];
+  arr.forEach((v, i) => { if (v != null && isFinite(v)) out.push({ m: i + 1, v: Number(v) }); });
+  return out;
+}
+
+/** 고른 연도의 평균·최고·최저. 있는 달만으로 센다. 없으면 null. */
+function srYearStat(year) {
+  const pts = srYearPoints(year);
+  if (!pts.length) return null;
+  let hi = pts[0], lo = pts[0], sum = 0;
+  pts.forEach((p2) => {
+    sum += p2.v;
+    if (p2.v > hi.v) hi = p2;
+    if (p2.v < lo.v) lo = p2;
+  });
+  return { avg: sum / pts.length, hi: hi, lo: lo, n: pts.length };
+}
+
+/** 전체 보기('all')용 — 관측된 모든 달을 한 줄로 편 통계 */
+function srAllStat() {
+  const ys = Object.keys((_srData && _srData.years) || {}).sort();
+  const pts = [];
+  ys.forEach((y) => srYearPoints(y).forEach((x) => pts.push({ y: y, m: x.m, v: x.v })));
+  if (!pts.length) return null;
+  let hi = pts[0], lo = pts[0], sum = 0;
+  pts.forEach((x) => { sum += x.v; if (x.v > hi.v) hi = x; if (x.v < lo.v) lo = x; });
+  return { avg: sum / pts.length, hi: hi, lo: lo, n: pts.length };
+}
+
 function srViewData(year) {
   const yrs = Object.keys(_srData.years).sort();
   const months = _srData.months;
   const pick = (year === 'all') ? yrs : yrs.filter((y) => y === year);
+  /* ★ 비교 연도는 '전체' 보기에서는 뜻이 없다(이미 다 그려져 있다).
+     한 해를 볼 때만 한 줄 더 얹고, 점선으로 그려 실측 연도와 구분한다. */
+  if (year !== 'all' && _srCmp && _srCmp !== year && yrs.indexOf(_srCmp) >= 0) {
+    pick.push(_srCmp);
+  }
   const series = pick.map((y) => ({
     key: y,
     color: srYearColor(y),
+    cmp: (year !== 'all' && y === _srCmp),
     values: (_srData.years[y] || []).slice(0, months.length),
   })).filter((s) => s.values.some((v) => v != null));
   return { months, series };
@@ -5661,6 +5713,43 @@ function sriSummary(ext) {
     + '</div>';
 }
 
+/** 고른 연도 요약 3지표 — 연간 평균 · 최고 · 최저.
+ *  ★ 전부 화면에 이미 들어온 실측값으로만 센다. 결측월은 제외하고, 달이 덜 찬
+ *    해(진행 중인 해)는 'N개월 기준'이라고 적는다 — 12개월인 척하지 않는다. */
+function srYearSummary(year) {
+  const all = (year === 'all');
+  const st = all ? srAllStat() : srYearStat(year);
+  if (!st) return '';
+  const when = (x) => (all ? x.y + '.' + String(x.m).padStart(2, '0') : x.m + '월');
+  const nNote = all
+    ? st.n + '개월 기준'
+    : (st.n < 12 ? st.n + '개월 기준' : '12개월 기준');
+  const pct = (v) => v.toFixed(1) + '<span class="sr-sum__u">%</span>';
+  return '<div class="sr-sum sr-sum--yr">'
+    + sriBox((all ? '전체' : year) + ' 정시성', pct(st.avg), '',
+      '월별 수치 단순 평균 · ' + escapeHtml(nNote))
+    + sriBox('최고 정시성', pct(st.hi.v), 'sr-sum__val--hi', escapeHtml(when(st.hi)))
+    + sriBox('최저 정시성', pct(st.lo.v), 'sr-sum__val--lo', escapeHtml(when(st.lo)))
+    + '</div>';
+}
+
+/** 연도 비교 토글 — 기본은 꺼짐. 켜면 겹쳐 볼 연도를 고르는 선택창이 나온다.
+ *  ★ '전체' 보기에서는 모든 해가 이미 그려져 있어 내지 않는다. */
+function srCompareBar(year) {
+  if (year === 'all') return '';
+  const yrs = Object.keys((_srData && _srData.years) || {}).sort().filter((y) => y !== year);
+  if (!yrs.length) return '';
+  const on = !!(_srCmp && yrs.indexOf(_srCmp) >= 0);
+  const opts = yrs.map((y) =>
+    '<option value="' + escapeHtml(y) + '"' + (on && _srCmp === y ? ' selected' : '') + '>'
+    + escapeHtml(y) + '</option>').join('');
+  return '<div class="sr-cmp">'
+    + '<label class="sr-cmp__sw"><input type="checkbox" class="sr-cmp__chk"'
+    + (on ? ' checked' : '') + '><span>다른 연도와 비교</span></label>'
+    + (on ? '<select class="sr-cmp__sel" aria-label="비교할 연도">' + opts + '</select>' : '')
+    + '</div>';
+}
+
 /* ── ③ 최근 변동요인 ───────────────────────────────────────────────────
    방향(부정적/균형적/중립적)은 JSON 의 tone 이 정한다. 코드가 판단하지 않는다. */
 function sriFactors() {
@@ -5678,6 +5767,34 @@ function sriFactors() {
     <h3 class="subhead ii-h">최근 변동요인</h3>
     <div class="sr-facs">${cards}</div>
   </div>`;
+}
+
+/** 해상 정시성 — 고른 연도에 걸치는 이슈. 스폰지 카드와 같은 데이터 문법
+ *  (date/event/impact/what)을 쓰므로 같은 모양으로 돌려준다.
+ *  ★ year 가 'all' 이면 전부, 아니면 그 해에 걸치는 것만.
+ *  ★ sr-insights.json 에는 출처 URL 칸이 없다 — 있으면 제목이 링크가 되도록
+ *    읽기만 해 두고, 없으면 그냥 굵은 글씨로 둔다(지어내지 않는다). */
+function sriEventList(year) {
+  const list = (_sriData && Array.isArray(_sriData.timeline)) ? _sriData.timeline : [];
+  if (!list.length) return [];
+  const out = [];
+  list.forEach((e) => {
+    const r = iiEventRange(e.date);
+    if (!r) return;
+    const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
+    if (a == null || b == null) return;
+    if (year && year !== 'all') {
+      const y = Number(year);
+      if (!isFinite(y)) return;
+      if (Math.max(a, y * 12) > Math.min(b, y * 12 + 11)) return;   // 그 해와 안 겹친다
+    }
+    out.push({ sort: r[0], when: iiEventWhen(e.date),
+      title: String(e.event || '').trim(),
+      desc: String(e.impact || '').trim(),
+      what: String(e.what || '').trim(),
+      url: safeUrl(e.url || e.source) || '' });
+  });
+  return out.filter((e) => e.title).sort((x, y2) => x.sort.localeCompare(y2.sort));
 }
 
 /* ── ④ 히스토리 이벤트 (ICIS 와 같은 타임라인 문법을 그대로 쓴다) ─────── */
@@ -5766,12 +5883,15 @@ function renderScheduleReliabilityHtml() {
   } else {
     const { months, series } = srViewData(_srYear);
     const avg = sriAvgProfile();
-    body = buildSrChart(months, series, avg, srExt)
+    body = srYearSummary(_srYear)
+      + srCompareBar(_srYear)
+      + buildSrChart(months, series, avg, srExt)
       + (srExt ? ''
-        : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>');
+        : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>')
+      + evPanelHtml('주요 이슈', sriEventList(_srYear), '해당 기간 주요 이슈 없음');
     /* ★ 뺀 것들
        · sriTimeline()        '히스토리 이벤트와 정시성 변화' → 차트 위 마커로
-                              옮겼다(sriEventsSvg). 연도 선과 같은 색으로 찍어
+                              옮겼다(evPanelHtml). 연도 선과 같은 색으로 찍어
                               어느 해 이야기인지 알 수 있게 했다.
        · sriImplications()    '향후 전망 및 시사점' 3열.
        · renderSrForecastHtml() '다음 달 전망'. 차트의 추세 연장과 겹쳤다.
@@ -6860,80 +6980,6 @@ function renderSrForecastHtml() {
 }
 
 /** 연도별 정시성(%) 선그래프 SVG (null 구간 선 끊김, 단일 연도 시 값 라벨) */
-/** 해상 정시성 차트의 이벤트 마커.
- *  ★ 이 차트는 x축이 '월(Jan~Dec)'이고 연도마다 선이 따로 겹쳐 그려진다.
- *    그래서 '2021-03' 같은 날짜를 그냥 찍으면 어느 선의 이야기인지 알 수 없다.
- *    사건이 걸친 해마다 하나씩, 그 해 선과 같은 색으로 찍고, 여러 해를 겹쳐
- *    보는 중이면 라벨 앞에 연도를 붙인다.
- *  ★ '2021~2022' 처럼 여러 해에 걸친 일은 해마다 그 해에 겹치는 달의 한가운데에
- *    찍는다 — 한 점으로 굳히면 한쪽 해에서 사라진다(ICIS 와 같은 규칙). */
-function sriEventsSvg(months, series, X, padT, plotH, W) {
-  const list = (_sriData && Array.isArray(_sriData.timeline)) ? _sriData.timeline : [];
-  if (!list.length || !series.length || !months.length) return '';
-  const showYear = series.length > 1;
-  const items = [];
-  list.forEach((e) => {
-    const r = iiEventRange(e.date);
-    if (!r) return;
-    const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
-    if (a == null || b == null) return;
-    series.forEach((s) => {
-      const y = Number(s.key);
-      if (!isFinite(y)) return;
-      const lo = Math.max(a, y * 12), hi = Math.min(b, y * 12 + 11);
-      if (lo > hi) return;                       // 이 해에는 걸치지 않는다
-      const mi = Math.floor((lo + hi) / 2) - y * 12;   // 그 해 안의 0~11 월
-      if (mi < 0 || mi >= months.length) return;
-      items.push({
-        x: X(mi), color: s.color,
-        label: (showYear ? y + ' ' : '') + iiEventLabel(e.event),
-        date: String(e.date || ''),
-        what: String(e.what || '').trim(),
-        detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
-          .filter(Boolean).join(' — '),
-      });
-    });
-  });
-  if (!items.length) return '';
-  /* 라벨 줄 배정 — 겹치면 아래 줄로, 세 줄로도 안 되면 점만 남긴다(vizEventsSvg 와 같은 방식) */
-  const FS = 7.5, GAP = 5, ROWS = [13, 22, 31];
-  items.sort((p, q) => p.x - q.x);
-  items.forEach((it) => {
-    const tw = vizTextW(it.label, FS);
-    it.anchor = (it.x < 60) ? 'start' : ((it.x > W - 60) ? 'end' : 'middle');
-    it.x0 = it.anchor === 'start' ? it.x : (it.anchor === 'end' ? it.x - tw : it.x - tw / 2);
-    it.x1 = it.x0 + tw;
-  });
-  const rowEnd = ROWS.map(() => -Infinity);
-  items.forEach((it) => {
-    it.row = -1;
-    for (let r = 0; r < ROWS.length; r += 1) {
-      if (it.x0 >= rowEnd[r] + GAP) { it.row = r; rowEnd[r] = it.x1; break; }
-    }
-  });
-  const y1 = padT + plotH;
-  const out = items.map((it) => '<g class="ms-ev" tabindex="0"'
-    + ' data-label="' + escapeHtml(it.label) + '"'
-    + (it.what ? ' data-what="' + escapeHtml(it.what) + '"' : '')
-    + ' data-detail="' + escapeHtml(it.detail) + '"'
-    + ' data-date="' + escapeHtml(it.date) + '">'
-    + '<line pointer-events="none" x1="' + it.x.toFixed(1) + '" y1="' + padT
-    + '" x2="' + it.x.toFixed(1) + '" y2="' + y1.toFixed(1) + '" stroke="' + it.color
-    + '" stroke-width="1" stroke-dasharray="2 2" opacity=".55"/>'
-    + '<circle pointer-events="none" cx="' + it.x.toFixed(1) + '" cy="' + (padT + 2).toFixed(1)
-    + '" r="2.6" fill="' + it.color + '"/>'
-    + (it.row >= 0
-      ? '<text pointer-events="none" x="' + it.x.toFixed(1) + '" y="' + (padT + ROWS[it.row]).toFixed(1)
-        + '" text-anchor="' + it.anchor + '" font-size="' + FS + '" font-weight="700"'
-        + ' paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5"'
-        + ' fill="var(--ink)">' + escapeHtml(it.label) + '</text>'
-      : '')
-    + '<rect class="ms-ev__hit" x="' + (it.x - 7).toFixed(1) + '" y="' + padT
-    + '" width="14" height="' + plotH.toFixed(1) + '" fill="transparent"/>'
-    + '</g>').join('');
-  return '<g class="ms-evs">' + out + '</g>';
-}
-
 /** 수준별 해석(원활·보통·지연·심각)을 차트 배경에 옅은 가로 띠로 깐다.
  *  ★ 왜 필요한가: 아래 '지표 설명'의 수준 색이 연도 선 색과 값까지 똑같았다
  *    (원활 #12B981 = 2023 선, 보통 #3B82F6 = 2022 선, 지연 #F59E0B = 2024 선,
@@ -6989,7 +7035,35 @@ function buildSrChart(months, series, avg, ext) {
       const x = X(i), y = Y(v);
       path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
     });
-    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    if (!path) return '';
+    /* 비교로 얹은 해는 점선 + 가늘게 — 지금 고른 해가 무엇인지 헷갈리지 않게 */
+    return `<path d="${path.trim()}" fill="none" stroke="${s.color}"
+      stroke-width="${s.cmp ? 1.6 : 2.2}"${s.cmp ? ' stroke-dasharray="4 3" opacity=".8"' : ''}
+      stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join('');
+
+  /* ── 위험 구간 음영 — 값이 SR_RISK_PCT 미만인 '달'을 세로 띠로 칠한다.
+     ★ 배경의 가로 등급 띠(srBandsSvg)는 'y축 어느 높이가 위험인가'를,
+       이 세로 띠는 '어느 달이 거기 들어갔나'를 말한다. 역할이 다르다.
+     ★ 기준 연도(비교로 얹은 해 말고) 하나만 본다 — 두 해를 같이 칠하면
+       어느 해 이야기인지 알 수 없다.
+     ★★ '전체' 보기에서는 아예 칠하지 않는다. x축이 여러 해가 겹친 1~12월이라
+       '이 달이 위험했다'가 어느 해 이야기인지 가리킬 수 없기 때문이다
+       (그 화면에서는 배경의 가로 등급 띠가 같은 말을 대신한다). */
+  const baseS = series.filter((x) => !x.cmp)[0] || series[0];
+  const riskOn = series.filter((x) => !x.cmp).length === 1;
+  const riskMonths = [];
+  if (baseS && riskOn) {
+    baseS.values.forEach((v, i) => {
+      if (v != null && isFinite(v) && v < SR_RISK_PCT) riskMonths.push(i);
+    });
+  }
+  const step = (n > 1) ? (X(1) - X(0)) : plotW;
+  const riskBands = riskMonths.map((i) => {
+    const x0 = Math.max(padL, X(i) - step / 2);
+    const x1 = Math.min(padL + plotW, X(i) + step / 2);
+    return `<rect class="sr-risk" x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}"
+      height="${plotH}" fill="#C8102E" opacity=".10"/>`;
   }).join('');
 
   // ── ① 기준 4개년 월평균 점선 ──
@@ -7033,6 +7107,31 @@ function buildSrChart(months, series, avg, ext) {
   const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
     `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
 
+  /* 최고·최저 — 기준 연도만. 라벨은 평소 숨기고 마커에 올렸을 때만 보인다
+     (스폰지 주원료 차트와 같은 규칙·같은 클래스). */
+  let peaks = '';
+  if (baseS) {
+    const pk = iiPeaks(baseS.values);
+    if (pk) {
+      [['hi', '최고', -1], ['lo', '최저', 1]].forEach(([k, word, dir]) => {
+        const i = pk[k], v = baseS.values[i];
+        const x = X(i), y = Y(v);
+        let ly = y + dir * 9;
+        if (ly < padT + 7) ly = y + 11;
+        if (ly > padT + plotH - 2) ly = y - 7;
+        const anchor = (x < padL + 46) ? 'start' : ((x > padL + plotW - 46) ? 'end' : 'middle');
+        const when = single ? (months[i] || (i + 1) + '월') : (baseS.key + ' ' + (months[i] || ''));
+        peaks += `<g class="ii-mm" tabindex="0">`
+          + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="none" stroke="${baseS.color}" stroke-width="1.6"/>`
+          + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.4" fill="${baseS.color}"/>`
+          + `<text class="ii-mm__l" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}"`
+          + ` font-size="${VIZ_FS_LABEL}" font-weight="800" fill="${baseS.color}" paint-order="stroke"`
+          + ` stroke="var(--surface-1)" stroke-width="2.8">${escapeHtml(word + ' ' + v.toFixed(1) + '% · ' + when)}</text>`
+          + `</g>`;
+      });
+    }
+  }
+
   // 값 라벨: 점이 VIZ_LABEL_MAX_PTS 이하인 단일 연도 보기(12개월)에서만 표시.
   // 여러 연도를 겹쳐 보는 경우는 라벨 없이 툴팁으로만 값을 보여준다.
   const labels = (single && n <= VIZ_LABEL_MAX_PTS) ? series[0].values.map((v, i) => {
@@ -7042,24 +7141,23 @@ function buildSrChart(months, series, avg, ext) {
   }).join('') : '';
 
   const yrs = sriAvgYears();
-  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')}`
+  const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}${s.cmp ? ' (비교)' : ''}</span>`).join('')}`
     + (avgLine ? `<span class="viz-legend__item sr-legend-avg"><span class="sr-legend-dash"></span>${escapeHtml(yrs[0] + '~' + yrs[yrs.length - 1])} 월평균</span>` : '')
     + (extShapes ? `<span class="viz-legend__item sr-legend-ext"><span class="sr-legend-dash sr-legend-dash--ext"></span>추세 연장(추정)</span>` : '')
+    /* ★ 기준을 코드에 숨기지 않는다 — 음영이 그려진 화면에는 그 기준을 같이 적는다 */
+    + (riskBands ? `<span class="viz-legend__item sr-legend-risk"><span class="sr-legend-risk__sw"></span>빨간 음영 = 정시성 ${SR_RISK_PCT}% 미만</span>` : '')
     + `</div>`;
-  _srChart = { months, series, geom: { X, Y, n, W, padL } };
+  _srChart = { months, series, base: baseS ? baseS.key : null,
+    risk: riskMonths, geom: { X, Y, n, W, padL } };
 
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
-      ${srBandsSvg(Y, padL, plotW, ymin, ymax)}
-      ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}
+      ${srBandsSvg(Y, padL, plotW, ymin, ymax)}${riskBands}
+      ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}${peaks}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="sr-dots"></g>
       <rect class="sr-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${''/* ★ 마커는 반드시 .sr-overlay 뒤(= 위)에 둔다. 앞에 두면 투명한
-             오버레이 사각형이 플롯 전체를 덮어 마커의 마우스 이벤트를 다 먹는다
-             — 툴팁이 아예 뜨지 않았다. ICIS 차트도 같은 이유로 마커가 맨 끝이다. */}
-      ${sriEventsSvg(months, series, X, padT, plotH, W)}
     </svg>`;
 }
 
@@ -7075,31 +7173,75 @@ function wireSrChart() {
   const dots = svg.querySelector('.sr-dots');
   const c = _srChart, g = c.geom;
   const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
-  overlay.addEventListener('mousemove', (evt) => {
+  const move = (clientX, clientY) => {
     const rect = svg.getBoundingClientRect();
-    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    const sx = (clientX - rect.left) * (g.W / rect.width);
     let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
     i = Math.max(0, Math.min(g.n - 1, i));
     const cx = g.X(i);
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
     let dh = '', rows = '';
-    c.series.forEach((s) => {
-      const v = s.values[i];
+    c.series.forEach((sr) => {
+      const v = sr.values[i];
       if (v == null) return;
-      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
-      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toFixed(1)}%</span></div>`;
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${sr.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      /* 전월비·전년동월비는 %p(퍼센트포인트) 차이다 — 둘 다 비율이라 나누지 않고 뺀다.
+         1월의 전월은 전년 12월에서 찾는다. 해당 값이 없으면 '—'(지어내지 않는다). */
+      const mom = srAt(sr.key, i - 1);
+      const yoy = srAt(String(Number(sr.key) - 1), i);
+      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${sr.color}"></span>`
+        + `<span>${sr.key}${sr.cmp ? ' (비교)' : ''}</span>`
+        + `<span class="viz-tt-val">${v.toFixed(1)}%`
+        + `<span class="sr-tt-d">전월 <b class="${iiCls(mom == null ? null : v - mom)}">${sriPp(mom == null ? null : v - mom)}</b></span>`
+        + `<span class="sr-tt-d">전년동월 <b class="${iiCls(yoy == null ? null : v - yoy)}">${sriPp(yoy == null ? null : v - yoy)}</b></span>`
+        + `</span></div>`;
     });
     if (!rows) { clear(); return; }
     dots.innerHTML = dh;
-    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.months[i])}</div>${rows}`;
+    const risky = (c.risk || []).indexOf(i) >= 0;
+    tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.months[i])}`
+      + (risky ? `<span class="sr-tt-risk">${SR_RISK_PCT}% 미만</span>` : '') + `</div>${rows}`;
     const fr = fig.getBoundingClientRect();
-    let left = evt.clientX - fr.left + 14;
-    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    let left = clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = clientX - fr.left - tip.offsetWidth - 14;
     tip.style.left = `${Math.max(4, left)}px`;
-    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.style.top = `${clientY - fr.top + 14}px`;
     tip.classList.add('is-visible');
-  });
+  };
+  overlay.addEventListener('mousemove', (evt) => move(evt.clientX, evt.clientY));
   overlay.addEventListener('mouseleave', clear);
+  // 모바일: 탭·드래그로도 값이 뜨고, 손을 떼도 남는다(다른 곳을 터치하면 닫힌다)
+  overlay.addEventListener('touchstart', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  overlay.addEventListener('touchmove', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+
+  // 연도 비교 토글 — 체크하면 선택창이 생기고, 고르면 그 해를 점선으로 얹는다
+  fig.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.classList && t.classList.contains('sr-cmp__chk')) {
+      const yrs = Object.keys((_srData && _srData.years) || {}).sort().filter((y) => y !== _srYear);
+      _srCmp = t.checked ? (yrs[yrs.length - 1] || null) : null;
+      renderMaterial();
+    } else if (t.classList && t.classList.contains('sr-cmp__sel')) {
+      _srCmp = t.value;
+      renderMaterial();
+    }
+  });
+}
+
+/** 연·월 칸의 값 — 1월의 '전월'(i=-1)은 전년 12월에서 찾는다. 없으면 null. */
+function srAt(year, mi) {
+  let y = Number(year), i = mi;
+  if (!isFinite(y)) return null;
+  if (i < 0) { y -= 1; i += 12; }
+  if (i > 11) { y += 1; i -= 12; }
+  const arr = (_srData && _srData.years && _srData.years[String(y)]) || null;
+  if (!arr) return null;
+  const v = arr[i];
+  return (v == null || !isFinite(v)) ? null : Number(v);
 }
 
 /* ── 국제유가 (PETRONET 일일국제원유가격) ─────────────────────────────────
