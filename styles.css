@@ -788,6 +788,67 @@ body {
   .opx .ocx-ax { display: none; }
 }
 
+/* ══ KOIMA 일일가격 요약 4카드 ════════════════════════════════════════════
+   ★ 카드 겉모양은 국제유가 카드(.ocx*)를, 비교 기준 점선은 KOIMA 지수 카드의
+     .kmx-ref / .kmx-refd 를 그대로 쓴다 — 규칙을 복사하지 않았다.
+   ★ 3:3:3:4 — 전주·전월 평균 칸만 표가 들어가 조금 넓다. */
+.kpx-wrap { margin: 10px 0 4px; }
+.kpx__h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.kpx__t {
+  margin: 0; display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -.01em;
+}
+.kpx__t b {
+  padding: 2px 9px; border-radius: 999px; background: var(--navy); color: #fff;
+  font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.kpx-grid { display: grid; grid-template-columns: 3fr 3fr 3fr 4fr; gap: 10px; }
+.kpx { gap: 6px; }
+.kpx__v {
+  font-size: 27px; font-weight: 900; color: var(--ink); line-height: 1.08;
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em;
+}
+/* 가격·평균은 방향이 없는 값이라 중립(네이비) */
+.kpx__v--neu { color: var(--navy); }
+.kpx__v .ms-badge__val { font-size: inherit; font-weight: 900; letter-spacing: -.02em; }
+.kpx__u { margin-left: 4px; font-size: 12px; font-weight: 700; color: var(--slate); letter-spacing: 0; }
+.kpx .ocx__asof { margin-top: 1px; font-size: 11px; }
+.kpx .ocx__asof .ms-badge__val { font-size: 11px; font-weight: 800; }
+/* 변동 없음(0.00%)은 진한 회색 — 상승도 하락도 아니다 */
+.kpx .ms-badge__val.flat { color: var(--text); }
+
+/* 카드 4 — 2줄 표 */
+.kpx-rt { width: 100%; border-collapse: collapse; margin-top: 2px; }
+/* ★ .kpi-rt th 가 뒤에 와서 --muted(3.10:1)로 덮는다 — 선택자를 겹쳐 올린다 */
+.kpx-rt.kpi-rt th {
+  text-align: left; padding: 3px 0; font-size: 11.5px; font-weight: 700; color: var(--text);
+}
+.kpx-rt .kpi-rt__v {
+  text-align: right; padding: 3px 0; font-size: 17px; font-weight: 800; color: var(--navy);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.kpx-rt .kpi-avg__s td {
+  padding: 0 0 5px; font-size: 10px; color: var(--slate); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.kpx__cap { margin-top: auto; padding-top: 6px; font-size: 10px; line-height: 1.45; color: var(--slate); }
+
+/* 미니 차트 — 선·면적·끝점·축은 .xsi-sp* / .ocx-sp__d / .ocx-ax 를 그대로 쓴다 */
+.kpx-chart { margin-top: auto; }
+.kpx-sp { width: 100%; height: 46px; }
+
+/* 주요 지역가격(5번째 칸)은 건드리지 않았다 — 한 줄로 내려만 둔다 */
+.kpx-reg { grid-template-columns: minmax(0, 1fr); margin-top: 8px; }
+
+@media (max-width: 1180px) { .kpx-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px) {
+  .kpx-grid { grid-template-columns: 1fr; }
+  .kpx__v { font-size: 25px; }
+}
+@media (max-width: 420px) {
+  .kpx-chart { display: none; }      /* 좁으면 미니 차트를 접는다 */
+}
+
 /* ══ KOIMA 요약 3카드 ═════════════════════════════════════════════════════
    ★ 카드 겉모양은 국제유가 카드(.ocx*)를 그대로 쓴다 — 같은 클래스를 마크업에
      달았으므로 여기서는 배치와 미니차트 보조선만 더한다.

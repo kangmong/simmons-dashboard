@@ -10847,33 +10847,167 @@ function kpiBullets(item, st, fc) {
 }
 
 /** 요약 5박스 */
+/* ══ KOIMA 일일가격 요약 4카드 ════════════════════════════════════════════
+   ★ 값은 바뀌지 않았다 — 담는 그릇만 박스에서 카드로 바꾸고 미니 차트를 더했다.
+   ★ 포인트 색(--xt)은 장식이다. 숫자와 ▲▼ 는 대시보드 공통 규칙
+     (.ms-badge__val — 상승 빨강 · 하락 파랑)을 그대로 쓰고, 방향이 없는 값
+     (가격 · 평균)은 중립 네이비로 둔다. 초록 카드라고 '좋음'으로 읽히면 안 된다. */
+const KPX_TONES = { now: '#3B82F6', mom: '#E11D48', avg: '#0B7F5E', prev: '#8B5CF6' };
+const KPX_W = 210, KPX_H = 46, KPX_P = 4;
+
+/* 원자재 드럼통 아이콘 — 인라인 SVG(새 이미지 파일을 쓰지 않는다) */
+const KPX_ICONS = {
+  drum: '<ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/>'
+    + '<path d="M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>',
+};
+function kpxIcon(kind, tone) {
+  return '<span class="ocx__ico" style="--xt:' + tone + '" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"'
+    + ' stroke-linecap="round" stroke-linejoin="round">'
+    + (KPX_ICONS[kind] || SRK_ICONS[kind] || '') + '</svg></span>';
+}
+
+/** 미니 면적 차트 + X축 날짜 3~4개.
+ *  rows 는 일별이라 점이 많다 — 고르게 솎아 그린다(모양은 그대로).
+ *  opts.backDays 를 주면 그만큼 전 지점에 비교 기준 점선·동그라미를 찍는다. */
+function kpxSpark(rows, tone, days, opts) {
+  const all = (rows || []).filter((r) => r.price != null && isFinite(r.price));
+  if (all.length < 2) return '';
+  const end = all[all.length - 1].date;
+  const cutD = new Date(end + 'T00:00:00Z');
+  cutD.setUTCDate(cutD.getUTCDate() - days);
+  const cut = cutD.toISOString().slice(0, 10);
+  const w = all.filter((r) => r.date >= cut);
+  if (w.length < 2) return '';            /* 2개 미만이면 차트를 접는다 */
+  const o = opts || {};
+  const cap = 90, idx = [];
+  if (w.length <= cap) { for (let i = 0; i < w.length; i += 1) idx.push(i); } else {
+    for (let i = 0; i < cap; i += 1) idx.push(Math.round((i * (w.length - 1)) / (cap - 1)));
+  }
+  const pts = idx.map((i) => w[i]);
+  let lo = Infinity, hi = -Infinity;
+  pts.forEach((r) => { if (r.price < lo) lo = r.price; if (r.price > hi) hi = r.price; });
+  /* 비교 기준선도 축 안에 들어오게 */
+  let ref = null;
+  if (o.backDays) {
+    const bD = new Date(end + 'T00:00:00Z');
+    bD.setUTCDate(bD.getUTCDate() - o.backDays);
+    const bk = bD.toISOString().slice(0, 10);
+    const hit = all.filter((r) => r.date <= bk);
+    ref = hit.length ? hit[hit.length - 1] : null;
+    if (ref) { lo = Math.min(lo, ref.price); hi = Math.max(hi, ref.price); }
+  }
+  const gap = (hi - lo) * 0.12 || 1;
+  lo -= gap; hi += gap;
+  const sp = (hi - lo) || 1;
+  const X = (i) => KPX_P + (i / (pts.length - 1)) * (KPX_W - KPX_P * 2);
+  const Y = (v) => KPX_H - KPX_P - ((v - lo) / sp) * (KPX_H - KPX_P * 2);
+  const d = pts.map((r, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(r.price).toFixed(1)).join(' ');
+  const lx = X(pts.length - 1).toFixed(1), ly = Y(pts[pts.length - 1].price).toFixed(1);
+  let extra = '';
+  if (ref) {
+    /* 기준 시점을 가로 점선으로 — 어디서 어디로 움직였는지 보이게 */
+    const ry = Y(ref.price).toFixed(1);
+    let ri = 0;
+    pts.forEach((r, i) => { if (r.date <= ref.date) ri = i; });
+    extra = '<line class="kmx-ref" x1="0" x2="' + KPX_W + '" y1="' + ry + '" y2="' + ry + '"/>'
+      + '<circle class="kmx-refd" cx="' + X(ri).toFixed(1) + '" cy="' + ry + '" r="2.8"/>';
+  }
+  const want = Math.min(4, pts.length);
+  const ticks = [];
+  for (let i = 0; i < want; i += 1) ticks.push(pts[Math.round((i * (pts.length - 1)) / (want - 1))].date);
+  return '<div class="ocx-chart kpx-chart">'
+    + '<svg class="ocx-sp kpx-sp" viewBox="0 0 ' + KPX_W + ' ' + KPX_H + '" preserveAspectRatio="none"'
+    + ' aria-hidden="true" focusable="false" style="--xt:' + tone + '">'
+    + '<title>' + escapeHtml(w[0].date + ' ~ ' + w[w.length - 1].date) + '</title>'
+    + '<path class="xsi-sp__a" d="' + d + ' L' + lx + ' ' + KPX_H + ' L' + X(0).toFixed(1) + ' ' + KPX_H + ' Z"/>'
+    + '<path class="xsi-sp__l" d="' + d + '"/>' + extra
+    + '<circle class="ocx-sp__d" cx="' + lx + '" cy="' + ly + '" r="3"/>'
+    + '</svg>'
+    + '<div class="ocx-ax">' + ticks.map((k) => '<span>' + escapeHtml(k) + '</span>').join('') + '</div>'
+    + '</div>';
+}
+
+function kpxCard(o) {
+  return '<div class="ocx kpx' + (o.cls ? ' ' + o.cls : '') + '" style="--xt:' + o.tone + '">'
+    + '<div class="ocx__hd">' + kpxIcon(o.icon, o.tone)
+    + '<div class="ocx__nm">'
+    + '<span class="ocx__en">' + escapeHtml(o.label)
+    + (o.def ? gcAbbr('ⓘ', o.def) : '') + '</span>'
+    + '<span class="ocx__ko">' + escapeHtml(o.desc) + '</span>'
+    + '</div></div>'
+    + (o.val ? '<div class="kpx__v' + (o.vcls ? ' ' + o.vcls : '') + '">' + o.val + '</div>' : '')
+    + (o.sub ? '<div class="ocx__asof">' + o.sub + '</div>' : '')
+    + (o.body || '')
+    + (o.spark || '')
+    + (o.cap ? '<div class="kpx__cap">' + escapeHtml(o.cap) + '</div>' : '')
+    + '</div>';
+}
+
 function kpiSum5(cat, item, st, fc) {
   if (!cat || !item || !st) return '';
   const u = item.unit || '';
-  const boxes = matSum([
-    {
-      label: '현재가격', val: kpPrice(st.price) + '<span class="sr-sum__u">' + escapeHtml(u) + '</span>',
-      sub: escapeHtml(st.date) + ' 기준 · 전일대비 ' + matBadge(st.dom, 2),
-    },
-    {
-      label: '전월대비', val: matBadge(st.mom, 2),
-      sub: '자료 제공값 · 전주대비 ' + matBadge(st.wow, 2),
-    },
-    {
-      label: '최근 12개월 평균', val: kpPrice(st.avg12),
-      sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
-    },
-  ]);
+  const rows = item.rows || [];
+  const na = '<span class="ocx-na">—</span>';
+  const price = (v) => (v == null || !isFinite(v) ? na : kpPrice(v));
+  /* ⓘ 설명 — 화면·코드에 이미 있던 말만 옮긴다(새로 지어내지 않는다) */
+  const cards = kpxCard({
+    tone: KPX_TONES.now, icon: 'drum', label: '현재가격',
+    desc: '선택 품목의 최근 가격 (' + u + ')',
+    def: '고른 품목의 마지막 관측일 가격입니다. 단위는 품목마다 다릅니다(' + u + ').',
+    val: price(st.price) + '<span class="kpx__u">' + escapeHtml(u) + '</span>',
+    vcls: 'kpx__v--neu',
+    sub: escapeHtml(st.date) + ' 기준 · 전일대비 ' + matBadge(st.dom, 2),
+    spark: kpxSpark(rows, KPX_TONES.now, 182),
+  }) + kpxCard({
+    tone: KPX_TONES.mom, icon: 'trend', label: '전월대비', desc: '전월 대비 변동률',
+    /* ★ KOIMA 가 발표한 값을 수집기가 그대로 옮긴 것이다(koima_price.py 의
+       dayPer/weekPer/monthPer). 우리가 계산한 값이 아니라고 밝혀 둔다. */
+    def: 'KOIMA 가 함께 발표하는 변동률을 그대로 가져온 값입니다. 전일·전주·전월 '
+      + '모두 원본이 계산해 제공합니다.',
+    val: (st.mom == null || !isFinite(st.mom)) ? na : matBadge(st.mom, 2),
+    sub: '원본 제공값 · 전주대비 ' + matBadge(st.wow, 2),
+    spark: kpxSpark(rows, KPX_TONES.mom, 182, { backDays: 30 }),
+  }) + kpxCard({
+    tone: KPX_TONES.avg, icon: 'cal', label: '최근 12개월 평균', desc: '최근 12개월 평균 가격',
+    def: '일별값을 달마다 평균 낸 뒤, 마지막 관측월까지 최근 12개 달의 평균을 다시 낸 값입니다. '
+      + '관측이 모자라면 있는 달만 세고 그 개수를 적습니다.',
+    val: price(st.avg12), vcls: 'kpx__v--neu',
+    sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
+    spark: kpxSpark(rows, KPX_TONES.avg, 365),
+  }) + kpxAvgCard(item, st);
   /* ★ 뺀 것 — 5번째 칸 '핵심 인사이트'(kpiBullets 4줄). 앞 세 칸의 수치와
      아래 표가 이미 말하는 것을 문장으로 다시 적던 자리다.
      kpiBullets 는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
-  const avg = kpiAvgBox(item, st);
+  /* 주요 지역가격 — 지역 변형이 있는 품목에서만 나온다. 그대로 둔다. */
   const reg = kpiRegional(cat, item);
-  // matSum 이 만든 .sr-sum 그리드 끝에 4·5번째 칸을 위치로 끼워 넣는다
-  const k = boxes.lastIndexOf('</div>');
-  const grid = k < 0 ? boxes + avg + reg
-    : boxes.slice(0, k) + avg + reg + boxes.slice(k);
-  return grid.replace('class="sr-sum"', 'class="sr-sum kpi-sum5"');
+  return '<div class="kpx-wrap">'
+    + '<div class="kpx__h"><h4 class="kpx__t">' + escapeHtml(item.name)
+    + '<b>' + escapeHtml(st.date) + ' 기준</b></h4></div>'
+    + '<div class="kpx-grid">' + cards + '</div>'
+    + '<div class="ii-cap ocx-note">미니 차트의 세로 범위는 카드별로 다릅니다</div>'
+    + (reg ? '<div class="sr-sum kpx-reg">' + reg + '</div>' : '')
+    + '</div>';
+}
+
+/** 카드 4 — 전주·전월 평균 2줄 표(미니 차트 없음) */
+function kpxAvgCard(item, st) {
+  const a = kpiPrevAvgs(item, st.date);
+  const cell = (v) => (v == null || !isFinite(v)
+    ? '<span class="ocx-na">—</span>' : kpPrice(v));
+  const row = (k, v, when) => '<tr><th scope="row">' + escapeHtml(k) + '</th>'
+    + '<td class="kpi-rt__v">' + cell(v) + '</td></tr>'
+    + (when ? '<tr class="kpi-avg__s"><td colspan="2">' + escapeHtml(when) + '</td></tr>' : '');
+  return kpxCard({
+    tone: KPX_TONES.prev, icon: 'avg', label: '전주·전월 평균', desc: '과거 평균 가격 비교',
+    def: '지난주(월~일)와 지난달의 일별값을 각각 단순 평균한 값입니다.',
+    body: '<table class="kpi-rt kpx-rt"><tbody>'
+      + row('전주 평균', a.week, a.weekFrom ? a.weekFrom + ' ~ ' + a.weekTo : '')
+      + row('전월 평균', a.month, a.monthKey ? a.monthKey + ' 한 달' : '')
+      + '</tbody></table>',
+    cap: '지난주(월~일)·지난달 일별값의 단순 평균 · ' + st.date + ' 기준',
+    cls: 'kpx--wide',
+  });
 }
 
 /** ② 주요 변동요인 5카드 */
