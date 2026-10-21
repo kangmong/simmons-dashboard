@@ -2482,6 +2482,90 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 
 /* ── 세계 시간 (World Clock — 지도 + 점 마커 + 툴팁) ── */
 /* 표를 없앤 만큼 지도를 넓게: 등장방형 실제 비율 2:1(세로 늘림 왜곡도 사라짐) */
+/* ══ 세계 시간 — 해상 경로 ═══════════════════════════════════════════════
+   ★ 비행 경로(파란 점선)와 구분되게 청록 실선으로 그린다.
+   ★ 선사·선박·항차 같은 실제 운항 정보는 싣지 않는다. 배 아이콘은 장식이다. */
+.wc-sea { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.wc-sea__ln {
+  fill: none; stroke: var(--cyan, #0891B2); stroke-width: 2.2;
+  stroke-linejoin: round; stroke-linecap: round; opacity: .92;
+}
+/* 해협·운하·곶 — 작은 점과 이름 */
+.wc-sea__w circle { fill: var(--cyan, #0891B2); stroke: #fff; stroke-width: 1.2; }
+.wc-sea__w text {
+  font-size: 8.5px; font-weight: 700; fill: #0A5C72; text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 2.6;
+}
+/* 도시 ↔ 대표 항구 연결(도시와 항구가 다를 때) */
+.wc-sea__link {
+  stroke: var(--cyan, #0891B2); stroke-width: 1.2; stroke-dasharray: 3 3; opacity: .55;
+}
+.wc-sea__p circle { fill: #fff; stroke: var(--cyan, #0891B2); stroke-width: 1.8; }
+.wc-sea__p text {
+  font-size: 8px; font-weight: 700; fill: #0A5C72; text-anchor: middle;
+  paint-order: stroke; stroke: #fff; stroke-width: 2.4;
+}
+/* 배는 경로 위를 천천히 오가는 장식이다(운항 상태가 아니다) */
+.wc-sea__sh {
+  offset-distance: 50%; offset-rotate: auto;
+  animation: wcSail 22s ease-in-out infinite alternate;
+}
+@keyframes wcSail { from { offset-distance: 4%; } to { offset-distance: 96%; } }
+@media (prefers-reduced-motion: reduce) { .wc-sea__sh { animation: none; } }
+
+/* 토글 — 켜면 청록 알약(비행 경로의 네이비와 구분) */
+.wc-bar .wc-sw--sea.is-on { background: var(--cyan, #0891B2); border-color: transparent; }
+.wc-bar .wc-sw--sea.is-on .wc-sw__k { background: rgba(255,255,255,.45); }
+
+/* 지도 위 경유 방식 선택 */
+.wc-via {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; gap: 4px; padding: 3px; border-radius: 999px;
+  background: rgba(255,255,255,.94); border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(16,24,40,.1);
+}
+.wc-via__b {
+  padding: 5px 12px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--text); font: inherit;
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+.wc-via__b:hover { background: var(--field); }
+.wc-via__b.is-on { background: var(--cyan, #0891B2); color: #fff; }
+.wc-via__b:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+/* 패널의 '해상 경로' 섹션 — 비행 섹션과 같은 .wc-row 형식을 그대로 쓴다 */
+.wc-sea-sec {
+  margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line);
+}
+.wc-sea-sec__h {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+  font-size: 12px; font-weight: 800; color: #0A5C72;
+}
+.wc-sea-sec__h::before {
+  content: ""; width: 14px; height: 3px; border-radius: 2px;
+  background: var(--cyan, #0891B2);
+}
+.wc-sea-sec__none { padding: 6px 0; font-size: 11.5px; color: var(--slate); }
+.wc-sea-sec__alt {
+  margin-top: 5px; font-size: 10.5px; line-height: 1.5; color: var(--slate);
+  font-variant-numeric: tabular-nums; word-break: keep-all;
+}
+
+@media (max-width: 1000px) {
+  .wc-sea__w text, .wc-sea__p text { font-size: 10px; }
+}
+@media (max-width: 700px) {
+  /* ★ 지도가 좁아지면 가운데 선택창이 왼쪽 아래 범례와 겹친다 — 한 줄 위로 올린다 */
+  .wc-via { bottom: 46px; }
+  .wc-via__b { padding: 6px 11px; font-size: 11px; }
+}
+@media (max-width: 560px) {
+  /* 좁으면 토글이 줄바꿈된다 — 터치 폭을 조금 키운다 */
+  .wc-bar__c { width: 100%; }
+  .wc-bar .wc-sw { padding: 8px 12px 8px 14px; }
+  .wc-sel { flex: 1 1 100%; max-width: none; }
+}
+
 /* ══ 세계 시간 — 경로 보기 ═══════════════════════════════════════════════
    지도 위에 점선 곡선을 얹고 오른쪽에 정보 패널을 연다.
    ★ 항공편·운항 상태 같은 실제 스케줄 정보는 싣지 않는다(데이터가 없다).
@@ -2496,28 +2580,31 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .wc-bar__c { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* 경로 토글 — 켜면 네이비 알약 */
-.wc-sw {
+/* ★ 토글 규칙은 상단 바 안으로 좁힌다 — 마커의 방향 클래스(wc-sw = 남서쪽
+   라벨)와 이름이 같아, 상하이·파리·부에노스아이레스 마커에 알약 모양 규칙이
+   흘러들고 있었다(.wc-sw .wc-name 은 마커 쪽 규칙이라 그대로 둔다). */
+.wc-bar .wc-sw {
   display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
   padding: 6px 10px 6px 12px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--card);
   font-size: 12.5px; font-weight: 700; color: var(--text);
   transition: background .15s, color .15s, border-color .15s;
 }
-.wc-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
-.wc-sw.is-on { background: var(--navy); border-color: transparent; color: #fff; }
-.wc-sw__i { font-size: 12px; }
-.wc-sw__k {
+.wc-bar .wc-sw input { position: absolute; opacity: 0; width: 0; height: 0; }
+.wc-bar .wc-sw.is-on { background: var(--navy); border-color: transparent; color: #fff; }
+.wc-bar .wc-sw__i { font-size: 12px; }
+.wc-bar .wc-sw__k {
   width: 28px; height: 16px; border-radius: 999px; background: var(--line);
   position: relative; transition: background .15s;
 }
-.wc-sw__k::after {
+.wc-bar .wc-sw__k::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px;
   border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.3);
   transition: transform .15s;
 }
-.wc-sw.is-on .wc-sw__k { background: var(--blue); }
-.wc-sw.is-on .wc-sw__k::after { transform: translateX(12px); }
-.wc-sw:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
+.wc-bar .wc-sw.is-on .wc-sw__k { background: var(--blue); }
+.wc-bar .wc-sw.is-on .wc-sw__k::after { transform: translateX(12px); }
+.wc-bar .wc-sw:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
 .wc-sel {
   font: inherit; font-size: 12.5px; padding: 6px 10px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer;

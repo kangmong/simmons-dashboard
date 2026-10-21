@@ -13658,9 +13658,223 @@ function wcRouteSvg(a, b) {
     + ' aria-hidden="true">' + line(d1) + (d2 ? line(d2) : '') + plane(d1) + '</svg>';
 }
 
+/* ══ 해상 경로 ════════════════════════════════════════════════════════════
+   ★ 외부 항로 API 를 부르지 않는다. public/data/sea-routes.json 에 손으로 엮어
+     둔 항구·해협·간선 그래프를 다익스트라로 푼다(라이브러리 없이 직접 구현).
+   ★ 간선은 '바다로 이어지는 쌍'에만 둔다 — 없는 길은 알고리즘이 만들어 낼 수
+     없으므로 경로가 육지를 가로지르지 않는다. 간선 하나하나가 짧은 바다 구간
+     이라 직선으로 그려도 뭍을 밟지 않는다.
+   ★ 선사·선박·항차·실제 일정은 담지 않는다. 거리는 대권거리 합, 시간은 아래
+     평균 속도로 나눈 개략 추정값이고 화면에도 그렇게 적는다. */
+const WC_SHIP_KN = 18;              // 컨테이너선 감속 운항 기준(16~20노트의 중간)
+const WC_NM_KM = 1.852;
+
+let _wcSea = false;                 // '해상 경로 보기' 토글
+let _wcSeaData = null;              // sea-routes.json
+let _wcSeaBusy = false;
+let _wcVia = 'suez';                // 'suez' | 'cape'
+
+/** 항로망을 한 번만 받아 온다(토글을 켤 때). 실패해도 다른 기능은 그대로. */
+async function wcLoadSea() {
+  if (_wcSeaData || _wcSeaBusy) return;
+  _wcSeaBusy = true;
+  try {
+    const res = await fetch('public/data/sea-routes.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !Array.isArray(d.nodes) || !Array.isArray(d.edges)) throw new Error('형식 오류');
+    d._byId = {};
+    d.nodes.forEach((n) => { d._byId[n.id] = n; });
+    d._adj = {};
+    d.edges.forEach((e) => {
+      const a = d._byId[e[0]], b = d._byId[e[1]];
+      if (!a || !b) return;
+      const w = wcDistKm(a, b);
+      (d._adj[e[0]] = d._adj[e[0]] || []).push([e[1], w]);
+      (d._adj[e[1]] = d._adj[e[1]] || []).push([e[0], w]);
+    });
+    if (d.defaultVia === 'cape' || d.defaultVia === 'suez') _wcVia = d.defaultVia;
+    _wcSeaData = d;
+  } catch (err) {
+    console.warn('[sea-routes] 로드 실패:', err);
+    _wcSeaData = { error: String((err && err.message) || err) };
+  }
+  _wcSeaBusy = false;
+  renderWorldClock();
+}
+
+/** 도시 → 대표 항구 노드. 매핑이 없으면 null(해상 경로를 내지 않는다). */
+function wcPortOf(city) {
+  const d = _wcSeaData;
+  if (!d || d.error) return null;
+  const m = d.cityPorts[city.ko];
+  return m ? { node: d._byId[m.port], why: m.why, inland: !!m.inland } : null;
+}
+
+/** 다익스트라 — block 에 든 노드는 지나지 않는다(희망봉 경유를 만들 때 쓴다).
+ *  ★ 우선순위 큐를 라이브러리 없이 배열로 둔다. 노드가 70여 개라 충분하다. */
+function wcSeaPath(fromId, toId, block) {
+  const d = _wcSeaData;
+  if (!d || d.error || !d._adj[fromId] || !d._adj[toId]) return null;
+  const dist = Object.create(null), prev = Object.create(null), done = Object.create(null);
+  dist[fromId] = 0;
+  for (;;) {
+    let u = null, best = Infinity;
+    Object.keys(dist).forEach((k) => {
+      if (!done[k] && dist[k] < best) { best = dist[k]; u = k; }
+    });
+    if (u == null) break;
+    if (u === toId) break;
+    done[u] = 1;
+    (d._adj[u] || []).forEach((e) => {
+      const v = e[0];
+      if (block && block.indexOf(v) >= 0) return;
+      const nd = dist[u] + e[1];
+      if (nd < (dist[v] == null ? Infinity : dist[v])) { dist[v] = nd; prev[v] = u; }
+    });
+  }
+  if (dist[toId] == null) return null;
+  const path = [toId];
+  while (path[path.length - 1] !== fromId) path.push(prev[path[path.length - 1]]);
+  path.reverse();
+  const segs = [];
+  for (let i = 0; i < path.length - 1; i += 1) {
+    segs.push({ a: d._byId[path[i]], b: d._byId[path[i + 1]],
+      km: wcDistKm(d._byId[path[i]], d._byId[path[i + 1]]) });
+  }
+  const km = segs.reduce((t, x) => t + x.km, 0);
+  return { ids: path, nodes: path.map((k) => d._byId[k]), segs: segs, km: km };
+}
+
+/** 고른 두 도시의 해상 경로 — 경유 선택(수에즈/희망봉)까지 함께 돌려준다. */
+function wcSeaRoute(A, B) {
+  const pa = wcPortOf(A), pb = wcPortOf(B);
+  if (!pa || !pb || !pa.node || !pb.node) return null;
+  if (pa.node.id === pb.node.id) return { same: true, from: pa, to: pb };
+  const viaSuez = wcSeaPath(pa.node.id, pb.node.id, null);
+  if (!viaSuez) return null;
+  const usesSuez = viaSuez.ids.indexOf('suez') >= 0;
+  /* 수에즈를 지나는 경로일 때만 '희망봉으로 돌아가면' 을 같이 구해 비교한다.
+     ★ 수에즈만 막으면 파나마로 도는 길이 더 짧게 나오는 조합이 있다
+       (부산→런던이 그랬다). 버튼에 '희망봉 경유'라고 적어 놓고 파나마로
+       보내면 말과 그림이 어긋나므로, 두 운하를 모두 막아 실제로 아프리카
+       남단을 도는 길만 남긴다. */
+  const viaCape = usesSuez ? wcSeaPath(pa.node.id, pb.node.id, ['suez', 'panama']) : null;
+  const pick = (usesSuez && _wcVia === 'cape' && viaCape) ? viaCape : viaSuez;
+  return {
+    from: pa, to: pb, route: pick, suez: viaSuez, cape: viaCape,
+    choosable: !!(usesSuez && viaCape),
+    via: (usesSuez && _wcVia === 'cape' && viaCape) ? 'cape' : 'suez',
+  };
+}
+
+/** 항해시간(시간) — 거리 ÷ 평균 속도. 실제 스케줄이 아니다. */
+function wcSailHours(km) { return km / (WC_SHIP_KN * WC_NM_KM); }
+
+/** '약 N.N일' */
+function wcDays(km) { return '약 ' + (wcSailHours(km) / 24).toFixed(1) + '일'; }
+
+/** 해상 경로 SVG — 구간마다 날짜변경선을 넘는지 보고, 넘는 구간만 반대편에도
+ *  한 번 더 그린다(비행 경로와 같은 방식). */
+function wcSeaSvg(sea, A, B) {
+  if (!sea || sea.same || !sea.route) return '';
+  const segs = sea.route.segs;
+  /* 경로를 하나의 이어진 선으로 — 경도가 ±180 을 넘으면 x 를 계속 더해 간다 */
+  const pts = [];
+  let off = 0;
+  sea.route.nodes.forEach((n, i) => {
+    if (i > 0) {
+      const d = n.lon - sea.route.nodes[i - 1].lon;
+      if (d > 180) off -= 1000; else if (d < -180) off += 1000;
+    }
+    const q = wcXY(n);
+    pts.push({ x: q.x + off, y: q.y, n: n });
+  });
+  const line = (shift) => 'M' + pts.map((p) => (p.x + shift).toFixed(1) + ' ' + p.y.toFixed(1)).join(' L');
+  /* 지도 밖으로 나간 쪽이 있으면 반대편에도 한 벌 더 그린다 */
+  const minX = Math.min.apply(null, pts.map((p) => p.x));
+  const maxX = Math.max.apply(null, pts.map((p) => p.x));
+  const copies = [0];
+  if (maxX > 1000) copies.push(-1000);
+  if (minX < 0) copies.push(1000);
+  const paths = copies.map((c) => '<path class="wc-sea__ln" d="' + line(c) + '"/>').join('');
+  /* 해협·운하·곶에만 작은 점과 이름 — 중간 바다 노드는 이름을 적지 않는다 */
+  const marks = pts.filter((p, i) => i > 0 && i < pts.length - 1
+    && (p.n.kind === 'strait' || p.n.kind === 'canal' || p.n.kind === 'cape'))
+    .map((p) => '<g class="wc-sea__w" transform="translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')">'
+      + '<circle r="3"/><text y="-6">' + escapeHtml(p.n.ko) + '</text></g>').join('');
+  /* 도시 ↔ 항구 연결(도시와 항구가 다를 때) — 옅은 점선 + 항구 이름 */
+  const link = (city, port) => {
+    if (!port || !port.node) return '';
+    if (Math.abs(city.lat - port.node.lat) < 0.35 && Math.abs(city.lon - port.node.lon) < 0.35) return '';
+    const c = wcXY(city), p = wcXY(port.node);
+    return '<line class="wc-sea__link" x1="' + c.x.toFixed(1) + '" y1="' + c.y.toFixed(1)
+      + '" x2="' + p.x.toFixed(1) + '" y2="' + p.y.toFixed(1) + '"/>'
+      + '<g class="wc-sea__p" transform="translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')">'
+      + '<circle r="3.2"/><text y="11">' + escapeHtml(port.node.ko) + '</text></g>';
+  };
+  /* 배는 경로 위를 천천히 오가는 장식이다(운항 상태가 아니다) */
+  const ship = '<g class="wc-sea__sh" style="offset-path:path(\'' + line(0) + '\')">'
+    + '<path d="M-6 2 L6 2 L4 5 L-4 5 Z M-1 2 L-1 -3 L4 -1 L-1 0" fill="var(--cyan, #0891B2)"/></g>';
+  return '<svg class="wc-sea" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet"'
+    + ' aria-hidden="true">' + paths + marks
+    + link(A, sea.from) + link(B, sea.to) + ship + '</svg>';
+}
+
+/** 패널의 '해상 경로' 섹션 */
+function wcSeaPanelHtml(A, B) {
+  if (!_wcSea) return '';
+  const d = _wcSeaData;
+  if (!d) return '<div class="wc-sea-sec"><div class="wc-sea-sec__h">해상 경로</div>'
+    + '<div class="wc-sea-sec__none">항로망을 불러오는 중…</div></div>';
+  if (d.error) return '<div class="wc-sea-sec"><div class="wc-sea-sec__h">해상 경로</div>'
+    + '<div class="wc-sea-sec__none">항로망을 불러오지 못했습니다</div></div>';
+  const sea = wcSeaRoute(A, B);
+  const head = '<div class="wc-sea-sec__h">해상 경로</div>';
+  if (!sea || sea.same) {
+    return '<div class="wc-sea-sec">' + head
+      + '<div class="wc-sea-sec__none">'
+      + (sea && sea.same ? '두 도시가 같은 항구를 씁니다' : '해상 경로를 지원하지 않는 도시입니다')
+      + '</div></div>';
+  }
+  const r = sea.route;
+  const ways = r.nodes.slice(1, -1)
+    .filter((n) => n.kind === 'strait' || n.kind === 'canal' || n.kind === 'cape')
+    .map((n) => n.ko);
+  const row = (k, v) => '<div class="wc-row"><span>' + escapeHtml(k) + '</span><b>' + v + '</b></div>';
+  const other = sea.choosable
+    ? (sea.via === 'suez' ? sea.cape : sea.suez) : null;
+  const diff = other ? (other.km - r.km) : 0;
+  return '<div class="wc-sea-sec">' + head
+    + row('항구', escapeHtml(sea.from.node.ko) + ' → ' + escapeHtml(sea.to.node.ko))
+    + row('해상 거리', '{:km}'.replace('{:km}', Math.round(r.km).toLocaleString('ko-KR')) + ' km'
+      + '<i>' + Math.round(r.km / WC_NM_KM).toLocaleString('ko-KR') + ' 해리</i>')
+    + row('예상 항해시간', escapeHtml(wcDays(r.km))
+      + '<i>평균 ' + WC_SHIP_KN + '노트 기준 · 개략 추정</i>')
+    + (ways.length ? row('주요 경유 지점', escapeHtml(ways.join(' · '))) : '')
+    + (other ? '<div class="wc-sea-sec__alt">'
+      + (sea.via === 'suez' ? '희망봉' : '수에즈') + ' 경유 시 '
+      + (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('ko-KR') + ' km ('
+      + (diff > 0 ? '+' : '') + ((wcSailHours(other.km) - wcSailHours(r.km)) / 24).toFixed(1) + '일)'
+      + '</div>' : '')
+    + ((sea.from.inland || sea.to.inland)
+      ? '<div class="wc-sea-sec__alt">내륙 도시는 대표 항구까지의 육상 구간이 거리에 들어 있지 않습니다</div>' : '')
+    + '</div>';
+}
+
+/** 지도 위 경유 방식 선택 — 수에즈를 지나는 조합에서만 낸다 */
+function wcViaBarHtml(A, B) {
+  if (!_wcSea || !_wcSeaData || _wcSeaData.error || !A || !B) return '';
+  const sea = wcSeaRoute(A, B);
+  if (!sea || sea.same || !sea.choosable) return '';
+  const b = (k, t) => '<button type="button" class="wc-via__b' + (sea.via === k ? ' is-on' : '')
+    + '" data-wcvia="' + k + '" aria-pressed="' + (sea.via === k) + '">' + escapeHtml(t) + '</button>';
+  return '<div class="wc-via">' + b('suez', '수에즈 경유') + b('cape', '희망봉 경유') + '</div>';
+}
+
 /** 오른쪽 정보 패널 — 두 도시를 고른 뒤에만 */
 function wcPanelHtml() {
-  if (!_wcRoute || _wcTo == null || _wcFrom === _wcTo) return '';
+  if ((!_wcRoute && !_wcSea) || _wcTo == null || _wcFrom === _wcTo) return '';
   const A = WORLD_CITIES[_wcFrom], B = WORLD_CITIES[_wcTo];
   const now = new Date();
   const sa = wcStamp(A.tz, now), sb = wcStamp(B.tz, now);
@@ -13693,8 +13907,12 @@ function wcPanelHtml() {
     + row('지금 출발한다고 가정하면', escapeHtml(eta.hhmm) + ' <i>' + escapeHtml(eta.ymd)
       + ' · ' + escapeHtml(B.ko) + ' 현지</i>')
     + row('도착지 현재 날씨', escapeHtml(wx))
+    + wcSeaPanelHtml(A, B)
     + '<div class="wc-panel__note">대권거리와 평균 속도(약 ' + WC_SPEED_KMH
-    + ' km/h)로 계산한 추정값이며 실제 항공 스케줄과 다를 수 있습니다.</div>'
+    + ' km/h)로 계산한 추정값이며 실제 항공 스케줄과 다를 수 있습니다.'
+    + (_wcSea ? ' 해상 경로는 대표 항로 기준의 개략 추정값이며, 실제 선사 항로·속도·'
+      + '기항지·운하 통항 상황에 따라 크게 달라질 수 있습니다.' : '')
+    + '</div>'
     + '</aside>';
 }
 
@@ -13711,6 +13929,11 @@ function wcBarHtml() {
     + '<input type="checkbox" data-wc="route"' + (_wcRoute ? ' checked' : '') + '>'
     + '<span class="wc-sw__i" aria-hidden="true">\u2708</span>'
     + '<span class="wc-sw__l">비행 경로 보기</span><span class="wc-sw__k"></span></label>'
+    /* ★ 비행 경로와 따로 켜고 끈다 — 둘 다 켜면 두 경로가 같이 보인다. */
+    + '<label class="wc-sw wc-sw--sea' + (_wcSea ? ' is-on' : '') + '">'
+    + '<input type="checkbox" data-wc="sea"' + (_wcSea ? ' checked' : '') + '>'
+    + '<span class="wc-sw__i" aria-hidden="true">\u2693</span>'
+    + '<span class="wc-sw__l">해상 경로 보기</span><span class="wc-sw__k"></span></label>'
     + '<select class="wc-sel" data-wc="from" aria-label="출발 도시 선택">' + opts + '</select>'
     + '</div></div>';
 }
@@ -13735,28 +13958,37 @@ function renderWorldClock() {
     const krCls = (c.ko === '서울') ? ' wc-mk--kr' : '';
     const krHint = (c.ko === '서울') ? ' title="눌러서 국내 주요 도시 날씨 보기"' : '';
     /* 경로 보기에서 고른 두 도시는 강조 링 + 한/영 큰 라벨 */
-    const pick = _wcRoute && (i === _wcFrom ? ' is-from' : (i === _wcTo ? ' is-to' : ''));
-    const big = (_wcRoute && (i === _wcFrom || i === _wcTo))
+    const on = _wcRoute || _wcSea;
+    const pick = on && (i === _wcFrom ? ' is-from' : (i === _wcTo ? ' is-to' : ''));
+    const big = (on && (i === _wcFrom || i === _wcTo))
       ? `<span class="wc-big">${escapeHtml(c.ko)}<i>(${escapeHtml(c.en)})</i></span>` : '';
     return `<button class="wc-mk wc-${c.dir}${krCls}${pick || ''}" data-i="${i}" type="button"
         style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" aria-label="${escapeHtml(c.ko)}"${krHint}>
         <span class="wc-dot"></span><span class="wc-name">${escapeHtml(c.ko)}</span>${big}
       </button>`;
   }).join('');
-  const route = (_wcRoute && _wcTo != null && _wcTo !== _wcFrom)
-    ? wcRouteSvg(WORLD_CITIES[_wcFrom], WORLD_CITIES[_wcTo]) : '';
-  const hint = (_wcRoute && (_wcTo == null || _wcTo === _wcFrom))
+  const both = _wcRoute || _wcSea;
+  const pair = (_wcTo != null && _wcTo !== _wcFrom);
+  const A = WORLD_CITIES[_wcFrom], B = pair ? WORLD_CITIES[_wcTo] : null;
+  const route = (_wcRoute && pair) ? wcRouteSvg(A, B) : '';
+  /* 해상 경로 — 비행 경로와 따로 그린다(둘 다 켜면 겹쳐 보인다) */
+  const seaSvg = (_wcSea && pair && _wcSeaData && !_wcSeaData.error)
+    ? wcSeaSvg(wcSeaRoute(A, B), A, B) : '';
+  const viaBar = (_wcSea && pair) ? wcViaBarHtml(A, B) : '';
+  const hint = (both && !pair)
     ? '<div class="wc-hint">출발할 도시와 도착할 도시를 클릭해 보세요</div>' : '';
   root.innerHTML = wcBarHtml()
-    + `<div class="wc-wrap${_wcRoute && _wcTo != null && _wcTo !== _wcFrom ? ' has-panel' : ''}">
+    + `<div class="wc-wrap${both && pair ? ' has-panel' : ''}">
     <div class="wc-map">
       <div class="wc-zoomwrap" id="wcZoom">
         <img class="wc-map__img" src="world-map.svg" alt="" aria-hidden="true">
+        ${seaSvg}
         ${route}
         <div class="wc-markers">${dots}</div>
       </div>
       <div class="wc-tip" id="wcTip" hidden></div>
       ${hint}
+      ${viaBar}
       <div class="wc-legend"><span><i class="wc-lg wc-lg--day"></i>주간</span><span><i class="wc-lg wc-lg--night"></i>야간</span></div>
       <div class="wc-zc">
         <button type="button" data-wc="in" aria-label="확대">+</button>
@@ -13872,14 +14104,32 @@ function wcWire() {
       const t = e.target;
       if (t.dataset && t.dataset.wc === 'route') {
         _wcRoute = !!t.checked;
-        if (!_wcRoute) _wcTo = null;     // 끄면 경로를 감춘다(도시 점만)
+        if (!_wcRoute && !_wcSea) _wcTo = null;   // 둘 다 꺼야 경로를 감춘다
+        renderWorldClock();
+      } else if (t.dataset && t.dataset.wc === 'sea') {
+        _wcSea = !!t.checked;
+        if (!_wcRoute && !_wcSea) _wcTo = null;
+        /* 항로망은 토글을 켤 때 한 번만 받는다(평소 로딩에 영향이 없게) */
+        if (_wcSea && !_wcSeaData) { wcLoadSea(); return; }
         renderWorldClock();
       } else if (t.dataset && t.dataset.wc === 'from') {
         _wcFrom = Number(t.value);
         if (_wcTo === _wcFrom) _wcTo = null;
-        if (!_wcRoute) _wcRoute = true;  // 도시를 고르면 경로 보기를 켠다
+        /* 도시를 고르면 경로 보기를 켠다 — 해상만 켜 둔 상태는 건드리지 않는다 */
+        if (!_wcRoute && !_wcSea) _wcRoute = true;
         renderWorldClock();
       }
+    });
+  }
+
+  /* ── 경유 방식(수에즈/희망봉) ── 수에즈를 지나는 조합에서만 나온다 */
+  const via = root.querySelector('.wc-via');
+  if (via) {
+    via.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-wcvia]');
+      if (!b) return;
+      _wcVia = b.getAttribute('data-wcvia');
+      renderWorldClock();
     });
   }
 
