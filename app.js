@@ -14072,7 +14072,7 @@ function wcZoomBy(f) {
   wcApplyZoom();
 }
 
-/** 도시를 골랐을 때 — 경로 토글이 켜져 있을 때만 동작한다.
+/** 도시를 골랐을 때 — 비행·해상 경로 토글 중 하나라도 켜져 있을 때 동작한다.
  *  ★ 첫 클릭은 출발지, 그다음은 도착지. 같은 도시를 다시 누르면 도착지 해제. */
 function wcPickCity(i) {
   if (i === _wcFrom) { _wcTo = null; }
@@ -14188,8 +14188,10 @@ function wcWire() {
     const mk = e.target.closest('.wc-mk'); if (!mk) return;
     const i = +mk.dataset.i;
     /* ★ 경로 보기가 켜져 있으면 '도시 고르기'가 먼저다 — 서울의 국내 상세 화면도
-       이때는 열지 않는다(토글을 끄면 예전 동작 그대로 돌아간다). */
-    if (_wcRoute) { e.stopPropagation(); wcPickCity(i); return; }
+       이때는 열지 않는다(토글을 끄면 예전 동작 그대로 돌아간다).
+       ★ 비행·해상 중 어느 쪽이든 켜져 있으면 고를 수 있어야 한다. 예전에는
+         _wcRoute 만 봐서, 해상 경로만 켜면 도착지를 고를 수 없었다. */
+    if (_wcRoute || _wcSea) { e.stopPropagation(); wcPickCity(i); return; }
     if (WORLD_CITIES[i] && WORLD_CITIES[i].ko === '서울') {
       e.stopPropagation();
       krOpen();
@@ -15018,7 +15020,7 @@ function resetWorldClock() {
   _wcShown = false;
   _wcWeather = null;
   _wcOpen = null;
-  _wcRoute = false; _wcFrom = 0; _wcTo = null; _wcZoom = { k: 1, x: 0, y: 0 };
+  _wcRoute = false; _wcSea = false; _wcFrom = 0; _wcTo = null; _wcZoom = { k: 1, x: 0, y: 0 };
   document.removeEventListener('click', wcOutside);
   renderWorldClock();
 }
