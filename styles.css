@@ -1189,18 +1189,12 @@ body {
 }
 
 /* ══ 운임지수 차트 — 변곡점 · 최신 배지 · 툴팁 ═══════════════════════════ */
-.xsi-sp { cursor: pointer; }
-.xsi-sp__d { transition: r .12s ease; }
-.xsi-sp:hover .xsi-sp__d, .xsi-sp:focus-visible .xsi-sp__d { r: 4.2; }
-.xsi-sp:focus { outline: none; }
 .xsi-now { pointer-events: none; }
 /* 최고·최저 라벨은 이 차트에서는 늘 보인다(선이 하나라 겹치지 않는다) */
 .xsi-svg .ii-mm__l.is-on { opacity: 1; }
 .xsi-tt-d { display: block; margin-top: 1px; font-size: 10px; font-weight: 600;
   color: var(--muted); font-variant-numeric: tabular-nums; }
 .xsi-tt-d b { font-weight: 800; }
-.xsi-tt-sp { margin-left: 6px; padding: 1px 6px; border-radius: 999px;
-  background: rgba(200, 16, 46, .14); color: #C8102E; font-size: 9.5px; font-weight: 800; }
 
 /* ══ 주요 시장 이벤트 (ICIS 차트 아래) ═══════════════════════════════════
    ★ 예전에는 차트 위 마커·세로 점선·라벨로 찍었다. 선 4개·급등 띠·최고최저
