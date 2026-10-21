@@ -2228,6 +2228,143 @@ function sfTrend(title, sub) {
 }
 
 /** 6분할 본문 — 3행 2열 */
+/* ══ 실적 패널 가지치기(트리) ═══════════════════════════════════════════
+   예전에는 패널 8개를 .sf-grid 에 한꺼번에 펼쳤다. 한 화면에 도넛 2·막대 4·
+   선 1·가로막대 2가 같이 서서 무엇부터 봐야 할지 알기 어려웠다.
+   이제 '시몬스 / 동종업계 비교' 두 뿌리에서 가지를 펴고, 고른 항목 하나만
+   오른쪽(모바일은 아래)에 그린다.
+
+   ★ 패널을 그리는 함수(sfDonut·sfBars·sfMargins·sfTrend·sfPeerBars)는 한 줄도
+     바꾸지 않았다 — 아래 render 에서 그대로 부른다. 숫자·색·라벨·증감 표기가
+     예전 화면과 같은 이유다.
+   ★ 항목은 이 배열 한 곳에만 적는다. 이름을 바꾸거나 항목을 더할 때 여기만
+     고치면 버튼·내용·기억 키가 함께 따라간다. */
+function sfTreeDefs() {
+  const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
+  const u = _sfData.unit || '억원';
+  const vs = py + ' \u2192 ' + cy;          // 보조 문구의 연도는 데이터에서 온다
+  const yrs = (_sfData.history || []).length;
+  return [
+    { g: 'simmons', label: '시몬스', hint: '감사받은 개별 재무제표', items: [
+      { id: 'assets', label: '자산 구성', sub: cy + '년 말', icon: 'donut',
+        render: () => sfDonut('자산 구성', sfSub(cy + '년 말', u), sfAssetParts(),
+          '자산총계', sfV('assetsTotal', 'current')) },
+      { id: 'capital', label: '부채·자본 구성', sub: cy + '년 말', icon: 'donut',
+        /* 큰 쪽(자본)이 진한 네이비 — 도넛 안에서 크기 순서와 색 농도를 맞춘다 */
+        render: () => sfDonut('부채·자본 구성', sfSub(cy + '년 말', u), [
+          { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_TONE[0] },
+          { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_TONE[2] },
+        ], '자산총계', sfV('assetsTotal', 'current')) },
+      { id: 'bs', label: '주요 자산·부채 항목', sub: vs, icon: 'bars',
+        render: () => sfBars('주요 자산·부채 항목', sfSub(vs, u),
+          ['assetsTotal', 'currentAssets', 'nonCurrentAssets', 'liabilitiesTotal', 'equityTotal']) },
+      { id: 'pl', label: '손익계산서 주요 지표', sub: vs, icon: 'bars',
+        render: () => sfBars('손익계산서 주요 지표', sfSub(vs, u),
+          ['revenue', 'grossProfit', 'operatingProfit', 'netIncome']) },
+      /* ★ 이 패널만 단위가 %다(금액이 아니라 매출 대비 비율). 증감은 %p 로 적는다. */
+      { id: 'margin', label: '수익성 지표', sub: vs, icon: 'pct',
+        render: () => sfMargins('수익성 지표', sfSub(vs, '%')) },
+      { id: 'trend', label: '연도별 손익 추이', sub: yrs + '개 연도', icon: 'line',
+        render: () => sfTrend('연도별 손익 추이', sfSub(yrs + '개 연도', u)) },
+    ] },
+    /* ★ 동종업계 비교 두 칸 — 시몬스 옆에 같은 항목을 나란히 놓는다.
+       규모(매출액)와 수익성(영업이익률)을 따로 본다: 매출이 크다고 남는 것도
+       큰 것은 아니라서, 둘을 한 막대로 합치면 어느 쪽 이야기인지 흐려진다. */
+    { g: 'peers', label: '동종업계 비교', hint: 'DART 감사·정기보고서', items: [
+      { id: 'peer-rev', label: '동종업계 매출액', sub: '단위 ' + u, icon: 'peer',
+        render: () => sfPeerBars('동종업계 매출액', u,
+          (a) => (a.revenue || {}).current, (v) => sfNum(v)) },
+      { id: 'peer-opm', label: '동종업계 영업이익률', sub: '단위 %', icon: 'pct',
+        render: () => sfPeerBars('동종업계 영업이익률', '%', (a) => {
+          const rev = (a.revenue || {}).current, op = (a.operatingProfit || {}).current;
+          return (rev && op != null) ? (op / rev * 100) : null;
+        }, (v) => v.toFixed(1) + '%') },
+    ] },
+  ];
+}
+
+/* 펼친 뿌리 · 고른 항목. 새로고침해도 남도록 sessionStorage 에 적어 둔다.
+   ★ 주소(해시)는 쓰지 않는다 — 이 사이트의 해시는 setView() 가 메뉴 이름으로
+     통째로 덮어쓰는 자리라, 트리 상태를 넣으면 메뉴를 한 번만 눌러도 지워지고
+     새로고침 때는 VIEWS 목록과 대조에 실패해 대시보드로 튕긴다. */
+const SF_TREE_KEY = 'sfTree';
+let _sfTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(SF_TREE_KEY) || 'null');
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
+  } catch (e) { /* 사생활 보호 모드 등 — 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: null, pick: null };
+})();
+function sfTreeSave() {
+  try { sessionStorage.setItem(SF_TREE_KEY, JSON.stringify(_sfTree)); } catch (e) { /* 무시 */ }
+}
+
+/** 항목 아이콘 — 차트 종류를 떠올리게 하는 작은 그림. 라이브러리를 쓰지 않는다. */
+function sfTreeIcon(kind) {
+  /* ★ 크기를 인라인 style 로 못박는다 — width/height 속성만 두면 다른 규칙에
+     눌려 190px 까지 부푸는 것을 실측했다(알약이 아이콘 하나로 가득 찼다). */
+  const o = 'viewBox="0 0 16 16" aria-hidden="true" class="sf-tr__i"'
+    + ' style="width:13px;height:13px;flex:0 0 auto"';
+  if (kind === 'donut') {
+    return '<svg ' + o + '><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="3.2" opacity=".35"/>'
+      + '<path d="M8 2.4a5.6 5.6 0 0 1 5.6 5.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>';
+  }
+  if (kind === 'bars') {
+    return '<svg ' + o + '><rect x="2" y="7" width="3" height="7" rx="1" fill="currentColor" opacity=".45"/>'
+      + '<rect x="6.5" y="3.5" width="3" height="10.5" rx="1" fill="currentColor"/>'
+      + '<rect x="11" y="9" width="3" height="5" rx="1" fill="currentColor" opacity=".45"/></svg>';
+  }
+  if (kind === 'line') {
+    return '<svg ' + o + '><path d="M2 11.5 6 7l3 2.6 5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<circle cx="14" cy="3.6" r="1.7" fill="currentColor"/></svg>';
+  }
+  if (kind === 'peer') {
+    return '<svg ' + o + '><rect x="2" y="3" width="11" height="3" rx="1.5" fill="currentColor"/>'
+      + '<rect x="2" y="7.5" width="7.5" height="3" rx="1.5" fill="currentColor" opacity=".45"/>'
+      + '<rect x="2" y="12" width="4.5" height="3" rx="1.5" fill="currentColor" opacity=".45"/></svg>';
+  }
+  return '<svg ' + o + '><circle cx="4.6" cy="4.6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+    + '<circle cx="11.4" cy="11.4" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+    + '<path d="M13 3 3 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+}
+
+/** 트리(뿌리 + 펼친 가지)만 다시 그린다 */
+function sfTreeNavHtml() {
+  const defs = sfTreeDefs();
+  const roots = defs.map((r) => {
+    const on = _sfTree.open === r.g;
+    return '<button type="button" class="sf-tr__root' + (on ? ' is-open' : '')
+      + '" data-sf-root="' + escapeHtml(r.g) + '" aria-expanded="' + on + '">'
+      + '<span class="sf-tr__rl">' + escapeHtml(r.label) + '</span>'
+      + '<span class="sf-tr__rh">' + escapeHtml(r.hint) + '</span>'
+      + '<span class="sf-tr__cv" aria-hidden="true">' + (on ? '\u2212' : '+') + '</span></button>';
+  }).join('');
+  const open = defs.filter((r) => r.g === _sfTree.open)[0];
+  const branch = open
+    ? '<div class="sf-tr__branch">' + open.items.map((it) => {
+      const on = _sfTree.pick === it.id;
+      return '<button type="button" class="sf-tr__item' + (on ? ' is-on' : '')
+        + '" data-sf-item="' + escapeHtml(it.id) + '" aria-pressed="' + on + '">'
+        + sfTreeIcon(it.icon)
+        + '<span class="sf-tr__b"><span class="sf-tr__l">' + escapeHtml(it.label) + '</span>'
+        + '<span class="sf-tr__s">' + escapeHtml(it.sub) + '</span></span></button>';
+    }).join('') + '</div>'
+    : '';
+  const hint = (!open && !_sfTree.pick)
+    ? '<div class="sf-tr__hint">시몬스를 눌러 항목을 확인하세요</div>' : '';
+  return '<div class="sf-tr__roots">' + roots + '</div>' + branch + hint;
+}
+
+/** 고른 항목 하나만 그린다. 고른 것이 없으면 안내만. */
+function sfTreeOneHtml() {
+  const all = sfTreeDefs().reduce((a, r) => a.concat(r.items), []);
+  const it = all.filter((x) => x.id === _sfTree.pick)[0];
+  if (!it) {
+    return '<div class="sf-one__empty">왼쪽에서 보고 싶은 항목을 선택하세요.</div>';
+  }
+  return it.render();
+}
+
 function sfPanelsHtml() {
   if (!_sfData) {
     return '<div class="comp-todo"><span class="comp-todo__badge">준비중</span>'
@@ -2237,32 +2374,40 @@ function sfPanelsHtml() {
     return '<div class="comp-todo"><span class="comp-todo__badge">데이터 없음</span> '
       + escapeHtml(_sfData.reason || '로드 실패') + '</div>';
   }
-  const cy = (_sfData.current || {}).year, py = (_sfData.previous || {}).year;
-  const u = _sfData.unit || '억원';
-  const vs = py + ' → ' + cy;
-  return '<div class="sf-grid">'
-    + sfDonut('자산 구성', sfSub(cy + '년 말', u), sfAssetParts(), '자산총계', sfV('assetsTotal', 'current'))
-    + sfDonut('부채·자본 구성', sfSub(cy + '년 말', u), [
-      /* 큰 쪽(자본)이 진한 네이비 — 도넛 안에서 크기 순서와 색 농도를 맞춘다 */
-      { name: '자본총계', v: sfV('equityTotal', 'current'), color: SF_TONE[0] },
-      { name: '부채총계', v: sfV('liabilitiesTotal', 'current'), color: SF_TONE[2] },
-    ], '자산총계', sfV('assetsTotal', 'current'))
-    + sfBars('주요 자산·부채 항목', sfSub(vs, u),
-      ['assetsTotal', 'currentAssets', 'nonCurrentAssets', 'liabilitiesTotal', 'equityTotal'])
-    + sfBars('손익계산서 주요 지표', sfSub(vs, u),
-      ['revenue', 'grossProfit', 'operatingProfit', 'netIncome'])
-    /* ★ 이 패널만 단위가 %다(금액이 아니라 매출 대비 비율). 증감은 %p 로 적는다. */
-    + sfMargins('수익성 지표', sfSub(vs, '%'))
-    + sfTrend('연도별 손익 추이', sfSub((_sfData.history || []).length + '개 연도', u))
-    /* ★ 동종업계 비교 두 칸 — 시몬스 옆에 같은 항목을 나란히 놓는다.
-       규모(매출액)와 수익성(영업이익률)을 따로 본다: 매출이 크다고 남는 것도
-       큰 것은 아니라서, 둘을 한 막대로 합치면 어느 쪽 이야기인지 흐려진다. */
-    + sfPeerBars('동종업계 매출액', u, (a) => (a.revenue || {}).current, (v) => sfNum(v))
-    + sfPeerBars('동종업계 영업이익률', '%', (a) => {
-      const rev = (a.revenue || {}).current, op = (a.operatingProfit || {}).current;
-      return (rev && op != null) ? (op / rev * 100) : null;
-    }, (v) => v.toFixed(1) + '%')
+  return '<div class="sf-tree">'
+    + '<nav class="sf-tr" id="sfTreeNav" aria-label="실적 항목 선택">' + sfTreeNavHtml() + '</nav>'
+    + '<div class="sf-one" id="sfTreeOne">' + sfTreeOneHtml() + '</div>'
     + '</div>';
+}
+
+/** 트리 배선 — 뿌리는 펼침/접힘, 항목은 내용 교체. 둘 다 트리 영역만 다시 그린다.
+ *  ★ 뿌리를 다시 눌러 접어도 보던 차트는 그대로 둔다 — 화면이 비면 '방금 뭘
+ *    보고 있었지'가 끊긴다. 고른 항목은 기억해 두었다가 다시 펼치면 강조된다. */
+function wireSfTree(root) {
+  const nav = root.querySelector('#sfTreeNav');
+  if (!nav) return;
+  const redraw = (both) => {
+    nav.innerHTML = sfTreeNavHtml();
+    if (both) {
+      const one = root.querySelector('#sfTreeOne');
+      if (one) one.innerHTML = sfTreeOneHtml();
+    }
+    sfTreeSave();
+  };
+  nav.addEventListener('click', (e) => {
+    const r = e.target.closest && e.target.closest('[data-sf-root]');
+    if (r) {
+      const g = r.getAttribute('data-sf-root');
+      _sfTree.open = (_sfTree.open === g) ? null : g;
+      redraw(false);
+      return;
+    }
+    const i = e.target.closest && e.target.closest('[data-sf-item]');
+    if (i) {
+      _sfTree.pick = i.getAttribute('data-sf-item');
+      redraw(true);
+    }
+  });
 }
 
 /* ── 동종업계 비교 ────────────────────────────────────────────────────
@@ -2946,6 +3091,7 @@ function renderCompetitor() {
     <div class="comp-ask">위 <b>국내</b> 또는 <b>국외</b> 탭을 선택해 주세요.</div>`;
   wireGtControls();
   wireCompTabs();
+  wireSfTree(el);          // 순수 추가: 국내 탭 실적 트리(뿌리 펼침 · 항목 선택)
   applySideView();
 }
 
