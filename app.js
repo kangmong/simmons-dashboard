@@ -6782,9 +6782,22 @@ function renderXsiHtml() {
      그 토막을 찾아 <a> 로 바꿀 뿐이다) 아무 것도 링크가 되지 않았다 — 다른 원자재
      항목은 출처를 누르면 홈페이지가 뜨는데 이 카드만 글자로만 남은 이유다.
      기관명을 그대로 링크한다(Sea-Intelligence 각주와 같은 방식). */
+  /* ── SCFI 안내 ── 값·그래프·표는 싣지 않는다. 링크만 건다.
+     ★ 상하이항운교역연구소는 지수 저작권 성명에서 '서면 授权 없이 직접·간접
+       발행, 복제·발췌·전재'를 금지한다. 이 대시보드는 공개 배포되므로 값을
+       옮겨 적는 순간 그 조항에 걸린다 — 그래서 숫자는 한 글자도 넣지 않는다.
+     ★ 적어 둔 사실은 조사에서 실제로 확인한 것뿐이다(기관명·발표 요일·시각·주소).
+       최신 지수 수준·증감 같은 값은 쓰지 않는다. */
+  const SCFI_URL = 'https://www.sse.net.cn/index/singleIndex?indexType=scfi';
+  const scfiNote = '<div class="comp-caption xsi-scfi">참고: 상하이 컨테이너 운임지수(SCFI)는'
+    + ' 상하이항운교역연구소가 매주 금요일 15:00(베이징 시각) 발표합니다. '
+    + '<a href="' + SCFI_URL + '" target="_blank" rel="noopener noreferrer">공식 페이지</a>'
+    + '에서 확인하세요 <span aria-hidden="true">\u2197</span></div>';
+
   const cap = capSrc('출처: Compass Financial Technologies (Xeneta Shipping Index)',
     [{ text: 'Compass Financial Technologies',
-      url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/?family=xsi' }]);
+      url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/?family=xsi' }])
+    + scfiNote;
 
   if (!_xsiData) {
     return `<div class="viz-root viz-figure xsi-figure">${head}`
