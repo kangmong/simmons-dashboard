@@ -1400,7 +1400,7 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .sr-sum__sub b { font-weight: 800; }
 
 /* 범례 — 4개년 평균 점선(회색)과 추세 연장 점선을 구분해 적는다 */
-.sr-legend-avg, .sr-legend-ext { color: var(--muted); }
+.sr-legend-ext { color: var(--muted); }
 .sr-legend-dash {
   display: inline-block; width: 15px; height: 0; margin-right: 5px; vertical-align: middle;
   border-top: 2px dashed var(--slate);

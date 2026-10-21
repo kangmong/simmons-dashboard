@@ -5594,22 +5594,6 @@ function sriAvgYears() {
   return (Array.isArray(y) && y.length) ? y.map(String) : SRI_AVG_YEARS;
 }
 
-/** 기준 4개년의 '월별 평균' 12칸. 관측이 없는 달은 null.
- *  ★ X축이 1~12월이라 한 줄짜리 가로선보다 월별 평균이 계절성을 보여 준다. */
-function sriAvgProfile() {
-  if (!_srData || !_srData.years) return null;
-  const ys = sriAvgYears().filter((y) => _srData.years[y]);
-  if (!ys.length) return null;
-  const n = (_srData.months || []).length || 12;
-  const out = [];
-  for (let m = 0; m < n; m += 1) {
-    const vals = ys.map((y) => (_srData.years[y] || [])[m])
-      .filter((v) => v != null && isFinite(v));
-    out.push(vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
-  }
-  return out.some((v) => v != null) ? out : null;
-}
-
 /** 기준 4개년 전체 평균(한 숫자). 없으면 null */
 function sriAvgAll() {
   if (!_srData || !_srData.years) return null;
@@ -5882,10 +5866,9 @@ function renderScheduleReliabilityHtml() {
     body = '<div class="icis-prompt">연도를 선택하세요</div>';
   } else {
     const { months, series } = srViewData(_srYear);
-    const avg = sriAvgProfile();
     body = srYearSummary(_srYear)
       + srCompareBar(_srYear)
-      + buildSrChart(months, series, avg, srExt)
+      + buildSrChart(months, series, srExt)
       + (srExt ? ''
         : '<div class="ii-cap ii-cap--chart">추세 연장선은 참고용 추정치이며 실제 예측이 아닙니다.</div>')
       + evPanelHtml('주요 이슈', sriEventList(_srYear), '해당 기간 주요 이슈 없음');
@@ -6999,7 +6982,11 @@ function srBandsSvg(Y, padL, plotW, ymin, ymax) {
   return out ? '<g class="sr-bands" aria-hidden="true">' + out + '</g>' : '';
 }
 
-function buildSrChart(months, series, avg, ext) {
+/* ★ '2021~2024 월평균' 점선은 뺐다 — 연도 비교 토글로 다른 해를 직접 겹쳐
+     볼 수 있게 되면서 평균선이 하는 말이 겹쳤고, 선이 셋(해당 연도·비교 연도·
+     평균)이 되면 회색 점선 둘(평균·추세 연장)이 서로 헷갈렸다.
+     ※ 상단 '과거 4개년 평균' 요약 박스는 별개다(sriAvgAll). 그대로 둔다. */
+function buildSrChart(months, series, ext) {
   const n = months.length;
   if (!n || !series.length) return '<div class="chart-empty">표시할 데이터가 없습니다.</div>';
   const single = series.length === 1;
@@ -7008,7 +6995,6 @@ function buildSrChart(months, series, avg, ext) {
   const extColor = extOn ? (series.find((s) => s.key === extOn.year) || {}).color : null;
 
   const all = series.flatMap((s) => s.values).filter((v) => v != null)
-    .concat((avg || []).filter((v) => v != null))
     .concat(extOn ? extOn.band.flatMap((b) => [b.lo, b.hi]) : []);
   let ymin = Math.min(...all), ymax = Math.max(...all);
   const yp = (ymax - ymin) * 0.12 || 5; ymin = Math.max(0, ymin - yp); ymax = Math.min(100, ymax + yp);
@@ -7065,20 +7051,6 @@ function buildSrChart(months, series, avg, ext) {
     return `<rect class="sr-risk" x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}"
       height="${plotH}" fill="#C8102E" opacity=".10"/>`;
   }).join('');
-
-  // ── ① 기준 4개년 월평균 점선 ──
-  let avgLine = '';
-  if (avg && avg.some((v) => v != null)) {
-    let p = '', pen = false;
-    avg.forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      p += `${pen ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; pen = true;
-    });
-    if (p) {
-      avgLine = `<path d="${p.trim()}" fill="none" stroke="var(--slate)" stroke-width="1.6"
-        stroke-dasharray="5 3" stroke-linejoin="round" opacity=".85"/>`;
-    }
-  }
 
   // ── ① 추세 연장: 마지막 관측월 다음 칸부터 그 해의 선을 이어 그린다 ──
   let extShapes = '';
@@ -7140,9 +7112,7 @@ function buildSrChart(months, series, avg, ext) {
     return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="${VIZ_FS_LABEL}" font-weight="700" paint-order="stroke" stroke="var(--surface-1)" stroke-width="2.5" fill="${series[0].color}">${v.toFixed(1)}%</text>`;
   }).join('') : '';
 
-  const yrs = sriAvgYears();
   const legend = `<div class="viz-legend">${series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}${s.cmp ? ' (비교)' : ''}</span>`).join('')}`
-    + (avgLine ? `<span class="viz-legend__item sr-legend-avg"><span class="sr-legend-dash"></span>${escapeHtml(yrs[0] + '~' + yrs[yrs.length - 1])} 월평균</span>` : '')
     + (extShapes ? `<span class="viz-legend__item sr-legend-ext"><span class="sr-legend-dash sr-legend-dash--ext"></span>추세 연장(추정)</span>` : '')
     /* ★ 기준을 코드에 숨기지 않는다 — 음영이 그려진 화면에는 그 기준을 같이 적는다 */
     + (riskBands ? `<span class="viz-legend__item sr-legend-risk"><span class="sr-legend-risk__sw"></span>빨간 음영 = 정시성 ${SR_RISK_PCT}% 미만</span>` : '')
@@ -7153,7 +7123,7 @@ function buildSrChart(months, series, avg, ext) {
   return `${legend}
     <svg class="viz-svg sr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="해상 정시성">
       ${srBandsSvg(Y, padL, plotW, ymin, ymax)}${riskBands}
-      ${grid}${xticks}${avgLine}${extShapes}${lines}${dots}${labels}${peaks}
+      ${grid}${xticks}${extShapes}${lines}${dots}${labels}${peaks}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="sr-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="sr-dots"></g>
