@@ -6119,6 +6119,27 @@ function xsiPct(v, plain) {
   return '<span class="ms-badge__val ' + cls + '">' + icon + v.toFixed(2) + '%</span>';
 }
 
+/* ── SCFI 바로가기 ───────────────────────────────────────────────────────
+   항로 버튼 줄 끝에 붙는 아홉 번째 칸이지만 '항로'가 아니라 바깥으로 나가는
+   링크다. 그래서 <button data-route> 가 아니라 <a> 로 두고, 점선 테두리와 ↗ 로
+   생김새를 나눈다(선택 상태가 되지 않는다 — wireXsi 의 클릭 처리는
+   [data-route] 만 보므로 이 칸은 그냥 링크로 열린다).
+
+   ★★ 값·지수 수준·증감·그래프·표를 절대 싣지 않는다. iframe 으로 끼워 넣지도
+     않는다. 상하이항운교역연구소의 지수 저작권 성명이 '서면 授权 없는 직접·간접
+     발행, 복제·발췌·전재'를 금지하는데, 이 대시보드는 공개 배포되기 때문이다.
+     이 칸이 하는 일은 공식 페이지로 보내 주는 것뿐이다.
+   ★ 적는 사실은 조사에서 확인한 것만 — 기관명, 발표 요일·시각, 그리고 실제로
+     접속을 확인한 주소. */
+const SCFI_URL = 'https://www.sse.net.cn/index/singleIndex?indexType=scfi';
+const SCFI_TIP = '상하이항운교역연구소 발표 · 매주 금요일 15:00(베이징) · 공식 페이지로 이동';
+
+function xsiScfiLink() {
+  return '<a class="icis-year xsi-route xsi-route--ext" href="' + SCFI_URL + '"'
+    + ' target="_blank" rel="noopener noreferrer" title="' + escapeHtml(SCFI_TIP) + '">'
+    + 'SCFI <span aria-hidden="true">\u2197</span></a>';
+}
+
 /** 지수값 라인차트. 다른 차트와 같은 VIZ_* 규격을 쓴다. */
 function buildXsiChart(slice, color, fc) {
   const n = slice ? slice.dates.length : 0;
@@ -6782,22 +6803,9 @@ function renderXsiHtml() {
      그 토막을 찾아 <a> 로 바꿀 뿐이다) 아무 것도 링크가 되지 않았다 — 다른 원자재
      항목은 출처를 누르면 홈페이지가 뜨는데 이 카드만 글자로만 남은 이유다.
      기관명을 그대로 링크한다(Sea-Intelligence 각주와 같은 방식). */
-  /* ── SCFI 안내 ── 값·그래프·표는 싣지 않는다. 링크만 건다.
-     ★ 상하이항운교역연구소는 지수 저작권 성명에서 '서면 授权 없이 직접·간접
-       발행, 복제·발췌·전재'를 금지한다. 이 대시보드는 공개 배포되므로 값을
-       옮겨 적는 순간 그 조항에 걸린다 — 그래서 숫자는 한 글자도 넣지 않는다.
-     ★ 적어 둔 사실은 조사에서 실제로 확인한 것뿐이다(기관명·발표 요일·시각·주소).
-       최신 지수 수준·증감 같은 값은 쓰지 않는다. */
-  const SCFI_URL = 'https://www.sse.net.cn/index/singleIndex?indexType=scfi';
-  const scfiNote = '<div class="comp-caption xsi-scfi">참고: 상하이 컨테이너 운임지수(SCFI)는'
-    + ' 상하이항운교역연구소가 매주 금요일 15:00(베이징 시각) 발표합니다. '
-    + '<a href="' + SCFI_URL + '" target="_blank" rel="noopener noreferrer">공식 페이지</a>'
-    + '에서 확인하세요 <span aria-hidden="true">\u2197</span></div>';
-
   const cap = capSrc('출처: Compass Financial Technologies (Xeneta Shipping Index)',
     [{ text: 'Compass Financial Technologies',
-      url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/?family=xsi' }])
-    + scfiNote;
+      url: (_xsiData && _xsiData.sourceUrl) || 'https://www.compassft.com/indices/?family=xsi' }]);
 
   if (!_xsiData) {
     return `<div class="viz-root viz-figure xsi-figure">${head}`
@@ -6811,7 +6819,7 @@ function renderXsiHtml() {
 
   const r = xsiRoute();
   const tabs = `<div class="icis-years xsi-routes">${_xsiData.routes.map((x) =>
-    `<button class="icis-year xsi-route${x.key === _xsiRoute ? ' is-active' : ''}" data-route="${escapeHtml(x.key)}">${escapeHtml(x.short || x.name)}</button>`).join('')}</div>`;
+    `<button class="icis-year xsi-route${x.key === _xsiRoute ? ' is-active' : ''}" data-route="${escapeHtml(x.key)}">${escapeHtml(x.short || x.name)}</button>`).join('')}${xsiScfiLink()}</div>`;
   if (!r) {
     // 항로를 고르기 전 — 버튼만 두고 값은 하나도 내지 않는다(ICIS 연도 칩과 같은 규칙)
     _xsiChart = null;

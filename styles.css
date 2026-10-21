@@ -1188,11 +1188,15 @@ body {
   .sr-sum--yr { grid-template-columns: 1fr; }
 }
 
-/* SCFI 안내 — 값은 싣지 않고 공식 페이지로만 보낸다(재게시 금지 지수).
-   기존 출처 문구(.comp-caption)와 같은 크기·색을 쓰고 위 간격만 좁힌다. */
-.xsi-scfi { margin-top: 4px; }
-.xsi-scfi a { color: var(--blue); text-decoration: none; font-weight: 700; }
-.xsi-scfi a:hover { text-decoration: underline; }
+/* SCFI 바로가기 — 항로 버튼 줄 끝의 아홉 번째 칸. 값은 싣지 않고 공식 페이지로만
+   보낸다(재게시 금지 지수). 크기·글꼴은 항로 버튼과 같게 두되, 점선 테두리와 ↗ 로
+   '여기는 바깥으로 나간다'를 알린다. 선택 상태(.is-active)는 붙지 않는다. */
+.xsi-route--ext {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-style: dashed; color: var(--muted); text-decoration: none;
+}
+.xsi-route--ext:hover { background: var(--field); color: var(--ink); border-color: var(--slate); }
+.xsi-route--ext:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
 /* ══ 운임지수 차트 — 최신 배지 · 툴팁 ═══════════════════════════ */
 .xsi-now { pointer-events: none; }
