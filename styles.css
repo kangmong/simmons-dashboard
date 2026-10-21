@@ -1163,6 +1163,53 @@ body {
 .ii-cap--chart { margin: 6px 0 0; }
 
 /* 추세 연장 범례 표식 */
+/* ══ 스폰지 주원료 차트 — 원료 선택 · 급등 띠 · 최고/최저 ═══════════════
+   ★ 선택 강조는 CSS 가 한다 — 범례를 눌러도 차트를 다시 그리지 않으므로
+     툴팁·마커가 그대로 살아 있다(JS 는 .is-iipick / .is-on 만 토글한다). */
+.ii-legend-pick {
+  appearance: none; -webkit-appearance: none;
+  background: none; border: 1px solid transparent; border-radius: 999px;
+  padding: 2px 8px 2px 6px; cursor: pointer; font: inherit;
+  font-size: 11.5px; font-weight: 500; color: var(--text);
+}
+.ii-legend-pick:hover { background: var(--field); }
+.ii-legend-pick.is-on { border-color: var(--line); background: var(--field); font-weight: 800; }
+.ii-legend-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+/* 급등 기준 문구 — 띠가 그려진 화면에는 그 기준이 반드시 같이 적힌다 */
+.ii-legend-surge { color: var(--muted); font-size: 11px; }
+.ii-legend-band {
+  width: 14px; height: 10px; border-radius: 2px; flex: 0 0 auto;
+  background: rgba(225, 29, 72, .22);
+}
+
+/* 고른 원료만 남기고 나머지는 흐리게 */
+.icis-figure.is-iipick .ii-s { opacity: .14; }
+.icis-figure.is-iipick .ii-s.is-on { opacity: 1; }
+.icis-figure.is-iipick .ii-s.is-on .ii-ln { stroke-width: 3.4; }
+
+/* 최고·최저 — 마커는 늘 보이고 라벨은 숨긴다. 겹쳐 읽히는 것을 막는다.
+   마커에 올리거나(마우스·키보드) 그 원료를 고르면 그때만 라벨이 뜬다. */
+.ii-mm { cursor: default; }
+.ii-mm__l { opacity: 0; transition: opacity .12s ease; pointer-events: none; }
+.ii-mm:hover .ii-mm__l, .ii-mm:focus-visible .ii-mm__l { opacity: 1; }
+.icis-figure.is-iipick .ii-s.is-on .ii-mm__l { opacity: 1; }
+.ii-mm:focus { outline: none; }
+.ii-mm:focus-visible circle:first-child { stroke-width: 2.6; }
+
+/* 원자재 카드도 같은 선택 스위치 */
+.ii-mat[data-k] { cursor: pointer; }
+.ii-mat[data-k]:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ii-mat[data-k].is-on { box-shadow: 0 0 0 2px var(--ii-c) inset; }
+.icis-figure.is-iipick .ii-mat[data-k]:not(.is-on) { opacity: .5; }
+
+/* 툴팁 — 값 옆 전월비, 고른 원료 줄 강조, 급등 안내 */
+.ii-tt-mom { margin-left: 6px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.viz-tt-row.is-on { font-weight: 800; }
+.ii-tt-surge {
+  margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line);
+  font-size: 10.5px; font-weight: 700; color: #E11D48;
+}
+
 .ii-legend-ext { color: var(--muted); }
 .ii-legend-dash {
   display: inline-block; width: 15px; height: 0; margin-right: 5px; vertical-align: middle;

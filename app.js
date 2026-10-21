@@ -3154,6 +3154,55 @@ const ICIS_TERMS = [
 
 
 let _icisChart = null;
+
+/* ── 원료 선택 · 급등 구간 ────────────────────────────────────────────────
+   ★ 기준값을 코드 안에 묻지 않는다 — 이 상수 하나를 화면 문구와 계산이 함께
+     쓴다(범례 옆 '배경 강조 = 전월 대비 +N% 이상 상승'). 값을 바꾸면 띠와
+     문구가 같이 바뀐다. */
+const II_SURGE_PCT = 8;
+let _iiPick = null;      // 고른 원료 키(PPG…) · null 이면 전체 보기
+let _iiTouchDocWired = false;   // 바깥 터치로 툴팁 닫기 — 한 번만 달아 둔다
+
+/** 전월비(%) — '원자재별 변동요인' 카드(iiStat)와 같은 식·같은 기준이다.
+ *  ★ 연도 칩으로 잘린 배열이 아니라 전체 ICIS_DATA 에서 바로 앞 달을 찾는다.
+ *    그래야 1월의 전월비가 '전년 12월 대비'로 나온다(없으면 null → 화면엔 '—').
+ *  ★ 결측 달은 0 으로 메우지 않는다 — 앞 달이 null 이면 그대로 null 이다. */
+function iiMomAt(key, ym) {
+  const P = ICIS_DATA.periods, V = ICIS_DATA[key] || [];
+  const i = P.indexOf(ym);
+  if (i <= 0) return null;
+  const a = V[i - 1], b = V[i];
+  if (a == null || b == null || !isFinite(a) || !isFinite(b) || !a) return null;
+  return ((b - a) / Math.abs(a)) * 100;
+}
+
+/** 보이는 구간에서 전월비가 기준 이상인 달. [{i, ym, keys:[{key,color,pct}]}] */
+function iiSurgeMonths(periods) {
+  const out = [];
+  periods.forEach((ym, i) => {
+    const hit = ICIS_SERIES
+      .map((x) => ({ key: x.key, color: x.color, pct: iiMomAt(x.key, ym) }))
+      .filter((x) => x.pct != null && x.pct >= II_SURGE_PCT)
+      .sort((a, b) => b.pct - a.pct);
+    if (hit.length) out.push({ i: i, ym: ym, keys: hit });
+  });
+  return out;
+}
+
+/** 급등 띠 색 — 한 원료만 뛰었으면 그 색, 여럿이면 어느 색과도 겹치지 않는
+ *  따뜻한 색 하나로 둔다(네 원료 색 중 하나를 쓰면 '그 원료만'으로 읽힌다). */
+const II_SURGE_MULTI = '#E11D48';
+
+/** 기간 안의 최고·최저 지점. 값이 하나뿐이면(최고=최저) 표시하지 않는다. */
+function iiPeaks(values) {
+  let hi = -1, lo = -1;
+  values.forEach((v, i) => {
+    if (v == null || !isFinite(v)) return;
+    if (hi < 0 || v > values[hi]) hi = i;
+    if (lo < 0 || v < values[lo]) lo = i;
+  });
+  return (hi < 0 || hi === lo) ? null : { hi: hi, lo: lo };
+}
 let _matReady = false;      // [업데이트] 누르기 전엔 빈 초기 상태
 let _matYear = null;        // 선택된 연도('2021'~'2026' | 'all')
 let _matUsdKrw = null;      // USD/KRW 환율(업데이트 시 확보)
@@ -3791,7 +3840,7 @@ function iiMaterialCards() {
     if (!st) return '';
     const m = info[s.key] || {};
     const krw = (_matUsdKrw != null) ? fmtKrwShort(st.value * _matUsdKrw) + '/톤' : null;
-    return `<div class="ii-mat" style="--ii-c:${s.color}">
+    return `<div class="ii-mat" style="--ii-c:${s.color}" data-k="${escapeHtml(s.key)}" role="button" tabindex="0" aria-pressed="${_iiPick === s.key}">
       <div class="ii-mat__top">
         <span class="ii-mat__icon" aria-hidden="true">${escapeHtml(m.icon || '•')}</span>
         <span class="ii-mat__key">${escapeHtml(s.key)}</span>
@@ -4191,25 +4240,30 @@ function buildIcisChart(periods, series, ext) {
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(singleYear ? p.slice(5) + '월' : p)}</text>`;
   }).join('');
 
-  // 실선은 실측 구간(0 ~ n0-1)만 긋는다
-  const lines = series.map((s) => {
-    let path = '', pen = false;
-    s.values.forEach((v, i) => {
-      if (v == null) { pen = false; return; }
-      const x = X(i), y = Y(v);
-      path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `; pen = true;
-    });
-    return path ? `<path d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+  /* ── 급등 구간 띠 — 전월비가 II_SURGE_PCT 이상인 달의 배경 ──
+     ★ 격자 바로 위, 선·마커보다 아래에 깔아 사건 마커와 추세 점선을 가리지 않는다.
+     ★ 달의 '점'이 아니라 그 달이 차지하는 폭(앞뒤 반 칸)을 칠한다. */
+  const step = (n > 1) ? (X(1) - X(0)) : plotW;
+  const surge = iiSurgeMonths(periods);
+  const bands = surge.map((m) => {
+    const x0 = Math.max(padL, X(m.i) - step / 2);
+    const x1 = Math.min(padL + plotW, X(m.i) + step / 2);
+    const one = m.keys.length === 1;
+    return `<rect x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}"
+      height="${plotH}" fill="${one ? m.keys[0].color : II_SURGE_MULTI}"
+      opacity="${one ? '.11' : '.09'}"/>`;
   }).join('');
 
   // ── ① 추세 연장: 옅은 음영 띠 + 점선. 마지막 실측점에서 이어 그린다. ──
+  //    ★ 원료별로 따로 담는다 — 아래에서 그 원료의 <g> 안에 넣어야 강조·흐림이
+  //      선과 함께 움직인다(예전에는 한 덩어리였다).
+  const extByKey = {};
   let extShapes = '';
   if (ext && exP.length) {
-    extShapes = fullSeries.map((s) => {
+    fullSeries.forEach((s) => {
       const e = ext.byKey[s.key];
-      if (!e) return '';
       const last = s.values[n0 - 1];
-      if (last == null) return '';
+      if (!e || last == null) return;
       const up = [], dn = [];
       up.push(`${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)}`);
       dn.push(`${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)}`);
@@ -4220,10 +4274,10 @@ function buildIcisChart(periods, series, ext) {
       const poly = up.concat(dn.reverse()).join(' L');
       let d = `M${X(n0 - 1).toFixed(1)} ${Y(last).toFixed(1)} `;
       e.values.forEach((v, k) => { d += `L${X(n0 + k).toFixed(1)} ${Y(v).toFixed(1)} `; });
-      return `<path d="M${poly} Z" fill="${s.color}" opacity=".10"/>`
+      extByKey[s.key] = `<path d="M${poly} Z" fill="${s.color}" opacity=".10"/>`
         + `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.8"
             stroke-dasharray="4 3" stroke-linejoin="round" opacity=".85"/>`;
-    }).join('');
+    });
     // 실측과 추정을 가르는 세로선
     const bx = X(n0 - 1).toFixed(1);
     extShapes += `<line x1="${bx}" y1="${padT}" x2="${bx}" y2="${(padT + plotH).toFixed(1)}"
@@ -4233,12 +4287,60 @@ function buildIcisChart(periods, series, ext) {
           stroke-width="2.5">추세 연장</text>`;
   }
 
-  // 각 데이터 점 표시(실측만 — 추정치에는 점을 찍지 않는다)
-  const dots = series.map((s) => s.values.map((v, i) => v == null ? '' :
-    `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('')).join('');
   // 값 라벨 방침: 차트가 낮아진 뒤 실측하니 4개 시리즈(PPG·TDI·MDI·PO)를 겹쳐 그리는
   // 이 차트는 12개월 보기에서도 라벨이 서로 겹쳤다(2022년 6쌍, 2023년 4쌍).
   // → 시리즈가 1개일 때만 라벨을 남기고, 그 외에는 툴팁으로만 값을 보여준다.
+  /* ── 원료별 묶음 — 추세 연장 + 실선 + 점 + 최고/최저 마커를 한 <g> 에 담는다.
+     ★ 범례·카드를 눌러 하나만 강조할 때 이 묶음 단위로 흐려진다(CSS 가 처리하므로
+       다시 그리지 않는다 — 툴팁이 살아 있는 채로 강조만 바뀐다). */
+  const peakLabel = (v, ym) => (Math.round(v).toLocaleString('en-US') + ' · '
+    + (singleYear ? ym.slice(5) + '월' : ym));
+  const mmLayer = [];          // 최고·최저는 맨 위 층에 따로 깐다(아래 설명)
+  const seriesG = series.map((s, si) => {
+    // 실선은 실측 구간(0 ~ n0-1)만 긋는다
+    let path = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      path += `${pen ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; pen = true;
+    });
+    const line = path
+      ? `<path class="ii-ln" d="${path.trim()}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    // 각 데이터 점 표시(실측만 — 추정치에는 점을 찍지 않는다)
+    const dot = s.values.map((v, i) => v == null ? '' :
+      `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="2" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1"/>`).join('');
+    /* 최고·최저 — 마커는 늘 보이고 라벨은 평소 숨긴다(네 원료가 겹치면 읽을 수
+       없다). 마커에 올리거나 그 원료를 고르면 그때 라벨이 뜬다(CSS). */
+    const pk = iiPeaks(s.values);
+    let mm = '';
+    if (pk) {
+      [['hi', '최고', -1], ['lo', '최저', 1]].forEach(([k, word, dir]) => {
+        const i = pk[k], v = s.values[i];
+        const x = X(i), y = Y(v);
+        let ly = y + dir * 9;
+        if (ly < padT + 7) ly = y + 11;
+        if (ly > padT + plotH - 2) ly = y - 7;
+        const anchor = (x < padL + 46) ? 'start' : ((x > padL + plotW - 46) ? 'end' : 'middle');
+        mm += `<g class="ii-mm" tabindex="0">`
+          + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="none" stroke="${s.color}" stroke-width="1.6"/>`
+          + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.4" fill="${s.color}"/>`
+          + `<text class="ii-mm__l" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}"`
+          + ` font-size="${VIZ_FS_LABEL}" font-weight="800" fill="${s.color}" paint-order="stroke"`
+          + ` stroke="var(--surface-1)" stroke-width="2.8">${escapeHtml(s.key + ' ' + word + ' ' + peakLabel(v, periods[i]))}</text>`
+          + `</g>`;
+      });
+    }
+    /* ★ 최고·최저는 선 묶음에 넣지 않고 따로 모아 사건 마커보다 뒤에 그린다 —
+       같은 층에 두면 사건 글자('美 텍사스 한파' 등)가 라벨을 덮어 'MDI' 처럼
+       앞 글자만 보였다. 묶음 클래스(ii-s·data-k)는 그대로라 선택 강조·흐림은
+       선과 똑같이 따라 움직인다. */
+    if (mm) {
+      mmLayer.push(`<g class="ii-s${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">${mm}</g>`);
+    }
+    return `<g class="ii-s${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">`
+      + `${extByKey[s.key] || ''}${line}${dot}</g>`;
+  }).join('');
+  const mmG = mmLayer.join('');
+
   const labels = (singleYear && n <= VIZ_LABEL_MAX_PTS && series.length === 1) ? series.map((s, si) => s.values.map((v, i) => {
     if (v == null) return '';
     const x = X(i), y = Y(v);
@@ -4249,19 +4351,24 @@ function buildIcisChart(periods, series, ext) {
   }).join('')).join('') : '';
 
   // 범례 항목만 만들고 감싸는 것은 return 에서 한 번만 한다(예전엔 여기서 감쌌다)
-  const legend = series.map((s) => `<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</span>`).join('')
-    + (ext && exP.length ? `<span class="viz-legend__item ii-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '');
+  const legend = series.map((s) => `<button type="button" class="viz-legend__item ii-legend-pick${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}" aria-pressed="${_iiPick === s.key}"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</button>`).join('')
+    + (ext && exP.length ? `<span class="viz-legend__item ii-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '')
+    /* ★ 기준을 코드에 숨기지 않는다 — 띠가 그려진 화면에는 그 기준이 함께 적힌다. */
+    + (surge.length ? `<span class="viz-legend__item ii-legend-surge"><span class="ii-legend-band"></span>배경 강조 = 전월 대비 +${II_SURGE_PCT}% 이상 상승</span>` : '');
   // 툴팁은 늘어난 축 전체를 본다. extFrom 뒤는 추정치라고 밝힌다.
-  _icisChart = { periods: allPeriods, series: fullSeries, extFrom: n0, geom: { X, Y, n, W, padL } };
+  const surgeAt = {};
+  surge.forEach((m) => { surgeAt[m.i] = m.keys; });
+  _icisChart = { periods: allPeriods, series: fullSeries, extFrom: n0,
+    surgeAt: surgeAt, geom: { X, Y, n, W, padL } };
 
   return `<div class="viz-legend">${legend}</div>
     <svg class="viz-svg icis-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
-      ${grid}${xticks}${extShapes}${lines}${dots}${labels}
+      ${grid}${bands}${xticks}${extShapes}${seriesG}${labels}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
       <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${icisEventsSvg(periods, X, padT, plotH, W)}
+      ${icisEventsSvg(periods, X, padT, plotH, W)}${mmG}
     </svg>`;
 }
 
@@ -4411,34 +4518,105 @@ function wireIcisChart() {
   const dots = svg.querySelector('.icis-dots');
   const c = _icisChart, g = c.geom, rate = _matUsdKrw;
   const clear = () => { tip.classList.remove('is-visible'); cross.style.opacity = '0'; dots.innerHTML = ''; };
-  overlay.addEventListener('mousemove', (evt) => {
+  const move = (clientX, clientY) => {
     const rect = svg.getBoundingClientRect();
-    const sx = (evt.clientX - rect.left) * (g.W / rect.width);
+    const sx = (clientX - rect.left) * (g.W / rect.width);
     let i = g.n === 1 ? 0 : Math.round(((sx - g.padL) / ((g.X(g.n - 1) - g.padL) || 1)) * (g.n - 1));
     i = Math.max(0, Math.min(g.n - 1, i));
     const cx = g.X(i);
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.style.opacity = '1';
-    let dh = '', rows = '';
-    c.series.forEach((s) => {
-      const v = s.values[i];
-      if (v == null) return;
-      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
-      const krw = (rate != null) ? ` (≈ ${fmtKrwShort(v * rate)}/톤)` : '';
-      rows += `<div class="viz-tt-row"><span class="viz-tt-swatch" style="background:${s.color}"></span><span>${s.key}</span><span class="viz-tt-val">${v.toLocaleString('en-US')} USD/톤${krw}</span></div>`;
-    });
-    dots.innerHTML = dh;
-    // 추세 연장 구간에 올라가면 추정치라고 밝힌다
     const isExt = (c.extFrom != null && i >= c.extFrom);
+    /* 전월비 — 실측 구간은 카드(iiStat)와 같은 기준으로 전체 데이터에서
+       앞 달을 찾는다(1월이면 전년 12월). 추세 연장 구간은 그려진 추정치끼리
+       비교한다. 앞 달 값이 없으면 null → 화면에 '—'(0 으로 메우지 않는다). */
+    const momOf = (sr) => {
+      if (!isExt) return iiMomAt(sr.key, c.periods[i]);
+      const a = sr.values[i - 1], b = sr.values[i];
+      return (a == null || b == null || !a) ? null : ((b - a) / Math.abs(a)) * 100;
+    };
+    let dh = '';
+    /* 고른 원료가 있으면 그 줄을 맨 위에 올리고 굵게 — 선을 강조해 놓고
+       값은 네 번째 줄에 있으면 눈으로 따라가기 어렵다. */
+    const order = _iiPick
+      ? c.series.filter((x) => x.key === _iiPick).concat(c.series.filter((x) => x.key !== _iiPick))
+      : c.series;
+    const rows = order.map((sr) => {
+      const v = sr.values[i];
+      if (v == null) return '';
+      dh += `<circle cx="${cx.toFixed(1)}" cy="${g.Y(v).toFixed(1)}" r="3.5" fill="${sr.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+      const krw = (rate != null) ? ` (≈ ${fmtKrwShort(v * rate)}/톤)` : '';
+      const m = momOf(sr);
+      return `<div class="viz-tt-row${_iiPick === sr.key ? ' is-on' : ''}"><span class="viz-tt-swatch" style="background:${sr.color}"></span><span>${sr.key}</span>`
+        + `<span class="viz-tt-val">${v.toLocaleString('en-US')} USD/톤${krw}`
+        + `<span class="ii-tt-mom ${iiCls(m)}">${iiPct(m)}</span></span></div>`;
+    }).join('');
+    dots.innerHTML = dh;
+    // 급등 띄가 깔린 달이면 어떤 원료가 뛰었는지 밝힌다
+    const sg = (c.surgeAt && c.surgeAt[i]) || null;
+    const sgRow = sg ? `<div class="ii-tt-surge">급등 +${II_SURGE_PCT}% 이상: `
+      + sg.map((x) => `${escapeHtml(x.key)} ${iiPct(x.pct)}`).join(' · ') + '</div>' : '';
     tip.innerHTML = `<div class="viz-tooltip__date">${escapeHtml(c.periods[i])}`
-      + (isExt ? '<span class="ii-tt-ext">추세 연장 추정치</span>' : '') + `</div>${rows}`;
+      + (isExt ? '<span class="ii-tt-ext">추세 연장 추정치</span>' : '')
+      + `</div>${rows}${sgRow}`;
     const fr = fig.getBoundingClientRect();
-    let left = evt.clientX - fr.left + 14;
-    if (left + tip.offsetWidth > fr.width) left = evt.clientX - fr.left - tip.offsetWidth - 14;
+    let left = clientX - fr.left + 14;
+    if (left + tip.offsetWidth > fr.width) left = clientX - fr.left - tip.offsetWidth - 14;
     tip.style.left = `${Math.max(4, left)}px`;
-    tip.style.top = `${evt.clientY - fr.top + 14}px`;
+    tip.style.top = `${clientY - fr.top + 14}px`;
     tip.classList.add('is-visible');
-  });
+  };
+  overlay.addEventListener('mousemove', (evt) => move(evt.clientX, evt.clientY));
   overlay.addEventListener('mouseleave', clear);
+  // 모바일: 탭·드래그에도 값이 뜨게 한다(운임지수 차트와 같은 방식)
+  overlay.addEventListener('touchstart', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  overlay.addEventListener('touchmove', (evt) => {
+    const t = evt.touches[0]; if (t) move(t.clientX, t.clientY);
+  }, { passive: true });
+  /* ★ touchend 에서 지우지 않는다 — 탭하면 손을 떼는 순간 사라져
+     값을 읽을 수가 없다. 다른 곳을 다시 터치할 때 닫는다. */
+  if (!_iiTouchDocWired) {
+    _iiTouchDocWired = true;
+    document.addEventListener('touchstart', (evt) => {
+      const t = evt.target;
+      if (t && t.closest && t.closest('.icis-overlay')) return;
+      const fg = document.querySelector('#materialRoot .icis-figure');
+      if (!fg) return;
+      const tt = document.getElementById('icisTooltip');
+      if (tt) tt.classList.remove('is-visible');
+      const cr = fg.querySelector('.icis-cross'); if (cr) cr.style.opacity = '0';
+      const dd = fg.querySelector('.icis-dots'); if (dd) dd.innerHTML = '';
+    }, { passive: true });
+  }
+
+  /* ── 원료 선택 — 범례 알약 또는 위쪽 '원자재별 변동요인' 카드를 누르면
+     그 원료만 진하게, 나머지는 흐리게. 같은 것을 다시 누르면 해제한다.
+     ★ 다시 그리지 않고 클래스만 바꿈 — 연도 칩으로 다시 그릴 때는
+       _iiPick 을 그대로 읽으므로 선택이 유지된다. */
+  const applyPick = () => {
+    fig.classList.toggle('is-iipick', !!_iiPick);
+    fig.querySelectorAll('[data-k]').forEach((el) => {
+      const on = !!_iiPick && el.getAttribute('data-k') === _iiPick;
+      el.classList.toggle('is-on', on);
+      if (el.hasAttribute('aria-pressed')) el.setAttribute('aria-pressed', String(on));
+    });
+  };
+  const toggle = (el) => {
+    const k = el.getAttribute('data-k');
+    _iiPick = (_iiPick === k) ? null : k;
+    applyPick();
+  };
+  fig.addEventListener('click', (e) => {
+    const t = e.target.closest('.ii-legend-pick, .ii-mat[data-k]');
+    if (t) toggle(t);
+  });
+  fig.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target.closest && e.target.closest('.ii-mat[data-k]');
+    if (t) { e.preventDefault(); toggle(t); }
+  });
+  applyPick();
 }
 
 /** 조회 조건 조작 + [조회] + 표/차트 전환 + 내보내기 배선.
