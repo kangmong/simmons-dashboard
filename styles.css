@@ -1198,6 +1198,23 @@ body {
 .xsi-route--ext:hover { background: var(--field); color: var(--ink); border-color: var(--slate); }
 .xsi-route--ext:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
+/* ══ 석유제품 — '제품별 현황' 표 ↔ 차트 연동 ═══════════════════════════
+   표의 한 줄이 곧 스위치다. 고르면 그 제품 선만 남기고 나머지는 흐려진다.
+   ★ 강조는 CSS 가 한다 — 선 좌표·툴팁·구간 음영은 그대로 둔 채 묶음 투명도만
+     바뀐다. */
+.oilp-t tbody tr[data-op-key] { cursor: pointer; }
+.oilp-t tbody tr[data-op-key]:hover { background: var(--field); }
+.oilp-t tbody tr[data-op-key]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.oilp-t tbody tr.is-pick { background: var(--blue-soft); box-shadow: inset 2px 0 0 var(--blue); }
+.oilp-t tbody tr.is-pick th { color: var(--ink); font-weight: 800; }
+.oilp-t__off {
+  display: block; margin-top: 2px; font-size: 10px; font-weight: 700; color: var(--muted);
+}
+/* 고른 제품만 진하게 */
+.oilp-figure.is-oppick .opl { opacity: .14; }
+.oilp-figure.is-oppick .opl.is-on { opacity: 1; }
+.oilp-figure.is-oppick .opl.is-on .opl__ln { stroke-width: 3; }
+
 /* ══ 운임지수 차트 — 최신 배지 · 툴팁 ═══════════════════════════ */
 .xsi-now { pointer-events: none; }
 /* 최고·최저 라벨은 이 차트에서는 늘 보인다(선이 하나라 겹치지 않는다) */

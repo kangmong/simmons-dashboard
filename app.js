@@ -4753,6 +4753,7 @@ let _opForm = null;     // 사용자가 만지는 중인 조건
 let _opQuery = null;    // [조회]로 확정된 조건
 let _opView = 'table';  // 'table' | 'chart'
 let _opChart = null;    // 차트 크로스헤어·툴팁 상태(원유와 분리)
+let _opPick = null;     // '제품별 현황' 표에서 고른 제품 키 · null 이면 전체
 
 function opTerm(t) {
   const d = _opData;
@@ -5079,14 +5080,59 @@ function buildProductChart(rows, onSeries, term, hOpt, bands) {
     const a = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
     return `<text x="${X(i).toFixed(1)}" y="${(padT + plotH + 15).toFixed(1)}" text-anchor="${a}" font-size="${VIZ_FS_AXIS}" fill="var(--muted)">${escapeHtml(periods[i])}</text>`;
   }).join('');
+  /* ★ 제품마다 <g> 로 묶는다 — 표에서 한 줄을 고르면 이 묶음 단위로 흐려진다
+     (CSS 가 처리하므로 선 모양·좌표 계산은 그대로다). */
   const lines = series.map((s) => {
     let d = '', started = false;
     s.values.forEach((v, i) => {
       if (v == null) return;
       d += `${started ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)} `; started = true;
     });
-    return d ? `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>` : '';
+    if (!d) return '';
+    return `<g class="opl${_opPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">`
+      + `<path class="opl__ln" d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="1.9"`
+      + ` stroke-linejoin="round" stroke-linecap="round"/></g>`;
   }).join('');
+
+  /* ── 고른 제품의 가격 배지 ──
+     ★ 숫자는 차트에서 다시 계산하지 않고 '제품별 현황' 표와 똑같은 oilpStat() 을
+       그대로 쓴다. 표는 언제나 '월별 자료'의 마지막 두 달로 전월비를 내는데,
+       위 기준선택이 일/주/년이면 차트의 마지막 점은 다른 날짜일 수 있다. 그래서
+       배지에 기준월을 같이 적어 어느 시점 값인지 분명히 한다(값을 맞추려고
+       차트 쪽을 고쳐 쓰지 않는다 — 그러면 표와 숫자가 어긋난다).
+     ★ 마커는 그 선이 실제로 끝나는 점에 찍는다. */
+  let pickBadge = '';
+  const ps = series.filter((x) => x.key === _opPick)[0];
+  if (ps) {
+    let li = -1;
+    ps.values.forEach((v, i) => { if (v != null) li = i; });
+    const st = oilpStat(ps.key);
+    if (li >= 0 && st) {
+      const px = X(li), py = Y(ps.values[li]);
+      const krwT = krwOf(st.v, '배럴');
+      const momT = matPct(st.mom);
+      const momC = st.mom == null ? 'var(--muted)'
+        : (st.mom > 0.05 ? 'var(--accent)' : (st.mom < -0.05 ? 'var(--blue)' : 'var(--slate)'));
+      const lines2 = [oilUsd(st.v, 2), krwT, momT + '  전월 대비 · ' + st.ym].filter(Boolean);
+      const bw = Math.max(78, Math.max.apply(null, lines2.map((t) => t.length * 4.6)) + 14);
+      const bh = 15 + lines2.length * 11;
+      // 오른쪽 끝에서 잘리지 않게, 위아래로도 플롯 안에 들어오게 자리를 잡는다
+      let bx = px + 8;
+      if (bx + bw > padL + plotW) bx = px - 8 - bw;
+      bx = Math.max(padL + 1, Math.min(padL + plotW - bw - 1, bx));
+      let by = py - bh / 2;
+      by = Math.max(padT + 1, Math.min(padT + plotH - bh - 1, by));
+      pickBadge = `<g class="opl-badge" aria-hidden="true">`
+        + `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.6" fill="${ps.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`
+        + `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="6"`
+        + ` fill="var(--card)" stroke="${ps.color}" stroke-width="1.4"/>`
+        + `<text x="${(bx + 7).toFixed(1)}" y="${(by + 13).toFixed(1)}" font-size="10" font-weight="900" fill="var(--ink)">${escapeHtml(lines2[0])}</text>`
+        + (krwT ? `<text x="${(bx + 7).toFixed(1)}" y="${(by + 24).toFixed(1)}" font-size="7.5" font-weight="600" fill="var(--muted)">${escapeHtml(krwT)}</text>` : '')
+        + `<text x="${(bx + 7).toFixed(1)}" y="${(by + bh - 4).toFixed(1)}" font-size="7.5" font-weight="800" fill="${momC}">${escapeHtml(momT)}`
+        + `<tspan font-weight="600" fill="var(--muted)">  전월 대비 · ${escapeHtml(st.ym)}</tspan></text>`
+        + `</g>`;
+    }
+  }
 
   const bandSvg = oilBandsSvg(bands, { X, n, padL, padT, plotW, plotH, W });
   _opChart = { periods, series, bands: bands || [], geom: { X, Y, n, W, padL } };
@@ -5094,7 +5140,7 @@ function buildProductChart(rows, onSeries, term, hOpt, bands) {
     '<span class="viz-legend__item"><span class="viz-legend__swatch" style="background:'
     + s.color + '"></span>' + escapeHtml(s.label) + '</span>').join('') + '</div>';
   return legend + `<svg class="viz-svg oilp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="국제제품가 추이">
-      ${grid}${bandSvg}${xticks}${lines}
+      ${grid}${bandSvg}${xticks}${lines}${pickBadge}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="oilp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="oilp-dots"></g>
@@ -5240,7 +5286,9 @@ function renderOilProductHtml() {
   const note = (_opData.note ? '<div class="g-note">' + escapeHtml(_opData.note) + '</div>' : '');
   // 적용 환율·기준일 — 이미 있는 krwNote()(usd_krw 섹션 기반)를 그대로 쓴다
   const fxnote = _opQuery ? krwNote('USD') : '';
-  return `<div class="viz-root viz-figure oilp-figure">${head}${controls}${body}${fxnote}${note}${cap}</div>`;
+  /* 고른 제품이 있을 때만 흐림 규칙을 켠다(CSS 가 .is-oppick 을 본다) */
+  const pickCls = (_opPick && _opView === 'chart') ? ' is-oppick' : '';
+  return `<div class="viz-root viz-figure oilp-figure${pickCls}">${head}${controls}${body}${fxnote}${note}${cap}</div>`;
 }
 
 /* ══ 석유제품 인사이트 대시보드 ═══════════════════════════════════════════
@@ -5323,13 +5371,21 @@ function oilpTable(q) {
   const rows = (_opData.series || []).map((s) => {
     const st = oilpStat(s.key);
     const sel = on ? on.has(s.key) : false;
+    const pick = (_opPick === s.key);
+    /* 행 자체가 스위치다 — 누르면 그 제품의 선만 차트에서 진해진다.
+       ★ 조회에서 빠져 차트에 선이 없는 제품은 눌러도 차트를 건드리지 않고
+         이 행에만 '차트에 표시되지 않음'이라고 적는다(없는 선을 강조할 수 없다). */
+    const cls = (sel ? 'is-on' : '') + (pick ? ' is-pick' : '');
+    const attr = ` class="${cls.trim()}" data-op-key="${escapeHtml(s.key)}"`
+      + ` role="button" tabindex="0" aria-pressed="${pick}"`;
+    const off = (pick && !sel) ? '<div class="oilp-t__off">차트에 표시되지 않음</div>' : '';
     if (!st) {
-      return `<tr class="${sel ? 'is-on' : ''}"><th scope="row">${escapeHtml(s.label)}</th>
+      return `<tr${attr}><th scope="row">${escapeHtml(s.label)}${off}</th>
         <td class="oilp-t__v">—</td><td>—</td><td class="oilp-t__as">관측 없음</td></tr>`;
     }
     const krw = krwOf(st.v, '배럴');
-    return `<tr class="${sel ? 'is-on' : ''}">
-      <th scope="row">${escapeHtml(s.label)}</th>
+    return `<tr${attr}>
+      <th scope="row">${escapeHtml(s.label)}${off}</th>
       <td class="oilp-t__v">${oilUsd(st.v, 2)}${krw
         ? `<span class="oilp-t__krw">${escapeHtml(krw)}</span>` : ''}</td>
       <td>${matBadge(st.mom)}</td>
@@ -5343,7 +5399,8 @@ function oilpTable(q) {
       <tbody>${rows}</tbody>
     </table></div>
     <div class="ii-cap">조회에 포함한 제품은 진하게 표시됩니다. 기준월이 다른 제품은
-      그 제품의 마지막 관측월 값입니다(같은 달로 맞추지 않습니다).</div>
+      그 제품의 마지막 관측월 값입니다(같은 달로 맞추지 않습니다).
+      <b>행을 누르면</b> 왼쪽 그래프에서 그 제품만 진해집니다(다시 누르면 해제).</div>
   </div>`;
 }
 
@@ -5476,6 +5533,28 @@ function wireProductControls(root) {
     else opPrint(_opQuery, win);
   });
   if (_opQuery && _opView === 'chart') wireProductChart();
+
+  /* '제품별 현황' 표 ↔ 차트 연동 — 행을 누르면 그 제품만 강조(다시 누르면 해제).
+     ★ 표는 차트 뷰에서만 나오므로 여기 한 곳에만 건다. 마우스·터치·키보드 모두
+       같은 길을 탄다(행에 role="button" tabindex="0" 을 달아 뒀다). */
+  const opSide = root.querySelector('.oilp-figure .oilp-t');
+  if (opSide) {
+    const toggle = (tr) => {
+      const k = tr.getAttribute('data-op-key');
+      if (!k) return;
+      _opPick = (_opPick === k) ? null : k;
+      renderMaterial();
+    };
+    opSide.addEventListener('click', (e) => {
+      const tr = e.target.closest && e.target.closest('tr[data-op-key]');
+      if (tr) toggle(tr);
+    });
+    opSide.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const tr = e.target.closest && e.target.closest('tr[data-op-key]');
+      if (tr) { e.preventDefault(); toggle(tr); }
+    });
+  }
 }
 
 /* ── 해상 정시성 (Sea-Intelligence Global Schedule Reliability) ── */
