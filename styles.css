@@ -744,6 +744,51 @@ body {
 .oc-ctl--wrap .oc-check { flex: 0 1 auto; max-width: 100%; }
 
 /* ── 국제유가(원유) 조회 조건 — PETRONET '일일국제원유가격'과 같은 순서 ── */
+/* ══ 석유제품 9종 요약 카드 ═══════════════════════════════════════════════
+   ★ 카드 겉모양은 원유 4종 카드(.ocx*)를 그대로 쓴다 — 같은 클래스를 마크업에
+     달았으므로 여기서는 배치와 '고른 제품 표시'만 더한다.
+   ★ 9장이라 3열이 딱 떨어진다. 5열로 두면 둘째 줄에 네 장만 남아 오른쪽이 빈다. */
+.opx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0 4px; }
+.opx { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+.opx:hover { box-shadow: 0 4px 14px rgba(16, 24, 40, .1); }
+.opx:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+/* 고른 제품 — 표 행의 .is-pick 과 같은 뜻이다 */
+.opx[data-opx-on] { box-shadow: 0 0 0 2px var(--xt, var(--slate)) inset; }
+.opx[data-opx-on] .opx__go { background: var(--xt, var(--slate)); color: #fff; }
+.opx__go {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 13px; line-height: 1;
+  background: color-mix(in srgb, var(--xt, var(--slate)) 13%, #fff);
+  color: color-mix(in srgb, var(--xt, var(--slate)) 55%, #10182B);
+  transition: background .15s, color .15s;
+}
+/* 제품명이 길다('고유황중유(380cst/3.5%)') — 두 줄까지 허용한다 */
+.opx .ocx__en { white-space: normal; word-break: keep-all; line-height: 1.25; }
+.opx .ocx__ko { white-space: normal; word-break: keep-all; line-height: 1.3; }
+.opx .ocx__v { font-size: 24px; }
+
+/* 인사이트 카드는 이번 작업에서 건드리지 않았다 — 한 줄로 내려만 둔다 */
+.oilp-cards--ins { grid-template-columns: minmax(0, 1fr); margin-top: 4px; }
+
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .opx__go { background: var(--field); color: var(--slate); }
+}
+
+@media (max-width: 1100px) {
+  .opx-grid { grid-template-columns: repeat(2, 1fr); }
+  /* 9장을 2열로 두면 마지막 한 장만 남는다 — 그 장이 두 칸을 쓴다 */
+  .opx-grid > .opx:last-child { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .opx-grid { grid-template-columns: 1fr; }
+  .opx-grid > .opx:last-child { grid-column: auto; }
+  .opx .ocx__v { font-size: 22px; }
+}
+@media (max-width: 420px) {
+  .opx .ocx-sp { display: none; }      /* 좁으면 미니 차트를 접는다 */
+  .opx .ocx-ax { display: none; }
+}
+
 /* ══ 국제원유 4종 요약 카드 ═══════════════════════════════════════════════
    ★ 포인트 색(--xt)은 장식(아이콘 · 바탕 · 미니차트)에만 쓴다.
      숫자와 ▲▼ 는 대시보드 공통 규칙(.ms-badge__val — 상승 빨강 · 하락 파랑)을

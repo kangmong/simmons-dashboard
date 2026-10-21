@@ -5646,29 +5646,83 @@ function oilpStat(key) {
   };
 }
 
-/** 대표제품 카드 4장 + 인사이트 카드 1장 */
+/* ══ 석유제품 9종 요약 카드 ═══════════════════════════════════════════════
+   ★ 원유 4종 카드(.ocx*)와 같은 틀을 쓴다 — 같은 클래스를 달았으므로 CSS 를
+     한 줄도 복사하지 않았다.
+   ★ 값은 '제품별 현황' 표와 같은 oilpStat(key) 다. 기준월이 다른 제품
+     (경유 0.5% 는 2012-12 에서 게시 중단)은 그 제품의 마지막 관측월을 적는다 —
+     같은 달로 맞추지 않는다(표의 '기준' 열과 같다).
+   ★ 카드에 data-op-key 를 달아 두면 표 행 클릭과 같은 핸들러가 받는다.
+     카드 › 를 눌러도 표 행을 눌러도 _opPick 하나를 토글하므로 둘이 늘 같은
+     상태를 가리킨다(강조는 차트보기일 때 보인다 — 표보기에는 차트가 없다). */
+const OPX_SPAN = 12;      /* 미니 차트에 쓸 최근 개월 수 */
+
+/* 제품 성격을 알아볼 선 아이콘 — 인라인 SVG 로 직접 그린다.
+   (데이터의 icons 는 이모지라 원유 카드의 선 아이콘과 모양이 섞인다) */
+const OPX_ICONS = {
+  pump: '<path d="M3 13.5V4a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 9 4v9.5"/>'
+    + '<path d="M2 13.5h8"/><path d="M4.5 5.5h3v2h-3z"/>'
+    + '<path d="M9 7h2.2a1 1 0 0 1 1 1v3a1.1 1.1 0 0 0 2.2 0V6.2l-1.6-1.6"/>',
+  plane: '<path d="M14 6.6 9.4 7.9l-3.1-3-1.3.4 2 3.1-2.3.7-1.4-1-.9.3 1.2 2 .6 2 .9-.3.1-1.7 2.3-.7.3 3.6 1.3-.4.5-4.3L14 8Z"/>',
+  truck: '<path d="M1.5 4.5h7v6h-7z"/><path d="M8.5 6.5h2.6l2.4 2.2v1.8h-5z"/>'
+    + '<circle cx="4" cy="12" r="1.2"/><circle cx="11" cy="12" r="1.2"/>',
+  ship: '<path d="M2.5 9.5h11l-1.6 3.2a1 1 0 0 1-.9.55H5a1 1 0 0 1-.9-.55z"/>'
+    + '<path d="M4.5 9.5V6h7v3.5"/><path d="M8 6V3.2"/><path d="M6.3 3.2h3.4"/>',
+  flask: '<path d="M6.4 2.5v3.8L3.2 11.6A1.2 1.2 0 0 0 4.2 13.5h7.6a1.2 1.2 0 0 0 1-1.9L9.6 6.3V2.5"/>'
+    + '<path d="M5.6 2.5h4.8"/><path d="M5 9.8h6"/>',
+};
+const OPX_ICON_FOR = {
+  gasoline95: 'pump', gasoline92: 'pump', kerosene: 'plane',
+  diesel05: 'truck', diesel005: 'truck', diesel0001: 'truck',
+  hsfo180: 'ship', hsfo380: 'ship', naphtha: 'flask',
+};
+function opxIcon(key) {
+  return '<span class="ocx__ico" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"'
+    + ' stroke-linecap="round" stroke-linejoin="round">'
+    + (OPX_ICONS[OPX_ICON_FOR[key]] || '') + '</svg></span>';
+}
+
+/** 제품 카드 9장 + (기존) 인사이트 카드 */
 function oilpLead() {
   if (!_opData || _opData.error) return '';
   const ins = _oilpIns || {};
-  const keys = Array.isArray(ins.leadKeys) && ins.leadKeys.length
-    ? ins.leadKeys : ['gasoline95', 'gasoline92', 'kerosene', 'naphtha'];
-  const icons = ins.icons || {};
-  const cards = keys.map((k) => {
-    const s = (_opData.series || []).find((x) => x.key === k);
-    const st = s ? oilpStat(k) : null;
+  const cards = (_opData.series || []).map((s) => {
+    const st = oilpStat(s.key);
     if (!st) return '';
+    const tone = OP_COLORS[s.key] || 'var(--slate)';
+    const pts = msPtsPetro(_opData, s.key);
     const krw = krwOf(st.v, '배럴');
-    return `<div class="oilp-c">
-      <div class="oilp-c__top">
-        <span class="oilp-c__ico" aria-hidden="true">${escapeHtml(icons[k] || '•')}</span>
-        <span class="oilp-c__name">${escapeHtml(s.label)}</span>
-      </div>
-      <div class="oilp-c__val">${oilUsd(st.v, 2)}<span class="oilp-c__u">/배럴</span></div>
-      ${krw ? `<div class="oilp-c__krw">${escapeHtml(krw)}</div>` : ''}
-      <div class="oilp-c__chg">${matBadge(st.mom)}<span class="oilp-c__as">${escapeHtml(st.ym)} 기준</span></div>
-    </div>`;
+    const pick = (_opPick === s.key);
+    const desc = OP_ORIGIN[s.key] || '';
+    return '<div class="ocx opx" style="--xt:' + tone + '"'
+      + ' data-op-key="' + escapeHtml(s.key) + '" role="button" tabindex="0"'
+      + ' aria-pressed="' + pick + '"' + (pick ? ' data-opx-on="1"' : '') + '>'
+      + '<div class="ocx__hd">' + opxIcon(s.key)
+      + '<div class="ocx__nm">'
+      + '<span class="ocx__en">' + escapeHtml(s.label) + '</span>'
+      + '<span class="ocx__ko">' + escapeHtml(desc || '$/배럴') + '</span>'
+      + '</div>'
+      + '<span class="opx__go" aria-hidden="true">\u203A</span>'
+      + '</div>'
+      + '<div class="ocx__row">'
+      + '<div class="ocx__left">'
+      + '<div class="ocx__v">' + matVal(st.v, '$/배럴', 2) + '</div>'
+      + (krw ? '<div class="ocx__krw">' + escapeHtml(krw) + '</div>' : '')
+      + '</div>'
+      + '<div class="ocx__right">'
+      + '<div class="ocx__mom">'
+      + (st.mom == null || !isFinite(st.mom)
+        ? '<b class="ocx-na">—</b>'
+        : '<b class="ms-badge__val ' + iiCls(st.mom) + '">' + matPct(st.mom) + '</b>')
+      + '</div>'
+      + '<div class="ocx__asof">' + escapeHtml(st.ym) + ' 기준 · 전월비</div>'
+      + '</div></div>'
+      + ocxSpark(pts, tone, OPX_SPAN)
+      + '</div>';
   }).join('');
   if (!cards) return '';
+  /* ★ 인사이트 카드는 이번 작업에서 건드리지 않는다 — 있던 그대로 둔다. */
   const bullets = ((ins.bullets) || []).map((b) => `<li>${escapeHtml(b)}</li>`).join('');
   const insCard = bullets
     ? `<div class="oilp-c oilp-c--ins">
@@ -5676,7 +5730,10 @@ function oilpLead() {
           <span class="oilp-c__name">주요 인사이트 요약</span></div>
         <ul class="oilp-c__ul">${bullets}</ul>
       </div>` : '';
-  return `<div class="oilp-cards">${cards}${insCard}</div>`;
+  return '<div class="opx-grid">' + cards + '</div>'
+    + '<div class="ii-cap ocx-note">미니 차트의 세로 범위는 카드별로 다릅니다'
+    + ' · 최근 ' + OPX_SPAN + '개월 월별 가격 · 카드를 누르면 아래 그래프에서 그 제품만 진해집니다</div>'
+    + (insCard ? '<div class="oilp-cards oilp-cards--ins">' + insCard + '</div>' : '');
 }
 
 /** ① 우측 '제품별 현황' 표 — 8개 제품 전부. 조회한 제품은 진하게 */
@@ -5849,25 +5906,28 @@ function wireProductControls(root) {
   });
   if (_opQuery && _opView === 'chart') wireProductChart();
 
-  /* '제품별 현황' 표 ↔ 차트 연동 — 행을 누르면 그 제품만 강조(다시 누르면 해제).
-     ★ 표는 차트 뷰에서만 나오므로 여기 한 곳에만 건다. 마우스·터치·키보드 모두
-       같은 길을 탄다(행에 role="button" tabindex="0" 을 달아 뒀다). */
-  const opSide = root.querySelector('.oilp-figure .oilp-t');
-  if (opSide) {
-    const toggle = (tr) => {
-      const k = tr.getAttribute('data-op-key');
+  /* 제품 선택 ↔ 차트 연동 — 누르면 그 제품만 강조(다시 누르면 해제).
+     ★ 받는 곳이 둘이다: 위쪽 제품 카드(.opx)와 '제품별 현황' 표 행.
+       둘 다 data-op-key 를 달고 있어 핸들러 하나로 받는다 — 어느 쪽을 눌러도
+       _opPick 하나를 토글하므로 선택 표시가 서로 어긋나지 않는다.
+       (예전에는 .oilp-t 에만 걸려 있어 표 행만 먹혔다.)
+     ★ 마우스·터치·키보드 모두 같은 길을 탄다(role="button" tabindex="0"). */
+  const opFig = root.querySelector('.oilp-figure');
+  if (opFig) {
+    const toggle = (el) => {
+      const k = el.getAttribute('data-op-key');
       if (!k) return;
       _opPick = (_opPick === k) ? null : k;
       renderMaterial();
     };
-    opSide.addEventListener('click', (e) => {
-      const tr = e.target.closest && e.target.closest('tr[data-op-key]');
-      if (tr) toggle(tr);
+    opFig.addEventListener('click', (e) => {
+      const el = e.target.closest && e.target.closest('[data-op-key]');
+      if (el) toggle(el);
     });
-    opSide.addEventListener('keydown', (e) => {
+    opFig.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
-      const tr = e.target.closest && e.target.closest('tr[data-op-key]');
-      if (tr) { e.preventDefault(); toggle(tr); }
+      const el = e.target.closest && e.target.closest('[data-op-key]');
+      if (el) { e.preventDefault(); toggle(el); }
     });
   }
 }
@@ -8817,8 +8877,8 @@ function ocxBarrel() {
  *  ★ 이미 불러온 월별 시계열만 쓴다. 축은 이 카드 안에서만 맞춰서, 내린 구간은
  *    실제로 내려간 모양이 나온다(카드마다 세로 범위가 다르다는 안내를 영역
  *    아래에 한 줄 둔다). */
-function ocxSpark(pts, tone) {
-  const w = pts.slice(-OCX_SPAN);
+function ocxSpark(pts, tone, span) {
+  const w = pts.slice(-(span || OCX_SPAN));
   if (w.length < 2) return '';                 /* 2개 미만이면 차트를 접는다 */
   const W = 240, H = 54, P = 4;
   let lo = Infinity, hi = -Infinity;
