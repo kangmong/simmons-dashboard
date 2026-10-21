@@ -9447,28 +9447,113 @@ function koimaEventItems(cat) {
 }
 
 /** 요약 4박스 — 앞 3칸은 수치, 4칸은 부문 실데이터로 자동 요약한 3줄 */
+/* ══ KOIMA 요약 3카드 ═════════════════════════════════════════════════════
+   ★ 값·라벨·보조 문구는 바뀌지 않았다. 담는 그릇만 박스에서 카드로 바꾸고
+     미니 차트를 더한 것이다(숫자는 koimaStatFull 이 내주던 그대로).
+   ★ 포인트 색(--xt)은 장식이다. 숫자와 ▲▼ 는 대시보드 공통 규칙
+     (.ms-badge__val — 상승 빨강 · 하락 파랑)을 그대로 쓴다. 3번 카드는 방향이
+     없는 값이라 네이비(중립)로 둔다 — 초록 카드라고 '좋음'으로 읽히면 안 된다. */
+const KMX_TONES = { now: '#3B82F6', yoy: '#E11D48', avg: '#0B7F5E' };
+const KMX_W = 104, KMX_H = 44, KMX_P = 4;
+
+function kmxIcon(kind, tone) {
+  return '<span class="ocx__ico" style="--xt:' + tone + '" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"'
+    + ' stroke-linecap="round" stroke-linejoin="round">' + (SRK_ICONS[kind] || '') + '</svg></span>';
+}
+
+/** 미니 면적 차트. opts.mark = 첫 점(비교 기준)에 점선+동그라미, opts.avg = 평균 점선.
+ *  ★ 전부 이미 불러온 rows 로만 그린다. 축은 이 카드 안에서만 맞춰서,
+ *    내린 구간은 실제로 내려간 모양이 나온다. */
+function kmxSpark(rows, tone, n, opts) {
+  const w = (rows || []).filter((r) => r.index != null && isFinite(r.index)).slice(-n);
+  if (w.length < 2) return '';            /* 2개 미만이면 차트를 접는다 */
+  const o = opts || {};
+  const vals = w.map((r) => r.index).concat(o.avg != null ? [o.avg] : []);
+  const sc = srkScale(vals, true);
+  if (!sc) return '';
+  const X = (i) => KMX_P + (i / (w.length - 1)) * (KMX_W - KMX_P * 2);
+  const Y = (v) => {
+    const t = sc.y(v);                     /* srkScale 은 30px 높이 기준이라 늘린다 */
+    return KMX_P + ((t - 3) / (30 - 6)) * (KMX_H - KMX_P * 2);
+  };
+  const d = w.map((r, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(r.index).toFixed(1)).join(' ');
+  const lx = X(w.length - 1).toFixed(1), ly = Y(w[w.length - 1].index).toFixed(1);
+  const dash = (y, cls) => '<line class="' + cls + '" x1="0" x2="' + KMX_W + '"'
+    + ' y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/>';
+  let extra = '';
+  if (o.mark) {
+    /* 비교 기준(12개월 전) 자리 — 어디서 어디로 움직였는지 보이게 */
+    extra += dash(Y(w[0].index), 'kmx-ref')
+      + '<circle class="kmx-refd" cx="' + X(0).toFixed(1) + '" cy="' + Y(w[0].index).toFixed(1) + '" r="2.6"/>';
+  }
+  if (o.avg != null) extra += dash(Y(o.avg), 'kmx-avg');
+  return '<div class="kmx-chart"><svg class="ocx-sp kmx-sp" viewBox="0 0 ' + KMX_W + ' ' + KMX_H + '"'
+    + ' preserveAspectRatio="none" aria-hidden="true" focusable="false" style="--xt:' + tone + '">'
+    + '<title>' + escapeHtml(w[0].period + ' ~ ' + w[w.length - 1].period) + '</title>'
+    + '<path class="xsi-sp__a" d="' + d + ' L' + lx + ' ' + KMX_H + ' L' + X(0).toFixed(1) + ' ' + KMX_H + ' Z"/>'
+    + '<path class="xsi-sp__l" d="' + d + '"/>' + extra
+    + '<circle class="ocx-sp__d" cx="' + lx + '" cy="' + ly + '" r="2.8"/>'
+    + '</svg></div>';
+}
+
+/** 카드 한 장 */
+function kmxCard(o) {
+  return '<div class="ocx kmx" style="--xt:' + o.tone + '">'
+    + '<div class="ocx__hd">' + kmxIcon(o.icon, o.tone)
+    + '<div class="ocx__nm">'
+    + '<span class="ocx__en">' + escapeHtml(o.label)
+    + (o.def ? gcAbbr('ⓘ', o.def) : '') + '</span>'
+    + '<span class="ocx__ko">' + escapeHtml(o.desc) + '</span>'
+    + '</div></div>'
+    + '<div class="ocx__row">'
+    + '<div class="ocx__left">'
+    + '<div class="ocx__v kmx__v' + (o.cls ? ' ' + o.cls : '') + '">' + o.val + '</div>'
+    + '<div class="ocx__asof">' + o.sub + '</div>'
+    + '</div>'
+    + (o.spark || '')
+    + '</div></div>';
+}
+
 function koimaSum4(cat, st, fc) {
   if (!cat || !st) return '';
   const n2 = (v) => (v == null || !isFinite(v) ? '—' : v.toFixed(2));
-  const boxes = matSum([
-    {
-      label: cat.label + ' 지수', val: matVal(st.v, '', 2),
-      sub: escapeHtml(st.ym) + ' 기준 · 전월비 ' + matBadge(st.mom, 2),
-    },
-    {
-      label: '전년 동월 대비', val: matBadge(st.yoy, 2),
-      sub: st.yoyAt ? escapeHtml(st.yoyAt.period) + ' ' + n2(st.yoyAt.index) + ' 대비' : '자료 제공값',
-    },
-    {
-      label: '최근 12개월 평균', val: matVal(st.avg12, '', 1),
-      sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
-    },
-  ]);
+  /* ⓘ 설명 — 화면·코드에 이미 있던 말만 옮긴다(새로 지어내지 않는다) */
+  const unitCap = (_koimaIns && _koimaIns.unitCaption)
+    || '이 지수는 2010년 12월을 100으로 기준 삼아, 해당 부문 원자재 가격이 기준시점 대비 '
+      + '얼마나 올랐거나 내렸는지를 보여주는 지수입니다.';
+  const cards = kmxCard({
+    tone: KMX_TONES.now, icon: 'avg', label: cat.label + ' 지수',
+    desc: '현재 지수 값', def: unitCap,
+    val: matVal(st.v, '', 2),
+    sub: escapeHtml(st.ym) + ' 기준 · 전월비 ' + matBadge(st.mom, 2),
+    spark: kmxSpark(st.rows, KMX_TONES.now, 24),
+    cls: 'kmx__v--big',
+  }) + kmxCard({
+    tone: KMX_TONES.yoy, icon: 'trend', label: '전년 동월 대비',
+    desc: '전년 같은 달 대비 변동률', def: '마지막 관측월과 12개월 전 같은 달의 변동률입니다.',
+    val: matBadge(st.yoy, 2),
+    sub: st.yoyAt ? escapeHtml(st.yoyAt.period) + ' ' + n2(st.yoyAt.index) + ' 대비' : '자료 제공값',
+    spark: kmxSpark(st.rows, KMX_TONES.yoy, 13, { mark: true }),
+  }) + kmxCard({
+    tone: KMX_TONES.avg, icon: 'cal', label: '최근 12개월 평균',
+    desc: '최근 12개월 지수의 평균', def: '마지막 관측월을 포함한 최근 12개월 값의 단순 평균입니다. '
+      + '관측이 모자라면 있는 달만 세고 그 개수를 적습니다.',
+    val: matVal(st.avg12, '', 1),
+    sub: escapeHtml(st.avgFrom) + '~' + escapeHtml(st.avgTo) + ' ' + st.avgN + '개월 실측',
+    spark: kmxSpark(st.rows, KMX_TONES.avg, 12, { avg: st.avg12 }),
+    cls: 'kmx__v--neu',
+  });
   /* ★ 뺀 것 — 4번째 칸 '주요 인사이트 요약'(koimaAutoBullets 3줄).
      앞 세 칸의 수치(지수·전년 동월 대비·12개월 평균)와 오른쪽 '기간별 변동률'
      표가 이미 말하는 것을 문장으로 다시 적던 자리다. 앞 세 칸은 그대로 둔다.
      koimaAutoBullets 는 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
-  return boxes;
+  return '<div class="kmx-wrap">'
+    + '<div class="kmx__h"><h4 class="kmx__t">' + escapeHtml(cat.label)
+    + '<b>' + escapeHtml(st.ym) + ' 기준</b></h4></div>'
+    + '<div class="kmx-grid">' + cards + '</div>'
+    + '<div class="ii-cap ocx-note">미니 차트의 세로 범위는 카드별로 다릅니다</div>'
+    + '</div>';
 }
 
 /** 요약 3줄 — 전부 그 부문 실측값에서 만든다(부문마다 문장이 달라진다) */
