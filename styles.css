@@ -1644,45 +1644,140 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 /* 항로 탭이 8개라 한 줄을 넘긴다 — 줄바꿈을 허용하고 간격만 맞춘다 */
 .xsi-routes { flex-wrap: wrap; }
 
-/* 최근값 + 항로 이름 */
-.xsi-lead {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; margin: 10px 0 12px;
-}
-.xsi-lead__box { min-width: 0; }
-.xsi-lead__lbl { font-size: 11px; font-weight: 700; color: var(--muted); }
-.xsi-lead__val {
-  font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1;
-  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
-}
-.xsi-lead__sub { margin-top: 2px; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.xsi-lead__name {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  font-size: 13.5px; font-weight: 700; color: var(--ink); text-align: right;
+/* ══ 운임지수 — 최근값 큰 카드(좌) + 통계 7장(우) ════════════════════════
+   ★ 카드 포인트 색(--xt)은 장식(아이콘 · 바탕 · 스파크라인)에만 쓴다.
+     숫자 색은 대시보드 공통 규칙(.ms-badge__val ▲빨강/▼파랑)을 그대로 둔다 —
+     둘을 섞으면 초록 카드의 하락값이 '좋아졌다'로 읽힌다.
+   ★ 스파크라인은 이미 불러온 r.series 를 잘라 그린다(xsiSpan/xsiSpark).
+     Y축을 카드마다 맞추므로 내린 항로는 실제로 내려간 모양이 나온다. */
+.xsi-top {
+  display: grid; grid-template-columns: 300px minmax(0, 1fr);
+  gap: 12px; align-items: stretch; margin: 10px 0 12px;
 }
 
-/* 통계 7칸 */
-.xsi-stats { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
-.xsi-stat {
-  padding: 8px 10px 9px; background: var(--field);
-  border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0;
+/* ── 최근값 카드 ──────────────────────────────────────────────────────── */
+.xsi-lead { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.xsi-lead__box {
+  position: relative; overflow: hidden; min-width: 0; flex: 1 1 auto;
+  padding: 14px 16px 12px; border-radius: 14px;
+  background: linear-gradient(160deg, #F7FAFF 0%, #FDF4F6 100%);
+  border: 1px solid #E6ECF6;
+  display: flex; flex-direction: column;
 }
-.xsi-stat__lbl { display: flex; flex-direction: column; font-size: 11px; font-weight: 700; color: var(--muted); }
-.xsi-stat__ko { display: flex; align-items: center; gap: 0; }
+/* 배경 면적 차트 — 아래쪽에 옅게 깐다 */
+.xsi-lead__bg {
+  position: absolute; left: 0; right: 0; bottom: 26px; width: 100%; height: 86px;
+  pointer-events: none;
+}
+.xsi-lead__bgA { fill: rgba(225,29,72,.10); }
+.xsi-lead__bgL { fill: none; stroke: rgba(225,29,72,.5); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.xsi-lead__bgD { fill: #E11D48; }
+/* 장식 — 직접 그린 컨테이너선 */
+.xsi-lead__ship {
+  /* ★ 아래쪽에 두면 '2015-01-05부터 집계' 글자를 물결이 가로질러 읽히지
+     않는다(좁은 폭에서는 그 줄이 두 줄로 늘어 더 겹친다). 숫자 오른쪽
+     빈자리로 올린다 — 장식이 글을 가리면 안 된다. */
+  position: absolute; right: 8px; top: 46px; width: 84px; height: 39px;
+  color: var(--navy); opacity: .12; pointer-events: none;
+}
+/* 글은 어떤 경우에도 장식 위에 온다 */
+.xsi-lead__sub, .xsi-lead__krw, .xsi-lead__val, .xsi-lead__lbl, .xsi-lead__unit { z-index: 1; }
+.xsi-lead__lbl {
+  position: relative; display: flex; align-items: center;
+  font-size: 12.5px; font-weight: 800; color: var(--ink);
+}
+.xsi-lead__val {
+  position: relative; margin-top: 2px;
+  font-size: 46px; font-weight: 900; color: var(--ink); line-height: 1.02;
+  font-variant-numeric: tabular-nums; letter-spacing: -.035em;
+}
+.xsi-lead__unit {
+  position: relative; font-size: 12.5px; font-weight: 700; color: var(--slate);
+  letter-spacing: 0;
+}
+.xsi-lead__krw {
+  position: relative; margin-top: 1px; font-size: 12px; font-weight: 600;
+  color: var(--slate); font-variant-numeric: tabular-nums;
+}
+.xsi-lead__sub {
+  position: relative; margin-top: auto; padding-top: 12px;
+  font-size: 11px; line-height: 1.5; color: var(--slate);
+  font-variant-numeric: tabular-nums; word-break: keep-all;
+}
+.xsi-lead__name {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 13.5px; font-weight: 700; color: var(--ink);
+}
+
+/* ── 통계 카드 7장 — 윗줄 3등분 · 아랫줄 4등분 ──────────────────────────── */
+.xsi-stats { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.xsi-stats__r { display: grid; gap: 10px; }
+.xsi-stats__r--3 { grid-template-columns: repeat(3, 1fr); }
+.xsi-stats__r--4 { grid-template-columns: repeat(4, 1fr); }
+.xsi-stat {
+  display: flex; flex-direction: column; gap: 7px; min-width: 0;
+  padding: 10px 12px 11px; border-radius: 14px;
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--xt, var(--slate)) 7%, #fff) 0%,
+    color-mix(in srgb, var(--xt, var(--slate)) 2%, #fff) 100%);
+  border: 1px solid color-mix(in srgb, var(--xt, var(--slate)) 22%, #fff);
+}
+.xsi-stat__hd { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.xsi-stat__ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%; font-size: 14px; line-height: 1;
+  background: color-mix(in srgb, var(--xt, var(--slate)) 15%, #fff);
+}
+.xsi-stat__lbl { display: flex; flex-direction: column; min-width: 0; }
+.xsi-stat__ko {
+  display: flex; align-items: center;
+  font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -.01em;
+  word-break: keep-all;        /* 좁을 때 '월초 이후 수/익률' 로 끊기지 않게 */
+}
+.xsi-stat__en {
+  font-size: 10px; font-weight: 500; color: var(--slate);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* 좁은 통계 칸에 들어가는 ⓘ — 기본 .gc-abbr 보다 작고 여백도 줄인다 */
 .xsi-stat__ko .gc-abbr, .xsi-lead__lbl .gc-abbr {
   margin-left: 4px; padding: 0 5px; font-size: 10px; line-height: 1.5;
 }
 /* 카드가 작아 말풍선이 잘리지 않도록 위치를 왼쪽으로 물린다 */
 .xsi-stat .gc-abbr__bub { left: auto; right: 0; max-width: 260px; }
-/* 최근값 옆 단위 — 숫자가 주, 단위는 보조 */
-.xsi-lead__unit {
-  margin-left: 6px; font-size: 12px; font-weight: 700; color: var(--muted);
-  letter-spacing: 0; white-space: nowrap;
+
+.xsi-stat__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.xsi-stat__val {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  min-width: 0; flex: 1 1 auto;
+  font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
 }
-.xsi-lead__lbl { display: flex; align-items: center; }
-.xsi-stat__en { font-size: 9.5px; font-weight: 500; color: var(--muted); opacity: .8; }
-.xsi-stat__val { margin-top: 5px; font-size: 13px; font-variant-numeric: tabular-nums; }
+/* 기준 배지 — 0단계에서 정의와 맞는 말만 남겼다 */
+.xsi-stat__bdg {
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--xt, var(--slate)) 13%, #fff);
+  color: color-mix(in srgb, var(--xt, var(--slate)) 48%, #10182B);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0;
+}
+/* 스파크라인 — 포인트 색의 옅은 톤만 쓴다(진한 의미 색을 쓰지 않는다) */
+.xsi-sp { flex: none; width: 64px; height: 26px; overflow: visible; }
+.xsi-sp__a { fill: color-mix(in srgb, var(--xt, var(--slate)) 14%, transparent); }
+.xsi-sp__l {
+  fill: none; stroke: color-mix(in srgb, var(--xt, var(--slate)) 55%, #fff);
+  stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.xsi-sp__d { fill: color-mix(in srgb, var(--xt, var(--slate)) 70%, #fff); }
+
+/* color-mix 미지원 브라우저 — 장식만 단색으로 떨어진다(값은 그대로) */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .xsi-stat { background: var(--field); border-color: var(--line); }
+  .xsi-stat__ico { background: var(--blue-soft); }
+  .xsi-stat__bdg { background: var(--field); color: var(--slate); }
+  .xsi-sp__a { fill: rgba(100,116,139,.14); }
+  .xsi-sp__l { stroke: rgba(100,116,139,.55); }
+  .xsi-sp__d { fill: #64748B; }
+}
 
 .xsi-figure .xsi-ranges { margin-top: 14px; }
 /* 차트 위 단위 캡션 — Y축 눈금과 자리를 다투지 않도록 SVG 밖에 둔다 */
@@ -1691,14 +1786,29 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
   letter-spacing: 0;
 }
 .viz-unit__fx { font-weight: 500; }
-/* 최근값 아래 원화 환산 */
-.xsi-lead__krw { margin-top: 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .xsi-figure .viz-svg { margin-top: 4px; }
 
-@media (max-width: 1100px) { .xsi-stats { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 720px) {
-  .xsi-stats { grid-template-columns: repeat(2, 1fr); }
-  .xsi-lead__name { text-align: left; }
+/* 태블릿 — 최근값 카드를 맨 위 한 줄로 올리고 통계는 아래에서 3·4단 유지 */
+@media (max-width: 1180px) {
+  .xsi-top { grid-template-columns: minmax(0, 1fr); }
+  .xsi-lead__box { min-height: 128px; }
+  .xsi-lead__val { font-size: 40px; }
+  .xsi-lead__ship { bottom: 14px; }
+}
+@media (max-width: 860px) {
+  /* ★ 줄을 나눠 둔 채 2열로 접으면 윗줄(3장)에 빈 칸이 하나 남는다.
+     두 줄을 풀어 7장을 한 격자에 흘리고, 마지막 한 장이 두 칸을 쓰게 한다. */
+  .xsi-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .xsi-stats__r { display: contents; }
+  /* ★ .xsi-stat:last-child 로 잡으면 두 묶음의 마지막(=3번째 카드)까지 걸려
+     한가운데 카드가 두 칸을 쓴다. 아랫줄 묶음의 마지막 한 장만 집는다. */
+  .xsi-stats__r--4 .xsi-stat:last-child { grid-column: span 2; }
+}
+@media (max-width: 520px) {
+  /* 좁으면 스파크라인을 접는다 — 배지와 숫자가 겹치지 않게 하는 것이 먼저다 */
+  .xsi-sp { display: none; }
+  .xsi-stat__val { font-size: 19px; }
+  .xsi-lead__val { font-size: 36px; }
 }
 /* ── 운임지수 4단 패널 (① 구간 설명 · ③ 향후 전망) ────────────────────────
    ② 변동요인은 .sr-fac, ④ 대응 전략은 .ii-imp 를 그대로 쓴다 — 세 위젯이
@@ -1784,15 +1894,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
   background: rgba(255, 255, 255, .15); color: #fff;
   font-size: 11.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-
-/* 요약바 — 아이콘 원형 배경 + 값 */
-.xsi-stat { display: flex; align-items: flex-start; gap: 8px; }
-.xsi-stat__ico {
-  display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--blue-soft); font-size: 12px; line-height: 1;
-}
-.xsi-stat__body { min-width: 0; }
 
 /* ① 차트(좌) + 향후 3개월 전망(우) */
 .xsi-row { display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: 12px; align-items: start; }

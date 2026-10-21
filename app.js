@@ -6493,25 +6493,166 @@ function xsiCodeTip(r) {
 }
 
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
+/* ── 통계 카드 7개 ────────────────────────────────────────────────────────
+   ★ 값은 우리가 계산하지 않는다 — xsi_freight.py 가 Compass 공표표를 그대로
+     긁어온 r.stats 를 쓴다(데이터의 statsNote 참고). 여기서 더하는 것은
+     '어떻게 보여 줄지'(색 · 배지 문구 · 미니차트 구간)뿐이다.
+
+   badge — 정의와 맞는 말만 쓴다. 두 개는 흔히 틀리게 적힌다.
+     · annReturn 은 '전년 대비'가 아니다. 8개 항로 모두
+       (1+산출이래누적)^(1/경과연수)-1 과 소수 둘째 자리까지 일치한다 →'연환산'.
+     · inception 의 '기준일'은 최종 관측일로도 읽혀 모호하다 → '산출 개시일 대비'.
+     · annVol 은 방향이 없으므로 평가하는 말('안정적' 등)을 붙이지 않는다.
+
+   span — 미니차트가 그릴 구간. 카드가 말하는 기간과 같은 구간을 쓴다.
+   tone — 장식(아이콘 배경 · 카드 바탕 · 미니차트)에만 쓰는 포인트 색.
+     숫자 색(▲빨강/▼파랑)과는 별개다 — 섞이면 뜻이 반대로 읽힌다. */
 const XSI_STATS = [
   { key: 'annReturn', label: '연간 수익률', tip: 'Annualised Return', icon: '📈',
+    tone: 'red', badge: '산출 이래 연환산', span: 'y1',
     // ★ 산술로 확인했다 — 8개 항로 모두 '산출 이래 누적 수익률의 연환산'과 일치한다.
     def: '산출을 시작한 날 이후의 누적 등락률을 1년 단위로 환산한 값입니다.' },
   // 변동성은 '얼마나 흔들렸나'를 재는 크기 지표라 부호가 없다.
   // 수익률과 같은 ▲빨강/▼파랑을 붙이면 '올랐다'는 뜻으로 잘못 읽힌다.
   { key: 'annVol', icon: '〰️', label: '연간 변동성', tip: 'Annualised Volatility', plain: true,
+    tone: 'indigo', badge: '연환산 기준', span: 'y1',
     // ★ 창(1년·3년·전체)을 바꿔 맞춰 봤으나 8개 항로에서 일관되게 재현되지 않았다.
     //   그래서 '무엇을 재는 값인지'만 적고 산출식은 단정하지 않는다.
     def: '운임이 얼마나 크게 출렁였는지를 1년 단위로 환산한 값입니다. 숫자가 클수록 '
       + '등락이 심했다는 뜻이며, 오르거나 내린 방향과는 관계가 없습니다. '
       + '산출 구간과 방식은 Compass 공표 기준을 그대로 따릅니다.' },
-  { key: 'd1', icon: '🕐', label: '1일', tip: '1 Day Return', def: '직전 영업일 대비 등락률입니다.' },
-  { key: 'mtd', icon: '📅', label: '월초 이후', tip: 'MTD Return', def: '이번 달 첫 영업일 대비 등락률입니다.' },
-  { key: 'qtd', icon: '🗓️', label: '분기초 이후', tip: 'QTD Return', def: '이번 분기 첫 영업일 대비 등락률입니다.' },
-  { key: 'ytd', icon: '📊', label: '연초 이후', tip: 'YTD Return', def: '올해 첫 영업일 대비 등락률입니다.' },
-  { key: 'inception', icon: '🏁', label: '산출 이래', tip: 'Since Inception',
+  { key: 'd1', icon: '🕐', label: '1일 수익률', tip: '1 Day Return',
+    tone: 'green', badge: '전일 대비', span: 'd30',
+    def: '직전 영업일 대비 등락률입니다.' },
+  { key: 'mtd', icon: '📅', label: '월초 이후 수익률', tip: 'MTD Return',
+    tone: 'amber', badge: '월초 대비', span: 'mtd',
+    def: '이번 달 첫 영업일 대비 등락률입니다.' },
+  { key: 'qtd', icon: '🗓️', label: '분기초 이후 수익률', tip: 'QTD Return',
+    tone: 'violet', badge: '분기초 대비', span: 'qtd',
+    def: '이번 분기 첫 영업일 대비 등락률입니다.' },
+  { key: 'ytd', icon: '📊', label: '연초 이후 수익률', tip: 'YTD Return',
+    tone: 'teal', badge: '연초 대비', span: 'ytd',
+    def: '올해 첫 영업일 대비 등락률입니다.' },
+  { key: 'inception', icon: '🏁', label: '산출 이래 수익률', tip: 'Since Inception',
+    tone: 'blue', badge: '산출 개시일 대비', span: 'all',
     def: '산출을 시작한 날 이후의 누적 등락률입니다(연 단위로 환산하지 않은 값).' },
 ];
+
+/* 카드 포인트 색 — 장식 전용. 값의 방향과는 아무 상관이 없다. */
+const XSI_TONES = {
+  red: '#E11D48', indigo: '#4F46E5', green: '#12B981', amber: '#F59E0B',
+  violet: '#8B5CF6', teal: '#0891B2', blue: '#3B82F6',
+};
+
+/** 카드가 말하는 기간만큼 시계열을 자른다.
+ *  ★ 전부 이미 불러온 r.series 에서 떼어 낸다 — 값을 만들지 않는다.
+ *    해당 구간이 2점 미만이면 null 을 돌려 미니차트를 아예 접는다. */
+function xsiSpan(series, span) {
+  if (!series || !Array.isArray(series.dates) || series.dates.length < 2) return null;
+  const D = series.dates, V = series.values;
+  const last = D[D.length - 1];
+  let from = 0;
+  if (span === 'd30') {
+    from = Math.max(0, D.length - 30);
+  } else if (span === 'all') {
+    from = 0;
+  } else {
+    /* 월초·분기초·연초·최근 12개월 — 날짜 문자열 비교로 자른다(YYYY-MM-DD) */
+    const y = last.slice(0, 4), m = Number(last.slice(5, 7));
+    const cut = span === 'mtd' ? y + '-' + String(m).padStart(2, '0') + '-01'
+      : span === 'qtd' ? y + '-' + String(Math.floor((m - 1) / 3) * 3 + 1).padStart(2, '0') + '-01'
+        : span === 'ytd' ? y + '-01-01'
+          : String(Number(y) - 1) + last.slice(4);     // y1 = 최근 12개월
+    while (from < D.length && D[from] < cut) from += 1;
+  }
+  if (D.length - from < 2) return null;
+  return { dates: D.slice(from), values: V.slice(from) };
+}
+
+/** 스파크라인 — 직접 그린 SVG. 라이브러리를 쓰지 않는다.
+ *  ★ Y축은 그 카드 안에서만 맞춘다(구간 최저~최고). 그래서 내린 항로는
+ *    실제로 내려간 모양이 나온다 — 늘 우상향으로 보이지 않는다. */
+function xsiSpark(series, span, tone, maxPts) {
+  const sl = xsiSpan(series, span);
+  if (!sl) return '';
+  const V = sl.values, D = sl.dates;
+  /* 점이 너무 많으면(전 구간은 3천 개) 고르게 솎는다 — 모양은 그대로다 */
+  const cap = maxPts || 72;
+  const idx = [];
+  if (V.length <= cap) { for (let i = 0; i < V.length; i++) idx.push(i); } else {
+    for (let i = 0; i < cap; i++) idx.push(Math.round((i * (V.length - 1)) / (cap - 1)));
+  }
+  const pts = idx.map((i) => ({ x: i, v: V[i] })).filter((p) => p.v != null && isFinite(p.v));
+  if (pts.length < 2) return '';
+  const W = 64, H = 26, PAD = 3;
+  let lo = Infinity, hi = -Infinity;
+  pts.forEach((p) => { if (p.v < lo) lo = p.v; if (p.v > hi) hi = p.v; });
+  const sp = (hi - lo) || 1;
+  const X = (i) => PAD + (i / (pts.length - 1)) * (W - PAD * 2);
+  const Y = (v) => H - PAD - ((v - lo) / sp) * (H - PAD * 2);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.v).toFixed(1)).join(' ');
+  const area = d + ' L' + X(pts.length - 1).toFixed(1) + ' ' + H + ' L' + X(0).toFixed(1) + ' ' + H + ' Z';
+  const lx = X(pts.length - 1).toFixed(1), ly = Y(pts[pts.length - 1].v).toFixed(1);
+  const n = (v) => Math.round(v).toLocaleString('en-US');
+  /* 스파크라인마다 호버를 배선하면 7카드 × 8항로라 비용이 크다.
+     브라우저 기본 말풍선(<title>)으로 구간과 값 범위만 알린다. */
+  const title = D[0] + ' ~ ' + D[D.length - 1] + ' · ' + n(lo) + '~' + n(hi);
+  return '<svg class="xsi-sp" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"'
+    + ' aria-hidden="true" focusable="false" style="--xt:' + tone + '">'
+    + '<title>' + escapeHtml(title) + '</title>'
+    + '<path class="xsi-sp__a" d="' + area + '"/>'
+    + '<path class="xsi-sp__l" d="' + d + '"/>'
+    + '<circle class="xsi-sp__d" cx="' + lx + '" cy="' + ly + '" r="2"/>'
+    + '</svg>';
+}
+
+/** 최근값 카드 배경에 까는 전 구간 면적 차트 + 마지막 점 */
+function xsiLeadChart(series) {
+  const sl = xsiSpan(series, 'all');
+  if (!sl) return '';
+  const V = sl.values;
+  const cap = 120, idx = [];
+  if (V.length <= cap) { for (let i = 0; i < V.length; i++) idx.push(i); } else {
+    for (let i = 0; i < cap; i++) idx.push(Math.round((i * (V.length - 1)) / (cap - 1)));
+  }
+  const pts = idx.map((i) => V[i]).filter((v) => v != null && isFinite(v));
+  if (pts.length < 2) return '';
+  const W = 300, H = 110;
+  let lo = Infinity, hi = -Infinity;
+  pts.forEach((v) => { if (v < lo) lo = v; if (v > hi) hi = v; });
+  const sp = (hi - lo) || 1;
+  const X = (i) => (i / (pts.length - 1)) * W;
+  const Y = (v) => H - 6 - ((v - lo) / sp) * (H - 18);
+  const d = pts.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
+  return '<svg class="xsi-lead__bg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"'
+    + ' aria-hidden="true" focusable="false">'
+    + '<path class="xsi-lead__bgA" d="' + d + ' L' + W + ' ' + H + ' L0 ' + H + ' Z"/>'
+    + '<path class="xsi-lead__bgL" d="' + d + '"/>'
+    + '<circle class="xsi-lead__bgD" cx="' + X(pts.length - 1).toFixed(1) + '"'
+    + ' cy="' + Y(pts[pts.length - 1]).toFixed(1) + '" r="3.5"/>'
+    + '</svg>';
+}
+
+/** 장식용 컨테이너선 — 인라인 SVG 로 직접 그린다(외부 이미지를 쓰지 않는다). */
+function xsiShipSvg() {
+  return '<svg class="xsi-lead__ship" viewBox="0 0 120 56" aria-hidden="true" focusable="false">'
+    + '<g fill="currentColor">'
+    /* 컨테이너 더미 */
+    + '<rect x="30" y="20" width="13" height="8" rx="1"/>'
+    + '<rect x="45" y="20" width="13" height="8" rx="1" opacity=".75"/>'
+    + '<rect x="60" y="20" width="13" height="8" rx="1"/>'
+    + '<rect x="37" y="11" width="13" height="8" rx="1" opacity=".75"/>'
+    + '<rect x="52" y="11" width="13" height="8" rx="1"/>'
+    + '<rect x="45" y="2" width="13" height="8" rx="1" opacity=".6"/>'
+    /* 선교 */
+    + '<rect x="78" y="14" width="11" height="14" rx="1.5"/>'
+    /* 선체 */
+    + '<path d="M18 29h78l-7 13H25z"/>'
+    /* 물결 */
+    + '<path d="M4 47c6 0 6 4 12 4s6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4 6 4 12 4 6-4 12-4"'
+    + ' fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>'
+    + '</g></svg>';
+}
 
 /** 데이터 로드. 실패해도 다른 카드에 영향을 주지 않는다. */
 async function fetchXsi() {
@@ -7296,19 +7437,39 @@ function renderXsiHtml() {
 
   const st = r.stats || {};
   const color = 'var(--blue)';
-  const cards = XSI_STATS.map((f) => `<div class="xsi-stat">
-      <span class="xsi-stat__ico" aria-hidden="true">${escapeHtml(f.icon || '•')}</span>
-      <div class="xsi-stat__body">
-        <div class="xsi-stat__lbl"><span class="xsi-stat__ko">${escapeHtml(f.label)}${f.def
-          ? gcAbbr('ⓘ', f.tip + ' — ' + f.def) : ''}</span><span class="xsi-stat__en">${escapeHtml(f.tip)}</span></div>
-        <div class="xsi-stat__val">${xsiPct(st[f.key], f.plain)}</div>
-      </div>
-    </div>`).join('');
+  /* 카드 한 장 — 아이콘 · 제목(한글 크게 + 영문 보조 + ⓘ) · 큰 숫자 + 기준 배지 ·
+     오른쪽 스파크라인. 포인트 색(--xt)은 장식에만 들어가고 숫자 색은 손대지 않는다. */
+  const statCard = (f) => {
+    const tone = XSI_TONES[f.tone] || 'var(--slate)';
+    const sp = r.series ? xsiSpark(r.series, f.span, tone) : '';
+    const has = st[f.key] != null && isFinite(st[f.key]);
+    return '<div class="xsi-stat" style="--xt:' + tone + '">'
+      + '<div class="xsi-stat__hd">'
+      + '<span class="xsi-stat__ico" aria-hidden="true">' + escapeHtml(f.icon || '•') + '</span>'
+      + '<div class="xsi-stat__lbl">'
+      + '<span class="xsi-stat__ko">' + escapeHtml(f.label)
+      + (f.def ? gcAbbr('ⓘ', f.tip + ' — ' + f.def) : '') + '</span>'
+      + '<span class="xsi-stat__en">' + escapeHtml(f.tip) + '</span>'
+      + '</div></div>'
+      + '<div class="xsi-stat__row">'
+      + '<div class="xsi-stat__val">' + xsiPct(st[f.key], f.plain)
+      /* 값이 없으면 기준 배지도 달지 않는다 — 비교할 것이 없다 */
+      + (has && f.badge ? '<span class="xsi-stat__bdg">' + escapeHtml(f.badge) + '</span>' : '')
+      + '</div>'
+      + sp
+      + '</div></div>';
+  };
+  const top = XSI_STATS.slice(0, 3).map(statCard).join('');
+  const bottom = XSI_STATS.slice(3).map(statCard).join('');
+  const cards = '<div class="xsi-stats__r xsi-stats__r--3">' + top + '</div>'
+    + '<div class="xsi-stats__r xsi-stats__r--4">' + bottom + '</div>';
 
   const lead = `<div class="xsi-lead">
     <div class="xsi-lead__box">
+      ${r.series ? xsiLeadChart(r.series) : ''}${xsiShipSvg()}
       <div class="xsi-lead__lbl">최근값${gcAbbr('ⓘ', xsiValueTip())}</div>
-      <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}<span class="xsi-lead__unit">${escapeHtml(xsiUnit())}</span></div>
+      <div class="xsi-lead__val">${st.last == null ? '—' : Math.round(st.last).toLocaleString('en-US')}</div>
+      <div class="xsi-lead__unit">${escapeHtml(xsiUnit())}</div>
       ${(st.last != null && krwRate('USD') != null)
         ? `<div class="xsi-lead__krw">≈ ${escapeHtml(fmtKrwShort(st.last * krwRate('USD')) || '')}</div>` : ''}
       ${''/* ★ 예전에는 'XSICFENE · 산출 개시 2015-01-05' 이라고만 적혀 있었다.
@@ -7377,8 +7538,10 @@ function renderXsiHtml() {
 
   return `<div class="viz-root viz-figure xsi-figure">${head}
     ${tabs}
-    ${lead}
-    <div class="xsi-stats">${cards}</div>
+    <div class="xsi-top">
+      ${lead}
+      <div class="xsi-stats">${cards}</div>
+    </div>
     ${chartRow}
     ${note}
     ${panels}
