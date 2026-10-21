@@ -1163,6 +1163,35 @@ body {
 .ii-cap--chart { margin: 6px 0 0; }
 
 /* 추세 연장 범례 표식 */
+/* ══ 주요 시장 이벤트 (ICIS 차트 아래) ═══════════════════════════════════
+   ★ 예전에는 차트 위 마커·세로 점선·라벨로 찍었다. 선 4개·급등 띠·최고최저
+     마커와 한 화면에 겹치면서 어느 글자가 무엇인지 읽기 어려워 아래로 내렸다.
+   ★ auto-fit 그리드라 건수가 늘면 저절로 줄바꿈되고, 좁은 화면에서는 1열로
+     쌓인다(가로 스크롤을 만들지 않는다). */
+.ii-ev__row {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+}
+.ii-ev__c {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--field); border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+}
+.ii-ev__d {
+  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+.ii-ev__t { font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.35; word-break: keep-all; }
+a.ii-ev__t { text-decoration: none; }
+a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
+.ii-ev__s { font-size: 11px; line-height: 1.45; color: var(--muted); word-break: keep-all; }
+.ii-ev__empty {
+  padding: 14px; border-radius: var(--radius-sm); background: var(--field);
+  border: 1px dashed var(--line); text-align: center;
+  font-size: 11.5px; color: var(--muted);
+}
+
 /* ══ 스폰지 주원료 차트 — 원료 선택 · 급등 띠 · 최고/최저 ═══════════════
    ★ 선택 강조는 CSS 가 한다 — 범례를 눌러도 차트를 다시 그리지 않으므로
      툴팁·마커가 그대로 살아 있다(JS 는 .is-iipick / .is-on 만 토글한다). */

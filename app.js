@@ -3483,39 +3483,76 @@ function iiEventLabel(text) {
   return (head && head.length <= 18) ? head : t.slice(0, 16) + (t.length > 16 ? '…' : '');
 }
 
-/** 지금 보이는 구간(periods)에 겹치는 타임라인 이벤트 → 차트가 쓰는 모양으로. */
-function iiTimelineEvents(periods) {
-  const list = (_iiData && Array.isArray(_iiData.timeline)) ? _iiData.timeline : [];
-  if (!list.length || !periods || periods.length < 2) return [];
+/** 사건 표기를 사람이 읽는 꼴로 — 없는 날짜를 만들지 않는다.
+ *  '2021-02' → '2021.02' · '2021-H2' → '2021 하반기' ·
+ *  '2026-02~03' → '2026.02~03' · '2023~2024' → 그대로.
+ *  ★ 원본이 '2025'처럼 달이 없으면 달을 지어내지 않고 연도만 적는다. */
+function iiEventWhen(raw) {
+  const t = String(raw || '').trim();
+  let m;
+  if ((m = t.match(/^(\d{4})-(\d{2})-\d{2}$/))) return m[1] + '.' + m[2];
+  if ((m = t.match(/^(\d{4})-(\d{2})\s*~\s*(\d{2})$/))) return m[1] + '.' + m[2] + '~' + m[3];
+  if ((m = t.match(/^(\d{4})-(\d{2})$/))) return m[1] + '.' + m[2];
+  if ((m = t.match(/^(\d{4})\s*-?\s*H([12])$/i))) return m[1] + (m[2] === '1' ? ' 상반기' : ' 하반기');
+  return t;
+}
+
+/** 지금 보이는 구간(periods)에 겹치는 '주요 시장 이벤트' 한 목록.
+ *
+ *  ★ 출처가 둘이다 — 시황 해설(insights.json · icis_asia_pu.events)과
+ *    히스토리 타임라인(icis-insights.json · timeline). 둘을 여기서 한 번만
+ *    합쳐 날짜순으로 돌려주고, 화면(iiEventsPanel)은 이것만 읽는다.
+ *    예전에는 같은 목록을 차트 위 마커로만 썼다 — 마커를 걷고 아래 영역으로
+ *    옮기면서 '마커용'과 '목록용'을 따로 두지 않도록 이 함수 하나로 모았다.
+ *  ★ 데이터에 없는 칸(설명·출처 URL)은 비워 둔다. 지어내지 않는다. */
+function iiEventList(periods) {
+  if (!periods || !periods.length) return [];
   const lo = msMonthNo(periods[0].slice(0, 7));
   const hi = msMonthNo(periods[periods.length - 1].slice(0, 7));
   if (lo == null || hi == null) return [];
   const out = [];
-  list.forEach((e) => {
-    const r = iiEventRange(e.date);
+  const push = (raw, title, desc, what, url) => {
+    const t = String(title || '').trim();
+    if (!t) return;
+    const r = iiEventRange(raw);
     if (!r) return;
     const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
     if (a == null || b == null) return;
-    const from = Math.max(a, lo), to = Math.min(b, hi);
-    if (from > to) return;                       // 보이는 구간과 안 겹친다
-    const mid = Math.floor((from + to) / 2);
-    out.push({
-      date: msYmOfNo(mid),
-      what: String(e.what || '').trim(),
-      label: iiEventLabel(e.event),
-      /* 툴팁에는 원래 표기·문장·영향을 그대로 (라벨은 줄여 놓았으므로) */
-      detail: [String(e.event || '').trim(), String(e.impact || '').trim()]
-        .filter(Boolean).join(' — ') + (e.date ? ' (' + e.date + ')' : ''),
-    });
-  });
-  return out;
+    if (Math.max(a, lo) > Math.min(b, hi)) return;      // 보이는 구간과 안 겹친다
+    out.push({ sort: r[0], when: iiEventWhen(raw), title: t,
+      desc: String(desc || '').trim(), what: String(what || '').trim(),
+      url: safeUrl(url) || '' });
+  };
+  const info = msFor('icis_asia_pu');
+  ((info && Array.isArray(info.events)) ? info.events : [])
+    .forEach((e) => push(e.date, e.label, e.detail, e.what, e.url || e.source));
+  ((_iiData && Array.isArray(_iiData.timeline)) ? _iiData.timeline : [])
+    .forEach((e) => push(e.date, e.event, e.impact, e.what, e.url || e.source));
+  const seen = {};
+  return out.filter((e) => (seen[e.title] ? false : (seen[e.title] = 1)))
+    .sort((a, b) => a.sort.localeCompare(b.sort));
 }
 
-/** ICIS 차트 마커 = 시황 해설 이벤트 + 히스토리 이벤트 */
-function icisEventsSvg(periods, X, padT, plotH, W) {
-  const info = msFor('icis_asia_pu');
-  const base = (info && Array.isArray(info.events)) ? info.events : [];
-  return vizEventsSvg(base.concat(iiTimelineEvents(periods)), periods, X, padT, plotH, W);
+/** 주요 시장 이벤트 — 차트 아래 가로 카드. 연도 탭을 따라 같이 바뀐다.
+ *  ★ 비어도 영역을 감추지 않는다 — '없음'을 적어 두어야 '안 그려진 것'과
+ *    '그 기간에 없는 것'을 구분할 수 있다. */
+function iiEventsPanel(periods) {
+  const list = iiEventList(periods);
+  const body = list.length
+    ? '<div class="ii-ev__row">' + list.map((e) => {
+      const t = escapeHtml(e.title);
+      const head = e.url
+        ? '<a class="ii-ev__t" href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener noreferrer">' + t + '</a>'
+        : '<b class="ii-ev__t">' + t + '</b>';
+      return '<div class="ii-ev__c"' + (e.what ? ' title="' + escapeHtml(e.what) + '"' : '') + '>'
+        + '<span class="ii-ev__d">' + escapeHtml(e.when) + '</span>'
+        + head
+        + (e.desc ? '<span class="ii-ev__s">' + escapeHtml(e.desc) + '</span>' : '')
+        + '</div>';
+    }).join('') + '</div>'
+    : '<div class="ii-ev__empty">해당 기간 주요 이벤트 없음</div>';
+  return '<div class="ii-panel ii-ev">'
+    + '<h3 class="subhead ii-h">주요 시장 이벤트</h3>' + body + '</div>';
 }
 
 function msEventsSvg(key, keys, X, padT, plotH, W) {
@@ -4140,9 +4177,10 @@ function renderMaterial() {
                              같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
                              보여 줘서 같은 값을 두 번 읽게 했다.
          · msFactorsHtml()   '단기 요인' 상자.
-         · iiTimeline()      '히스토리 이벤트' 목록 → 차트 위 마커로 옮겼다
-                             (아래 icisEventsSvg). 시점이 있는 이야기는 표보다
-                             그래프 위에 찍혀 있을 때 값의 움직임과 이어진다.
+         · iiTimeline()      '히스토리 이벤트' 목록 → 차트 아래 '주요 시장
+                             이벤트' 카드로 옮겼다(iiEventsPanel). 한때 차트 위
+                             마커로 찍었는데 라벨이 선·급등 띠와 겹쳐 읽기
+                             어려워 아래로 내렸다.
          · iiOutlook(ext)    '단기·중기 전망'.
          · iiImplications()  '시사점 및 의사결정 포인트' 3열.
          지우지 않고 남겨 둔 함수들이라 되살리려면 여기에 다시 부르면 된다. */
@@ -4150,6 +4188,7 @@ function renderMaterial() {
          이미 같은 성격의 추세 연장을 보여 주고 있어 겹쳤다.
          함수와 수집기(icis_forecast.py)는 그대로 두었으니 되살리려면 여기에
          + renderIcisForecastHtml() 만 다시 붙이면 된다. */
+      + iiEventsPanel(periods)
       + icisTermsTable();
   }
 
@@ -4368,7 +4407,7 @@ function buildIcisChart(periods, series, ext) {
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
       <rect class="icis-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${icisEventsSvg(periods, X, padT, plotH, W)}${mmG}
+      ${mmG}
     </svg>`;
 }
 
