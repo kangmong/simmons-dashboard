@@ -12658,27 +12658,94 @@ function wireFxInteraction() {
 /* ── 세계 시간 (World Clock) — 외부 API 없이 Intl.DateTimeFormat로 계산 ── */
 // 등장방형도법: lat/lon → x=(lon+180)/360, y=(90-lat)/180 (남위도 그대로 정확: 예 -33.87→68.8%)
 // dir=도시명 라벨 방향(근접 도시 겹침 분산). 상세(시각·날씨·시차)는 hover/탭 툴팁 + 하단 표.
+/* ★ en·flag 는 화면 표기용으로만 더했다 — 좌표(lat/lon)와 시간대(tz)는 한 글자도
+     바꾸지 않았다. 시차는 지금처럼 tz 이름으로 계산한다(서머타임 자동 반영). */
 const WORLD_CITIES = [
-  { ko: '서울', tz: 'Asia/Seoul', lat: 37.57, lon: 126.98, dir: 'n' },
-  { ko: '도쿄', tz: 'Asia/Tokyo', lat: 35.68, lon: 139.69, dir: 'ne' },
-  { ko: '상하이', tz: 'Asia/Shanghai', lat: 31.23, lon: 121.47, dir: 'sw' },
-  { ko: '싱가포르', tz: 'Asia/Singapore', lat: 1.35, lon: 103.82, dir: 's' },
-  { ko: '두바이', tz: 'Asia/Dubai', lat: 25.20, lon: 55.27, dir: 's' },
-  { ko: '런던', tz: 'Europe/London', lat: 51.51, lon: -0.13, dir: 'w' },
-  { ko: '파리', tz: 'Europe/Paris', lat: 48.86, lon: 2.35, dir: 'sw' },
-  { ko: '프랑크푸르트', tz: 'Europe/Berlin', lat: 50.11, lon: 8.68, dir: 'n' },
-  { ko: '밀라노', tz: 'Europe/Rome', lat: 45.46, lon: 9.19, dir: 'se' },
-  { ko: '모스크바', tz: 'Europe/Moscow', lat: 55.76, lon: 37.62, dir: 'n' },
-  { ko: '카이로', tz: 'Africa/Cairo', lat: 30.04, lon: 31.24, dir: 'se' },
-  { ko: '요하네스버그', tz: 'Africa/Johannesburg', lat: -26.20, lon: 28.05, dir: 's' },
-  { ko: '뉴욕', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'e' },
-  { ko: '시카고', tz: 'America/Chicago', lat: 41.88, lon: -87.63, dir: 'w' },
-  { ko: '로스앤젤레스', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 's' },
+  { ko: '서울', en: 'Seoul', flag: '\uD83C\uDDF0\uD83C\uDDF7', tz: 'Asia/Seoul', lat: 37.57, lon: 126.98, dir: 'n' },
+  { ko: '도쿄', en: 'Tokyo', flag: '\uD83C\uDDEF\uD83C\uDDF5', tz: 'Asia/Tokyo', lat: 35.68, lon: 139.69, dir: 'ne' },
+  { ko: '상하이', en: 'Shanghai', flag: '\uD83C\uDDE8\uD83C\uDDF3', tz: 'Asia/Shanghai', lat: 31.23, lon: 121.47, dir: 'sw' },
+  { ko: '싱가포르', en: 'Singapore', flag: '\uD83C\uDDF8\uD83C\uDDEC', tz: 'Asia/Singapore', lat: 1.35, lon: 103.82, dir: 's' },
+  { ko: '두바이', en: 'Dubai', flag: '\uD83C\uDDE6\uD83C\uDDEA', tz: 'Asia/Dubai', lat: 25.20, lon: 55.27, dir: 's' },
+  { ko: '런던', en: 'London', flag: '\uD83C\uDDEC\uD83C\uDDE7', tz: 'Europe/London', lat: 51.51, lon: -0.13, dir: 'w' },
+  { ko: '파리', en: 'Paris', flag: '\uD83C\uDDEB\uD83C\uDDF7', tz: 'Europe/Paris', lat: 48.86, lon: 2.35, dir: 'sw' },
+  { ko: '프랑크푸르트', en: 'Frankfurt', flag: '\uD83C\uDDE9\uD83C\uDDEA', tz: 'Europe/Berlin', lat: 50.11, lon: 8.68, dir: 'n' },
+  { ko: '밀라노', en: 'Milan', flag: '\uD83C\uDDEE\uD83C\uDDF9', tz: 'Europe/Rome', lat: 45.46, lon: 9.19, dir: 'se' },
+  { ko: '모스크바', en: 'Moscow', flag: '\uD83C\uDDF7\uD83C\uDDFA', tz: 'Europe/Moscow', lat: 55.76, lon: 37.62, dir: 'n' },
+  { ko: '카이로', en: 'Cairo', flag: '\uD83C\uDDEA\uD83C\uDDEC', tz: 'Africa/Cairo', lat: 30.04, lon: 31.24, dir: 'se' },
+  { ko: '요하네스버그', en: 'Johannesburg', flag: '\uD83C\uDDFF\uD83C\uDDE6', tz: 'Africa/Johannesburg', lat: -26.20, lon: 28.05, dir: 's' },
+  { ko: '뉴욕', en: 'New York', flag: '\uD83C\uDDFA\uD83C\uDDF8', tz: 'America/New_York', lat: 40.71, lon: -74.01, dir: 'e' },
+  { ko: '시카고', en: 'Chicago', flag: '\uD83C\uDDFA\uD83C\uDDF8', tz: 'America/Chicago', lat: 41.88, lon: -87.63, dir: 'w' },
+  { ko: '로스앤젤레스', en: 'Los Angeles', flag: '\uD83C\uDDFA\uD83C\uDDF8', tz: 'America/Los_Angeles', lat: 34.05, lon: -118.24, dir: 's' },
   // 브라질리아 타임존은 America/Sao_Paulo(=Brasilia 아님), 부에노스아이레스는 슬래시 2개
-  { ko: '브라질리아', tz: 'America/Sao_Paulo', lat: -15.79, lon: -47.88, dir: 'ne' },
-  { ko: '부에노스아이레스', tz: 'America/Argentina/Buenos_Aires', lat: -34.61, lon: -58.38, dir: 'sw' },
-  { ko: '시드니', tz: 'Australia/Sydney', lat: -33.87, lon: 151.21, dir: 'se' },
+  { ko: '브라질리아', en: 'Brasília', flag: '\uD83C\uDDE7\uD83C\uDDF7', tz: 'America/Sao_Paulo', lat: -15.79, lon: -47.88, dir: 'ne' },
+  { ko: '부에노스아이레스', en: 'Buenos Aires', flag: '\uD83C\uDDE6\uD83C\uDDF7', tz: 'America/Argentina/Buenos_Aires', lat: -34.61, lon: -58.38, dir: 'sw' },
+  { ko: '시드니', en: 'Sydney', flag: '\uD83C\uDDE6\uD83C\uDDFA', tz: 'Australia/Sydney', lat: -33.87, lon: 151.21, dir: 'se' },
 ];
+
+/* ── 경로 보기 ───────────────────────────────────────────────────────────
+   ★ 항공편 번호·항공사·운항 상태 같은 '실제 운항 정보'는 만들지 않는다.
+     가진 것은 좌표와 시간대뿐이라, 거리는 대권거리로 재고 시간은 아래 평균
+     속도로 나눈 '추정값'이며 화면에도 그렇게 적는다.
+   ★ 이 숫자 하나를 계산과 안내 문구가 함께 쓴다(코드에 숨기지 않는다). */
+const WC_SPEED_KMH = 880;
+const WC_EARTH_KM = 6371;
+
+let _wcRoute = false;     // '비행 경로 보기' 토글 — 꺼져 있으면 예전 동작 그대로
+let _wcFrom = 0;          // 출발지 index (기본 서울)
+let _wcTo = null;         // 도착지 index · null 이면 아직 고르지 않음
+let _wcZoom = { k: 1, x: 0, y: 0 };
+
+/** 두 도시 대권거리(km) — Haversine */
+function wcDistKm(a, b) {
+  const R = Math.PI / 180;
+  const la1 = a.lat * R, la2 = b.lat * R;
+  const dla = (b.lat - a.lat) * R, dlo = (b.lon - a.lon) * R;
+  const h = Math.sin(dla / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dlo / 2) ** 2;
+  return 2 * WC_EARTH_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** 비행시간(분) 추정 — 거리 ÷ 평균 속도. 실제 스케줄이 아니다. */
+function wcFlightMin(km) { return Math.round((km / WC_SPEED_KMH) * 60); }
+
+/** 'N시간 M분' */
+function wcHm(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return (h ? h + '시간 ' : '') + m + '분';
+}
+
+/** tz 기준 날짜·시각 표기 {hhmm, ymd} — ymd 에 요일을 포함한다.
+ *  ★ 날짜 경계(출발지와 도착지의 날짜가 다른 경우)는 Intl 이 tz 별로 따로
+ *    포맷하므로 저절로 맞는다. 날짜를 손으로 더하지 않는다. */
+function wcStamp(tz, date) {
+  const t = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
+  }).format(date).replace(/^24:/, '00:');
+  const d = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
+  }).format(date).replace(/\s+$/, '');
+  return { hhmm: t.trim(), ymd: d.trim() };
+}
+
+/** 받침에 맞는 조사 — '서울이' / '도쿄가' 처럼 자연스럽게 붙인다.
+ *  한글 음절은 (코드 - 0xAC00) % 28 이 0 이 아니면 받침이 있다. */
+function wcJosa(word, withBatchim, without) {
+  const ch = String(word || '').slice(-1).charCodeAt(0);
+  const han = ch >= 0xAC00 && ch <= 0xD7A3;
+  return (han && (ch - 0xAC00) % 28 !== 0) ? withBatchim : without;
+}
+
+/** '서울이 모스크바보다 +6시간 빠름' 같은 한 문장 */
+function wcDiffText(from, to, now) {
+  const of = wcOffsetMin(wcParts(from.tz, now), now);
+  const ot = wcOffsetMin(wcParts(to.tz, now), now);
+  const d = (of - ot) / 60;
+  if (Math.abs(d) < 0.01) {
+    return from.ko + wcJosa(from.ko, '과', '와') + ' ' + to.ko + '의 시차는 없습니다';
+  }
+  const a = Math.abs(d), n = Number.isInteger(a) ? a : a.toFixed(1);
+  return from.ko + wcJosa(from.ko, '이', '가') + ' ' + to.ko + '보다 '
+    + (d > 0 ? '+' : '−') + n + '시간 ' + (d > 0 ? '빠름' : '느림');
+}
 let _wcTimer = null;
 let _wcShown = false;    // 마커 표시 여부(업데이트 후 true, 초기화 시 false)
 let _wcWeather = null;   // 도시별 {temp,code} 배열 | null(요청 실패 → 기온 —)
@@ -12732,6 +12799,102 @@ function wcState(i, now, seoulOff) {
   };
 }
 
+/* ── 경로 · 패널 ────────────────────────────────────────────────────── */
+
+/** 지도 좌표(viewBox 1000×500) — mapPct 와 같은 등장방형 변환을 쓴다 */
+function wcXY(c) {
+  const q = mapPct(c.lat, c.lon);
+  return { x: q.left * 10, y: q.top * 5 };
+}
+
+/** 두 도시를 잇는 점선 곡선 + 비행기. 날짜변경선을 넘으면 짧은 쪽으로 돌린다.
+ *  ★ 대권 항로를 '흉내 낸' 곡선이다 — 실제 운항 경로가 아니다. */
+function wcRouteSvg(a, b) {
+  const p1 = wcXY(a);
+  let p2 = wcXY(b);
+  /* 경도 차가 180도를 넘으면 지도 반대쪽으로 도는 편이 짧다. 넘어간 끝점은
+     지도 밖에 두고, 같은 곡선을 반대편으로 한 번 더 그려 이어 보이게 한다. */
+  let dLon = b.lon - a.lon;
+  let wrap = 0;
+  if (dLon > 180) { wrap = -1000; } else if (dLon < -180) { wrap = 1000; }
+  if (wrap) p2 = { x: p2.x + wrap, y: p2.y };
+  const arc = (sx, sy, ex, ey) => {
+    const mx = (sx + ex) / 2, my = (sy + ey) / 2;
+    const lift = Math.min(150, Math.abs(ex - sx) * 0.22 + 20);
+    // 북반구가 많아 위로 볼록하게 — 남반구끼리면 아래로
+    const up = (a.lat + b.lat) / 2 >= 0 ? -1 : 1;
+    return 'M' + sx.toFixed(1) + ' ' + sy.toFixed(1)
+      + ' Q' + mx.toFixed(1) + ' ' + (my + up * lift).toFixed(1)
+      + ' ' + ex.toFixed(1) + ' ' + ey.toFixed(1);
+  };
+  const d1 = arc(p1.x, p1.y, p2.x, p2.y);
+  const d2 = wrap ? arc(p1.x - wrap, p1.y, p2.x - wrap, p2.y) : '';
+  const line = (d) => '<path class="wc-rt__ln" d="' + d + '"/>';
+  /* 비행기는 경로 위를 천천히 오가는 장식이다(운항 상태가 아니다).
+     offset-path 를 지원하지 않는 브라우저에서는 가운데에 그냥 멈춰 있는다. */
+  const plane = (d) => '<g class="wc-rt__pl" style="offset-path:path(\'' + d + '\')">'
+    + '<path d="M0 -5 L13 0 L0 5 L3 0 Z" fill="var(--blue)"/></g>';
+  return '<svg class="wc-rt" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet"'
+    + ' aria-hidden="true">' + line(d1) + (d2 ? line(d2) : '') + plane(d1) + '</svg>';
+}
+
+/** 오른쪽 정보 패널 — 두 도시를 고른 뒤에만 */
+function wcPanelHtml() {
+  if (!_wcRoute || _wcTo == null || _wcFrom === _wcTo) return '';
+  const A = WORLD_CITIES[_wcFrom], B = WORLD_CITIES[_wcTo];
+  const now = new Date();
+  const sa = wcStamp(A.tz, now), sb = wcStamp(B.tz, now);
+  const km = wcDistKm(A, B);
+  const min = wcFlightMin(km);
+  const eta = wcStamp(B.tz, new Date(now.getTime() + min * 60000));
+  const w = _wcWeather && _wcWeather[_wcTo];
+  const wx = w ? wmoIcon(w.code) + ' ' + (w.temp != null ? Math.round(w.temp) + '°C' : '—') : '—';
+  const card = (c, role) => '<div class="wc-pc">'
+    + '<div class="wc-pc__art" aria-hidden="true"><span>' + c.flag + '</span></div>'
+    + '<div class="wc-pc__ko">' + escapeHtml(c.ko) + '</div>'
+    + '<div class="wc-pc__en">(' + escapeHtml(c.en) + ')</div>'
+    + '<div class="wc-pc__role">' + escapeHtml(role) + '</div></div>';
+  const clock = (lbl, st, c) => '<div class="wc-clk">'
+    + '<div class="wc-clk__l">' + escapeHtml(lbl) + '</div>'
+    + '<div class="wc-clk__t">' + escapeHtml(st.hhmm) + '<span>' + c.flag + '</span></div>'
+    + '<div class="wc-clk__d">' + escapeHtml(st.ymd) + '</div></div>';
+  const row = (k, v) => '<div class="wc-row"><span>' + escapeHtml(k) + '</span><b>' + v + '</b></div>';
+  return '<aside class="wc-panel" id="wcPanel">'
+    + '<div class="wc-panel__h"><span class="wc-panel__t">' + escapeHtml(A.ko)
+    + ' \u2192 ' + escapeHtml(B.ko) + '</span>'
+    + '<button type="button" class="wc-panel__x" data-wc="close" aria-label="닫기">\u2715</button></div>'
+    + '<div class="wc-pcs">' + card(A, '출발') + '<span class="wc-pcs__ar" aria-hidden="true">\u2708</span>'
+    + card(B, '도착') + '</div>'
+    + '<div class="wc-clks">' + clock('현재 시간 (출발지)', sa, A)
+    + clock('현지 시간 (도착지)', sb, B) + '</div>'
+    + row('시차', escapeHtml(wcDiffText(A, B, now)))
+    + row('비행 거리', '약 ' + Math.round(km).toLocaleString('ko-KR') + ' km')
+    + row('예상 비행시간', '약 ' + escapeHtml(wcHm(min)))
+    + row('지금 출발한다고 가정하면', escapeHtml(eta.hhmm) + ' <i>' + escapeHtml(eta.ymd)
+      + ' · ' + escapeHtml(B.ko) + ' 현지</i>')
+    + row('도착지 현재 날씨', escapeHtml(wx))
+    + '<div class="wc-panel__note">대권거리와 평균 속도(약 ' + WC_SPEED_KMH
+    + ' km/h)로 계산한 추정값이며 실제 항공 스케줄과 다를 수 있습니다.</div>'
+    + '</aside>';
+}
+
+/** 상단 바 — 제목 · 경로 토글 · 도시 검색 */
+function wcBarHtml() {
+  const opts = WORLD_CITIES.map((c, i) =>
+    '<option value="' + i + '"' + (i === _wcFrom ? ' selected' : '') + '>'
+    + escapeHtml(c.ko + ' (' + c.en + ')') + '</option>').join('');
+  return '<div class="wc-bar">'
+    + '<div class="wc-bar__t"><b>세계 시간</b>'
+    + '<span>주요 도시의 현재 시간과 도시 간 이동 경로를 확인할 수 있습니다.</span></div>'
+    + '<div class="wc-bar__c">'
+    + '<label class="wc-sw' + (_wcRoute ? ' is-on' : '') + '">'
+    + '<input type="checkbox" data-wc="route"' + (_wcRoute ? ' checked' : '') + '>'
+    + '<span class="wc-sw__i" aria-hidden="true">\u2708</span>'
+    + '<span class="wc-sw__l">비행 경로 보기</span><span class="wc-sw__k"></span></label>'
+    + '<select class="wc-sel" data-wc="from" aria-label="출발 도시 선택">' + opts + '</select>'
+    + '</div></div>';
+}
+
 /** 지도 + 마커(점+도시명) + 하단 표 렌더. 초기(미표시)엔 회색 지도 + 안내 */
 function renderWorldClock() {
   const root = document.getElementById('worldclockRoot');
@@ -12751,17 +12914,40 @@ function renderWorldClock() {
     // ★ 두 값은 서울이 아니면 빈 문자열이라, 나머지 마커의 HTML 은 예전과 한 글자도 다르지 않다.
     const krCls = (c.ko === '서울') ? ' wc-mk--kr' : '';
     const krHint = (c.ko === '서울') ? ' title="눌러서 국내 주요 도시 날씨 보기"' : '';
-    return `<button class="wc-mk wc-${c.dir}${krCls}" data-i="${i}" type="button"
+    /* 경로 보기에서 고른 두 도시는 강조 링 + 한/영 큰 라벨 */
+    const pick = _wcRoute && (i === _wcFrom ? ' is-from' : (i === _wcTo ? ' is-to' : ''));
+    const big = (_wcRoute && (i === _wcFrom || i === _wcTo))
+      ? `<span class="wc-big">${escapeHtml(c.ko)}<i>(${escapeHtml(c.en)})</i></span>` : '';
+    return `<button class="wc-mk wc-${c.dir}${krCls}${pick || ''}" data-i="${i}" type="button"
         style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" aria-label="${escapeHtml(c.ko)}"${krHint}>
-        <span class="wc-dot"></span><span class="wc-name">${escapeHtml(c.ko)}</span>
+        <span class="wc-dot"></span><span class="wc-name">${escapeHtml(c.ko)}</span>${big}
       </button>`;
   }).join('');
-  root.innerHTML = `<div class="wc-map">
-      <img class="wc-map__img" src="world-map.svg" alt="" aria-hidden="true">
-      <div class="wc-markers">${dots}</div>
+  const route = (_wcRoute && _wcTo != null && _wcTo !== _wcFrom)
+    ? wcRouteSvg(WORLD_CITIES[_wcFrom], WORLD_CITIES[_wcTo]) : '';
+  const hint = (_wcRoute && (_wcTo == null || _wcTo === _wcFrom))
+    ? '<div class="wc-hint">출발할 도시와 도착할 도시를 클릭해 보세요</div>' : '';
+  root.innerHTML = wcBarHtml()
+    + `<div class="wc-wrap${_wcRoute && _wcTo != null && _wcTo !== _wcFrom ? ' has-panel' : ''}">
+    <div class="wc-map">
+      <div class="wc-zoomwrap" id="wcZoom">
+        <img class="wc-map__img" src="world-map.svg" alt="" aria-hidden="true">
+        ${route}
+        <div class="wc-markers">${dots}</div>
+      </div>
       <div class="wc-tip" id="wcTip" hidden></div>
+      ${hint}
+      <div class="wc-legend"><span><i class="wc-lg wc-lg--day"></i>주간</span><span><i class="wc-lg wc-lg--night"></i>야간</span></div>
+      <div class="wc-zc">
+        <button type="button" data-wc="in" aria-label="확대">+</button>
+        <button type="button" data-wc="out" aria-label="축소">\u2212</button>
+        <button type="button" data-wc="reset" aria-label="위치 초기화">\u25CE</button>
+      </div>
+    </div>
+    ${wcPanelHtml()}
     </div>
     <div class="comp-caption">출처: Open-Meteo</div>`;
+  wcApplyZoom();
   wcWire();
   wcTick();
 }
@@ -12779,6 +12965,7 @@ function wcTick() {
     mk.classList.toggle('is-day', !night);
   });
   if (_wcOpen != null) wcShowTip(_wcOpen, true);  // 열린 툴팁 내용 갱신
+  wcPanelTick();                                   // 패널 시계(분 단위) 갱신
 }
 
 /** 툴팁 내용 + 지도 안쪽으로 위치 지정 */
@@ -12814,11 +13001,109 @@ function wcHideTip() {
   if (root) root.querySelectorAll('.wc-mk.is-hi').forEach((m) => m.classList.remove('is-hi'));
 }
 
+/** 현재 확대·이동 값을 지도에 반영 */
+function wcApplyZoom() {
+  const el = document.getElementById('wcZoom');
+  if (!el) return;
+  const z = _wcZoom;
+  el.style.transform = 'translate(' + z.x + '%, ' + z.y + '%) scale(' + z.k + ')';
+}
+
+/** 확대 배율을 바꾼다(가운데 기준). 1배로 돌아오면 이동도 0 으로. */
+function wcZoomBy(f) {
+  const k = Math.min(6, Math.max(1, _wcZoom.k * f));
+  _wcZoom.k = k;
+  if (k === 1) { _wcZoom.x = 0; _wcZoom.y = 0; }
+  const lim = (1 - 1 / k) * 50;          // 확대할수록 밀 수 있는 폭이 는다
+  _wcZoom.x = Math.max(-lim, Math.min(lim, _wcZoom.x));
+  _wcZoom.y = Math.max(-lim, Math.min(lim, _wcZoom.y));
+  wcApplyZoom();
+}
+
+/** 도시를 골랐을 때 — 경로 토글이 켜져 있을 때만 동작한다.
+ *  ★ 첫 클릭은 출발지, 그다음은 도착지. 같은 도시를 다시 누르면 도착지 해제. */
+function wcPickCity(i) {
+  if (i === _wcFrom) { _wcTo = null; }
+  else if (_wcTo === i) { _wcTo = null; }
+  else { _wcTo = i; }
+  renderWorldClock();
+}
+
+/** 패널의 시계만 1분마다 다시 그린다(지도·확대 상태는 건드리지 않는다) */
+function wcPanelTick() {
+  const root = document.getElementById('worldclockRoot');
+  const old = root && root.querySelector('#wcPanel');
+  if (!old) return;
+  const box = document.createElement('div');
+  box.innerHTML = wcPanelHtml();
+  const next = box.firstElementChild;
+  if (next) old.replaceWith(next);
+}
+
 /** 마커 hover/탭 + 표 행 hover 연동 배선 */
 function wcWire() {
   const root = document.getElementById('worldclockRoot');
   if (!root) return;
+
+  /* ── 상단 바 ── 경로 토글 · 출발 도시 선택 */
+  const bar = root.querySelector('.wc-bar');
+  if (bar) {
+    bar.addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.dataset && t.dataset.wc === 'route') {
+        _wcRoute = !!t.checked;
+        if (!_wcRoute) _wcTo = null;     // 끄면 경로를 감춘다(도시 점만)
+        renderWorldClock();
+      } else if (t.dataset && t.dataset.wc === 'from') {
+        _wcFrom = Number(t.value);
+        if (_wcTo === _wcFrom) _wcTo = null;
+        if (!_wcRoute) _wcRoute = true;  // 도시를 고르면 경로 보기를 켠다
+        renderWorldClock();
+      }
+    });
+  }
+
+  /* ── 확대·축소 ── 버튼 · 휠 · 두 손가락 */
+  const map = root.querySelector('.wc-map');
+  const zc = root.querySelector('.wc-zc');
+  if (zc) {
+    zc.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      const k = b.dataset.wc;
+      if (k === 'in') wcZoomBy(1.4);
+      else if (k === 'out') wcZoomBy(1 / 1.4);
+      else { _wcZoom = { k: 1, x: 0, y: 0 }; wcApplyZoom(); }
+    });
+  }
+  if (map) {
+    map.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      wcZoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    }, { passive: false });
+    /* 두 손가락 오므리기 — 손가락 사이 거리 변화만 본다(라이브러리 없이) */
+    let pinch = 0;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    map.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) pinch = dist(e.touches);
+    }, { passive: true });
+    map.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 2 || !pinch) return;
+      const d = dist(e.touches);
+      if (Math.abs(d - pinch) > 6) { wcZoomBy(d / pinch); pinch = d; }
+    }, { passive: true });
+    map.addEventListener('touchend', () => { pinch = 0; }, { passive: true });
+  }
+
+  /* ── 패널 닫기 ── */
+  const panel = root.querySelector('#wcPanel');
+  if (panel) {
+    panel.addEventListener('click', (e) => {
+      if (e.target.closest('[data-wc="close"]')) { _wcTo = null; renderWorldClock(); }
+    });
+  }
+
   const markers = root.querySelector('.wc-markers');
+  if (!markers) return;
   markers.addEventListener('mouseover', (e) => {
     const mk = e.target.closest('.wc-mk'); if (!mk || _wcOpen != null) return;
     wcShowTip(+mk.dataset.i, false);
@@ -12832,6 +13117,9 @@ function wcWire() {
   markers.addEventListener('click', (e) => {
     const mk = e.target.closest('.wc-mk'); if (!mk) return;
     const i = +mk.dataset.i;
+    /* ★ 경로 보기가 켜져 있으면 '도시 고르기'가 먼저다 — 서울의 국내 상세 화면도
+       이때는 열지 않는다(토글을 끄면 예전 동작 그대로 돌아간다). */
+    if (_wcRoute) { e.stopPropagation(); wcPickCity(i); return; }
     if (WORLD_CITIES[i] && WORLD_CITIES[i].ko === '서울') {
       e.stopPropagation();
       krOpen();
@@ -13660,6 +13948,7 @@ function resetWorldClock() {
   _wcShown = false;
   _wcWeather = null;
   _wcOpen = null;
+  _wcRoute = false; _wcFrom = 0; _wcTo = null; _wcZoom = { k: 1, x: 0, y: 0 };
   document.removeEventListener('click', wcOutside);
   renderWorldClock();
 }
