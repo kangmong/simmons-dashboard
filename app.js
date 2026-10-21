@@ -15980,6 +15980,7 @@ function renderExhMap() {
         + '<u>' + escapeHtml(exhShort(e)) + '</u></span>').join('');
     return '<span class="exh-mk' + side + off + '"'
       + ' data-lat="' + c.lat + '" data-lon="' + c.lon + '"'
+      + ' data-city="' + escapeHtml(c.city) + '"'
       + ' style="' + mapPos(c.lat, c.lon) + '">'
       + '<button type="button" class="exh-mk__b" data-exhcity="' + i + '"'
       + ' aria-expanded="false" aria-label="'
@@ -16029,8 +16030,134 @@ function renderExhMap() {
     + onCities.length + '개 도시 · ' + onEvents + '개 행사'
     + (f ? ' · ' + escapeHtml(exhFilterLabel(f)) + '만 보는 중' : ' · 점을 누르면 상세')
     + (_exh.provisional ? ' · 일정은 <b>잠정치</b>' : '')
-    + '</div>';
+    + '</div>'
+    /* 지도 각주 아래 — 전용 화면에서만 채워진다(exhPanelHtml 이 판단) */
+    + '<div id="exhPanelRoot">' + exhPanelHtml() + '</div>';
   exhPlaceMarkers(el);
+  exhSyncPick();
+}
+
+/* ── 행사 상세 패널 (지도 아래) ─────────────────────────────────────────
+   지도 점이나 오른쪽 목록 행을 누르면 지도 아래에 그 행사 하나를 펼친다.
+   ★ 전용 화면(#exh)에서만 낸다 — 대시보드 요약 카드는 본문 높이가 정해져 있어
+     패널을 넣으면 아래가 잘린다(exhOnFocus 로 가른다).
+   ★ 보여 주는 것은 exhibitions.json 에 실제로 있는 값뿐이다. 주최사·입장료·
+     참가 기업 수 같은 칸은 데이터에 없으므로 만들지 않는다.
+   ★ 이미지는 '다가오는 주요 행사' 카드가 쓰는 items[].image 를 그대로 쓴다 —
+     새로 받아 오지 않는다. 없으면 분야 색 그라데이션에 행사명을 얹는다. */
+let _exhPick = null;        // 고른 행사의 name · null 이면 안내만
+
+/** 같은 도시의 행사들(필터에 걸린 것 기준) */
+function exhCityEvents(city) {
+  const f = exhFilter();
+  const all = exhSorted().filter((x) => sIdxStr(x.city) === sIdxStr(city));
+  const hit = all.filter((x) => exhHit(x, f));
+  return hit.length ? hit : all;
+}
+
+/** 날짜가 가장 가까운 예정 행사(없으면 가장 최근에 끝난 것) */
+function exhNearest(list) {
+  const up = list.filter((x) => { const d = exhDday(x); return d != null && d >= 0; });
+  if (up.length) return up[0];
+  return list[list.length - 1] || null;
+}
+
+/** 기간 표기 — 요일까지. 'YYYY. M월 D일(수) ~ D일(토)' */
+function exhRangeLong(x) {
+  /* ko-KR 의 weekday:'short' 는 '2027년 1월 5일 화'처럼 붙여 준다.
+     우리말 표기는 괄호를 쓰므로 날짜와 요일을 따로 받아 붙인다. */
+  const fd = new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  const fw = new Intl.DateTimeFormat('ko-KR', { weekday: 'short' });
+  const fmt = (v) => {
+    const d = exhDate(v);
+    return d ? fd.format(d) + '(' + fw.format(d) + ')' : '';
+  };
+  const a = fmt(x.start), b = fmt(x.end);
+  if (!a) return '';
+  return (!b || b === a) ? a : a + ' ~ ' + b;
+}
+
+/** 행사 상세 패널 HTML */
+function exhPanelHtml() {
+  if (!exhOnFocus()) return '';
+  const all = exhSorted();
+  const ev = _exhPick ? all.filter((x) => sIdxStr(x.name) === _exhPick)[0] : null;
+  if (!ev) {
+    return '<div class="exh-pan exh-pan--empty">'
+      + '지도의 점이나 오른쪽 목록을 눌러 행사 상세를 확인하세요</div>';
+  }
+  const sib = exhCityEvents(ev.city);
+  /* 한 점에 여러 행사가 겹친 도시는 위에 작은 탭을 먼저 보여 준다 */
+  const tabs = (sib.length > 1)
+    ? '<div class="exh-pan__tabs">' + sib.map((x) => {
+      const on = sIdxStr(x.name) === sIdxStr(ev.name);
+      return '<button type="button" class="exh-pan__tab' + (on ? ' is-on' : '') + '"'
+        + ' data-exhpick="' + escapeHtml(sIdxStr(x.name)) + '" aria-pressed="' + on + '">'
+        + escapeHtml(sIdxStr(x.name).split(' (')[0]) + '</button>';
+    }).join('') + '</div>'
+    : '';
+  const d = exhDday(ev);
+  const col = exhCatColor(ev.category);
+  const photo = assetSrc(imgUrl(ev.image) || ev.image);
+  const art = photo
+    ? '<img class="exh-pan__img" src="' + escapeHtml(photo) + '" alt="" loading="lazy"'
+      + ' referrerpolicy="no-referrer" data-orig="' + escapeHtml(sIdxStr(ev.image))
+      + '" onerror="exhImgFallback(this)">'
+    : '';
+  const link = safeUrl(ev.link);
+  const title = escapeHtml(sIdxStr(ev.name));
+  const head = link
+    ? '<a class="exh-pan__n" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
+      + title + ' <span aria-hidden="true">\u2197</span></a>'
+    : '<span class="exh-pan__n">' + title + '</span>';
+  const place = [sIdxStr(ev.country), sIdxStr(ev.city)].filter(Boolean).join(' · ');
+  const row = (k, v) => v ? '<div class="exh-pan__r"><span>' + escapeHtml(k) + '</span><b>'
+    + v + '</b></div>' : '';
+  return '<div class="exh-pan">'
+    + '<div class="exh-pan__h">'
+    + (ev.category ? '<span class="exh-pan__cat" style="--xc:' + col + '">'
+      + '<i class="exh-dot exh-dot--' + exhCatCls(ev.category) + '"></i>'
+      + escapeHtml(sIdxStr(ev.category)) + '</span>' : '')
+    + (d == null ? '' : '<span class="exh-li__d' + (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : ''))
+      + '">' + exhDlabel(d) + '</span>')
+    + '<button type="button" class="exh-pan__x" data-exhclose="1" aria-label="닫기">\u2715</button>'
+    + '</div>'
+    + tabs
+    + '<div class="exh-pan__b">'
+    + '<div class="exh-pan__art" style="--xc:' + col + '">' + art
+    + '<span class="exh-pan__ini">' + escapeHtml(sIdxStr(ev.name).split(' (')[0]) + '</span></div>'
+    + '<div class="exh-pan__i">' + head
+    + row('개최 기간', escapeHtml(exhRangeLong(ev)) + ' <i>현지시간 기준</i>')
+    + row('장소', escapeHtml(place))
+    + (ev.category ? '<div class="exh-pan__tags"><span class="exh-pan__tag">#'
+      + escapeHtml(sIdxStr(ev.category)) + '</span></div>' : '')
+    /* ★ '행사 소개 / 주요 내용'은 데이터에 그런 칸이 생기면 그때 나온다.
+       지금 exhibitions.json 에는 소개 문구 필드가 없어 영역을 내지 않는다
+       — 없는 문장을 지어내지 않는다. */
+    + (sIdxStr(ev.desc) ? '<div class="exh-pan__d"><b>행사 소개</b><p>'
+      + escapeHtml(sIdxStr(ev.desc)) + '</p></div>' : '')
+    + (sIdxStr(ev.linkNote) ? '<div class="exh-pan__note">'
+      + escapeHtml(sIdxStr(ev.linkNote)) + '</div>' : '')
+    + '</div></div></div>';
+}
+
+/** 패널만 다시 그린다(지도는 건드리지 않는다) */
+function exhRenderPanel() {
+  const box = document.getElementById('exhPanelRoot');
+  if (box) box.innerHTML = exhPanelHtml();
+  exhSyncPick();
+}
+
+/** 고른 행사를 지도 점·목록 행에 표시 */
+function exhSyncPick() {
+  const city = _exhPick
+    ? sIdxStr((exhSorted().filter((x) => sIdxStr(x.name) === _exhPick)[0] || {}).city) : '';
+  document.querySelectorAll('.exh-mk').forEach((m) => {
+    m.classList.toggle('is-pick', !!city && m.dataset.city === city);
+  });
+  document.querySelectorAll('.exh-li').forEach((li) => {
+    li.classList.toggle('is-pick', !!_exhPick && li.dataset.exhname === _exhPick);
+  });
 }
 
 /** 그려 놓은 점들의 자리를 지도 실제 폭에 맞춰 다시 잡는다.
@@ -16085,10 +16212,22 @@ function exhWireMap(root) {
         if (b) b.setAttribute('aria-expanded', 'false');
       }
     });
+    /* 패널 닫기 · 도시 안 행사 탭 */
+    const x = e.target.closest('[data-exhclose]');
+    if (x) { _exhPick = null; exhRenderPanel(); return; }
+    const t = e.target.closest('[data-exhpick]');
+    if (t) { _exhPick = t.getAttribute('data-exhpick'); exhRenderPanel(); return; }
     if (!btn) return;
     const mk = btn.parentNode;
     const on = mk.classList.toggle('is-on');
     btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    /* ★ 기존 말풍선은 그대로 둔다(도시 안 행사 목록을 빨리 훑는 자리다).
+       거기에 더해, 전용 화면에서는 지도 아래 패널에 상세를 펼친다.
+       기본 선택은 그 도시에서 날짜가 가장 가까운 예정 행사다. */
+    if (on && exhOnFocus()) {
+      const ev = exhNearest(exhCityEvents(mk.dataset.city));
+      if (ev) { _exhPick = sIdxStr(ev.name); exhRenderPanel(); }
+    }
   });
   /* 지도 바깥을 누르면 닫는다 */
   document.addEventListener('click', (e) => {
@@ -16160,11 +16299,35 @@ function renderExhList() {
       + (x.category ? ' · ' + escapeHtml(sIdxStr(x.category)) : '') + '</span></span>'
       + (d == null ? '' : '<span class="exh-li__d'
         + (d < 0 ? ' is-past' : (d <= 30 ? ' is-soon' : '')) + '">' + exhDlabel(d) + '</span>');
+    /* ★ 전용 화면에서는 행을 눌러 아래 패널을 연다 — 링크로 새 탭을 여는 것은
+       패널 안의 제목(↗)이 맡는다. 요약 카드에서는 예전처럼 바로 링크다. */
+    const nm = escapeHtml(sIdxStr(x.name));
+    if (exhOnFocus()) {
+      return '<button type="button" class="exh-li" data-exhname="' + nm + '">'
+        + inner + '</button>';
+    }
     return link
       ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
         + inner + '</a>'
       : '<div class="exh-li">' + inner + '</div>';
   }).join('') + '</div>';
+  exhWireListPick(el);
+  exhSyncPick();
+}
+
+/** 목록 행 클릭 → 지도 아래 패널. 한 번만 건다(매번 다시 그리므로 위임). */
+function exhWireListPick(root) {
+  if (!root || root.dataset.pickWired) return;
+  root.dataset.pickWired = '1';
+  root.addEventListener('click', (e) => {
+    const li = e.target.closest('.exh-li[data-exhname]');
+    if (!li) return;
+    const nm = li.getAttribute('data-exhname');
+    _exhPick = (_exhPick === nm) ? null : nm;
+    exhRenderPanel();
+    const box = document.getElementById('exhPanelRoot');
+    if (box && _exhPick) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
 }
 
 /* ============================================================
