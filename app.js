@@ -5686,7 +5686,6 @@ function opxIcon(key) {
 /** 제품 카드 9장 + (기존) 인사이트 카드 */
 function oilpLead() {
   if (!_opData || _opData.error) return '';
-  const ins = _oilpIns || {};
   const cards = (_opData.series || []).map((s) => {
     const st = oilpStat(s.key);
     if (!st) return '';
@@ -5722,18 +5721,13 @@ function oilpLead() {
       + '</div>';
   }).join('');
   if (!cards) return '';
-  /* ★ 인사이트 카드는 이번 작업에서 건드리지 않는다 — 있던 그대로 둔다. */
-  const bullets = ((ins.bullets) || []).map((b) => `<li>${escapeHtml(b)}</li>`).join('');
-  const insCard = bullets
-    ? `<div class="oilp-c oilp-c--ins">
-        <div class="oilp-c__top"><span class="oilp-c__ico" aria-hidden="true">💡</span>
-          <span class="oilp-c__name">주요 인사이트 요약</span></div>
-        <ul class="oilp-c__ul">${bullets}</ul>
-      </div>` : '';
+  /* ★ '주요 인사이트 요약' 카드는 내렸다. 거기 적히던 세 줄(OPEC+ 감산 · 중동
+     지정학 리스크 · 계절적 수요)은 oilp-insights.json 의 bullets 에 손으로 적어
+     둔 문장이지, 이 화면의 데이터로 확인되는 내용이 아니었다.
+     JSON 은 그대로 두었으니(수집 대상 파일이다) 되살리려면 여기서 다시 읽으면 된다. */
   return '<div class="opx-grid">' + cards + '</div>'
     + '<div class="ii-cap ocx-note">미니 차트의 세로 범위는 카드별로 다릅니다'
-    + ' · 최근 ' + OPX_SPAN + '개월 월별 가격 · 카드를 누르면 아래 그래프에서 그 제품만 진해집니다</div>'
-    + (insCard ? '<div class="oilp-cards oilp-cards--ins">' + insCard + '</div>' : '');
+    + ' · 최근 ' + OPX_SPAN + '개월 월별 가격 · 카드를 누르면 아래 그래프에서 그 제품만 진해집니다</div>';
 }
 
 /** ① 우측 '제품별 현황' 표 — 8개 제품 전부. 조회한 제품은 진하게 */
