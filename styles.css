@@ -3223,8 +3223,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 /* -- 해외 시장: 좌우 2단(기기 시장 막대 / 수면부족 손실 지도) ------------
    컨테이너는 이미 있는 .sm-grid2(1fr 1fr, <=900px 1열)를 그대로 쓴다.
    좌우 카드가 같은 높이로 끝나도록 stretch 만 얹는다. */
-.gs-grid2 { align-items: stretch; }
-.gs-grid2 > .gs-card { display: flex; flex-direction: column; }
 .gs-sub { margin: -4px 0 10px; font-size: 11.5px; color: var(--muted); }
 
 /* 전망 막대 — 실적과 헷갈리지 않게 빗금을 얹는다 */

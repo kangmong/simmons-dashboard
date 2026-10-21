@@ -2830,15 +2830,59 @@ function gsSleepLoss(s) {
 
 /** 국외 섹션에 덧붙는 두 블록(시장 규모 추이 + 주요 기업 카드).
     ★ 로드 전이거나 실패했으면 빈 문자열을 돌려, 기존 PPI 카드만 그대로 나오게 한다. */
+/* ── 글로벌 슬립테크 산업 동향 트리 ─────────────────────────────────
+   예전에는 기기 시장 규모·수면 부족 경제 손실을 좌우 반반으로 두고 그 아래
+   기업 카드 여섯 장을 붙였다. 국내 탭·시장 규모 카드와 같은 방식으로 고른
+   것 하나만 넓게 보여 준다(지도와 막대가 반 폭에서 눌려 있었다).
+   ★ 그리는 함수(gsDeviceMarket·gsSleepLoss·stCardsHtml)는 그대로 부른다 —
+     내용·숫자·출처 표기가 예전과 같은 이유다.
+   ★ 라벨·보조 문구는 global-sleeptech.json 에서 읽는다(코드에 적지 않는다). */
+const GS_TREE_KEY = 'gsTree';
+let _gsTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(GS_TREE_KEY) || 'null');
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
+  } catch (e) { /* 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: null, pick: null };
+})();
+function gsTreeSave() {
+  try { sessionStorage.setItem(GS_TREE_KEY, JSON.stringify(_gsTree)); } catch (e) { /* 무시 */ }
+}
+
+function gsTreeDefs() {
+  if (!_gsData || _gsData.status !== 'ok') return [];
+  const dm = _gsData.deviceMarket || {}, sl = _gsData.sleepLoss || {}, st = _gsData.sleepTech || {};
+  const items = [];
+  const yrs = (dm.points || []).filter((x) => x.usdEok > 0).map((x) => x.year).sort();
+  if (yrs.length >= 2) {
+    items.push({ id: 'device', label: dm.title || '슬립테크 기기 시장 규모',
+      sub: yrs[0] + ' \u2192 ' + yrs[yrs.length - 1]
+        + (dm.cagrPct != null ? ' · 연 ' + dm.cagrPct + '%' : ''),
+      icon: 'bars', render: () => gsDeviceMarket(dm) });
+  }
+  const li = (sl.items || []).filter((x) => x.usdEok > 0);
+  if (li.length) {
+    items.push({ id: 'loss', label: sl.title || '수면 부족으로 인한 경제 손실',
+      sub: li.length + '개국', icon: 'peer', render: () => gsSleepLoss(sl) });
+  }
+  if ((st.companies || []).length) {
+    items.push({ id: 'players', label: st.title || '해외 슬립테크 주요 기업',
+      sub: st.companies.length + '개 기업', icon: 'donut',
+      render: () => stCardsHtml(st) });
+  }
+  if (!items.length) return [];
+  return [{ g: 'gsleep', label: '글로벌 슬립테크', hint: '기기 시장 · 경제 손실 · 주요 기업',
+    items: items }];
+}
+
+const GS_TREE_HINT = '글로벌 슬립테크를 눌러 항목을 확인하세요';
+const GS_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+
 function gsBlocksHtml() {
-  if (!_gsData || _gsData.status !== 'ok') return '';
-  /* 좌우 반반 — 좁은 화면(≤900px)에서는 .sm-grid2 가 1열로 접혀 세로로 쌓인다 */
+  const defs = gsTreeDefs();
+  if (!defs.length) return '';
   return '<div class="sm-wrap gs-wrap">'
-    + '<div class="sm-grid2 gs-grid2">'
-    + gsDeviceMarket(_gsData.deviceMarket || {})
-    + gsSleepLoss(_gsData.sleepLoss || {})
-    + '</div>'
-    + stCardsHtml(_gsData.sleepTech)
+    + treeBlockHtml('gs', defs, _gsTree, GS_TREE_HINT, GS_TREE_EMPTY, '글로벌 슬립테크 항목 선택')
     + '</div>';
 }
 
@@ -3216,6 +3260,7 @@ function renderCompetitor() {
   wireTree(el, 'sf', sfTreeDefs, _sfTree, sfTreeSave, SF_TREE_HINT, SF_TREE_EMPTY);
   wireTree(el, 'st', stTreeDefs, _stTree, stTreeSave, ST_TREE_HINT, ST_TREE_EMPTY);
   wireTree(el, 'gm', gmTreeDefs, _gmTree, gmTreeSave, GM_TREE_HINT, GM_TREE_EMPTY);
+  wireTree(el, 'gs', gsTreeDefs, _gsTree, gsTreeSave, GS_TREE_HINT, GS_TREE_EMPTY);
   applySideView();
 }
 
