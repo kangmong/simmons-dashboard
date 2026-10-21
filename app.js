@@ -6050,6 +6050,176 @@ function sriRangeText(ext) {
   return Math.round(lo) + '~' + Math.round(hi) + '%';
 }
 
+/* ══ KPI 카드 미니 차트 ═══════════════════════════════════════════════════
+   ★ 전부 이미 불러온 _srData 로만 그린다. 값을 만들거나 하드코딩하지 않는다.
+   ★ 결측월은 0 으로 메우지 않고 건너뛴다(점을 바로 잇는다).
+   ★ 축은 그 카드 안에서만 맞춘다 — 그래서 내린 구간은 실제로 내려간 모양이
+     나온다. 늘 우상향으로 보이는 장식용 곡선을 그리지 않는다.
+   ★ 겉모양(선·면적·끝점 색)은 운임지수 카드가 쓰는 .xsi-sp* 를 그대로 쓴다.
+     같은 규칙을 두 번 쓰지 않으려고 CSS 선택자에 이름만 덧붙였다. */
+const SRK_W = 74, SRK_H = 30, SRK_P = 3;
+
+/* ⓘ 설명 — 새로 지어내지 않고, 이 카드가 이미 화면·코드에서 쓰던 말만 옮겼다. */
+const SRI_DEFS = {
+  last: '전체 월별 시계열에서 가장 최근에 관측된 달의 정시성입니다.',
+  yoy: '가장 최근 달과 12개월 전 같은 달의 차이입니다. 비율 지표라 %p 로 적습니다.',
+  avg: '비교 기준 4개년(2021~2024)에 관측된 모든 달의 단순 평균입니다.',
+  range: '최근 흐름의 기울기를 3개월 늘려 그은 참고 범위입니다. 예측이 아닙니다.',
+  year: '고른 해에 관측된 달만의 단순 평균입니다. 결측월은 빼고 셉니다.',
+  hi: '고른 기간에서 정시성이 가장 높았던 달과 그 값입니다.',
+  lo: '고른 기간에서 정시성이 가장 낮았던 달과 그 값입니다.',
+};
+
+/** 값 배열 → x,y 환산기. 다섯 빌더가 같이 쓴다. */
+function srkScale(vals, pad) {
+  const ok = vals.filter((v) => v != null && isFinite(v));
+  if (ok.length < 2) return null;
+  let lo = Math.min.apply(null, ok), hi = Math.max.apply(null, ok);
+  if (pad) { const g = (hi - lo) * 0.12 || 1; lo -= g; hi += g; }
+  const sp = (hi - lo) || 1;
+  return {
+    lo: lo,
+    hi: hi,
+    x: (i, n) => SRK_P + (n > 1 ? (i / (n - 1)) * (SRK_W - SRK_P * 2) : (SRK_W / 2)),
+    y: (v) => SRK_H - SRK_P - ((v - lo) / sp) * (SRK_H - SRK_P * 2),
+  };
+}
+
+function srkWrap(tone, inner, title) {
+  return '<svg class="xsi-sp srk-sp" viewBox="0 0 ' + SRK_W + ' ' + SRK_H + '"'
+    + ' preserveAspectRatio="none" aria-hidden="true" focusable="false"'
+    + ' style="--xt:' + tone + '">'
+    + (title ? '<title>' + escapeHtml(title) + '</title>' : '') + inner + '</svg>';
+}
+
+/** 월별 값 [{k:'YYYY-MM', v}] 전체 (결측월은 애초에 담기지 않는다) */
+function srkPts() { return msPtsSr(); }
+
+/** ① 선 + 면적 + 마지막 점 — 최근 n개월 */
+function srkArea(tone, n) {
+  const pts = srkPts().slice(-n);
+  const sc = srkScale(pts.map((p) => p.v), true);
+  if (!sc) return '';
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + sc.x(i, pts.length).toFixed(1)
+    + ' ' + sc.y(p.v).toFixed(1)).join(' ');
+  const lx = sc.x(pts.length - 1, pts.length).toFixed(1), ly = sc.y(pts[pts.length - 1].v).toFixed(1);
+  return srkWrap(tone,
+    '<path class="xsi-sp__a" d="' + d + ' L' + lx + ' ' + SRK_H + ' L'
+      + sc.x(0, pts.length).toFixed(1) + ' ' + SRK_H + ' Z"/>'
+      + '<path class="xsi-sp__l" d="' + d + '"/>'
+      + '<circle class="xsi-sp__d" cx="' + lx + '" cy="' + ly + '" r="2.2"/>',
+    pts[0].k + ' ~ ' + pts[pts.length - 1].k + ' · '
+      + pts.map((p) => p.v).reduce((a, b) => Math.min(a, b)).toFixed(1) + '~'
+      + pts.map((p) => p.v).reduce((a, b) => Math.max(a, b)).toFixed(1) + '%');
+}
+
+/** ② 막대 — 최근 12개월의 전년 동월비(%p). 카드 값과 같은 기준이다. */
+function srkYoyBars(tone) {
+  const pts = srkPts();
+  const by = {};
+  pts.forEach((p) => { by[p.k] = p.v; });
+  const out = [];
+  pts.slice(-12).forEach((p) => {
+    const prev = by[msYmOfNo(msMonthNo(p.k) - 12)];
+    if (prev != null && isFinite(prev)) out.push({ k: p.k, d: p.v - prev });
+  });
+  if (out.length < 2) return '';
+  const vals = out.map((o) => o.d).concat([0]);          /* 0 선을 축 안에 둔다 */
+  const sc = srkScale(vals, false);
+  if (!sc) return '';
+  const zero = sc.y(0);
+  const bw = Math.max(1.6, (SRK_W - SRK_P * 2) / out.length - 1.4);
+  const bars = out.map((o, i) => {
+    const y = sc.y(o.d), top = Math.min(y, zero), h = Math.max(1, Math.abs(y - zero));
+    return '<rect class="srk-bar" x="' + (sc.x(i, out.length) - bw / 2).toFixed(1) + '"'
+      + ' y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="0.6"/>';
+  }).join('');
+  return srkWrap(tone,
+    bars + '<line class="srk-zero" x1="0" x2="' + SRK_W + '" y1="' + zero.toFixed(1)
+      + '" y2="' + zero.toFixed(1) + '"/>',
+    out[0].k + ' ~ ' + out[out.length - 1].k + ' 전년 동월비(%p)');
+}
+
+/** ③ 막대 — 기준 4개년의 연평균 + 4개년 전체 평균선 */
+function srkAvgBars(tone) {
+  const ys = sriAvgYears();
+  const rows = ys.map((y) => ({ y: y, st: srYearStat(y) })).filter((r2) => r2.st);
+  if (rows.length < 2) return '';
+  const all = sriAvgAll();
+  const vals = rows.map((r2) => r2.st.avg).concat(all == null ? [] : [all]).concat([0]);
+  const sc = srkScale(vals, false);
+  if (!sc) return '';
+  const base = sc.y(0);
+  const bw = Math.max(3, (SRK_W - SRK_P * 2) / rows.length - 3);
+  const bars = rows.map((r2, i) => {
+    const y = sc.y(r2.st.avg);
+    return '<rect class="srk-bar" x="' + (sc.x(i, rows.length) - bw / 2).toFixed(1) + '"'
+      + ' y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '"'
+      + ' height="' + Math.max(1, base - y).toFixed(1) + '" rx="0.8"/>';
+  }).join('');
+  const avgLine = (all == null) ? ''
+    : '<line class="srk-avg" x1="0" x2="' + SRK_W + '" y1="' + sc.y(all).toFixed(1)
+      + '" y2="' + sc.y(all).toFixed(1) + '"/>';
+  return srkWrap(tone, bars + avgLine,
+    rows.map((r2) => r2.y + ' ' + r2.st.avg.toFixed(1) + '%').join(' · ')
+      + (all == null ? '' : ' · 평균 ' + all.toFixed(1) + '%'));
+}
+
+/** ④ 실선(실측) + 점선·옅은 띠(추세 연장) — 예측처럼 보이지 않게 */
+function srkExtBand(tone, ext) {
+  const hist = srkPts().slice(-12);
+  if (hist.length < 2 || !ext || !ext.values.length) return '';
+  const futV = ext.values.map((e) => e.v);
+  const bandLo = ext.band.map((e) => e.lo), bandHi = ext.band.map((e) => e.hi);
+  const sc = srkScale(hist.map((p) => p.v).concat(futV, bandLo, bandHi), true);
+  if (!sc) return '';
+  const n = hist.length + futV.length;
+  const hx = (i) => sc.x(i, n);
+  const line = hist.map((p, i) => (i ? 'L' : 'M') + hx(i).toFixed(1) + ' ' + sc.y(p.v).toFixed(1)).join(' ');
+  /* 점선은 마지막 실측점에서 이어 붙는다 */
+  const joinX = hx(hist.length - 1), joinY = sc.y(hist[hist.length - 1].v);
+  const dash = 'M' + joinX.toFixed(1) + ' ' + joinY.toFixed(1) + ' '
+    + futV.map((v, i) => 'L' + hx(hist.length + i).toFixed(1) + ' ' + sc.y(v).toFixed(1)).join(' ');
+  const up = bandHi.map((v, i) => (i ? 'L' : 'M') + hx(hist.length + i).toFixed(1) + ' ' + sc.y(v).toFixed(1));
+  const dn = bandLo.map((v, i) => 'L' + hx(hist.length + i).toFixed(1) + ' ' + sc.y(v).toFixed(1)).reverse();
+  const band = 'M' + joinX.toFixed(1) + ' ' + joinY.toFixed(1) + ' '
+    + up.join(' ').replace(/^M/, 'L') + ' ' + dn.join(' ') + ' Z';
+  return srkWrap(tone,
+    '<path class="srk-band" d="' + band + '"/>'
+      + '<path class="xsi-sp__l" d="' + line + '"/>'
+      + '<path class="srk-dash" d="' + dash + '"/>',
+    '실선 = 실측 ' + hist[0].k + '~' + hist[hist.length - 1].k
+      + ' · 점선 = 추세 연장 ' + futV.length + '개월(예측 아님)');
+}
+
+/** ⑤ 그 해 월별 선 (+ 특정 달 강조) */
+function srkYearLine(tone, year, mark) {
+  const all = (year === 'all');
+  const pts = all
+    ? srkPts().map((p) => ({ m: p.k, v: p.v }))
+    : srYearPoints(year).map((p) => ({ m: p.m, v: p.v }));
+  if (pts.length < 2) return '';
+  const sc = srkScale(pts.map((p) => p.v), true);
+  if (!sc) return '';
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + sc.x(i, pts.length).toFixed(1)
+    + ' ' + sc.y(p.v).toFixed(1)).join(' ');
+  let dot = '';
+  if (mark) {
+    /* 최고/최저 달을 집어 그 자리에 점을 찍는다 — 값은 카드 숫자와 같다 */
+    let bi = 0;
+    pts.forEach((p, i) => {
+      if (mark === 'hi' ? p.v > pts[bi].v : p.v < pts[bi].v) bi = i;
+    });
+    dot = '<circle class="srk-mk srk-mk--' + mark + '" cx="' + sc.x(bi, pts.length).toFixed(1)
+      + '" cy="' + sc.y(pts[bi].v).toFixed(1) + '" r="2.6"/>';
+  }
+  return srkWrap(tone,
+    '<path class="xsi-sp__a" d="' + d + ' L' + sc.x(pts.length - 1, pts.length).toFixed(1)
+      + ' ' + SRK_H + ' L' + sc.x(0, pts.length).toFixed(1) + ' ' + SRK_H + ' Z"/>'
+      + '<path class="xsi-sp__l" d="' + d + '"/>' + dot,
+    (all ? '전체 기간' : year + '년') + ' 월별 ' + pts.length + '개 관측');
+}
+
 /* ── ② 핵심요약 4박스 ──────────────────────────────────────────────────
    지금까지 쓰던 전월비·전년비·국면 배지를 이 박스들로 옮긴다(정보는 그대로 둔다).
    ★ 정시성은 '비율' 지표라 등락을 %가 아니라 %p 로 적는다. */
@@ -6076,43 +6246,58 @@ function srqDir(v) {
   return v > 0.05 ? 'good' : (v < -0.05 ? 'bad' : 'flat');
 }
 
-function srqBox(label, val, sub, cls) {
-  return '<div class="srq-b' + (cls ? ' ' + cls : '') + '">'
-    + '<div class="srq__lbl">' + escapeHtml(label) + '</div>'
-    + '<div class="srq__v">' + val + '</div>'
-    + (sub ? '<div class="srq__sub">' + sub + '</div>' : '')
-    + '</div>';
+/* 카드 한 장 — 운임지수 카드와 같은 틀(.xsi-stat 계열)을 그대로 쓴다.
+   아이콘은 인라인 SVG 로 직접 그린다(새 이미지 파일을 쓰지 않는다).
+   ★ 포인트 색(--xt)은 장식에만 들어간다. 숫자 색은 이 카드 규칙
+     (개선 초록 / 악화 빨강)을 따로 쓰므로 서로 섞이지 않는다. */
+const SRK_TONES = {
+  blue: '#3B82F6', red: '#E11D48', indigo: '#4F46E5',
+  teal: '#0891B2', green: '#0B7F5E', amber: '#F59E0B',
+};
+
+/* 16×16 선 아이콘 — 굵기·색은 currentColor 로 받는다 */
+const SRK_ICONS = {
+  gauge: '<path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l3-3"/>',
+  trend: '<path d="M2 11.5l3.5-3.5 2.5 2.5L14 4.5"/><path d="M10.5 4.5H14V8"/>',
+  avg: '<path d="M2 12.5h12"/><rect x="3" y="7" width="2.6" height="5.5"/>'
+    + '<rect x="6.7" y="4.5" width="2.6" height="8"/><rect x="10.4" y="8.5" width="2.6" height="4"/>',
+  range: '<path d="M2 9.5l3-3 3 2 3-4"/><path d="M11 4.5l3 3"/><path d="M2 13h12" stroke-dasharray="2 2"/>',
+  cal: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>',
+  up: '<path d="M8 13V4"/><path d="M4.5 7.5L8 4l3.5 3.5"/>',
+  down: '<path d="M8 3v9"/><path d="M4.5 8.5L8 12l3.5-3.5"/>',
+};
+function srkIcon(k) {
+  return '<span class="srk-stat__ico" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"'
+    + ' stroke-linecap="round" stroke-linejoin="round">' + (SRK_ICONS[k] || '') + '</svg></span>';
 }
 
-/** 현재 값이 '지금까지 본 범위' 안 어디쯤인지 보여 주는 얇은 막대.
- *  ★ 양 끝(최저·최고)·평균 눈금·현재 값 모두 이미 불러온 값으로만 잡는다.
- *    고정된 0~100 자로 그리면 바늘이 가운데서 거의 안 움직여 쓸모가 없다. */
-function srqBar(now, avg) {
-  const all = srAllStat();
-  if (!all || now == null || avg == null) return '';
-  const lo = Math.min(all.lo.v, avg, now);
-  const hi = Math.max(all.hi.v, avg, now);
-  if (!(hi > lo)) return '';
-  const at = (v) => ((v - lo) / (hi - lo)) * 100;
-  const d = now - avg;
-  const one = (v) => v.toFixed(1) + '%';
-  return '<div class="srq-bar" role="img" aria-label="'
-    + escapeHtml('관측 범위 ' + one(lo) + '~' + one(hi) + ' 안에서 현재 ' + one(now)
-      + ', 과거 평균 ' + one(avg)) + '">'
-    + '<div class="srq-bar__t">'
-    + '<span class="srq-bar__avg" style="left:' + at(avg).toFixed(1) + '%"></span>'
-    + '<span class="srq-bar__now srq-d--' + srqDir(d) + '"'
-    + ' style="left:' + at(now).toFixed(1) + '%"></span>'
+/** @param o {icon, tone, label, en, def, val, badge, spark, cls} */
+function srkCard(o) {
+  const tone = SRK_TONES[o.tone] || 'var(--slate)';
+  return '<div class="xsi-stat srk-stat' + (o.cls ? ' ' + o.cls : '') + '"'
+    + ' style="--xt:' + tone + '">'
+    + '<div class="xsi-stat__hd">' + srkIcon(o.icon)
+    + '<div class="xsi-stat__lbl">'
+    + '<span class="xsi-stat__ko srk-stat__ko">' + escapeHtml(o.label)
+    + (o.def ? gcAbbr('ⓘ', o.def) : '') + '</span>'
+    + (o.en ? '<span class="xsi-stat__en">' + escapeHtml(o.en) + '</span>' : '')
+    + '</div></div>'
+    + '<div class="xsi-stat__row">'
+    + '<div class="xsi-stat__val srk-stat__val">' + o.val + '</div>'
+    + (o.spark || '')
     + '</div>'
-    /* ★ 평균 글자는 눈금 바로 위에 붙인다. 가운데에 두면 평균이 한쪽으로
-       치우친 해에 엉뚱한 자리를 가리키는 것처럼 보인다. */
-    + '<div class="srq-bar__k" style="left:' + at(avg).toFixed(1) + '%">'
-    + '과거 평균 ' + escapeHtml(one(avg)) + '</div>'
-    + '<div class="srq-bar__ax"><span>최저 ' + escapeHtml(one(lo)) + '</span>'
-    + '<span>최고 ' + escapeHtml(one(hi)) + '</span></div>'
+    + (o.badge ? '<div class="srk-stat__bd">' + o.badge + '</div>' : '')
     + '</div>';
 }
 
+/* 예전 박스 — 남겨 두면 두 모양이 섞이므로 카드로 넘긴다 */
+function srqBox(label, val, sub, cls) {
+  return srkCard({ label: label, val: val, badge: sub, cls: cls });
+}
+
+/* ★ 위치 막대(srqBar)는 뺐다 — 같은 자리에 최근 24개월 면적 차트가 들어가면서
+   같은 이야기를 두 번 하게 됐다. 되살리려면 git 이력에서 꺼내 쓰면 된다. */
 function srqLegend() {
   return '<span class="srq-lg">'
     + '<i class="srq-lg__sw srq-lg__sw--g"></i>초록 = 정시성 개선'
@@ -6130,26 +6315,44 @@ function sriSummary(ext) {
   const yrs = sriAvgYears();
   const span = yrs.length ? yrs[0] + '~' + yrs[yrs.length - 1] : '';
   const pp = (v) => '<b class="srq-d srq-d--' + srqDir(v) + '">' + sriPp(v) + '</b>';
+  const pct = (v) => (v == null || !isFinite(v))
+    ? '<span class="srk-na">—</span>'
+    : v.toFixed(1) + '<span class="srq__u">%</span>';
 
   return '<div class="srq">'
     + '<div class="srq__h"><h4 class="srq__t">현재 상황'
     + '<i>전체 기간 기준</i></h4>' + srqLegend() + '</div>'
     + '<div class="srq__g">'
-    /* 대표 지표 — 가장 먼저 읽혀야 하는 숫자 하나 */
-    + '<div class="srq-hero">'
-    + '<div class="srq__lbl">최근 정시성</div>'
-    + '<div class="srq-hero__v">' + last.v.toFixed(1) + '<span class="srq__u">%</span></div>'
-    + '<div class="srq__sub">' + escapeHtml(last.ym) + ' 기준 · 전월비 ' + pp(mom) + '</div>'
-    + srqBar(last.v, avg)
-    + '</div>'
-    + srqBox('연간 추세 (전년 동월비)',
-      '<span class="srq-d srq-d--' + srqDir(yoy) + '">' + sriPp(yoy) + '</span>',
-      ph ? '국면 ' + escapeHtml(ph.icon + ' ' + ph.text) : '국면 판정 보류')
-    + srqBox('과거 4개년 평균',
-      avg == null ? '—' : avg.toFixed(1) + '<span class="srq__u">%</span>',
-      escapeHtml(span) + ' 실측 평균')
-    + srqBox('향후 3개월 참고 범위', range ? escapeHtml(range) : '—',
-      '추세 연장 기준 · 예측 아님', 'srq-b--est')
+    + srkCard({
+      icon: 'gauge', tone: 'blue', cls: 'srk-stat--hero',
+      label: '최근 정시성', en: 'Latest Reliability', def: SRI_DEFS.last,
+      val: '<span class="srk-big">' + pct(last.v) + '</span>',
+      badge: '<span class="srk-stat__bdg">' + escapeHtml(last.ym) + ' 기준</span>'
+        + '<span class="srk-stat__mom">전월비 ' + pp(mom) + '</span>',
+      spark: srkArea(SRK_TONES.blue, 24),
+    })
+    + srkCard({
+      icon: 'trend', tone: 'red',
+      label: '연간 추세', en: 'Year-on-Year Change', def: SRI_DEFS.yoy,
+      val: '<span class="srq-d srq-d--' + srqDir(yoy) + '">' + sriPp(yoy) + '</span>',
+      badge: '<span class="srk-stat__bdg">전년 동월 대비</span>'
+        + (ph ? '<span class="srk-stat__mom">국면 ' + escapeHtml(ph.icon + ' ' + ph.text) + '</span>' : ''),
+      spark: srkYoyBars(SRK_TONES.red),
+    })
+    + srkCard({
+      icon: 'avg', tone: 'indigo',
+      label: '과거 4개년 평균', en: 'Four-Year Average', def: SRI_DEFS.avg,
+      val: pct(avg),
+      badge: '<span class="srk-stat__bdg">' + escapeHtml(span) + ' 실측 평균</span>',
+      spark: srkAvgBars(SRK_TONES.indigo),
+    })
+    + srkCard({
+      icon: 'range', tone: 'teal', cls: 'srk-stat--est',
+      label: '향후 3개월 참고 범위', en: 'Trend Extension', def: SRI_DEFS.range,
+      val: range ? escapeHtml(range) : '<span class="srk-na">—</span>',
+      badge: '<span class="srk-stat__bdg">추세 연장 기준 · 예측 아님</span>',
+      spark: srkExtBand(SRK_TONES.teal, ext),
+    })
     + '</div></div>';
 }
 
@@ -6167,11 +6370,27 @@ function srYearSummary(year) {
   const pct = (v) => v.toFixed(1) + '<span class="srq__u">%</span>';
   /* 최고·최저는 '언제'가 값만큼 중요하다 — 아랫줄로 떨어뜨리지 않고 옆에 붙인다 */
   const withMonth = (v, x) => pct(v) + '<i class="srq__at">' + escapeHtml(when(x)) + '</i>';
+  const bdg = (t) => '<span class="srk-stat__bdg">' + escapeHtml(t) + '</span>';
   return '<div class="srq__g srq__g--3">'
-    + srqBox((all ? '전체' : year) + ' 정시성', pct(st.avg),
-      '월별 수치 단순 평균 · ' + escapeHtml(nNote))
-    + srqBox('최고 정시성', withMonth(st.hi.v, st.hi), '', 'srq-b--good')
-    + srqBox('최저 정시성', withMonth(st.lo.v, st.lo), '', 'srq-b--bad')
+    + srkCard({
+      icon: 'cal', tone: 'blue',
+      label: (all ? '전체' : year) + ' 정시성', en: all ? 'All Period Average' : 'Annual Average',
+      def: SRI_DEFS.year,
+      val: pct(st.avg), badge: bdg('월별 수치 단순 평균 · ' + nNote),
+      spark: srkYearLine(SRK_TONES.blue, year, null),
+    })
+    + srkCard({
+      icon: 'up', tone: 'green', cls: 'srk-stat--good',
+      label: '최고 정시성', en: 'Highest Month', def: SRI_DEFS.hi,
+      val: withMonth(st.hi.v, st.hi), badge: bdg('기간 내 최고'),
+      spark: srkYearLine(SRK_TONES.green, year, 'hi'),
+    })
+    + srkCard({
+      icon: 'down', tone: 'amber', cls: 'srk-stat--bad',
+      label: '최저 정시성', en: 'Lowest Month', def: SRI_DEFS.lo,
+      val: withMonth(st.lo.v, st.lo), badge: bdg('기간 내 최저'),
+      spark: srkYearLine(SRK_TONES.amber, year, 'lo'),
+    })
     + '</div>';
 }
 
