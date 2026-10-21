@@ -6750,20 +6750,6 @@ function xsiValueTip() {
     + ' 이며, Compass 가 영업일마다 계산해 유럽 중부시간 18시에 발표합니다.';
 }
 
-/** 지수 이름(코드)과 집계 시작일이 무슨 뜻인지 — 리드 박스 ⓘ 에 들어간다. */
-function xsiCodeTip(r) {
-  const parts = [];
-  if (r.code) {
-    parts.push(r.code + ' 는 이 항로'
-      + (r.name ? '(' + r.name + ')' : '') + ' 운임지수에 붙은 이름표입니다. '
-      + '항로마다 이름이 달라서, 이 이름으로 찾으면 같은 항로의 값을 볼 수 있습니다.');
-  }
-  if (r.inception) {
-    parts.push(r.inception + ' 은 이 지수를 처음 계산해 발표하기 시작한 날입니다. '
-      + '그보다 이전 값은 없습니다.');
-  }
-  return parts.join(' ');
-}
 
 /** 통계 카드에 쓸 항목 — 라벨·설명은 원본 표기를 따른다. */
 /* ── 통계 카드 7개 ────────────────────────────────────────────────────────
@@ -7745,14 +7731,11 @@ function renderXsiHtml() {
       <div class="xsi-lead__unit">${escapeHtml(xsiUnit())}</div>
       ${(st.last != null && krwRate('USD') != null)
         ? `<div class="xsi-lead__krw">≈ ${escapeHtml(fmtKrwShort(st.last * krwRate('USD')) || '')}</div>` : ''}
-      ${''/* ★ 예전에는 'XSICFENE · 산출 개시 2015-01-05' 이라고만 적혀 있었다.
-             앞의 대문자 덩어리가 무엇인지, '산출 개시' 가 무슨 날인지 알 수 없어
-             숫자보다 먼저 읽는 줄인데도 그냥 지나치게 됐다. 우리말로 풀고,
-             자세한 설명은 ⓘ 에 담는다(줄이 길어지지 않게). */}
-      <div class="xsi-lead__sub">${escapeHtml(st.date || '')} 기준${r.code
-        ? ' · 지수 이름 ' + escapeHtml(r.code) : ''}${r.inception
-        ? ' · ' + escapeHtml(r.inception) + '부터 집계' : ''}${(r.code || r.inception)
-        ? gcAbbr('ⓘ', xsiCodeTip(r)) : ''}</div>
+      ${''/* ★ '2026-10-20 기준 · 지수 이름 XSICFENE · 2015-01-05부터 집계' 줄은
+             내렸다. 기준일은 배너의 '업데이트 기준' 배지가 이미 말해 주고,
+             지수 이름과 집계 시작일은 숫자를 읽는 데 쓰이지 않는 메타 정보라
+             카드에서 가장 긴 줄을 차지하며 배경 그림까지 가렸다.
+             되살리려면 git 이력에서 꺼내 쓰면 된다. */}
     </div>
     <div class="xsi-lead__name">${escapeHtml(r.name || '')}
       <a class="src-link" href="${escapeHtml(safeUrl(r.url) || '#')}" target="_blank" rel="noopener noreferrer">원본 페이지 ›</a></div>
