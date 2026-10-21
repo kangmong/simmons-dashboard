@@ -8786,6 +8786,120 @@ function oilInsightBox(fc) {
 
 /* ── 카드 전체 ───────────────────────────────────────────────────────── */
 
+/* ══ 원유 4종 요약 카드 ═══════════════════════════════════════════════════
+   값·단위·원화 환산·변동률 계산은 전부 기존 함수 그대로다. 여기서 더하는 것은
+   배치와 미니 차트뿐이다.
+
+   ★ 지역 배지는 OC_ORIGIN 에 이미 적혀 있는 말을 그대로 쓴다. 조회 조건의
+     체크박스가 같은 문구를 보여 주므로, 여기서만 다른 분류를 쓰면 한 화면에
+     두 말이 생긴다(시안은 Dubai 를 '아시아'로 적었지만 코드는 '중동'이다).
+   ★ 현물/선물 표기는 코드·데이터 어디에도 없어 넣지 않는다 — 지어내지 않는다.
+   ★ 포인트 색은 장식이다. 숫자와 ▲▼ 는 대시보드 공통 규칙(iiCls: 상승 빨강 ·
+     하락 파랑)을 그대로 따른다. 둘을 섞으면 초록 카드의 하락이 '좋아졌다'로
+     읽힌다. */
+const OCX_TONES = { dubai: '#3B82F6', brent: '#E11D48', wti: '#12B981', oman: '#EAB308' };
+const OCX_SPAN = 17;          /* 미니 차트에 쓸 최근 개월 수 */
+
+/** 원유통 아이콘 — 인라인 SVG. 새 이미지 파일을 쓰지 않는다. */
+function ocxBarrel() {
+  return '<span class="ocx__ico" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"'
+    + ' stroke-linecap="round" stroke-linejoin="round">'
+    /* 통 몸통(옆이 불룩) + 윗면 타원 + 테 두 줄 — 네모에 줄만 그으면
+       창문처럼 보여서 통 모양이 드러나게 고쳤다 */
+    + '<path d="M4.7 3.4h6.6c.7 3 .7 6.2 0 9.2H4.7c-.7-3-.7-6.2 0-9.2Z"/>'
+    + '<ellipse cx="8" cy="3.4" rx="3.3" ry="1.1"/>'
+    + '<path d="M3.9 6.6h8.2M3.9 9.4h8.2"/>'
+    + '</svg></span>';
+}
+
+/** 미니 면적 차트 + X축 날짜 3~4개.
+ *  ★ 이미 불러온 월별 시계열만 쓴다. 축은 이 카드 안에서만 맞춰서, 내린 구간은
+ *    실제로 내려간 모양이 나온다(카드마다 세로 범위가 다르다는 안내를 영역
+ *    아래에 한 줄 둔다). */
+function ocxSpark(pts, tone) {
+  const w = pts.slice(-OCX_SPAN);
+  if (w.length < 2) return '';                 /* 2개 미만이면 차트를 접는다 */
+  const W = 240, H = 54, P = 4;
+  let lo = Infinity, hi = -Infinity;
+  w.forEach((p) => { if (p.v < lo) lo = p.v; if (p.v > hi) hi = p.v; });
+  const gap = (hi - lo) * 0.12 || 1;
+  lo -= gap; hi += gap;
+  const sp = (hi - lo) || 1;
+  const X = (i) => P + (i / (w.length - 1)) * (W - P * 2);
+  const Y = (v) => H - P - ((v - lo) / sp) * (H - P * 2);
+  const d = w.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.v).toFixed(1)).join(' ');
+  const lx = X(w.length - 1).toFixed(1), ly = Y(w[w.length - 1].v).toFixed(1);
+  /* 축 라벨 — 처음·끝을 포함해 고르게 4개(짧으면 있는 만큼) */
+  const want = Math.min(4, w.length);
+  const ticks = [];
+  for (let i = 0; i < want; i += 1) ticks.push(w[Math.round((i * (w.length - 1)) / (want - 1))].k);
+  return '<div class="ocx-chart">'
+    + '<svg class="ocx-sp" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"'
+    + ' aria-hidden="true" focusable="false" style="--xt:' + tone + '">'
+    + '<title>' + escapeHtml(w[0].k + ' ~ ' + w[w.length - 1].k) + '</title>'
+    + '<path class="xsi-sp__a" d="' + d + ' L' + lx + ' ' + H + ' L' + X(0).toFixed(1) + ' ' + H + ' Z"/>'
+    + '<path class="xsi-sp__l" d="' + d + '"/>'
+    + '<circle class="ocx-sp__d" cx="' + lx + '" cy="' + ly + '" r="3.2"/>'
+    + '</svg>'
+    + '<div class="ocx-ax">' + ticks.map((k) => '<span>' + escapeHtml(k) + '</span>').join('') + '</div>'
+    + '</div>';
+}
+
+/** 변동률 한 칸 — 값이 없으면 0 으로 바꾸지 않고 '—' 로 둔다 */
+function ocxCmp(label, pct) {
+  const has = pct != null && isFinite(pct);
+  return '<div class="ocx__cmp"><span>' + escapeHtml(label) + '</span>'
+    + (has ? '<b class="ms-badge__val ' + iiCls(pct) + '">' + matPct(pct) + '</b>'
+      : '<b class="ocx-na">—</b>') + '</div>';
+}
+
+/** 원유 4종 카드 — matSeriesBoxes 를 대신한다(그 함수는 ICIS 가 계속 쓴다). */
+function ocxCards() {
+  const cards = (_ocData.series || []).slice(0, 4).map((srs) => {
+    const pts = oilMonthly(srs.key);
+    if (!pts.length) return '';
+    const last = pts[pts.length - 1];
+    const mom = oilBack(pts, 1), yoy = oilBack(pts, 12), ytd = oilYtd(pts);
+    const tone = OCX_TONES[srs.key] || 'var(--slate)';
+    /* '두바이유 · 중동 기준' → 한글 이름 / 지역 배지로 가른다 */
+    const org = String(OC_ORIGIN[srs.key] || '').split(' · ');
+    const ko = org[0] || '', region = org[1] || '';
+    const krw = krwOf(last.v, '배럴');
+    return '<div class="ocx" style="--xt:' + tone + '">'
+      + '<div class="ocx__hd">' + ocxBarrel()
+      + '<div class="ocx__nm">'
+      + '<span class="ocx__en">' + escapeHtml(srs.label) + '</span>'
+      + (ko ? '<span class="ocx__ko">' + escapeHtml(ko) + '</span>' : '')
+      + '</div>'
+      + (region ? '<span class="ocx__rg">' + escapeHtml(region) + '</span>' : '')
+      + '</div>'
+      + '<div class="ocx__row">'
+      + '<div class="ocx__left">'
+      + '<div class="ocx__v">' + matVal(last.v, '$/배럴', 2) + '</div>'
+      + (krw ? '<div class="ocx__krw">' + escapeHtml(krw) + '</div>' : '')
+      + '</div>'
+      + '<div class="ocx__right">'
+      + '<div class="ocx__mom">'
+      + (mom == null || !isFinite(mom)
+        ? '<b class="ocx-na">—</b>'
+        : '<b class="ms-badge__val ' + iiCls(mom) + '">' + matPct(mom) + '</b>')
+      + '</div>'
+      + '<div class="ocx__asof">' + escapeHtml(last.k) + ' · 전월비</div>'
+      + '</div></div>'
+      + ocxSpark(pts, tone)
+      + '<div class="ocx__cmps">'
+      + ocxCmp('전월 대비', mom) + ocxCmp('전년 동월 대비', yoy) + ocxCmp('연초 대비', ytd)
+      + '</div></div>';
+  }).join('');
+  if (!cards) return '';
+  return '<div class="ocx-grid">' + cards + '</div>'
+    /* 축이 카드마다 다르다는 것을 적어 둔다 — 네 그림의 기울기를 그대로
+       견주면 안 된다(가격대가 유종마다 달라 축을 공유하면 선이 뭉친다). */
+    + '<div class="ii-cap ocx-note">미니 차트의 세로 범위는 카드별로 다릅니다'
+    + ' · 최근 ' + OCX_SPAN + '개월 월별 가격</div>';
+}
+
 function renderOilPricesHtml() {
   const unit = (_ocData && !_ocData.error && _ocData.unit) || '$/배럴';
   // 배너의 '업데이트 기준'은 월별 자료의 마지막 달(수집 시각이 아니다)
@@ -8805,9 +8919,7 @@ function renderOilPricesHtml() {
   const cap = capSrc('출처: 한국석유공사 PETRONET · 일일국제원유가격', SRC_LINKS.oilCrude);
   // 요약 4박스 — 유종마다 한 칸(월별 전 구간 기준). 헤더 바로 아래에 둔다.
   // ★ [조회]를 누르기 전에는 내지 않는다(섹션 공통 규칙).
-  const ocSum = (_ocData && !_ocData.error && _ocQuery)
-    ? matSeriesBoxes((_ocData.series || []).slice(0, 4).map((s) => ({
-      label: s.label, pts: msPtsPetro(_ocData, s.key) })), '$/배럴', 2, '배럴') : '';
+  const ocSum = (_ocData && !_ocData.error && _ocQuery) ? ocxCards() : '';
 
   if (!_ocData) {
     return `<div class="viz-root viz-figure oil-figure">${head}`
