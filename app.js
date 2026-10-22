@@ -7422,10 +7422,6 @@ function renderFreightHtml() {
       + friOfficialChart(way.chart, friDotOverlay('comp', 'WCI-COMPOSITE'))
       + '</div>'
       + krwNote('USD')
-      + '<div class="fri-tbls">'
-      + '<div class="fri-tbls__k">' + friRouteTable() + '</div>'
-      + '<div class="fri-tbls__o">' + friRouteMinis() + '</div>'
-      + '</div>'
       + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
   }
 
@@ -7439,6 +7435,11 @@ function renderFreightHtml() {
     + (_friOne ? friOneRoute(_friOne) : friOfficialChart(way.chart))
     + '</div></div>'
     + krwNote('USD')
+    /* ★ 항로 표·항로별 추이는 항로 이야기라 이 갈래 아래에 둔다 */
+    + '<div class="fri-tbls">'
+    + '<div class="fri-tbls__k">' + friRouteTable() + '</div>'
+    + '<div class="fri-tbls__o">' + friRouteMinis() + '</div>'
+    + '</div>'
     + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
 }
 
