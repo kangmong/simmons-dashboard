@@ -16375,6 +16375,8 @@ function initUpdate() {
     // 순수 추가: 글로벌 매트리스 시장 규모 — 월 1회 수집해 둔 캐시를 읽는다.
     fetchMattressMarket();
     // 순수 추가: KIPRIS 특허 — 하루 1회 수집해 둔 정적 JSON (위와 같은 이유로 await 안 한다)
+    /* ★ 특허 트리도 처음으로 — 항목 버튼만 보이고, 항목을 눌러야 내용이 나온다 */
+    _ptTree = { open: PT_TREE_ROOT, pick: null }; ptTreeSave();
     fetchPatents();
     // 순수 추가: 환율 현황 카드 + AI 해석 — 하루 1회 수집해 둔 정적 JSON.
     // await 하지 않는다(다른 카드가 기다리지 않게). 실패하면 카드는 실시간
@@ -17462,12 +17464,14 @@ function ptHero() {
      펼쳤을 때 보이는 제목이 다르면 같은 것인지 알 수 없다.
    ★ 보조 문구는 지금 고른 기간의 행에서 그때그때 센다(코드에 적지 않는다). */
 
-/* 처음 열었을 때 선택되는 항목. 가장 자주 찾는 것을 앞에 둔다. */
+/* 필터를 켰을 때 결과를 보여 줄 항목(ptTreeShowResult). 가장 자주 찾는 것을 앞에 둔다.
+   ★ 처음 열거나 [업데이트] 뒤에는 아무것도 고르지 않는다 — 항목을 눌러야 내용이 나온다. */
 const PT_TREE_FIRST = 'recent';
 const PT_TREE_ROOT = 'patent';
 const PT_TREE_KEY = 'ptTree';
 const PT_TREE_HINT = '특허 분석을 눌러 항목을 확인하세요';
-const PT_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+/* 항목이 데스크톱에선 왼쪽, 모바일에선 위에 있어 방향은 적지 않는다 */
+const PT_TREE_EMPTY = '보고 싶은 항목을 선택하세요.';
 
 /* ★ 주소(해시)는 쓰지 않는다 — 이 사이트의 해시는 setView() 가 메뉴 이름으로
      통째로 덮어쓰는 자리라, 트리 상태를 넣으면 메뉴를 한 번만 눌러도 지워지고
@@ -17476,9 +17480,9 @@ const PT_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
 let _ptTree = (() => {
   try {
     const t = JSON.parse(sessionStorage.getItem(PT_TREE_KEY) || 'null');
-    if (t && typeof t === 'object' && t.pick) return { open: t.open || null, pick: t.pick };
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
   } catch (e) { /* 사생활 보호 모드 등 — 기억 못 해도 화면은 그대로 뜬다 */ }
-  return { open: PT_TREE_ROOT, pick: PT_TREE_FIRST };
+  return { open: PT_TREE_ROOT, pick: null };
 })();
 function ptTreeSave() {
   try { sessionStorage.setItem(PT_TREE_KEY, JSON.stringify(_ptTree)); } catch (e) { /* 무시 */ }
