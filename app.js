@@ -6679,6 +6679,15 @@ const FRI_GROUPS = [
   { src: '', items: [
     { id: 'cfi', label: 'SCFI·CCFI', keys: ['SCFI', 'CCFI'] },
     { id: 'bdi', label: 'BDI', keys: ['BDI'] },
+    /* ★ WCI 는 과거 시계열이 기계가 읽을 수 있는 형태로 공개되지 않는다
+       (차트가 Canva 그림이라 글자까지 벡터다 — 실측). 좌표에서 값을 되돌리면
+       추정값이 되므로 쓰지 않고, Drewry 가 공표하는 그 차트를 그대로 싣는다.
+       숫자(최근값·전주 대비)는 같은 페이지 논평 본문에서 정확히 읽어 온다. */
+    { id: 'wci', label: 'WCI 종합', keys: ['WCI_COMPOSITE'], chart: 0 },
+    { id: 'wciroutes', label: 'WCI 주요 항로', chart: 1, keys: [
+      'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
+      'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
+    { id: 'wcitable', label: 'WCI 항로별 운임', keys: [], chart: 2 },
   ] },
 ];
 
@@ -6745,7 +6754,7 @@ function friNum(v, unit) {
 /* ── 요약 카드 ─────────────────────────────────────────────────────────
    ★ 값이 없으면 '—' 로 둔다(0 으로 바꾸지 않는다).
    ★ 오르면 빨강·내리면 파랑 — 원가 카드와 같은 규칙이다. */
-function friSummary(list) {
+function friSummary(list, brief) {
   const on = list.filter((x) => !_friOff[x.key]);
   if (!on.length) return '';
   const s = on[0];
@@ -6776,7 +6785,7 @@ function friSummary(list) {
   /* 큰 숫자에는 통화 기호를 붙이지 않는다 — 옆 칸이 이미 단위를 말한다
      (예전에는 '$4,485US$/40ft' 처럼 두 번 나왔다). */
   const plain = (v) => friNum(v, null);
-  return '<div class="fri-sum">'
+  return '<div class="fri-sum' + (brief ? ' fri-sum--brief' : '') + '">'
     + box('최근값' + who, plain(last) + '<span>' + escapeHtml(s.unit) + '</span>',
       escapeHtml(lastD || '—'))
     + box((s.freq === '일간' ? '전일 대비' : '전주 대비') + who,
@@ -6785,8 +6794,11 @@ function friSummary(list) {
       (pct == null ? '—' : '<span class="fri-d fri-d--' + cls + '">'
         + (diff > 0 ? '+' : (diff < 0 ? '-' : '')) + Math.abs(pct).toFixed(2) + '%</span>'
         + ' · ' + escapeHtml(prevD || '')))
-    + box('기간 최고' + who, plain(hi), escapeHtml(hiD || '—'))
-    + box('기간 최저' + who, plain(lo), escapeHtml(loD || '—'))
+    /* ★ 공식 차트를 함께 싣는 묶음에서는 최고·최저를 내지 않는다 — 우리 쪽에
+       점이 하나뿐이라 최근값과 똑같은 숫자가 세 번 나오고, 실제 기간 범위는
+       바로 아래 Drewry 차트가 보여 준다. */
+    + (brief ? '' : box('기간 최고' + who, plain(hi), escapeHtml(hiD || '—'))
+      + box('기간 최저' + who, plain(lo), escapeHtml(loD || '—')))
     + '</div>';
 }
 
@@ -6918,12 +6930,40 @@ function friTableHtml(list) {
 /* ── 카드 ──────────────────────────────────────────────────────────── */
 function friHeroHtml(list) {
   const day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
-  /* ★ 부제는 지금 카드에 든 것만 말한다 — Drewry 를 뺀 뒤에도 '국내외'라고
-     두면 국내 지수가 있는 것처럼 읽히고, BDI 는 컨테이너가 아니라 건화물선이라
-     '컨테이너 운임지수'로 묶으면 틀린 말이 된다. */
+  /* ★ 부제는 지금 카드에 든 것만 말한다 — BDI 는 컨테이너가 아니라 건화물선이고,
+     WCI 는 달러 운임이라 '지수'로만 묶으면 틀린 말이 된다. */
   return vizHero('ship', '해상 운임 지수',
-    '상하이·중국 컨테이너 운임과 건화물선 운임 지수를 한 곳에서 확인합니다.',
-    day, null, '데이터 기준', null, '컨테이너 운임과 건화물선 운임 지수');
+    '컨테이너·건화물선 운임지수와 Drewry 세계 컨테이너 지수를 한 곳에서 확인합니다.',
+    day, null, '데이터 기준', null, '컨테이너·건화물선 운임지수와 Drewry 세계 컨테이너 지수');
+}
+
+/** Drewry 공식 차트 — 수집기가 그 주 페이지에서 읽어 둔 주소를 그대로 싣는다.
+ *  ★ 우리가 그린 그림이 아니라 Drewry 가 공표한 그림이다. 그래서 값이 어긋날
+ *    일이 없고, Drewry 가 갱신하면 여기도 같이 바뀐다.
+ *  ★ 새 라이브러리를 쓰지 않는다 — iframe 하나다. */
+function friOfficialChart(idx) {
+  const cs = (_friData && _friData.drewryCharts) || [];
+  const c = cs[idx];
+  if (!c || !c.url) {
+    return '<div class="chart-empty">공식 차트 주소를 아직 받지 못했습니다</div>';
+  }
+  return '<figure class="fri-emb">'
+    + '<figcaption class="fri-emb__c">' + escapeHtml(c.caption || 'Drewry 공식 차트')
+    + (c.sub ? ' <span>' + escapeHtml(c.sub) + '</span>' : '') + '</figcaption>'
+    /* 비율은 원본 페이지가 적어 둔 값을 쓴다. 다만 원본은 우리보다 좁은 칸에
+       넣는 전제라, 납작한 것(표)은 그대로 쓰면 마지막 줄이 잘린다 — 짧은 쪽에만
+       여유를 둔다(실측: 56.25% → 마지막 항로 잘림, 66% → 전부 보임). */
+    + '<div class="fri-emb__f" style="padding-top:'
+    + (isFinite(c.ratio) && c.ratio > 10
+      ? (c.ratio < 70 ? c.ratio + 10 : c.ratio) : 75) + '%">'
+    + '<iframe src="' + escapeHtml(c.url) + '"'
+    + ' title="' + escapeHtml(c.caption || 'Drewry World Container Index')
+    + '" loading="lazy" referrerpolicy="no-referrer"'
+    + ' allowfullscreen></iframe></div>'
+    + '<div class="fri-emb__n">Drewry 가 공표한 차트를 그대로 싣습니다 ·'
+    + ' <a href="' + escapeHtml((_friData && _friData.drewryUrl) || '#') + '"'
+    + ' target="_blank" rel="noopener noreferrer">원본 페이지 \u2197</a></div>'
+    + '</figure>';
 }
 
 function friPicker() {
@@ -6973,28 +7013,53 @@ function renderFreightHtml() {
     return wrap(head + '<div class="chart-empty">데이터를 불러오지 못했습니다'
       + (_friData.reason ? ' (' + escapeHtml(_friData.reason) + ')' : '') + '</div>');
   }
+  const g = friGroupOf(_friPick);
+  const useEmb = g && g.item.chart != null;   // Drewry 는 공식 차트를 싣는다
   const list = friSeries(_friPick);
-  if (!list.length) {
+  if (!list.length && !useEmb) {
     return wrap(head + friPicker()
       + '<div class="chart-empty">이 지수는 아직 수집된 값이 없습니다</div>');
   }
-  const cut = list.map((s) => friCut(s, _friSpan));
-  const spans = '<div class="fri-spans">' + FRI_SPANS.map((sp) =>
-    '<button class="fri-span' + (sp.id === _friSpan ? ' is-on' : '') + '" type="button"'
-    + ' data-frispan="' + sp.id + '">' + escapeHtml(sp.label) + '</button>').join('')
-    + '<button class="fri-span fri-span--t' + (_friTable ? ' is-on' : '') + '" type="button"'
-    + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div>';
+  const cut = list.map((x) => friCut(x, _friSpan));
+
+  /* 공식 차트를 싣는 묶음에서는 기간·표 버튼을 두지 않는다 — 기간은 그 차트가
+     스스로 들고 있고, 우리에게는 아직 그 주 값 하나뿐이라 표로 낼 것이 없다. */
+  const bar = useEmb
+    ? (list.length ? '<div class="fri-bar"><span class="fri-unit">단위: '
+      + escapeHtml(list[0].unit) + '</span></div>' : '')
+    : '<div class="fri-bar"><span class="fri-unit">단위: '
+      + escapeHtml(list[0].unit) + '</span>'
+      + '<div class="fri-spans">' + FRI_SPANS.map((sp) =>
+        '<button class="fri-span' + (sp.id === _friSpan ? ' is-on' : '') + '" type="button"'
+        + ' data-frispan="' + sp.id + '">' + escapeHtml(sp.label) + '</button>').join('')
+      + '<button class="fri-span fri-span--t' + (_friTable ? ' is-on' : '') + '" type="button"'
+      + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div></div>';
+
+  const body = useEmb
+    ? friOfficialChart(g.item.chart)
+    : (_friTable ? friTableHtml(cut) : friChart(cut));
 
   return wrap(head
     + friPicker()
-    + friSummary(cut)
-    + '<div class="fri-bar"><span class="fri-unit">단위: '
-    + escapeHtml(list[0].unit) + '</span>' + spans + '</div>'
-    + friLineToggles(cut)
-    + (_friTable ? friTableHtml(cut) : friChart(cut))
+    + (list.length ? friSummary(cut, useEmb) : '')
+    + bar
+    + (useEmb ? '' : friLineToggles(cut))
+    + body
     + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
     + ' 비교할 수 없습니다.</div>'
-    + friSourceHtml(cut));
+    + (list.length ? friSourceHtml(cut) : friSourceDrewry()));
+}
+
+/** 값이 없는 묶음(항로별 운임 표)용 출처 줄. */
+function friSourceDrewry() {
+  const u = (_friData && _friData.drewryUrl) || '#';
+  return '<div class="fri-src">'
+    + '<b>출처</b> Drewry — 원 발표 기관 Drewry Shipping Consultants'
+    + ' · <a href="' + escapeHtml(u) + '" target="_blank" rel="noopener noreferrer">'
+    + '원본 페이지 \u2197</a> · 갱신 주간(목요일)'
+    + ((_friData && _friData.updatedAt)
+      ? ' · 이 대시보드 수집 ' + escapeHtml(_friData.updatedAt) : '')
+    + '</div>';
 }
 
 /** 데이터 읽기 — 다른 카드와 같은 방식(파일 하나만 읽는다). */

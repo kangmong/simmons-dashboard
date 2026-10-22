@@ -5999,6 +5999,8 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 /* 요약 4칸 — 좁아지면 2열 */
 .fri-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 4px; }
 @media (max-width: 760px) { .fri-sum { grid-template-columns: repeat(2, 1fr); } }
+/* 공식 차트를 함께 싣는 묶음 — 칸이 둘뿐이라 4등분하면 오른쪽이 휑하다 */
+.fri-sum--brief { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 620px; }
 .fri-sum__b {
   padding: 11px 13px; background: var(--card);
   border: 1px solid var(--line); border-radius: var(--radius-sm);
@@ -6082,3 +6084,22 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   word-break: keep-all; }
 .fri-src b { color: var(--ink); font-weight: 800; }
 .fri-src a { color: #1D4ED8; font-weight: 700; }
+
+/* Drewry 공식 차트 — 우리가 그린 그림이 아니라 발표자가 공표한 그림을 싣는다.
+   ★ Canva 임베드는 가로세로 비율이 고정이라 padding-top 으로 자리를 잡는다
+     (원본 페이지가 쓰는 방식과 같다). 새 라이브러리는 쓰지 않는다. */
+.fri-emb { margin: 2px 0 0; }
+.fri-emb__c { font-size: 12.5px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.fri-emb__c span { font-weight: 600; color: var(--slate); }
+.fri-emb__f {
+  position: relative; width: 100%; height: 0; padding-top: 72%;
+  overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--line);
+  background: var(--card);
+}
+.fri-emb__f iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+}
+.fri-emb__n { margin-top: 7px; font-size: 11px; color: var(--slate); }
+.fri-emb__n a { color: #1D4ED8; font-weight: 700; }
+/* 좁아지면 세로로 길어져야 선이 뭉개지지 않는다 */
+@media (max-width: 760px) { .fri-emb__f { padding-top: 104%; } }

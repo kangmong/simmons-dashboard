@@ -195,6 +195,9 @@ def _merge_series(old, new):
 
 # ───────────────────────── Drewry ─────────────────────────
 _MONEY = re.compile(r"\$\s?([\d,]+)\s*per\s*40ft", re.I)
+# 페이지에 박혀 있는 공식 차트(임베드). 주소가 매주 바뀔 수 있어 그때그때 읽는다.
+_EMBED = re.compile(
+    r'<iframe[^>]+src="(https://www\.canva\.com/design/[^"]+?\?embed)"', re.I)
 _ASSESS = re.compile(
     r"assessment for\s+\w+day,\s*(\d{1,2}\s+\w{3,}\s+\d{4})", re.I)
 
@@ -214,13 +217,39 @@ def _wci_value(text, anchor):
     return _num(m.group(1))
 
 
+def _charts(html):
+    """공식 차트 임베드 주소 + 바로 앞에 적힌 설명을 짝지어 돌려준다.
+
+    ★ 수치는 가져오지 않는다(Canva 가 글자를 벡터로 바꿔 둬 읽히지 않는다).
+      Drewry 가 공표하는 그림을 그대로 싣고 출처를 밝히는 쪽을 택했다.
+    """
+    out = []
+    for m in _EMBED.finditer(html):
+        # 차트마다 바로 앞에 <h3>제목</h3> (가끔 <p>부제</p>) 가 붙어 있다.
+        # 그냥 앞 글자를 잘라 오면 앞 문단 끝자락·이미지 속성까지 묻어 온다.
+        before = html[max(0, m.start() - 1500):m.start()]
+        hs = re.findall(r"<h[1-4][^>]*>(.*?)</h[1-4]>", before, re.S | re.I)
+        cap = _strip(hs[-1]) if hs else ""
+        tail = before.rsplit("</h", 1)[-1] if hs else ""
+        ps = re.findall(r"<p[^>]*>(.*?)</p>", tail, re.S | re.I)
+        sub = _strip(ps[-1]) if ps else ""
+        # 임베드는 가로세로 비율이 고정이다. 원본 페이지가 감싸는 div 에 적어 둔
+        # padding-top 을 그대로 가져온다 — 우리가 어림잡으면 좌우에 검은 띠가 남는다.
+        ar = re.search(r"padding-top:\s*([\d.]+)%", html[m.start() - 400:m.start()])
+        out.append({"url": m.group(1), "caption": cap,
+                    "sub": sub if (sub and len(sub) < 120) else "",
+                    "ratio": float(ar.group(1)) if ar else 75.0})
+    return out
+
+
 def fetch_drewry(verbose=True):
-    """그 주의 WCI 종합 + 항로 4개. 과거는 주지 않으므로 한 점만 돌려준다."""
+    """그 주의 WCI 종합 + 항로 4개, 그리고 공식 차트 주소."""
     r = requests.get(DREWRY_URL, headers=HEADERS, timeout=TIMEOUT)
     if r.status_code != 200:
         raise RuntimeError("HTTP %d — 차단되면 우회하지 않고 실패로 둡니다"
                            % r.status_code)
     r.encoding = r.apparent_encoding or "utf-8"
+    charts = _charts(r.text)
     text = _strip(re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", r.text,
                          flags=re.S | re.I))
 
@@ -242,7 +271,9 @@ def fetch_drewry(verbose=True):
         raise RuntimeError("논평에서 값을 하나도 찾지 못했습니다")
     if verbose:
         print("[drewry] %s — %s" % (day, vals))
-    return day, vals
+        print("[drewry] 공식 차트 %d개 — %s"
+              % (len(charts), " / ".join(c["caption"][:40] for c in charts)))
+    return day, vals, charts
 
 
 def _merge_point(prev_series, day, value):
@@ -303,9 +334,11 @@ def main():
 
     # 2) Drewry — 한 점씩 쌓는다
     try:
-        day, vals = fetch_drewry()
+        day, vals, charts = fetch_drewry()
     except Exception as e:                               # noqa: BLE001
         day, vals = None, {}
+        # 못 받았으면 지난번 차트 주소를 그대로 둔다(화면이 비지 않게)
+        charts = prev.get("drewryCharts") or []
         fails.append({"source": "drewry", "part": "weekly", "reason": str(e)[:200]})
         print("[drewry] 실패 — %s" % e, file=sys.stderr)
 
@@ -329,6 +362,8 @@ def main():
     payload = {
         "status": "ok",
         "updatedAt": _now_kst(),
+        "drewryCharts": charts,
+        "drewryUrl": DREWRY_URL,
         "indices": indices,
         "failures": fails,
         "notice": "지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접 비교할 수 없습니다.",
