@@ -1,0 +1,96 @@
+name: 해상 운임 지수 수집 (평일 1회)
+
+# NLIC(SCFI·CCFI·BDI) + Drewry WCI 를 모아
+# public/data/freight-index.json 으로 커밋한다.
+#
+# 시각을 평일 KST 23:00 으로 잡은 이유 — 세 발표가 모두 끝난 뒤다.
+#   · BDI        매일(런던 오후) → 평일마다 새 값이 있다
+#   · SCFI·CCFI  금요일 15:00 베이징(= KST 16:00) 발표 → NLIC 반영 뒤
+#   · Drewry WCI 목요일 발표
+# 주 1회만 돌리면 일간인 BDI 가 닷새씩 밀리고, 더 자주 돌리면 원본 서버에
+# 쓸데없는 요청이 간다. 평일 하루 한 번이 데이터 주기와 맞는다.
+#
+# 요청 수: NLIC 2번(최근 3년 구간만) + Drewry 1번 = 3번. 사이를 쉰다.
+# 과거 구간은 이미 파일에 있고 바뀌지 않으므로 다시 긁지 않는다
+# (처음 수집이거나 복구가 필요하면 아래 '전 구간' 입력을 켜서 수동 실행).
+on:
+  schedule:
+    - cron: '0 14 * * 1-5'   # UTC 평일 14:00 = KST 23:00
+  workflow_dispatch:
+    inputs:
+      full:
+        description: '2014년부터 전 구간 다시 받기'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-freight
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      # 한쪽이 막혀도 나머지는 저장한다.
+      # 둘 다 실패할 때만 0 이 아닌 코드로 끝나고, 그때는 기존 파일을 건드리지 않는다.
+      - name: 운임 지수 수집
+        run: python freight_index.py ${{ inputs.full && '--full' || '' }}
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/freight-index.json; then
+            echo "내용 변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/freight-index.json
+          git commit -m "자동 수집: 해상 운임 지수 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git push
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          python - <<'PY'
+          import io, json, os
+          p = "public/data/freight-index.json"
+          if not os.path.isfile(p):
+              print("::error::freight-index.json 이 없습니다"); raise SystemExit(1)
+          d = json.load(io.open(p, encoding="utf-8"))
+          idx, fails = d.get("indices", {}), d.get("failures", [])
+          txt = ["## %s 해상 운임 지수" % ("⚠️" if fails else "✅"), "",
+                 "- 지수 %d개 · 수집 %s" % (len(idx), d.get("updatedAt", "—")),
+                 "- 파일 %.0f KB" % (os.path.getsize(p) / 1024.0), "",
+                 "| 지수 | 단위 | 기준일 | 최근값 | 점 수 | 출처 |",
+                 "| --- | --- | --- | ---: | ---: | --- |"]
+          for k, v in idx.items():
+              s = v.get("series") or {}
+              ds, vs = s.get("dates") or [], s.get("values") or []
+              txt.append("| %s | %s | %s | %s | %d | %s |" % (
+                  v.get("name"), v.get("unit"), ds[-1] if ds else "—",
+                  vs[-1] if vs else "—", len(ds), v.get("via")))
+          if fails:
+              txt += ["", "### 실패", ""] + [
+                  "- `%s` (%s) — %s" % (f.get("source"), f.get("part"), f.get("reason"))
+                  for f in fails]
+              print("::warning::수집 실패 %d건" % len(fails))
+          print("\n".join(txt))
+          s = os.environ.get("GITHUB_STEP_SUMMARY")
+          if s:
+              io.open(s, "a", encoding="utf-8").write("\n".join(txt) + "\n")
+          PY

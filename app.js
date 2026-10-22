@@ -4538,6 +4538,7 @@ function renderMaterial() {
     <div class="viz-tooltip" id="icisTooltip"></div>
     <div class="comp-caption">출처: ICIS Asia</div>
   </div>
+  ${renderFreightHtml()}
   ${renderScheduleReliabilityHtml()}
   ${renderXsiHtml()}
   ${renderOilPricesHtml()}
@@ -4567,6 +4568,7 @@ function renderMaterial() {
   wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
   wireProductControls(root); // 국제유가(석유제품): 같은 조회 UI
 
+  wireFri(root);            // 순수 추가: 해상 운임 지수(지수 선택·기간·선 토글·표)
   wireXsi(root);            // 순수 추가: 컨테이너 운임지수(항로 탭·기간 칩·툴팁)
   msWireEvents(root);       // 순수 추가: 변곡점 마커 툴팁(hover·포커스·탭)
   wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
@@ -6641,6 +6643,383 @@ function renderScheduleReliabilityHtml() {
     ${capSrc('출처: Sea-Intelligence', SRC_LINKS.sea)}
     ${extras}
   </div>`;
+}
+
+/* ══ 해상 운임 지수 (NLIC · Drewry) ═════════════════════════════════════
+   수집: freight_index.py → public/data/freight-index.json (주 1회)
+   ★ 지수마다 산출 기관·방식·단위가 달라 값을 서로 직접 비교할 수 없다.
+     그래서 한 번에 하나만 그리고, 그 사실을 화면에도 적는다.
+   ★ Drewry WCI 는 과거 시계열이 기계가 읽을 수 있는 형태로 공개되지 않는다.
+     매주 한 점씩 쌓이므로 처음에는 점이 적다 — 없는 과거를 지어내지 않는다.
+     (차트는 Canva 디자인 임베드라 선이 그림이다. 좌표를 숫자로 되돌리면
+      추정값이 되므로 쓰지 않았다.) */
+const FRI_DATA_URL = 'public/data/freight-index.json';
+let _friData = null;
+let _friPick = 'cfi';        // 고른 지수 묶음
+let _friSpan = '1y';         // 기간
+let _friOff = {};            // 꺼 둔 선 { 'SCFI': true, … }
+let _friTable = false;       // 표 보기
+
+/* 선 색 — 대비를 재서 고른 값이다(흰 배경 위 3:1 이상).
+   ★ 값의 뜻(오르면 빨강·내리면 파랑)은 요약 카드가 맡는다. 선 색은 구분용이다. */
+const FRI_TONE = {
+  SCFI: '#2563EB', CCFI: '#0B7F5E', BDI: '#B45309',
+  WCI_COMPOSITE: '#16264A',
+  WCI_SHANGHAI_ROTTERDAM: '#D97706', WCI_SHANGHAI_LOSANGELES: '#0891B2',
+  WCI_SHANGHAI_GENOA: '#0B7F5E', WCI_SHANGHAI_NEWYORK: '#7C3AED',
+};
+
+/* 지수 묶음 — 출처별로 나눈다. keys 가 한 그래프에 같이 그려질 선들이다. */
+const FRI_GROUPS = [
+  { src: '국가물류통합정보센터', items: [
+    { id: 'cfi', label: 'SCFI·CCFI', keys: ['SCFI', 'CCFI'] },
+    { id: 'bdi', label: 'BDI', keys: ['BDI'] },
+  ] },
+  { src: 'Drewry', items: [
+    { id: 'wci', label: 'WCI 종합', keys: ['WCI_COMPOSITE'] },
+    { id: 'wciroutes', label: 'WCI 주요 항로', keys: [
+      'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
+      'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
+  ] },
+];
+
+/* SCFI 공식 페이지 — 운임지수 카드에 있던 버튼을 여기서도 유지한다.
+   ★ 승인 여부와 무관하게 '원 발표처로 가는 길'은 남겨 둔다. */
+const FRI_SCFI_URL = 'https://www.sse.net.cn/index/singleIndex?indexType=scfi';
+
+function friGroupOf(id) {
+  for (let i = 0; i < FRI_GROUPS.length; i++) {
+    const it = FRI_GROUPS[i].items.filter((x) => x.id === id)[0];
+    if (it) return { src: FRI_GROUPS[i].src, item: it };
+  }
+  return null;
+}
+
+/** 고른 묶음에서 실제로 데이터가 있는 선만. */
+function friSeries(id) {
+  const g = friGroupOf(id);
+  const idx = (_friData && _friData.indices) || {};
+  if (!g) return [];
+  return g.item.keys.map((k) => {
+    const d = idx[k];
+    if (!d || !d.series || !d.series.dates || !d.series.dates.length) return null;
+    return { key: k, name: d.name, code: d.code, unit: d.unit, freq: d.freq,
+      origin: d.origin, via: d.via, viaUrl: d.viaUrl,
+      dates: d.series.dates, values: d.series.values };
+  }).filter(Boolean);
+}
+
+/** 기간 자르기 — 데이터에 있는 범위 안에서만. */
+const FRI_SPANS = [
+  { id: '1y', label: '1년', days: 365 },
+  { id: '3y', label: '3년', days: 365 * 3 },
+  { id: 'all', label: '전체', days: 0 },
+];
+function friCut(s, span) {
+  const sp = FRI_SPANS.filter((x) => x.id === span)[0];
+  if (!sp || !sp.days) return s;
+  const last = s.dates[s.dates.length - 1];
+  const from = new Date(last + 'T00:00:00Z');
+  from.setUTCDate(from.getUTCDate() - sp.days);
+  const f = from.toISOString().slice(0, 10);
+  const out = { dates: [], values: [] };
+  for (let i = 0; i < s.dates.length; i++) {
+    if (s.dates[i] >= f) { out.dates.push(s.dates[i]); out.values.push(s.values[i]); }
+  }
+  return Object.assign({}, s, out);
+}
+
+function friNum(v, unit) {
+  if (v == null || !isFinite(v)) return '—';
+  const n = (Math.abs(v) >= 1000 || v % 1 === 0)
+    ? Math.round(v).toLocaleString('ko-KR')
+    : v.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+  return (unit === 'US$/40ft') ? ('$' + n) : n;
+}
+
+/* ── 요약 카드 ─────────────────────────────────────────────────────────
+   ★ 값이 없으면 '—' 로 둔다(0 으로 바꾸지 않는다).
+   ★ 오르면 빨강·내리면 파랑 — 원가 카드와 같은 규칙이다. */
+function friSummary(list) {
+  const on = list.filter((x) => !_friOff[x.key]);
+  if (!on.length) return '';
+  const s = on[0];
+  /* ★ 선이 여럿이면 어느 선 숫자인지 이름을 붙인다 — 안 적으면 SCFI 값을
+     CCFI 값으로 읽는다. 선이 하나면 군더더기라 붙이지 않는다. */
+  const who = on.length > 1 ? ' (' + (s.code === 'WCI' ? s.name : s.code) + ')' : '';
+  const n = s.values.length;
+  const last = s.values[n - 1], lastD = s.dates[n - 1];
+  const prev = n >= 2 ? s.values[n - 2] : null;
+  const prevD = n >= 2 ? s.dates[n - 2] : null;
+  let hi = null, lo = null, hiD = '', loD = '';
+  s.values.forEach((v, i) => {
+    if (v == null) return;
+    if (hi == null || v > hi) { hi = v; hiD = s.dates[i]; }
+    if (lo == null || v < lo) { lo = v; loD = s.dates[i]; }
+  });
+  const diff = (last != null && prev != null) ? (last - prev) : null;
+  const pct = (diff != null && prev) ? (diff / prev * 100) : null;
+  const cls = diff == null ? 'flat' : (diff > 0 ? 'up' : (diff < 0 ? 'down' : 'flat'));
+  const arrow = diff == null ? '' : (diff > 0 ? '▲ ' : (diff < 0 ? '▼ ' : ''));
+
+  const box = (label, big, sub, extra) =>
+    '<div class="fri-sum__b' + (extra || '') + '">'
+    + '<div class="fri-sum__l">' + escapeHtml(label) + '</div>'
+    + '<div class="fri-sum__v">' + big + '</div>'
+    + '<div class="fri-sum__s">' + sub + '</div></div>';
+
+  /* 큰 숫자에는 통화 기호를 붙이지 않는다 — 옆 칸이 이미 단위를 말한다
+     (예전에는 '$4,485US$/40ft' 처럼 두 번 나왔다). */
+  const plain = (v) => friNum(v, null);
+  return '<div class="fri-sum">'
+    + box('최근값' + who, plain(last) + '<span>' + escapeHtml(s.unit) + '</span>',
+      escapeHtml(lastD || '—'))
+    + box((s.freq === '일간' ? '전일 대비' : '전주 대비') + who,
+      '<span class="fri-d fri-d--' + cls + '">' + arrow
+      + (diff == null ? '—' : plain(Math.abs(diff))) + '</span>',
+      (pct == null ? '—' : '<span class="fri-d fri-d--' + cls + '">'
+        + (diff > 0 ? '+' : (diff < 0 ? '-' : '')) + Math.abs(pct).toFixed(2) + '%</span>'
+        + ' · ' + escapeHtml(prevD || '')))
+    + box('기간 최고' + who, plain(hi), escapeHtml(hiD || '—'))
+    + box('기간 최저' + who, plain(lo), escapeHtml(loD || '—'))
+    + '</div>';
+}
+
+/* ── 그래프 ────────────────────────────────────────────────────────────
+   직접 그린 SVG 다(라이브러리를 쓰지 않는다). 선이 여럿일 수 있어 축은 전체
+   선의 최댓값·최솟값으로 한 번만 잡는다. */
+function friChart(list) {
+  const on = list.filter((s) => !_friOff[s.key]);
+  if (!on.length) {
+    return '<div class="chart-empty">볼 선을 하나 이상 선택하세요</div>';
+  }
+  /* 점이 하나뿐이면 선을 그릴 수 없다 — 그 사실을 적는다(가짜 선 금지) */
+  if (on.every((s) => s.dates.length < 2)) {
+    return '<div class="chart-empty">아직 점이 ' + on[0].dates.length
+      + '개뿐이라 그래프를 그릴 수 없습니다 — 매주 한 점씩 쌓입니다</div>';
+  }
+  const W = 980, H = 300, L = 54, R = 16, T = 14, B = 30;
+  const all = [];
+  on.forEach((s) => s.dates.forEach((d, i) => {
+    if (s.values[i] != null) all.push({ d: d, v: s.values[i] });
+  }));
+  const ds = Array.from(new Set(all.map((x) => x.d))).sort();
+  if (ds.length < 2) return '<div class="chart-empty">그릴 점이 모자랍니다</div>';
+  let mx = -Infinity, mn = Infinity;
+  all.forEach((x) => { if (x.v > mx) mx = x.v; if (x.v < mn) mn = x.v; });
+  const pad = (mx - mn) * 0.08 || Math.abs(mx) * 0.08 || 1;
+  const y0 = Math.max(0, mn - pad), y1 = mx + pad;
+  const xi = {}; ds.forEach((d, i) => { xi[d] = i; });
+  const X = (d) => L + (xi[d] / (ds.length - 1)) * (W - L - R);
+  const Y = (v) => T + (1 - (v - y0) / (y1 - y0 || 1)) * (H - T - B);
+
+  /* 가로 눈금 5칸 */
+  let grid = '';
+  for (let k = 0; k <= 4; k++) {
+    const v = y0 + (y1 - y0) * k / 4, y = Y(v);
+    /* 눈금 글씨는 정수로 — 폭이 넓은 축에 '755.93' 같은 소수점이 붙으면
+       읽는 데 방해만 된다(값 자체는 말풍선이 소수까지 보여 준다). */
+    const lab = (y1 - y0) > 50 ? Math.round(v).toLocaleString('ko-KR') : friNum(v, null);
+    grid += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1)
+      + '" y2="' + y.toFixed(1) + '"/>'
+      + '<text class="fri-ty" x="' + (L - 7) + '" y="' + (y + 3.5).toFixed(1) + '">'
+      + escapeHtml(lab) + '</text>';
+  }
+  /* 세로 날짜 — 6개만 */
+  let xlab = '';
+  for (let k = 0; k < 6; k++) {
+    const i = Math.round((ds.length - 1) * k / 5), d = ds[i];
+    /* 양 끝 글씨는 가운데 정렬하면 그림 밖으로 잘린다 — 끝에서는 안쪽으로 붙인다 */
+    const anc = k === 0 ? 'start' : (k === 5 ? 'end' : 'middle');
+    xlab += '<text class="fri-tx" text-anchor="' + anc + '" x="' + X(d).toFixed(1)
+      + '" y="' + (H - 9) + '">' + escapeHtml(d.slice(2)) + '</text>';
+  }
+
+  let lines = '', marks = '';
+  on.forEach((s) => {
+    const tone = FRI_TONE[s.key] || 'var(--slate)';
+    const pts = [];
+    s.dates.forEach((d, i) => {
+      if (s.values[i] == null || xi[d] == null) return;
+      pts.push([X(d), Y(s.values[i])]);
+    });
+    if (!pts.length) return;
+    if (pts.length === 1) {
+      marks += '<circle class="fri-dot" cx="' + pts[0][0].toFixed(1) + '" cy="'
+        + pts[0][1].toFixed(1) + '" r="3.5" style="--xt:' + tone + '"/>';
+      return;
+    }
+    lines += '<path class="fri-l" style="--xt:' + tone + '" d="'
+      + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+      + '"/>';
+    /* 최고·최저 지점 마커 */
+    let hi = 0, lo = 0;
+    s.values.forEach((v, i) => {
+      if (v == null) return;
+      if (s.values[hi] == null || v > s.values[hi]) hi = i;
+      if (s.values[lo] == null || v < s.values[lo]) lo = i;
+    });
+    [[hi, 'hi'], [lo, 'lo']].forEach((p) => {
+      const d = s.dates[p[0]];
+      if (xi[d] == null) return;
+      marks += '<circle class="fri-m fri-m--' + p[1] + '" cx="' + X(d).toFixed(1)
+        + '" cy="' + Y(s.values[p[0]]).toFixed(1) + '" r="3.2" style="--xt:' + tone + '"/>';
+    });
+  });
+
+  /* 마우스·터치로 값 읽는 칸 — 날짜마다 투명한 세로 띠 하나 */
+  const step = (W - L - R) / (ds.length - 1);
+  let hits = '';
+  ds.forEach((d) => {
+    const vals = on.map((s) => {
+      const i = s.dates.indexOf(d);
+      if (i < 0 || s.values[i] == null) return null;
+      const pv = i >= 1 ? s.values[i - 1] : null;
+      const df = pv == null ? null : s.values[i] - pv;
+      return s.name + ' ' + friNum(s.values[i], s.unit)
+        + (df == null ? '' : ' (' + (df > 0 ? '+' : '') + friNum(df, s.unit) + ')');
+    }).filter(Boolean);
+    if (!vals.length) return;
+    hits += '<rect class="fri-hit" x="' + (X(d) - step / 2).toFixed(1) + '" y="' + T
+      + '" width="' + Math.max(step, 2).toFixed(1) + '" height="' + (H - T - B)
+      + '" data-tip="' + escapeHtml(d + ' · ' + vals.join(' · ')) + '"/>';
+  });
+
+  return '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+    + escapeHtml(on.map((s) => s.name).join(', ') + ' 추이') + '">'
+    + grid + xlab + lines + marks + hits + '</svg></div>';
+}
+
+/* ── 표 보기 ───────────────────────────────────────────────────────────
+   ★ 다운로드 버튼은 두지 않는다 — 값만 보여 준다. */
+function friTableHtml(list) {
+  const on = list.filter((s) => !_friOff[s.key]);
+  if (!on.length) return '<div class="chart-empty">볼 선을 하나 이상 선택하세요</div>';
+  const ds = Array.from(new Set([].concat.apply([], on.map((s) => s.dates)))).sort().reverse();
+  const rows = ds.slice(0, 300).map((d) => '<tr><td>' + escapeHtml(d) + '</td>'
+    + on.map((s) => {
+      const i = s.dates.indexOf(d);
+      return '<td class="fri-tb__n">'
+        + (i < 0 ? '—' : escapeHtml(friNum(s.values[i], s.unit))) + '</td>';
+    }).join('') + '</tr>').join('');
+  return '<div class="fri-tb__wrap"><table class="fri-tb"><thead><tr><th>기준일</th>'
+    + on.map((s) => '<th class="fri-tb__n">' + escapeHtml(s.name) + '</th>').join('')
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + (ds.length > 300 ? '<div class="fri-tb__more">최근 300개 기준일만 표시합니다 (전체 '
+      + ds.length + '개)</div>' : '') + '</div>';
+}
+
+/* ── 카드 ──────────────────────────────────────────────────────────── */
+function friHeroHtml(list) {
+  const day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
+  return vizHero('ship', '해상 운임 지수',
+    '국내외 주요 해상 컨테이너 운임지수를 한 곳에서 확인합니다.',
+    day, null, '데이터 기준', null, '해상 컨테이너 운임지수');
+}
+
+function friPicker() {
+  const btn = (it) => '<button class="icis-year fri-pick'
+    + (it.id === _friPick ? ' is-active' : '') + '" type="button" data-fri="'
+    + escapeHtml(it.id) + '">' + escapeHtml(it.label) + '</button>';
+  return '<div class="fri-picks">' + FRI_GROUPS.map((g) =>
+    '<div class="fri-picks__g"><span class="fri-picks__s">' + escapeHtml(g.src) + '</span>'
+    + g.items.map(btn).join('') + '</div>').join('')
+    + '<div class="fri-picks__g"><a class="icis-year xsi-route--ext" href="'
+    + FRI_SCFI_URL + '" target="_blank" rel="noopener noreferrer"'
+    + ' title="상하이항운교역연구소 공식 페이지로 이동">SCFI <span aria-hidden="true">↗</span></a></div>'
+    + '</div>';
+}
+
+function friLineToggles(list) {
+  if (list.length < 2) return '';
+  return '<div class="fri-lines">' + list.map((s) =>
+    '<button class="fri-line' + (_friOff[s.key] ? '' : ' is-on') + '" type="button"'
+    + ' data-friline="' + escapeHtml(s.key) + '" aria-pressed="' + (!_friOff[s.key]) + '"'
+    + ' style="--xt:' + (FRI_TONE[s.key] || 'var(--slate)') + '">'
+    + '<i aria-hidden="true"></i>' + escapeHtml(s.name) + '</button>').join('') + '</div>';
+}
+
+function friSourceHtml(list) {
+  if (!list.length) return '';
+  const s = list[0];
+  const day = s.dates[s.dates.length - 1];
+  return '<div class="fri-src">'
+    + '<b>출처</b> ' + escapeHtml(s.via)
+    + ' — 원 발표 기관 ' + escapeHtml(s.origin)
+    + ' · <a href="' + escapeHtml(s.viaUrl) + '" target="_blank" rel="noopener noreferrer">원본 페이지 ↗</a>'
+    + ' · 데이터 기준 ' + escapeHtml(day)
+    + ' · 갱신 ' + escapeHtml(s.freq)
+    + ((_friData && _friData.updatedAt)
+      ? ' · 이 대시보드 수집 ' + escapeHtml(_friData.updatedAt) : '')
+    + '</div>';
+}
+
+function renderFreightHtml() {
+  const head = friHeroHtml(friSeries(_friPick));
+  const wrap = (inner) => '<div class="viz-root viz-figure fri-figure">' + inner + '</div>';
+  if (!_friData) {
+    return wrap(head + '<div class="chart-empty">업데이트 버튼을 눌러 데이터를 불러오세요</div>');
+  }
+  if (_friData.status !== 'ok' || !_friData.indices) {
+    return wrap(head + '<div class="chart-empty">데이터를 불러오지 못했습니다'
+      + (_friData.reason ? ' (' + escapeHtml(_friData.reason) + ')' : '') + '</div>');
+  }
+  const list = friSeries(_friPick);
+  if (!list.length) {
+    return wrap(head + friPicker()
+      + '<div class="chart-empty">이 지수는 아직 수집된 값이 없습니다</div>');
+  }
+  const cut = list.map((s) => friCut(s, _friSpan));
+  const spans = '<div class="fri-spans">' + FRI_SPANS.map((sp) =>
+    '<button class="fri-span' + (sp.id === _friSpan ? ' is-on' : '') + '" type="button"'
+    + ' data-frispan="' + sp.id + '">' + escapeHtml(sp.label) + '</button>').join('')
+    + '<button class="fri-span fri-span--t' + (_friTable ? ' is-on' : '') + '" type="button"'
+    + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div>';
+
+  return wrap(head
+    + friPicker()
+    + friSummary(cut)
+    + '<div class="fri-bar"><span class="fri-unit">단위: '
+    + escapeHtml(list[0].unit) + '</span>' + spans + '</div>'
+    + friLineToggles(cut)
+    + (_friTable ? friTableHtml(cut) : friChart(cut))
+    + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
+    + ' 비교할 수 없습니다.</div>'
+    + friSourceHtml(cut));
+}
+
+/** 데이터 읽기 — 다른 카드와 같은 방식(파일 하나만 읽는다). */
+function loadFreightIndex() {
+  return fetch(FRI_DATA_URL + '?t=' + Date.now())
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+    .then((d) => { _friData = d; })
+    .catch((e) => { _friData = { status: 'error', reason: (e && e.message) || String(e) }; });
+}
+
+function wireFri(root) {
+  const fig = root.querySelector('.fri-figure');
+  if (!fig) return;
+  fig.addEventListener('click', (e) => {
+    const p = e.target.closest ? e.target.closest('[data-fri]') : null;
+    if (p) { _friPick = p.getAttribute('data-fri'); _friOff = {}; renderMaterial(); return; }
+    const sp = e.target.closest ? e.target.closest('[data-frispan]') : null;
+    if (sp) { _friSpan = sp.getAttribute('data-frispan'); renderMaterial(); return; }
+    const tb = e.target.closest ? e.target.closest('[data-fritable]') : null;
+    if (tb) { _friTable = !_friTable; renderMaterial(); return; }
+    const ln = e.target.closest ? e.target.closest('[data-friline]') : null;
+    if (ln) {
+      const k = ln.getAttribute('data-friline');
+      /* 마지막 한 줄은 끄지 못하게 — 빈 그래프가 되면 볼 것이 없다 */
+      const list = friSeries(_friPick);
+      const onNow = list.filter((s) => !_friOff[s.key]);
+      if (!_friOff[k] && onNow.length <= 1) return;
+      _friOff[k] = !_friOff[k];
+      renderMaterial();
+    }
+  });
+  /* 값 말풍선 — 특허 카드가 쓰는 것과 같은 부품(ptTip*) 을 그대로 쓴다 */
+  wirePtTips(fig);
 }
 
 /* ══ 글로벌 컨테이너 운임지수 — Xeneta Shipping Index by Compass (XSI-C) ══
@@ -15310,6 +15689,8 @@ function initUpdate() {
     //   떠 있는 일이 없도록 선택을 비우고 시작한다.
     _xsiRoute = null; _xsiRange = null; _xsiChart = null;
     fetchXsi();
+    // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
+    loadFreightIndex().then(renderMaterial);
     // ★ KOIMA 부문별 지수도 같은 규칙 — 갱신 뒤에도 부문을 다시 고르게 한다.
     //   (applyKoimaUpdate 에서도 비우지만, 응답이 늦거나 실패해도 이전 선택이
     //    남아 데이터가 떠 있지 않도록 누른 시점에 먼저 비운다)

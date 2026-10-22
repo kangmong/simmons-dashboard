@@ -104,6 +104,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/freight-index.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/xsi-freight-index.json",
       "use": "@vercel/static"
     },

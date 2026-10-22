@@ -5983,3 +5983,102 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   .sf-tree[data-tree="pt"],
   .sf-tree[data-tree="pt"].sf-tree--shut { grid-template-columns: 1fr; }
 }
+
+/* ══ 해상 운임 지수 (NLIC · Drewry) ═══════════════════════════════════════
+   ★ 남색 배너·칩(.icis-year)은 다른 원자재 카드가 쓰는 공용 부품을 그대로 쓰고,
+     여기서는 지수를 고르는 줄과 그래프·표만 더한다. */
+.fri-picks { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 2px; }
+.fri-picks__g { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+/* 출처 이름 — 어느 기관 지수인지 버튼 앞에 못박는다 */
+.fri-picks__s {
+  font-size: 10.5px; font-weight: 800; color: var(--slate);
+  padding: 2px 7px; border-radius: 999px; background: var(--field);
+  border: 1px solid var(--line); white-space: nowrap;
+}
+
+/* 요약 4칸 — 좁아지면 2열 */
+.fri-sum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0 4px; }
+@media (max-width: 760px) { .fri-sum { grid-template-columns: repeat(2, 1fr); } }
+.fri-sum__b {
+  padding: 11px 13px; background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.fri-sum__l { font-size: 11.5px; font-weight: 700; color: var(--slate); }
+.fri-sum__v {
+  margin-top: 5px; font-size: 21px; font-weight: 800; color: var(--ink);
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.fri-sum__v span { margin-left: 3px; font-size: 11px; font-weight: 700; color: var(--slate); }
+.fri-sum__s { margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--slate);
+  font-variant-numeric: tabular-nums; }
+/* 오르면 빨강 · 내리면 파랑 — 원가 카드와 같은 규칙 */
+.fri-d--up { color: #C8102E; }
+.fri-d--down { color: #1D4ED8; }
+.fri-d--flat { color: var(--slate); }
+
+/* 단위 · 기간 버튼 줄 */
+.fri-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+.fri-unit { font-size: 11.5px; font-weight: 700; color: var(--slate); margin-right: auto; }
+.fri-spans { display: flex; flex-wrap: wrap; gap: 5px; }
+.fri-span {
+  padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 11.5px;
+  font-weight: 700; cursor: pointer;
+}
+.fri-span:hover { border-color: var(--slate); }
+.fri-span.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.fri-span:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.fri-span--t { margin-left: 6px; }
+
+/* 선 켜고 끄기 */
+.fri-lines { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.fri-line {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--card); color: var(--slate); font: inherit; font-size: 11.5px;
+  font-weight: 700; cursor: pointer;
+}
+.fri-line i { width: 11px; height: 3px; border-radius: 2px; background: var(--line); }
+.fri-line.is-on { color: var(--ink); border-color: color-mix(in srgb, var(--xt) 45%, #fff); }
+.fri-line.is-on i { background: var(--xt); }
+.fri-line:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@supports not (color: color-mix(in srgb, #000 10%, #fff)) {
+  .fri-line.is-on { border-color: var(--slate); }
+}
+
+/* 그래프 — 직접 그린 SVG */
+.fri-chart { margin-top: 2px; }
+.fri-chart svg { display: block; width: 100%; height: auto; }
+.fri-g { stroke: var(--line); stroke-width: 1; }
+.fri-ty { font-size: 10px; fill: var(--slate); text-anchor: end;
+  font-variant-numeric: tabular-nums; }
+/* ★ text-anchor 는 CSS 로 못박지 않는다 — 양 끝 날짜는 안쪽으로 붙여야 그림
+   밖으로 잘리지 않아서, 그리는 쪽이 글자마다 start/middle/end 를 정한다
+   (CSS 가 표현 속성을 이기므로 여기 두면 그 지정이 먹지 않는다). */
+.fri-tx { font-size: 10px; fill: var(--slate); font-variant-numeric: tabular-nums; }
+.fri-l { fill: none; stroke: var(--xt); stroke-width: 1.9;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fri-dot { fill: var(--xt); }
+.fri-m { fill: #fff; stroke: var(--xt); stroke-width: 2; }
+.fri-m--hi { stroke-width: 2.4; }
+.fri-hit { fill: transparent; cursor: crosshair; }
+.fri-hit:hover { fill: color-mix(in srgb, var(--navy) 6%, transparent); }
+
+/* 표 보기 — 값만 보여 준다(다운로드 버튼은 두지 않는다) */
+.fri-tb__wrap { max-height: 420px; overflow: auto; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); }
+.fri-tb { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fri-tb th, .fri-tb td { padding: 7px 10px; border-bottom: 1px solid var(--line);
+  white-space: nowrap; }
+.fri-tb thead th { position: sticky; top: 0; background: var(--field);
+  color: var(--ink); font-weight: 800; text-align: left; z-index: 1; }
+.fri-tb__n { text-align: right; font-variant-numeric: tabular-nums; }
+.fri-tb tbody tr:nth-child(even) { background: color-mix(in srgb, var(--field) 45%, #fff); }
+.fri-tb__more { padding: 8px 10px; font-size: 11px; color: var(--slate); background: var(--field); }
+
+/* 비교 금지 안내 · 출처 — 늘 보인다 */
+.fri-warn { margin-top: 10px; font-size: 11.5px; font-weight: 600; color: var(--slate); }
+.fri-src { margin-top: 6px; font-size: 11px; line-height: 1.7; color: var(--slate);
+  word-break: keep-all; }
+.fri-src b { color: var(--ink); font-weight: 800; }
+.fri-src a { color: #1D4ED8; font-weight: 700; }
