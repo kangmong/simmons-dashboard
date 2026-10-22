@@ -6162,21 +6162,6 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 /* 종합 줄은 표에서 굵게 — 나머지 항로와 격이 다르다 */
 .fri-tb__sum td { font-weight: 800; background: var(--field); }
 
-/* 지금 어떤 상태인가 — 차트 옆에서 말로 풀어 준다 */
-.fri-now { padding: 14px 16px; border: 1px solid var(--line);
-  border-radius: var(--radius-sm); background: var(--field); }
-.fri-now__h { font-size: 12.5px; font-weight: 800; color: var(--ink); }
-.fri-now__v { margin-top: 6px; font-size: 26px; font-weight: 800; color: var(--ink);
-  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
-.fri-now__v span { margin-left: 6px; font-size: 11.5px; font-weight: 700;
-  color: var(--slate); letter-spacing: 0; }
-.fri-now__l { margin: 10px 0 0; padding-left: 17px; }
-.fri-now__l li { margin: 5px 0; font-size: 12.5px; line-height: 1.65; color: var(--text);
-  word-break: keep-all; }
-.fri-now__l b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-.fri-now__n { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--slate);
-  word-break: keep-all; }
-
 /* 우리가 그린 항로 차트 */
 .fri-rt { margin-top: 16px; }
 /* viewBox 가 1200x300 이라 칸을 그대로 채운다(높이를 못박으면 가운데로 몰린다) */
@@ -6205,18 +6190,6 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-way__d { margin: 8px 0 0; font-size: 12px; line-height: 1.6;
   font-weight: 700; color: var(--ink); word-break: keep-all; }
 
-/* 차트 안에 얹는 상태 설명 */
-.fri-rt__wrap { position: relative; }
-.fri-now--in { position: absolute; top: 8px; right: 8px; width: min(320px, 46%);
-  background: rgba(255, 255, 255, .94); backdrop-filter: blur(2px);
-  box-shadow: 0 4px 14px -8px rgba(22, 38, 74, .5); }
-.fri-now--hint { display: flex; align-items: center; font-size: 11.5px;
-  color: var(--slate); font-weight: 600; line-height: 1.6; word-break: keep-all; }
-.fri-now__h span { font-weight: 600; font-size: 11px; color: var(--slate); }
-@media (max-width: 860px) {
-  .fri-now--in { position: static; width: auto; margin-top: 10px; }
-}
-
 /* 항로 칩 — 하나를 고르면 나머지는 흐려진다 */
 .fri-line--all { color: var(--navy); font-weight: 800; }
 .fri-line.is-solo { background: var(--blue-soft); border-color: var(--xt); }
@@ -6232,3 +6205,35 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   font-size: 11px; line-height: 1.65; color: var(--text); font-weight: 600;
   word-break: keep-all; white-space: normal; }
 .fri-mini__s b { color: var(--ink); font-weight: 800; }
+
+/* ── 그래프 안 표시 ────────────────────────────────────────────────────
+   ★ 설명을 옆 글상자로 빼지 않고 그래프 위에 직접 적는다.
+   ★ 오르면 빨강·내리면 파랑 — 카드 안에서 같은 규칙을 쓴다. */
+.fri-ca { fill: var(--navy); opacity: .07; stroke: none; }
+.fri-cl { fill: none; stroke: var(--navy); stroke-width: 2.4;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fri-cd { fill: #fff; stroke: var(--xt, var(--navy)); stroke-width: 2.4; }
+.fri-cd--last { stroke-width: 3; }
+.fri-cv { font-size: 12px; font-weight: 700; fill: var(--ink); text-anchor: middle;
+  font-variant-numeric: tabular-nums; }
+.fri-cv--last { font-size: 14px; font-weight: 800; }
+.fri-cx { font-size: 10.5px; fill: var(--slate); text-anchor: middle;
+  font-variant-numeric: tabular-nums; }
+/* 점과 점 사이 변동량 */
+.fri-ca-arrow { font-size: 10.5px; font-weight: 800; text-anchor: middle;
+  font-variant-numeric: tabular-nums; }
+.fri-ca-arrow.is-up { fill: #C8102E; }
+.fri-ca-arrow.is-down { fill: #1D4ED8; }
+/* 마지막 점에서 뻗는 꼬리표 */
+.fri-clead { stroke: var(--line); stroke-width: 1.4; }
+.fri-ctag { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fri-ctag--up { fill: #C8102E; }
+.fri-ctag--down { fill: #1D4ED8; }
+.fri-ctag--flat { fill: var(--slate); }
+.fri-ctag__s { font-size: 10px; font-weight: 700; fill: var(--slate); }
+/* 왼쪽 위 지금 값 */
+.fri-cbig { font-size: 26px; font-weight: 800; fill: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.fri-cunit { font-size: 11px; font-weight: 700; fill: var(--slate); }
+.fri-comp .fri-chart svg, .fri-rt .fri-chart svg { width: 100%; height: auto; }
+.fri-comp { margin-top: 2px; }
