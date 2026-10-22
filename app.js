@@ -17508,10 +17508,10 @@ function ptTreeDefs(cur) {
     g: PT_TREE_ROOT, label: '특허 분석',
     hint: '출원 목록 · 연도 · 유형 · 기술분야 · 출원인 · 키워드',
     items: [
-      { id: 'recent', label: '최근 주요 특허 출원', icon: 'table',
-        sub: n(cur.length, '건'), render: () => ptRecent(cur) },
       { id: 'yearly', label: '특허 출원 동향 (연도별)', icon: 'bars',
         sub: span, render: () => ptYearly(cur) },
+      { id: 'recent', label: '최근 주요 특허 출원', icon: 'table',
+        sub: n(cur.length, '건'), render: () => ptRecent(cur) },
       { id: 'types', label: '출원 유형별 현황', icon: 'donut',
         sub: n(cap(ptUniq(cur, (r) => r.kind || '미표기'), 6), '개 유형'),
         render: () => ptTypes(cur) },
