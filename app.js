@@ -3812,7 +3812,7 @@ function iiEventWhen(raw) {
   return t;
 }
 
-/** 지금 보이는 구간(periods)에 겹치는 '주요 시장 이벤트' 한 목록.
+/** 지금 보이는 구간(periods)에 겹치는 '주요 이슈' 한 목록.
  *
  *  ★ 출처가 둘이다 — 시황 해설(insights.json · icis_asia_pu.events)과
  *    히스토리 타임라인(icis-insights.json · timeline). 둘을 여기서 한 번만
@@ -3872,9 +3872,9 @@ function evPanelHtml(title, list, emptyText) {
     + '<h3 class="subhead ii-h">' + escapeHtml(title) + '</h3>' + body + '</div>';
 }
 
-/** 스폰지 주원료 — 주요 시장 이벤트 */
+/** 스폰지 주원료 — 주요 이슈 */
 function iiEventsPanel(periods) {
-  return evPanelHtml('주요 시장 이벤트', iiEventList(periods), '해당 기간 주요 이벤트 없음');
+  return evPanelHtml('주요 이슈', iiEventList(periods), '해당 기간 주요 이슈 없음');
 }
 
 function msEventsSvg(key, keys, X, padT, plotH, W) {
@@ -4217,7 +4217,7 @@ function iiMaterialCards() {
   }).join('');
   if (!cards) return '';
   return `<div class="ii-panel">
-    <h3 class="subhead ii-h">원자재별 변동요인</h3>
+    <h3 class="subhead ii-h">원자재별 변동요인<span class="ii-h__sub">(시장가격 추이)</span></h3>
     <div class="ii-mats">${cards}</div>
   </div>`;
 }
@@ -4499,8 +4499,8 @@ function renderMaterial() {
                              같은 네 숫자(PPG·TDI·MDI·PO)에 원화·설명까지 얹어
                              보여 줘서 같은 값을 두 번 읽게 했다.
          · msFactorsHtml()   '단기 요인' 상자.
-         · iiTimeline()      '히스토리 이벤트' 목록 → 차트 아래 '주요 시장
-                             이벤트' 카드로 옮겼다(iiEventsPanel). 한때 차트 위
+         · iiTimeline()      '히스토리 이벤트' 목록 → 차트 아래 '주요 이슈'
+                             카드로 옮겼다(iiEventsPanel). 한때 차트 위
                              마커로 찍었는데 라벨이 선·급등 띠와 겹쳐 읽기
                              어려워 아래로 내렸다.
          · iiOutlook(ext)    '단기·중기 전망'.

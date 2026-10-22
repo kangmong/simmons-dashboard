@@ -1493,7 +1493,7 @@ body {
   color: var(--muted); font-variant-numeric: tabular-nums; }
 .xsi-tt-d b { font-weight: 800; }
 
-/* ══ 주요 시장 이벤트 (ICIS 차트 아래) ═══════════════════════════════════
+/* ══ 주요 이슈 (ICIS 차트 아래) ══════════════════════════════════════════
    ★ 예전에는 차트 위 마커·세로 점선·라벨로 찍었다. 선 4개·급등 띠·최고최저
      마커와 한 화면에 겹치면서 어느 글자가 무엇인지 읽기 어려워 아래로 내렸다.
    ★ auto-fit 그리드라 건수가 늘면 저절로 줄바꿈되고, 좁은 화면에서는 1열로
@@ -1580,6 +1580,13 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .ii-tt-ext {
   margin-left: 6px; padding: 1px 6px; border-radius: 999px;
   background: var(--field); color: var(--muted); font-size: 10px; font-weight: 700;
+}
+
+/* 소제목 뒤 괄호 보조 문구 — 본문보다 한 단계 작고 옅게.
+   ★ 전용 클래스라 다른 소제목(.subhead)에는 영향이 없다. */
+.ii-h__sub {
+  margin-left: 5px; font-size: 12px; font-weight: 600; color: var(--slate);
+  white-space: nowrap;
 }
 
 /* ② 원자재별 변동요인 — 4장 가로 배치 */
