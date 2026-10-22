@@ -7220,13 +7220,24 @@ function friOneRoute(code) {
     + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
     + '"/>';
   let dots = '';
+  /* ★ 점마다 값을 적는다(누르지 않아도 보인다). 옆 값 글자와 겹칠 만큼 붙은 점은
+     건너뛰되 마지막 점은 늘 적는다. 주가 쌓여 촘촘해지면 일부만 적힌다. */
+  const GAP = 170;
+  const show = v.map(() => false);
+  show[n - 1] = true;
+  let edge = pts[n - 1][0] - GAP;
+  for (let i = n - 2; i >= 0; i--) {
+    if (pts[i][0] <= edge) { show[i] = true; edge = pts[i][0] - GAP; }
+  }
   v.forEach((x, i) => {
     const last = i === n - 1;
+    const anc = last ? 'end' : (i === 0 ? 'start' : 'middle');
+    const tx = last ? pts[i][0] - 10 : (i === 0 ? pts[i][0] - 4 : pts[i][0]);
     dots += '<circle class="fri-cd' + (last ? ' fri-cd--last' : '') + '" style="--xt:'
       + tone + '" cx="' + pts[i][0].toFixed(1) + '" cy="' + pts[i][1].toFixed(1)
       + '" r="' + (last ? 6 : 4) + '"/>'
-      + (last ? '<text class="fri-cv fri-cv--last" text-anchor="end" x="'
-        + (pts[i][0] - 10).toFixed(1) + '" y="' + (pts[i][1] - 12).toFixed(1) + '">$'
+      + (show[i] ? '<text class="fri-cv' + (last ? ' fri-cv--last' : '') + '" style="text-anchor:'
+        + anc + '" x="' + tx.toFixed(1) + '" y="' + (pts[i][1] - 12).toFixed(1) + '">$'
         + escapeHtml(Math.round(x).toLocaleString('ko-KR'))
         + (krwOf(x) ? ' (' + escapeHtml(krwOf(x)) + ')' : '') + '</text>' : '')
       + '<text class="fri-cx" x="' + pts[i][0].toFixed(1) + '" y="' + (H - 12) + '">'
@@ -7326,10 +7337,9 @@ function friRouteMinis() {
       + ' data-frimini="' + escapeHtml(r.code) + '" aria-expanded="' + open + '">'
       + '<div class="fri-mini__t">' + escapeHtml(r.ko || r.name) + '</div>'
       + svg
+      /* ★ 가운데 큰 현재값·원화는 뺐다 — 최고값과 같은 숫자가 겹쳐 보였고,
+         현재값은 눌렀을 때 펼쳐지는 문장('지금 $…')에 그대로 있다. */
       + '<div class="fri-mini__f"><span>최저 $' + friNum(lo, null) + '</span>'
-      + '<b>$' + friNum(last, null)
-      + (krwOf(last) ? '<span class="fri-krw">' + escapeHtml(krwOf(last)) + '</span>' : '')
-      + '</b>'
       + '<span>최고 $' + friNum(hi, null) + '</span></div>'
       + '<div class="fri-mini__d">' + escapeHtml(d[0]) + ' ~ '
       + escapeHtml(d[d.length - 1]) + ' · ' + v.length + '주</div>'
