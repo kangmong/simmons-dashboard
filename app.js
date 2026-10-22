@@ -6669,23 +6669,28 @@ const FRI_TONE = {
   WCI_SHANGHAI_GENOA: '#0B7F5E', WCI_SHANGHAI_NEWYORK: '#7C3AED',
 };
 
-/* 지수 묶음 — 출처별로 나눈다. keys 가 한 그래프에 같이 그려질 선들이다. */
+/* 고를 수 있는 지수. keys 가 한 그래프에 같이 그려질 선들이다.
+   ★ 화면에는 SCFI·CCFI 와 BDI 만 둔다. Drewry WCI 묶음은 버튼에서 뺐다 —
+     수집기(freight_index.py)와 JSON 에는 그대로 쌓이므로, 되살리려면 아래
+     배열에 두 줄을 다시 넣기만 하면 된다.
+   ★ 출처가 한 곳뿐이라 버튼 앞의 회색 출처 칩도 두지 않는다. 출처는 카드
+     맨 아래 한 줄이 기관명·원 발표 기관·원본 링크까지 모두 밝힌다. */
 const FRI_GROUPS = [
-  { src: '국가물류통합정보센터', items: [
+  { src: '', items: [
     { id: 'cfi', label: 'SCFI·CCFI', keys: ['SCFI', 'CCFI'] },
     { id: 'bdi', label: 'BDI', keys: ['BDI'] },
   ] },
-  { src: 'Drewry', items: [
-    { id: 'wci', label: 'WCI 종합', keys: ['WCI_COMPOSITE'] },
-    { id: 'wciroutes', label: 'WCI 주요 항로', keys: [
-      'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
-      'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
-  ] },
 ];
 
-/* SCFI 공식 페이지 — 운임지수 카드에 있던 버튼을 여기서도 유지한다.
-   ★ 승인 여부와 무관하게 '원 발표처로 가는 길'은 남겨 둔다. */
-const FRI_SCFI_URL = 'https://www.sse.net.cn/index/singleIndex?indexType=scfi';
+/* 원 발표 기관의 공식 페이지 — 출처 줄의 기관 이름을 누르면 열린다.
+   ★ 버튼 줄에 있던 'SCFI ↗' 칩은 뺐지만 원 발표처로 가는 길은 없애지 않았다.
+     지수가 늘면 여기에 '기관 이름: 주소' 한 줄만 더하면 된다. */
+const FRI_ORIGIN_URL = {
+  '상하이항운교역연구소(SSE)':
+    'https://www.sse.net.cn/index/singleIndex?indexType=scfi',
+  '발틱해운거래소(Baltic Exchange)':
+    'https://www.balticexchange.com/en/data-services/market-information0/dry-services.html',
+};
 
 function friGroupOf(id) {
   for (let i = 0; i < FRI_GROUPS.length; i++) {
@@ -6913,9 +6918,12 @@ function friTableHtml(list) {
 /* ── 카드 ──────────────────────────────────────────────────────────── */
 function friHeroHtml(list) {
   const day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
+  /* ★ 부제는 지금 카드에 든 것만 말한다 — Drewry 를 뺀 뒤에도 '국내외'라고
+     두면 국내 지수가 있는 것처럼 읽히고, BDI 는 컨테이너가 아니라 건화물선이라
+     '컨테이너 운임지수'로 묶으면 틀린 말이 된다. */
   return vizHero('ship', '해상 운임 지수',
-    '국내외 주요 해상 컨테이너 운임지수를 한 곳에서 확인합니다.',
-    day, null, '데이터 기준', null, '해상 컨테이너 운임지수');
+    '상하이·중국 컨테이너 운임과 건화물선 운임 지수를 한 곳에서 확인합니다.',
+    day, null, '데이터 기준', null, '컨테이너 운임과 건화물선 운임 지수');
 }
 
 function friPicker() {
@@ -6923,12 +6931,9 @@ function friPicker() {
     + (it.id === _friPick ? ' is-active' : '') + '" type="button" data-fri="'
     + escapeHtml(it.id) + '">' + escapeHtml(it.label) + '</button>';
   return '<div class="fri-picks">' + FRI_GROUPS.map((g) =>
-    '<div class="fri-picks__g"><span class="fri-picks__s">' + escapeHtml(g.src) + '</span>'
-    + g.items.map(btn).join('') + '</div>').join('')
-    + '<div class="fri-picks__g"><a class="icis-year xsi-route--ext" href="'
-    + FRI_SCFI_URL + '" target="_blank" rel="noopener noreferrer"'
-    + ' title="상하이항운교역연구소 공식 페이지로 이동">SCFI <span aria-hidden="true">↗</span></a></div>'
-    + '</div>';
+    '<div class="fri-picks__g">'
+    + (g.src ? '<span class="fri-picks__s">' + escapeHtml(g.src) + '</span>' : '')
+    + g.items.map(btn).join('') + '</div>').join('') + '</div>';
 }
 
 function friLineToggles(list) {
@@ -6944,9 +6949,12 @@ function friSourceHtml(list) {
   if (!list.length) return '';
   const s = list[0];
   const day = s.dates[s.dates.length - 1];
+  const ou = FRI_ORIGIN_URL[s.origin];
   return '<div class="fri-src">'
     + '<b>출처</b> ' + escapeHtml(s.via)
-    + ' — 원 발표 기관 ' + escapeHtml(s.origin)
+    + ' — 원 발표 기관 '
+    + (ou ? '<a href="' + escapeHtml(ou) + '" target="_blank" rel="noopener noreferrer">'
+      + escapeHtml(s.origin) + ' ↗</a>' : escapeHtml(s.origin))
     + ' · <a href="' + escapeHtml(s.viaUrl) + '" target="_blank" rel="noopener noreferrer">원본 페이지 ↗</a>'
     + ' · 데이터 기준 ' + escapeHtml(day)
     + ' · 갱신 ' + escapeHtml(s.freq)
