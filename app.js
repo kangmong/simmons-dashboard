@@ -6660,7 +6660,6 @@ let _friSpan = '1y';         // 기간
 let _friOff = {};            // 꺼 둔 선 { 'SCFI': true, … }
 let _friTable = false;       // 표 보기
 let _friWay = 'comp';        // WCI 안의 갈래(comp · route)
-let _friPickRt = '';         // 항로 차트에서 혼자 보기로 고른 항로 코드
 let _friMini = '';           // 미니 차트에서 설명을 펼친 항로 코드
 
 /* 선 색 — 대비를 재서 고른 값이다(흰 배경 위 3:1 이상).
@@ -6692,13 +6691,16 @@ const FRI_GROUPS = [
     /* ★ WCI 안은 두 갈래다 — 종합 지수와 상하이발 항로.
        갈래마다 '무엇을 보는 것인지' 한 줄을 버튼 아래 붙인다. */
     { id: 'wci', label: 'WCI', keys: ['WCI_COMPOSITE'], routeTable: true,
+      /* ★ 두 갈래 모두 Drewry 가 공표한 원본 차트를 그대로 싣는다.
+         우리가 다시 그리면 가진 점이 3주뿐이라 세로로 확대된 그림이 된다 —
+         1년 흐름이 사라지고 3% 움직임이 절벽처럼 보인다. */
       ways: [
         { id: 'comp', label: 'Drewry 세계 컨테이너 지수', chart: 0,
           desc: '전 세계 주요 항로 운임을 하나로 묶은 값입니다. 해상 운임이'
             + ' 전체적으로 오르내리는지 여기서 먼저 봅니다.' },
-        { id: 'route', label: '상하이발 주요 항로 운임',
+        { id: 'route', label: '상하이발 주요 항로 운임', chart: 1,
           desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
-            + ' 있는지 항로를 골라 가며 봅니다.' },
+            + ' 있는지 네 항로를 한 그림에서 견줍니다.' },
       ] },
   ] },
 ];
@@ -6992,271 +6994,6 @@ function friPctTag(v, suffix) {
 
 /* ── 지금 어떤 상태인가 ───────────────────────────────────────────────
    종합 지수를 한 문단으로 풀어 쓴다. 숫자는 전부 수집한 값이다. */
-/* ── 종합 지수 그래프 ─────────────────────────────────────────────────
-   ★ 설명을 옆에 글상자로 두지 않는다. 점 위에 값을 적고, 마지막 점에 전주
-     대비를, 오른쪽 위에 1년 대비를 '그래프 안에' 붙인다.
-   ★ Drewry 의 1년 차트는 Canva 그림이라 그 위에 아무것도 그릴 수 없다.
-     그래서 우리가 그린다(점은 Drewry 표가 주는 3주치, 매주 늘어난다).
-   ★ 1년 전 값은 공표되지 않았다 — 지수를 꾸며 그리지 않고 변동률만 적는다. */
-function friCompChart() {
-  const tb = _friData && _friData.wciRoutes;
-  const row = tb && (tb.rows || []).filter((r) => r.code === 'WCI-COMPOSITE')[0];
-  if (!row || !row.series || row.series.values.length < 2) {
-    return '<div class="chart-empty">점이 모자라 그래프를 그릴 수 없습니다</div>';
-  }
-  const d = row.series.dates, v = row.series.values, n = v.length;
-  const W = 900, H = 330, L = 70, R = 150, T = 54, B = 38;
-  let mx = Math.max.apply(null, v), mn = Math.min.apply(null, v);
-  const pad = (mx - mn) * 0.55 || Math.abs(mx) * 0.1 || 1;
-  const y0 = Math.max(0, mn - pad), y1 = mx + pad;
-  const X = (i) => L + (i / (n - 1)) * (W - L - R);
-  const Y = (x) => T + (1 - (x - y0) / (y1 - y0 || 1)) * (H - T - B);
-
-  let grid = '';
-  for (let k = 0; k <= 3; k++) {
-    const val = y0 + (y1 - y0) * k / 3, y = Y(val);
-    grid += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1)
-      + '" y2="' + y.toFixed(1) + '"/>'
-      + '<text class="fri-ty" x="' + (L - 8) + '" y="' + (y + 3.5).toFixed(1) + '">$'
-      + escapeHtml(Math.round(val).toLocaleString('ko-KR')) + '</text>';
-  }
-
-  const pts = v.map((x, i) => [X(i), Y(x)]);
-  const line = '<path class="fri-cl" d="'
-    + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
-    + '"/>';
-  const area = '<path class="fri-ca" d="'
-    + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
-    + ' L' + pts[n - 1][0].toFixed(1) + ' ' + (H - B) + ' L' + pts[0][0].toFixed(1)
-    + ' ' + (H - B) + ' Z"/>';
-
-  /* 점마다 값과 날짜. 마지막 점은 크게 — 거기가 '지금'이다. */
-  let dots = '';
-  v.forEach((x, i) => {
-    const last = i === n - 1;
-    const up = i > 0 ? (x - v[i - 1]) : 0;
-    dots += '<circle class="fri-cd' + (last ? ' fri-cd--last' : '') + '" cx="'
-      + pts[i][0].toFixed(1) + '" cy="' + pts[i][1].toFixed(1) + '" r="' + (last ? 6 : 4) + '"/>'
-      + '<text class="fri-cv' + (last ? ' fri-cv--last' : '') + '" x="' + pts[i][0].toFixed(1)
-      + '" y="' + (pts[i][1] - (last ? 18 : 14)).toFixed(1) + '">$'
-      + escapeHtml(Math.round(x).toLocaleString('ko-KR')) + '</text>'
-      + (i > 0 ? '<text class="fri-ca-arrow' + (up >= 0 ? ' is-up' : ' is-down')
-        + '" x="' + ((pts[i - 1][0] + pts[i][0]) / 2).toFixed(1) + '" y="'
-        + ((pts[i - 1][1] + pts[i][1]) / 2 - 8).toFixed(1) + '">'
-        + (up >= 0 ? '▲' : '▼') + ' ' + escapeHtml(Math.abs(Math.round(up))
-          .toLocaleString('ko-KR')) + '</text>' : '')
-      + '<text class="fri-cx" x="' + pts[i][0].toFixed(1) + '" y="' + (H - 12) + '">'
-      + escapeHtml(d[i]) + '</text>';
-  });
-
-  /* 마지막 점에서 뻗는 꼬리표 — 전주 대비 */
-  const wk = row.weekly;
-  const wCls = wk == null ? 'flat' : (wk > 0 ? 'up' : (wk < 0 ? 'down' : 'flat'));
-  const lx = pts[n - 1][0] + 14, ly = pts[n - 1][1];
-  const tag = '<line class="fri-clead" x1="' + pts[n - 1][0].toFixed(1) + '" y1="'
-    + ly.toFixed(1) + '" x2="' + (lx + 4) + '" y2="' + ly.toFixed(1) + '"/>'
-    + '<text class="fri-ctag fri-ctag--' + wCls + '" x="' + (lx + 10) + '" y="'
-    + (ly - 4).toFixed(1) + '">' + (wk == null ? '—' : (wk > 0 ? '▲' : '▼') + ' '
-      + Math.abs(wk) + '%') + '</text>'
-    + '<text class="fri-ctag__s" x="' + (lx + 10) + '" y="' + (ly + 11).toFixed(1)
-    + '">전주 대비</text>';
-
-  /* 왼쪽 위 — 지금 값, 오른쪽 위 — 1년 대비 */
-  const an = row.annual;
-  const aCls = an == null ? 'flat' : (an > 0 ? 'up' : (an < 0 ? 'down' : 'flat'));
-  const head = '<text class="fri-cbig" x="' + L + '" y="30">$'
-    + escapeHtml(Math.round(v[n - 1]).toLocaleString('ko-KR')) + '</text>'
-    + '<text class="fri-cunit" x="' + (L + 108) + '" y="30">US$/40ft · '
-    + escapeHtml(d[n - 1]) + ' 기준</text>'
-    + '<text class="fri-ctag fri-ctag--' + aCls + '" text-anchor="end" x="' + (W - 10)
-    + '" y="22">' + (an == null ? '—' : (an > 0 ? '▲' : '▼') + ' ' + Math.abs(an) + '%')
-    + '</text>'
-    + '<text class="fri-ctag__s" text-anchor="end" x="' + (W - 10) + '" y="37">'
-    + '1년 전 대비</text>';
-
-  let hits = '';
-  const step = (W - L - R) / (n - 1);
-  v.forEach((x, i) => {
-    const prev = i > 0 ? v[i - 1] : null;
-    const df = prev == null ? '' : ' (' + (x - prev >= 0 ? '+' : '')
-      + Math.round(x - prev).toLocaleString('ko-KR') + ')';
-    hits += '<rect class="fri-hit" x="' + (X(i) - step / 2).toFixed(1) + '" y="' + T
-      + '" width="' + Math.max(step, 2).toFixed(1) + '" height="' + (H - T - B)
-      + '" data-tip="' + escapeHtml(d[i] + ' · WCI 종합 $'
-        + Math.round(x).toLocaleString('ko-KR') + df) + '"/>';
-  });
-
-  return '<figure class="fri-emb fri-comp">'
-    + '<figcaption class="fri-emb__c">Drewry 세계 컨테이너 지수'
-    + ' <span>값·변동률을 그래프 위에 표시했습니다 · 단위 US$/40ft</span></figcaption>'
-    + '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H
-    + '" preserveAspectRatio="xMidYMid meet" role="img"'
-    + ' aria-label="WCI 종합 지수 추이와 전주·1년 대비 변동">'
-    + grid + area + line + dots + tag + head + hits + '</svg></div>'
-    + '<div class="fri-emb__n">Drewry 가 공표한 값을 우리가 그린 것입니다. 지금은 '
-    + n + '주치이고 매주 한 점씩 늘어납니다 · <a href="'
-    + escapeHtml((_friData && _friData.drewryUrl) || '#')
-    + '" target="_blank" rel="noopener noreferrer">1년 흐름은 원본 차트에서 \u2197</a></div>'
-    + '</figure>';
-}
-
-/* ── 항로 차트(우리가 그린다) ──────────────────────────────────────────
-   ★ Drewry 차트는 Canva 그림이라 범례를 눌러도 걸러지지 않는다(실측).
-     골라 보려면 우리가 그려야 한다. 점은 Drewry 표가 주는 3주치로 시작해
-     매주 하나씩 늘어난다.
-   ★ 색은 흰 배경에서 서로 구분되는 값으로 골랐다. */
-const FRI_RT_TONE = {
-  'WCI-SHA-RTM': '#D97706', 'WCI-RTM-SHA': '#B45309',
-  'WCI-SHA-GOA': '#0B7F5E', 'WCI-SHA-LAX': '#0891B2',
-  'WCI-LAX-SHA': '#2563EB', 'WCI-SHA-NYC': '#7C3AED',
-  'WCI-NYC-RTM': '#BE185D', 'WCI-RTM-NYC': '#64748B',
-};
-
-function friRouteRows() {
-  const tb = _friData && _friData.wciRoutes;
-  return (tb && tb.rows ? tb.rows : []).filter(
-    (r) => r.code !== 'WCI-COMPOSITE' && r.series && r.series.values.length);
-}
-
-function friRouteChart() {
-  const rows = friRouteRows();
-  if (!rows.length) return '';
-  /* ★ 처음에는 전부 보여 준다. 칩 하나를 누르면 그 항로만 남고, 차트 안에
-     그 항로의 상태 설명이 붙는다. 같은 칩을 다시 누르면 전부로 돌아온다. */
-  const on = _friPickRt
-    ? rows.filter((r) => r.code === _friPickRt)
-    : rows;
-  const chips = '<div class="fri-lines">' + rows.map((r) =>
-    '<button class="fri-line' + (!_friPickRt || _friPickRt === r.code ? ' is-on' : '')
-    + (_friPickRt === r.code ? ' is-solo' : '') + '" type="button"'
-    + ' data-friline="' + escapeHtml(r.code) + '"'
-    + ' aria-pressed="' + (_friPickRt === r.code) + '"'
-    + ' style="--xt:' + (FRI_RT_TONE[r.code] || 'var(--slate)') + '">'
-    + '<i aria-hidden="true"></i>' + escapeHtml(r.ko || r.name) + '</button>').join('')
-    + (_friPickRt ? '<button class="fri-line fri-line--all" type="button"'
-      + ' data-friline="">전체 보기</button>' : '')
-    + '</div>';
-  let body;
-  if (!on.length) {
-    body = '<div class="chart-empty">볼 항로를 하나 이상 선택하세요</div>';
-  } else {
-    const ds = Array.from(new Set([].concat.apply([],
-      on.map((r) => r.series.dates)))).sort();
-    if (ds.length < 2) {
-      body = '<div class="chart-empty">점이 모자라 선을 그릴 수 없습니다</div>';
-    } else {
-      const solo = on.length === 1;
-      /* 하나만 볼 때는 마지막 점 위에 값을 적는다 — 오른쪽 여백이 좁으면
-         그 글자가 그림 밖으로 잘린다(실측). 여백을 늘려 받아 준다. */
-      const W = 1200, H = solo ? 330 : 300, L = 66, R = solo ? 58 : 18,
-        T = solo ? 54 : 12, B = 30;
-      let mx = -Infinity, mn = Infinity;
-      on.forEach((r) => r.series.values.forEach((x) => {
-        if (x == null) return;
-        if (x > mx) mx = x;
-        if (x < mn) mn = x;
-      }));
-      const pad = (mx - mn) * 0.12 || Math.abs(mx) * 0.1 || 1;
-      const y0 = Math.max(0, mn - pad), y1 = mx + pad;
-      const xi = {}; ds.forEach((d, i) => { xi[d] = i; });
-      const X = (d) => L + (xi[d] / (ds.length - 1)) * (W - L - R);
-      const Y = (x) => T + (1 - (x - y0) / (y1 - y0 || 1)) * (H - T - B);
-      let grid = '';
-      for (let k = 0; k <= 4; k++) {
-        const val = y0 + (y1 - y0) * k / 4, y = Y(val);
-        grid += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="'
-          + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/>'
-          + '<text class="fri-ty" x="' + (L - 7) + '" y="' + (y + 3.5).toFixed(1)
-          + '">$' + escapeHtml(Math.round(val).toLocaleString('ko-KR')) + '</text>';
-      }
-      let xl = '';
-      ds.forEach((d, i) => {
-        const anc = i === 0 ? 'start' : (i === ds.length - 1 ? 'end' : 'middle');
-        xl += '<text class="fri-tx" text-anchor="' + anc + '" x="' + X(d).toFixed(1)
-          + '" y="' + (H - 9) + '">' + escapeHtml(d.slice(5)) + '</text>';
-      });
-      let lines = '', marks = '';
-      on.forEach((r) => {
-        const pts = [];
-        r.series.dates.forEach((d, i) => {
-          if (r.series.values[i] == null || xi[d] == null) return;
-          pts.push([X(d), Y(r.series.values[i])]);
-        });
-        if (pts.length < 2) return;
-        lines += '<path class="fri-l" style="--xt:'
-          + (FRI_RT_TONE[r.code] || 'var(--slate)') + '" d="'
-          + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' '
-            + p[1].toFixed(1)).join(' ') + '"/>';
-        /* ★ 하나만 골랐을 때는 그래프 안에 값과 변동을 적는다 — 옆에 글상자를
-           두지 않는다. 여럿일 때는 적지 않는다(숫자가 겹쳐 읽을 수 없다). */
-        if (on.length !== 1) return;
-        const tone = FRI_RT_TONE[r.code] || 'var(--slate)';
-        const vv = r.series.values, nn = vv.length;
-        vv.forEach((x, i) => {
-          const last = i === nn - 1;
-          marks += '<circle class="fri-cd' + (last ? ' fri-cd--last' : '')
-            + '" style="--xt:' + tone + '" cx="' + pts[i][0].toFixed(1) + '" cy="'
-            + pts[i][1].toFixed(1) + '" r="' + (last ? 6 : 4) + '"/>'
-            + '<text class="fri-cv' + (last ? ' fri-cv--last' : '') + '" x="'
-            + pts[i][0].toFixed(1) + '" y="' + (pts[i][1] - (last ? 18 : 14)).toFixed(1)
-            + '">$' + escapeHtml(Math.round(x).toLocaleString('ko-KR')) + '</text>';
-          if (i > 0) {
-            const df = x - vv[i - 1];
-            marks += '<text class="fri-ca-arrow' + (df >= 0 ? ' is-up' : ' is-down')
-              + '" x="' + ((pts[i - 1][0] + pts[i][0]) / 2).toFixed(1) + '" y="'
-              + ((pts[i - 1][1] + pts[i][1]) / 2 - 8).toFixed(1) + '">'
-              + (df >= 0 ? '▲' : '▼') + ' '
-              + escapeHtml(Math.abs(Math.round(df)).toLocaleString('ko-KR'))
-              + '</text>';
-          }
-        });
-        const wk = r.weekly, an = r.annual;
-        const cls = (z) => (z == null ? 'flat' : (z > 0 ? 'up' : (z < 0 ? 'down' : 'flat')));
-        const sign = (z) => (z == null ? '—' : (z > 0 ? '▲' : '▼') + ' ' + Math.abs(z) + '%');
-        marks += '<text class="fri-cbig" x="' + L + '" y="26">$'
-          + escapeHtml(Math.round(vv[nn - 1]).toLocaleString('ko-KR')) + '</text>'
-          + '<text class="fri-cunit" x="' + (L + 104) + '" y="26">'
-          + escapeHtml(r.ko || r.name) + ' · ' + escapeHtml(ds[ds.length - 1])
-          + ' 기준</text>'
-          + '<text class="fri-ctag fri-ctag--' + cls(wk) + '" text-anchor="end" x="'
-          + (W - 120) + '" y="20">' + sign(wk) + '</text>'
-          + '<text class="fri-ctag__s" text-anchor="end" x="' + (W - 120)
-          + '" y="34">전주 대비</text>'
-          + '<text class="fri-ctag fri-ctag--' + cls(an) + '" text-anchor="end" x="'
-          + (W - 14) + '" y="20">' + sign(an) + '</text>'
-          + '<text class="fri-ctag__s" text-anchor="end" x="' + (W - 14)
-          + '" y="34">1년 전 대비</text>';
-      });
-      let hits = '';
-      const step = (W - L - R) / (ds.length - 1);
-      ds.forEach((d) => {
-        const txt = on.map((r) => {
-          const i = r.series.dates.indexOf(d);
-          return i < 0 ? null : (r.ko || r.name) + ' $' + friNum(r.series.values[i], null);
-        }).filter(Boolean);
-        if (!txt.length) return;
-        hits += '<rect class="fri-hit" x="' + (X(d) - step / 2).toFixed(1) + '" y="' + T
-          + '" width="' + Math.max(step, 2).toFixed(1) + '" height="' + (H - T - B)
-          + '" data-tip="' + escapeHtml(d + ' · ' + txt.join(' · ')) + '"/>';
-      });
-      body = '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H
-        + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
-        + escapeHtml(on.map((r) => r.ko || r.name).join(', ') + ' 추이') + '">'
-        + grid + xl + lines + marks + hits + '</svg></div>';
-    }
-  }
-  return '<figure class="fri-emb fri-rt"><figcaption class="fri-emb__c">'
-    + '상하이발 주요 항로 운임 <span>항로를 눌러 하나만 볼 수 있습니다 ·'
-    + ' 단위 US$/40ft</span></figcaption>'
-    + chips + body
-    + '<div class="fri-emb__n">Drewry 가 공표한 항로 표의 값을 우리가 그린 것입니다.'
-    + ' 지금은 ' + (friRouteRows()[0] || { series: { dates: [] } }).series.dates.length
-    + '주치이고 매주 한 점씩 늘어납니다 · <a href="'
-    + escapeHtml((_friData && _friData.drewryUrl) || '#')
-    + '" target="_blank" rel="noopener noreferrer">1년 흐름은 원본 차트에서 \u2197</a></div>'
-    + '</figure>';
-}
-
 function friRouteTable() {
   const tb = _friData && _friData.wciRoutes;
   if (!tb || !tb.rows || !tb.rows.length) return '';
@@ -7357,7 +7094,7 @@ function friRouteMinis() {
  *  ★ 우리가 그린 그림이 아니라 Drewry 가 공표한 그림이다. 그래서 값이 어긋날
  *    일이 없고, Drewry 가 갱신하면 여기도 같이 바뀐다.
  *  ★ 새 라이브러리를 쓰지 않는다 — iframe 하나다. */
-const FRI_EMB_H = 560;   // 공식 차트의 목표 높이(px)
+const FRI_EMB_H = 600;   // 공식 차트의 목표 높이(px)
 
 /* 공식 차트 제목을 우리말로. 원문에서 알아볼 수 있는 토막을 찾아 바꾼다.
    ★ Drewry 가 제목을 손봐도 못 찾으면 원문을 그대로 쓴다(빈칸이 되지 않게).
@@ -7405,7 +7142,10 @@ function friOfficialChart(idx) {
     /* ★ padding-top 의 % 는 '자기 폭'이 아니라 '부모 폭' 기준이다 — 같은 칸에
        max-width 를 걸면 폭만 줄고 높이는 그대로라 1,240px 가 나왔다(실측).
        폭을 제한하는 칸을 하나 바깥에 두어야 비율이 그 폭을 따라간다. */
-    + '<div class="fri-emb__w">'
+    /* ★ 비율이 고정(1080x1080)이라 폭을 그대로 두면 세로가 1,300px 를 넘어
+       화면을 통째로 먹는다. 목표 높이에서 거꾸로 폭을 잡아 앉힌다. */
+    + '<div class="fri-emb__w" style="max-width:'
+    + Math.round(FRI_EMB_H / (r / 100)) + 'px">'
     + '<div class="fri-emb__f" style="padding-top:' + r + '%">'
     + '<iframe src="' + escapeHtml(c.url) + '"'
     + ' title="' + escapeHtml(c.caption || 'Drewry World Container Index')
@@ -7506,7 +7246,7 @@ function renderFreightHtml() {
          ★ Drewry 항로 차트는 쓰지 않는다 — 범례를 눌러도 걸러지지 않아(실측)
            고르는 기능을 줄 수 없다. 1년 흐름은 차트 아래 링크로 원본에서 본다. */
       + friWays(_friPick)
-      + (way && way.id === 'comp' ? friCompChart() : friRouteChart())
+      + (way ? friOfficialChart(way.chart) : '')
       /* ★ 왼쪽 우리말 표(항로 9개 전부), 오른쪽 항로별 미니 차트.
          영어 표 임베드는 걷어냈다 — 같은 값을 우리말 표가 그대로 싣는다. */
       + '<div class="fri-tbls">'
@@ -7564,14 +7304,14 @@ function wireFri(root) {
     const p = e.target.closest ? e.target.closest('[data-fri]') : null;
     if (p) {
       _friPick = p.getAttribute('data-fri');
-      _friOff = {}; _friWay = 'comp'; _friPickRt = ''; _friMini = '';
+      _friOff = {}; _friWay = 'comp'; _friMini = '';
       renderMaterial();
       return;
     }
     const wy = e.target.closest ? e.target.closest('[data-friway]') : null;
     if (wy) {
       _friWay = wy.getAttribute('data-friway');
-      _friPickRt = ''; _friMini = '';
+      _friMini = '';
       renderMaterial();
       return;
     }
@@ -7589,16 +7329,7 @@ function wireFri(root) {
     const ln = e.target.closest ? e.target.closest('[data-friline]') : null;
     if (ln) {
       const k = ln.getAttribute('data-friline');
-      const g2 = friGroupOf(_friPick);
-      if (g2 && g2.item.routeTable) {
-        /* ★ 항로 차트는 '끄기'가 아니라 '혼자 보기'다 — 하나를 누르면 그
-           항로만 남고 상태 설명이 붙는다. 같은 것을 다시 누르거나
-           [전체 보기]를 누르면 되돌아온다. */
-        _friPickRt = (_friPickRt === k) ? '' : k;
-        renderMaterial();
-        return;
-      }
-      /* 그 밖의 차트(SCFI·CCFI)는 종전대로 켜고 끈다. 마지막 한 줄은 지킨다. */
+      /* 선을 켜고 끈다(SCFI·CCFI). 마지막 한 줄은 지킨다 — 빈 그래프 방지. */
       const keys = friSeries(_friPick).map((x) => x.key);
       const onNow = keys.filter((x) => !_friOff[x]);
       if (!_friOff[k] && onNow.length <= 1) return;
