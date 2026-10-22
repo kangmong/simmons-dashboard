@@ -6687,7 +6687,7 @@ const FRI_GROUPS = [
        담는다 — 차트 둘이 나란히 서고 그 아래 표가 온다(탭을 두면 종합을 보다가
        항로를 보려고 한 번 더 눌러야 하는데, 둘은 같이 봐야 뜻이 산다). */
     { id: 'wci', label: 'Drewry WCI', keys: ['WCI_COMPOSITE'],
-      charts: [0, 1], routeTable: true },
+      charts: [0], routeTable: true },
   ] },
 ];
 
@@ -6943,6 +6943,172 @@ function friHeroHtml(list) {
  *    같은 주 논평에서 정확히 읽어 온 값으로 우리 표를 만든다(운임·전주 대비
  *    모두 Drewry 가 적은 그대로다).
  *  ★ 논평에 없는 복항(로테르담→상하이 등)은 넣지 않는다 — 아래 공식 표에 있다. */
+/* ── 움직임을 말로 ────────────────────────────────────────────────────
+   ★ 앞날을 점치지 않는다. 가진 점들이 어떻게 움직였는지만 적는다.
+   ★ 오르내림의 모양(계속 오름 · 내렸다 오름 …)은 점을 세어 판정한다. */
+function friShape(vals) {
+  const v = (vals || []).filter((x) => x != null);
+  if (v.length < 2) return '';
+  let up = 0, down = 0;
+  for (let i = 1; i < v.length; i++) {
+    if (v[i] > v[i - 1]) up++;
+    else if (v[i] < v[i - 1]) down++;
+  }
+  if (up && !down) return '계속 올랐습니다';
+  if (down && !up) return '계속 내렸습니다';
+  if (!up && !down) return '움직임이 없었습니다';
+  const last = v[v.length - 1] - v[v.length - 2];
+  return last > 0 ? '내렸다 다시 올랐습니다'
+    : (last < 0 ? '올랐다 다시 내렸습니다' : '오르내린 뒤 제자리입니다');
+}
+
+/** 처음 → 마지막 변화율(%). 점이 모자라면 null. */
+function friSpanPct(vals) {
+  const v = (vals || []).filter((x) => x != null);
+  if (v.length < 2 || !v[0]) return null;
+  return (v[v.length - 1] - v[0]) / v[0] * 100;
+}
+
+function friPctTag(v, suffix) {
+  if (v == null) return '';
+  const cls = v > 0 ? 'up' : (v < 0 ? 'down' : 'flat');
+  const a = v > 0 ? '▲ ' : (v < 0 ? '▼ ' : '');
+  return '<span class="fri-d fri-d--' + cls + '">' + a
+    + Math.abs(v).toFixed(Math.abs(v) % 1 ? 1 : 0) + '%</span>'
+    + (suffix ? ' ' + escapeHtml(suffix) : '');
+}
+
+/* ── 지금 어떤 상태인가 ───────────────────────────────────────────────
+   종합 지수를 한 문단으로 풀어 쓴다. 숫자는 전부 수집한 값이다. */
+function friStatusBox() {
+  const tb = _friData && _friData.wciRoutes;
+  const row = tb && (tb.rows || []).filter((r) => r.code === 'WCI-COMPOSITE')[0];
+  if (!row) return '';
+  const v = row.values, d = tb.dates;
+  const last = v[v.length - 1];
+  const up = row.weekly != null && row.weekly > 0;
+  const n = (x) => '$' + friNum(x, null);
+  const seq = d.map((x, i) => escapeHtml(x.slice(5)) + ' ' + n(v[i])).join(' → ');
+  return '<div class="fri-now">'
+    + '<div class="fri-now__h">지금 어떤 상태인가</div>'
+    + '<div class="fri-now__v">' + n(last)
+    + '<span>US$/40ft · ' + escapeHtml(d[d.length - 1]) + ' 기준</span></div>'
+    + '<ul class="fri-now__l">'
+    + '<li>전주 대비 ' + friPctTag(row.weekly, up ? '올랐습니다.' : '내렸습니다.') + '</li>'
+    + '<li>최근 3주는 <b>' + seq + '</b>로 ' + escapeHtml(friShape(v)) + '.</li>'
+    + '<li>1년 전과 견주면 ' + friPctTag(row.annual,
+      (row.annual != null && row.annual > 0) ? '높습니다.' : '낮습니다.') + '</li>'
+    + '</ul>'
+    + '<div class="fri-now__n">왼쪽 차트의 1년 흐름과 같은 지수입니다.'
+    + ' 수치는 Drewry 가 공표한 값이며, 앞날에 대한 전망은 담지 않았습니다.</div>'
+    + '</div>';
+}
+
+/* ── 항로 차트(우리가 그린다) ──────────────────────────────────────────
+   ★ Drewry 차트는 Canva 그림이라 범례를 눌러도 걸러지지 않는다(실측).
+     골라 보려면 우리가 그려야 한다. 점은 Drewry 표가 주는 3주치로 시작해
+     매주 하나씩 늘어난다.
+   ★ 색은 흰 배경에서 서로 구분되는 값으로 골랐다. */
+const FRI_RT_TONE = {
+  'WCI-SHA-RTM': '#D97706', 'WCI-RTM-SHA': '#B45309',
+  'WCI-SHA-GOA': '#0B7F5E', 'WCI-SHA-LAX': '#0891B2',
+  'WCI-LAX-SHA': '#2563EB', 'WCI-SHA-NYC': '#7C3AED',
+  'WCI-NYC-RTM': '#BE185D', 'WCI-RTM-NYC': '#64748B',
+};
+
+function friRouteRows() {
+  const tb = _friData && _friData.wciRoutes;
+  return (tb && tb.rows ? tb.rows : []).filter(
+    (r) => r.code !== 'WCI-COMPOSITE' && r.series && r.series.values.length);
+}
+
+function friRouteChart() {
+  const rows = friRouteRows();
+  if (!rows.length) return '';
+  const on = rows.filter((r) => !_friOff[r.code]);
+  const chips = '<div class="fri-lines">' + rows.map((r) =>
+    '<button class="fri-line' + (_friOff[r.code] ? '' : ' is-on') + '" type="button"'
+    + ' data-friline="' + escapeHtml(r.code) + '" aria-pressed="' + (!_friOff[r.code]) + '"'
+    + ' style="--xt:' + (FRI_RT_TONE[r.code] || 'var(--slate)') + '">'
+    + '<i aria-hidden="true"></i>' + escapeHtml(r.ko || r.name) + '</button>').join('')
+    + '</div>';
+  let body;
+  if (!on.length) {
+    body = '<div class="chart-empty">볼 항로를 하나 이상 선택하세요</div>';
+  } else {
+    const ds = Array.from(new Set([].concat.apply([],
+      on.map((r) => r.series.dates)))).sort();
+    if (ds.length < 2) {
+      body = '<div class="chart-empty">점이 모자라 선을 그릴 수 없습니다</div>';
+    } else {
+      const W = 1200, H = 300, L = 66, R = 18, T = 12, B = 30;
+      let mx = -Infinity, mn = Infinity;
+      on.forEach((r) => r.series.values.forEach((x) => {
+        if (x == null) return;
+        if (x > mx) mx = x;
+        if (x < mn) mn = x;
+      }));
+      const pad = (mx - mn) * 0.12 || Math.abs(mx) * 0.1 || 1;
+      const y0 = Math.max(0, mn - pad), y1 = mx + pad;
+      const xi = {}; ds.forEach((d, i) => { xi[d] = i; });
+      const X = (d) => L + (xi[d] / (ds.length - 1)) * (W - L - R);
+      const Y = (x) => T + (1 - (x - y0) / (y1 - y0 || 1)) * (H - T - B);
+      let grid = '';
+      for (let k = 0; k <= 4; k++) {
+        const val = y0 + (y1 - y0) * k / 4, y = Y(val);
+        grid += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="'
+          + y.toFixed(1) + '" y2="' + y.toFixed(1) + '"/>'
+          + '<text class="fri-ty" x="' + (L - 7) + '" y="' + (y + 3.5).toFixed(1)
+          + '">$' + escapeHtml(Math.round(val).toLocaleString('ko-KR')) + '</text>';
+      }
+      let xl = '';
+      ds.forEach((d, i) => {
+        const anc = i === 0 ? 'start' : (i === ds.length - 1 ? 'end' : 'middle');
+        xl += '<text class="fri-tx" text-anchor="' + anc + '" x="' + X(d).toFixed(1)
+          + '" y="' + (H - 9) + '">' + escapeHtml(d.slice(5)) + '</text>';
+      });
+      let lines = '';
+      on.forEach((r) => {
+        const pts = [];
+        r.series.dates.forEach((d, i) => {
+          if (r.series.values[i] == null || xi[d] == null) return;
+          pts.push([X(d), Y(r.series.values[i])]);
+        });
+        if (pts.length < 2) return;
+        lines += '<path class="fri-l" style="--xt:'
+          + (FRI_RT_TONE[r.code] || 'var(--slate)') + '" d="'
+          + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' '
+            + p[1].toFixed(1)).join(' ') + '"/>';
+      });
+      let hits = '';
+      const step = (W - L - R) / (ds.length - 1);
+      ds.forEach((d) => {
+        const txt = on.map((r) => {
+          const i = r.series.dates.indexOf(d);
+          return i < 0 ? null : (r.ko || r.name) + ' $' + friNum(r.series.values[i], null);
+        }).filter(Boolean);
+        if (!txt.length) return;
+        hits += '<rect class="fri-hit" x="' + (X(d) - step / 2).toFixed(1) + '" y="' + T
+          + '" width="' + Math.max(step, 2).toFixed(1) + '" height="' + (H - T - B)
+          + '" data-tip="' + escapeHtml(d + ' · ' + txt.join(' · ')) + '"/>';
+      });
+      body = '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H
+        + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+        + escapeHtml(on.map((r) => r.ko || r.name).join(', ') + ' 추이') + '">'
+        + grid + xl + lines + hits + '</svg></div>';
+    }
+  }
+  return '<figure class="fri-emb fri-rt"><figcaption class="fri-emb__c">'
+    + '항로별 운임 <span>골라서 볼 수 있습니다 · 단위 US$/40ft</span></figcaption>'
+    + chips + body
+    + '<div class="fri-emb__n">Drewry 가 공표한 항로 표의 값을 우리가 그린 것입니다.'
+    + ' 지금은 ' + (friRouteRows()[0] || { series: { dates: [] } }).series.dates.length
+    + '주치이고 매주 한 점씩 늘어납니다 · <a href="'
+    + escapeHtml((_friData && _friData.drewryUrl) || '#')
+    + '" target="_blank" rel="noopener noreferrer">1년 흐름은 원본 차트에서 \u2197</a></div>'
+    + '</figure>';
+}
+
 function friRouteTable() {
   const tb = _friData && _friData.wciRoutes;
   if (!tb || !tb.rows || !tb.rows.length) return '';
@@ -7009,8 +7175,12 @@ function friRouteMinis() {
       + '<div class="fri-mini__f"><span>최저 $' + friNum(lo, null) + '</span>'
       + '<b>$' + friNum(last, null) + '</b>'
       + '<span>최고 $' + friNum(hi, null) + '</span></div>'
+      /* ★ 그림만 두면 '그래서 어떻다는 건지'를 각자 읽어야 한다. 가진 점으로
+         말할 수 있는 것만 한 줄로 적는다(앞날은 말하지 않는다). */
+      + '<div class="fri-mini__s">' + friPctTag(friSpanPct(v), v.length + '주간')
+      + ' · ' + escapeHtml(friShape(v)) + '</div>'
       + '<div class="fri-mini__d">' + escapeHtml(d[0]) + ' ~ '
-      + escapeHtml(d[d.length - 1]) + ' · ' + v.length + '주</div>'
+      + escapeHtml(d[d.length - 1]) + '</div>'
       + '</div>';
   };
   return '<div class="fri-minis"><div class="fri-minis__h">항로별 추이'
@@ -7147,8 +7317,15 @@ function renderFreightHtml() {
       + friSummary(cut, true)
       + '<div class="fri-bar"><span class="fri-unit">단위: '
       + escapeHtml(list[0].unit) + '</span></div>'
+      /* 위: Drewry 종합 차트(1년) + 지금 상태 설명을 나란히.
+         아래: 우리가 그린 항로 차트(골라 볼 수 있다).
+         ★ Drewry 항로 차트는 뺐다 — 범례를 눌러도 걸러지지 않아(실측) 고르는
+           기능을 줄 수 없고, 같은 값을 우리 차트가 토글과 함께 싣는다.
+           1년 흐름은 우리 차트 아래 링크로 원본에서 볼 수 있다. */
       + '<div class="fri-embs">'
-      + embs.map((i) => friOfficialChart(i)).join('') + '</div>'
+      + friOfficialChart(embs[0])
+      + friStatusBox() + '</div>'
+      + friRouteChart()
       /* ★ 왼쪽 우리말 표(항로 9개 전부), 오른쪽 항로별 미니 차트.
          영어 표 임베드는 걷어냈다 — 같은 값을 우리말 표가 그대로 싣는다. */
       + '<div class="fri-tbls">'
@@ -7217,9 +7394,14 @@ function wireFri(root) {
     const ln = e.target.closest ? e.target.closest('[data-friline]') : null;
     if (ln) {
       const k = ln.getAttribute('data-friline');
-      /* 마지막 한 줄은 끄지 못하게 — 빈 그래프가 되면 볼 것이 없다 */
-      const list = friSeries(_friPick);
-      const onNow = list.filter((s) => !_friOff[s.key]);
+      /* 마지막 한 줄은 끄지 못하게 — 빈 그래프가 되면 볼 것이 없다.
+         ★ 항로 차트의 선은 wciRoutes 쪽에 있어 friSeries 로는 세어지지 않는다
+           (그대로 두면 항로를 하나도 끌 수 없었다). */
+      const g2 = friGroupOf(_friPick);
+      const keys = (g2 && g2.item.routeTable)
+        ? friRouteRows().map((r) => r.code)
+        : friSeries(_friPick).map((x) => x.key);
+      const onNow = keys.filter((x) => !_friOff[x]);
       if (!_friOff[k] && onNow.length <= 1) return;
       _friOff[k] = !_friOff[k];
       renderMaterial();

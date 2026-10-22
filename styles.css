@@ -6106,8 +6106,11 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 
 /* 차트 둘을 나란히 — 종합과 주요 항로는 같이 봐야 뜻이 산다.
    ★ 좁아지면 한 줄로 쌓는다(정사각 차트 둘을 390px 에 욱여넣을 수 없다). */
-.fri-embs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px; margin-top: 2px; }
+/* 왼쪽 Drewry 종합 차트, 오른쪽 '지금 상태' 설명.
+   ★ 차트가 정사각이라 폭이 곧 높이다 — 칸을 좁혀 세로를 줄인다. */
+.fri-embs { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+  gap: 18px; margin-top: 2px; align-items: start; }
+.fri-embs > * { min-width: 0; }
 @media (max-width: 860px) { .fri-embs { grid-template-columns: 1fr; } }
 /* 비율은 바깥 칸의 폭을 따라간다(padding-top 의 % 는 부모 폭 기준이다) */
 .fri-emb__w { margin: 0; width: 100%; }
@@ -6158,3 +6161,27 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   font-variant-numeric: tabular-nums; }
 /* 종합 줄은 표에서 굵게 — 나머지 항로와 격이 다르다 */
 .fri-tb__sum td { font-weight: 800; background: var(--field); }
+
+/* 지금 어떤 상태인가 — 차트 옆에서 말로 풀어 준다 */
+.fri-now { padding: 14px 16px; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--field); }
+.fri-now__h { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.fri-now__v { margin-top: 6px; font-size: 26px; font-weight: 800; color: var(--ink);
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.fri-now__v span { margin-left: 6px; font-size: 11.5px; font-weight: 700;
+  color: var(--slate); letter-spacing: 0; }
+.fri-now__l { margin: 10px 0 0; padding-left: 17px; }
+.fri-now__l li { margin: 5px 0; font-size: 12.5px; line-height: 1.65; color: var(--text);
+  word-break: keep-all; }
+.fri-now__l b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.fri-now__n { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--slate);
+  word-break: keep-all; }
+
+/* 우리가 그린 항로 차트 */
+.fri-rt { margin-top: 16px; }
+/* viewBox 가 1200x300 이라 칸을 그대로 채운다(높이를 못박으면 가운데로 몰린다) */
+.fri-rt .fri-chart svg { width: 100%; height: auto; }
+/* 미니 카드 한 줄 설명 */
+.fri-mini__s { margin-top: 4px; font-size: 10.5px; font-weight: 700; color: var(--slate);
+  word-break: keep-all; line-height: 1.5; }
+.fri-mini__d { margin-top: 2px; }
