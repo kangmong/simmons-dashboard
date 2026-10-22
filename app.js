@@ -4611,7 +4611,8 @@ function renderIcisHtml() {
    ★ 공용 트리 부품(treeNavHtml · .sf-tr*)을 그대로 쓰고 배치만 가로로 덮는다.
    ★ 주소(해시)는 쓰지 않는다 — setView() 가 메뉴 이름으로 덮어쓰는 자리라
      sessionStorage 에 기억한다(다른 트리와 같은 방식).
-   ★ 뿌리를 접으면 카드도 닫힌다. 고른 항목은 남아 다시 펼치면 그 자리다. */
+   ★ 뿌리를 접으면 카드도 닫힌다. 다시 펼치면 항목 버튼만 보이고, 항목을 눌러야
+     카드가 나온다(예전 선택을 되살려 카드부터 띄우지 않는다). */
 const MT_TREE_KEY = 'mtTree';
 const MT_TREE_ROOT = 'mt';
 const MT_TREE_HINT = '원자재 동향을 눌러 항목을 확인하세요';
@@ -4669,6 +4670,7 @@ function mtTreeWire(root) {
     let sel;
     if (t.hasAttribute('data-tree-root')) {
       _mtTree.open = _mtTree.open ? null : MT_TREE_ROOT;
+      _mtTree.pick = null;   // 펼치면 항목만 — 카드는 항목을 눌러야 나온다
       sel = '[data-tree-root]';
     } else {
       _mtTree.pick = t.getAttribute('data-tree-item');
@@ -16403,6 +16405,9 @@ function initUpdate() {
     // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = '';
+    /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
+       항목을 눌러야 카드가 나온다 */
+    _mtTree = { open: null, pick: null }; mtTreeSave();
     loadFreightIndex().then(renderMaterial);
     // ★ KOIMA 부문별 지수도 같은 규칙 — 갱신 뒤에도 부문을 다시 고르게 한다.
     //   (applyKoimaUpdate 에서도 비우지만, 응답이 늦거나 실패해도 이전 선택이
