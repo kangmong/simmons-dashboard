@@ -11299,8 +11299,10 @@ let _kpIns = null;
 const KP_CHART_H = 250;      // ① 차트 뷰박스 높이 — 옆 패널과 키를 맞춘다
 // 기간별 변동률을 그래프 위에 구간 자로 겹쳐 볼지 (범례 줄의 [구간 변동률] 버튼)
 let _kpSpans = true;        // (쓰지 않는다 — 구간 변동률을 걷어냈다)
-/* 현재가격 카드를 누르면 그래프에 현재값 점과 전월 대비 구간을 띄운다 */
+/* 카드를 누르면 그래프에 표시한다 — 둘은 따로 켜고 끈다.
+   현재가격 카드 → 현재값 점 · 전월대비 카드 → 전월 대비 점선 구간 */
 let _kpNow = false;
+let _kpMom = false;
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
@@ -11837,12 +11839,12 @@ function kpxSpark(rows, tone, days, opts) {
 }
 
 function kpxCard(o) {
+  const on = o.pick === 'now' ? _kpNow : (o.pick === 'mom' ? _kpMom : false);
   const pick = o.pick
-    ? ' data-kp' + o.pick + ' role="button" tabindex="0" aria-pressed="'
-      + (o.pick === 'now' ? _kpNow : false) + '"'
+    ? ' data-kp' + o.pick + ' role="button" tabindex="0" aria-pressed="' + on + '"'
     : '';
   return '<div class="ocx kpx' + (o.cls ? ' ' + o.cls : '')
-    + (o.pick ? ' kpx--pick' + (o.pick === 'now' && _kpNow ? ' is-on' : '') : '') + '"'
+    + (o.pick ? ' kpx--pick' + (on ? ' is-on' : '') : '') + '"'
     + pick + ' style="--xt:' + o.tone + '">'
     + '<div class="ocx__hd">' + kpxIcon(o.icon, o.tone)
     + '<div class="ocx__nm">'
@@ -11874,7 +11876,7 @@ function kpiSum5(cat, item, st, fc) {
     sub: escapeHtml(st.date) + ' 기준 · 전일대비 ' + matBadge(st.dom, 2),
     spark: kpxSpark(rows, KPX_TONES.now, 182),
   }) + kpxCard({
-    tone: KPX_TONES.mom, icon: 'trend', label: '전월대비', desc: '전월 대비 변동률',
+    tone: KPX_TONES.mom, icon: 'trend', label: '전월대비', desc: '전월 대비 변동률', pick: 'mom',
     /* ★ KOIMA 가 발표한 값을 수집기가 그대로 옮긴 것이다(koima_price.py 의
        dayPer/weekPer/monthPer). 우리가 계산한 값이 아니라고 밝혀 둔다. */
     def: 'KOIMA 가 함께 발표하는 변동률을 그대로 가져온 값입니다. 전일·전주·전월 '
@@ -12196,7 +12198,8 @@ function buildKpChart(rows, item, cat, hOpt, evItems, st) {
       <g class="kp-dots"></g>
       <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
       ${vizEventsSvg(evItems || [], rows.map((r) => r.date), X, padT, plotH, W)}
-      ${_kpNow ? kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) : ''}
+      ${(_kpNow || _kpMom) ? kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH,
+        { now: _kpNow, mom: _kpMom }) : ''}
     </svg>`;
 }
 
@@ -12206,7 +12209,7 @@ function buildKpChart(rows, item, cat, hOpt, evItems, st) {
  *    그래서 기준 '날짜'를 지어내지 않고, 기준 '수준'만 현재가 ÷ (1 + 변동률) 로
  *    역산해 가로 점선으로 긋는다 — 표의 % 와 그림이 정확히 맞는다.
  *    가로 점선은 마지막 한 달 폭에 걸쳐 둔다('한 달 전 어딘가'라는 뜻). */
-function kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) {
+function kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, show) {
   let li = -1;
   for (let i = rows.length - 1; i >= 0; i--) if (rows[i].price != null) { li = i; break; }
   if (li < 0) return '';
@@ -12216,9 +12219,9 @@ function kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) {
   const right = cx > padL + plotW - 120;
   let out = '';
 
-  // 전월 대비 — 기준 수준(역산)과 현재를 잇는 점선 구간
+  // 전월 대비 — 기준 수준(역산)과 현재를 잇는 점선 구간(전월대비 카드를 눌렀을 때만)
   const mom = st && st.mom;
-  if (mom != null && isFinite(mom) && mom > -100) {
+  if (show.mom && mom != null && isFinite(mom) && mom > -100) {
     const base = cur / (1 + mom / 100);
     const by = clampY(base);
     /* 마지막 한 달 — 마지막 날짜에서 한 달 전 이후의 첫 칸 */
@@ -12240,8 +12243,8 @@ function kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) {
       + `전월 대비 ${up ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</text>`;
   }
 
-  // 현재값 점 + 값
-  out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.6" fill="var(--accent)" stroke="#fff" stroke-width="2.2"/>`
+  // 현재값 점 + 값(현재가격 카드를 눌렀을 때만)
+  if (show.now) out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.6" fill="var(--accent)" stroke="#fff" stroke-width="2.2"/>`
     + `<text x="${(right ? cx - 9 : cx + 9).toFixed(1)}" y="${(cy - 9).toFixed(1)}"`
     + ` text-anchor="${right ? 'end' : 'start'}" font-size="12" font-weight="800" fill="var(--ink)"`
     + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.2">`
@@ -12313,6 +12316,8 @@ function wireKpControls(root) {
   fig.addEventListener('click', (e) => {
     const nw = e.target.closest && e.target.closest('[data-kpnow]');
     if (nw) { _kpNow = !_kpNow; renderMaterial(); return; }
+    const mo = e.target.closest && e.target.closest('[data-kpmom]');
+    if (mo) { _kpMom = !_kpMom; renderMaterial(); return; }
     const b = e.target.closest && e.target.closest('[data-kp-spans]');
     if (!b) return;
     _kpSpans = !_kpSpans;
@@ -12322,7 +12327,9 @@ function wireKpControls(root) {
   fig.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const nw = e.target.closest && e.target.closest('[data-kpnow]');
-    if (nw) { e.preventDefault(); _kpNow = !_kpNow; renderMaterial(); }
+    if (nw) { e.preventDefault(); _kpNow = !_kpNow; renderMaterial(); return; }
+    const mo = e.target.closest && e.target.closest('[data-kpmom]');
+    if (mo) { e.preventDefault(); _kpMom = !_kpMom; renderMaterial(); }
   });
   const chipsEl = fig.querySelector('.kp-ranges');
   if (chipsEl) chipsEl.addEventListener('click', (e) => {
