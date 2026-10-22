@@ -6189,6 +6189,10 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-way__b:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .fri-way__d { margin: 8px 0 0; font-size: 12px; line-height: 1.6;
   font-weight: 700; color: var(--ink); word-break: keep-all; }
+/* 설명의 핵심 구절 — 노란 형광펜. 글자는 진한 남색이라 대비가 충분하다 */
+.fri-way__em { padding: 1px 1px 1px 3px; border-radius: 3px; background: #FFE066;
+  color: var(--navy); font-weight: 800; box-decoration-break: clone;
+  -webkit-box-decoration-break: clone; }
 
 /* 항로 칩 — 하나를 고르면 나머지는 흐려진다 */
 .fri-line--all { color: var(--navy); font-weight: 800; }

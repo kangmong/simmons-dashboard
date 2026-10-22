@@ -6853,10 +6853,12 @@ const FRI_GROUPS = [
     { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
       ways: [
         { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', chart: 0,
-          desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.' },
+          desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.',
+          em: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표' },
         { id: 'route', label: 'SCFI(상하이 컨테이너 운임지수)', chart: 1,
           desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
-            + ' 있는지 네 항로를 한 그림에서 견줍니다.' },
+            + ' 있는지 네 항로를 한 그림에서 견줍니다.',
+          em: '상하이에서 출발하는 항로별 운임' },
       ] },
   ] },
 ];
@@ -7466,7 +7468,18 @@ function friWays(id) {
     '<div class="fri-way' + (w.id === _friWay ? ' is-on' : '') + '">'
     + '<button class="fri-way__b" type="button" data-friway="' + escapeHtml(w.id) + '"'
     + ' aria-pressed="' + (w.id === _friWay) + '">' + escapeHtml(w.label) + '</button>'
-    + '<p class="fri-way__d">' + escapeHtml(w.desc) + '</p></div>').join('') + '</div>';
+    + '<p class="fri-way__d">' + friWayDesc(w) + '</p></div>').join('') + '</div>';
+}
+
+/* 설명 한 줄 — em 구절만 노란 형광펜으로 칠한다(밝은 바탕이라 노란 글자는 읽히지 않는다).
+   구절을 못 찾으면 강조 없이 그대로 쓴다. */
+function friWayDesc(w) {
+  const esc = escapeHtml(w.desc);
+  const key = w.em ? escapeHtml(w.em) : '';
+  const i = key ? esc.indexOf(key) : -1;
+  if (i < 0) return esc;
+  return esc.slice(0, i) + '<mark class="fri-way__em">' + key + '</mark>'
+    + esc.slice(i + key.length);
 }
 
 function friWayOf(id) {
