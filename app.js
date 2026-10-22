@@ -7348,7 +7348,7 @@ function friRouteMinis() {
       + (open ? '<div class="fri-mini__s">' + friMiniWords(r) + '</div>' : '')
       + '</button>';
   };
-  return '<div class="fri-minis"><div class="fri-minis__h">항로별 추이'
+  return '<div class="fri-minis"><div class="fri-minis__h">상하이발 항로별 추이'
     + ' <span>WCI BY ROUTE · 단위 US$/40ft</span></div>'
     + '<div class="fri-minis__g">' + rows.map(card).join('') + '</div></div>';
 }
