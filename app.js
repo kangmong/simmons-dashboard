@@ -7482,6 +7482,57 @@ function friWayDesc(w) {
     + esc.slice(i + key.length);
 }
 
+/** WCI 그래프 오른쪽 '지금 흐름' 두 줄 — 처음 보는 사람도 읽히게.
+ *  ★ 문장은 매주 들어오는 값으로 만든다(지어내지 않는다).
+ *    1줄: 최신값(원화)  2줄: 지난주 대비(Drewry 표 값)·연속 주수(우리 점으로 셈)·
+ *    1년 전 대비(Drewry 표 값). 값이 없는 조각은 빼고 말한다. */
+function friCompNote() {
+  const tb = _friData && _friData.wciRoutes;
+  const row = tb && (tb.rows || []).filter((r) => r.code === 'WCI-COMPOSITE')[0];
+  const v = row && row.series && row.series.values;
+  if (!v || !v.length) return '';
+  const cur = v[v.length - 1];
+  const krw = krwOf(cur);
+  const l1 = '지금 컨테이너 한 개(40ft)를 배로 보내는 데 평균 <b>$'
+    + escapeHtml(Math.round(cur).toLocaleString('ko-KR')) + '</b>'
+    + (krw ? '(' + escapeHtml(krw.replace('\u2248', '약').trim()) + ')' : '') + '가 듭니다.';
+
+  const wk = isFinite(row.weekly) ? row.weekly
+    : (v.length >= 2 && v[v.length - 2] ? (cur / v[v.length - 2] - 1) * 100 : null);
+  const yr = isFinite(row.annual) ? row.annual : null;
+  /* 2줄 — 1년 비교가 뒤에 붙으면 '…고,' 로 잇고, 없으면 거기서 끝낸다 */
+  const more = yr != null;
+  let l2 = '';
+  if (wk != null) {
+    const up = wk > 0;
+    let k = 0;                         // 같은 방향으로 몇 주째인지(가진 점으로만 센다)
+    for (let i = v.length - 1; i > 0; i--) {
+      const dlt = v[i] - v[i - 1];
+      if (wk !== 0 && dlt !== 0 && (dlt > 0) === up) k += 1; else break;
+    }
+    const pct = '<b>' + Math.abs(wk).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '% ';
+    if (wk === 0) l2 = more ? '지난주와 같고, ' : '지난주와 같습니다.';
+    else if (k >= 2) {
+      l2 = '지난주보다 ' + pct + (up ? '올라' : '내려') + '</b> ' + k + '주 연속 '
+        + (up ? '오름세' : '내림세') + (more ? '이고, ' : '입니다.');
+    } else {
+      l2 = '지난주보다 ' + pct + (up ? (more ? '올랐고' : '올랐습니다') : (more ? '내렸고' : '내렸습니다'))
+        + '</b>' + (more ? ', ' : '.');
+    }
+  }
+  if (more) {
+    l2 += yr >= 100
+      ? '1년 전의 <b>약 ' + (1 + yr / 100).toFixed(1) + '배</b> 수준입니다.'
+      : '1년 전보다 <b>' + Math.abs(yr).toFixed(0) + '% ' + (yr >= 0 ? '비싼' : '싼')
+        + '</b> 수준입니다.';
+  }
+  return '<aside class="fri-note" aria-label="지금 흐름">'
+    + '<span class="fri-note__h">지금 흐름 · ' + escapeHtml((row.series.dates || []).slice(-1)[0] || '') + '</span>'
+    + '<p>' + l1 + '</p>'
+    + (l2 ? '<p>' + l2 + '</p>' : '')
+    + '</aside>';
+}
+
 function friWayOf(id) {
   const g = friGroupOf(id);
   const ws = (g && g.item.ways) || [];
@@ -7556,6 +7607,7 @@ function renderFreightHtml() {
     return wrap(head + friPicker() + friWays(_friPick)
       + '<div class="fri-slot fri-slot--comp">'
       + friOfficialChart(way.chart, friDotOverlay('comp', 'WCI-COMPOSITE'))
+      + friCompNote()
       + '</div>'
       + krwNote('USD')
       + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
