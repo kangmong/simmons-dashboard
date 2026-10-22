@@ -4,12 +4,11 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-10-21T21:53:15+09:00",
+ "generatedAt": "2026-10-22T21:55:53+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
   "1d": [
-   ["2025-10-21", 28000.0, 28100.0, 27500.0, 27700.0, 24611],
    ["2025-10-22", 27650.0, 27700.0, 27150.0, 27500.0, 31351],
    ["2025-10-23", 27450.0, 27550.0, 27050.0, 27150.0, 19424],
    ["2025-10-24", 27200.0, 27200.0, 26750.0, 26800.0, 35357],
@@ -253,10 +252,11 @@
    ["2026-10-16", 31500.0, 31800.0, 31350.0, 31750.0, 2307],
    ["2026-10-19", 31750.0, 32150.0, 31200.0, 31900.0, 2358],
    ["2026-10-20", 31900.0, 32100.0, 31550.0, 32100.0, 925],
-   ["2026-10-21", 32050.0, 32100.0, 31900.0, 32000.0, 543]
+   ["2026-10-21", 32050.0, 32100.0, 31900.0, 32000.0, 541],
+   ["2026-10-22", 32000.0, 32500.0, 31750.0, 31800.0, 1371]
   ],
   "1wk": [
-   ["2021-10-17", 47700.0, 47850.0, 45550.0, 45700.0, 3313],
+   ["2021-10-17", 46000.0, 46800.0, 45550.0, 45700.0, 1309],
    ["2021-10-24", 46000.0, 47700.0, 45450.0, 47600.0, 3352],
    ["2021-10-31", 48000.0, 48200.0, 46900.0, 47850.0, 4615],
    ["2021-11-07", 47600.0, 47600.0, 45300.0, 46050.0, 5500],
@@ -517,8 +517,8 @@
    ["2026-09-27", 32250.0, 32800.0, 31850.0, 32050.0, 8185],
    ["2026-10-04", 32000.0, 32350.0, 31700.0, 31700.0, 5687],
    ["2026-10-11", 32550.0, 32550.0, 31000.0, 31750.0, 19263],
-   ["2026-10-18", 31750.0, 32150.0, 31200.0, 32100.0, 3283],
-   ["2026-10-21", 32050.0, 32100.0, 31900.0, 32000.0, 543]
+   ["2026-10-18", 31750.0, 32150.0, 31200.0, 32000.0, 3824],
+   ["2026-10-22", 32000.0, 32500.0, 31750.0, 31800.0, 1371]
   ],
   "1mo": [
    ["2016-10-31", 30220.0, 32800.0, 29640.0, 31000.0, 27265],
@@ -640,8 +640,8 @@
    ["2026-06-30", 32350.0, 33500.0, 31000.0, 32550.0, 102722],
    ["2026-07-31", 32200.0, 33850.0, 30900.0, 33050.0, 50609],
    ["2026-08-31", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
-   ["2026-09-30", 32400.0, 32600.0, 31000.0, 32100.0, 32590],
-   ["2026-10-21", 32050.0, 32100.0, 31900.0, 32000.0, 543]
+   ["2026-09-30", 32400.0, 32600.0, 31000.0, 32000.0, 33131],
+   ["2026-10-22", 32000.0, 32500.0, 31750.0, 31800.0, 1371]
   ]
  },
  "candleFormat": [
@@ -682,13 +682,13 @@
   }
  ],
  "quote": {
-  "now": 32000.0,
-  "prev": 32100.1525,
-  "change": -100.1525,
-  "changePct": -0.312,
-  "changePctMeta": -0.312,
-  "changePctSeries": -0.3115,
-  "asOf": "2026-10-21 06:30"
+  "now": 31800.0,
+  "prev": 32000.0,
+  "change": -200.0,
+  "changePct": -0.625,
+  "changePctMeta": -0.625,
+  "changePctSeries": -0.625,
+  "asOf": "2026-10-22 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -707,18 +707,18 @@
    "ceo": "Mr. Sung-Ho  Ahn (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 31900.0,
-   "dayHigh": 32100.0,
+   "dayLow": 31750.0,
+   "dayHigh": 32500.0,
    "week52Low": 26400.0,
    "week52High": 39850.0,
-   "marketCap": 337822253056.0,
-   "volume": 543,
-   "avgVolume": 2460,
-   "avgVolume10": 2823
+   "marketCap": 335710846976.0,
+   "volume": 1371,
+   "avgVolume": 2450,
+   "avgVolume10": 2707
   },
   "valuation": {
-   "psr": 1.026108,
-   "dividendYield": 0.0717,
+   "psr": 1.019694,
+   "dividendYield": 0.0719,
    "dividendRate": 2300.0,
    "payoutRatio": 0.397,
    "beta": 0.355,
@@ -726,8 +726,8 @@
    "operatingMargin": 0.19604,
    "revenue": 329226911744.0,
    "revenueGrowth": 0.109,
-   "change52w": 0.167273,
-   "ma50": 32535.0
+   "change52w": 0.178637,
+   "ma50": 32515.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -735,12 +735,6 @@
   }
  },
  "news": [
-  {
-   "title": "에이스침대 투자분석 2026. 10. 04",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5LYTJpdmJTUXg5SkM0UVBJdzMyLW9JYlZSMXBfakhicjBxOWt4WHVTcnFzTnhiTGduRWlmOVM1a1U5LW1mT2V3aUkxSy14MVdOVkhqUDZUdzdONHFzSWJLTmhxRm0wMXhGRGpzRWVNNi1LQTQ?oc=5",
-   "media": "주달",
-   "published": "Sun, 04 Oct 2026 07:00:00 GMT"
-  },
   {
    "title": "에이스침대, 스포츠토토 투자 5년…성과 못 내고 잔여 가치도 '뚝'",
    "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFBlZTJPWFBSTnBTa1BWNjNaR2UydzNvUXA5TVdtRXNaRjNCNlV4cmplRUdhSnpsTXpGZXlGYzVxSThPRVBrQVI1d3d4NEtqVjdo?oc=5",
@@ -758,6 +752,12 @@
    "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
    "media": "뉴스핌",
    "published": "Wed, 04 Feb 2026 08:00:00 GMT"
+  },
+  {
+   "title": "에이스침대 투자분석 2026. 10. 04",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5LYTJpdmJTUXg5SkM0UVBJdzMyLW9JYlZSMXBfakhicjBxOWt4WHVTcnFzTnhiTGduRWlmOVM1a1U5LW1mT2V3aUkxSy14MVdOVkhqUDZUdzdONHFzSWJLTmhxRm0wMXhGRGpzRWVNNi1LQTQ?oc=5",
+   "media": "주달",
+   "published": "Sun, 04 Oct 2026 07:00:00 GMT"
   }
  ]
 }
