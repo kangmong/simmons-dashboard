@@ -6669,20 +6669,18 @@ const FRI_TONE = {
      맨 아래 한 줄이 기관명·원 발표 기관·원본 링크까지 모두 밝힌다. */
 const FRI_GROUPS = [
   { src: '', items: [
-    /* ★ 단추는 하나다. 누르면 두 갈래(WCI · SCFI)가 나오고, 갈래를 눌러야
-       그래프가 나온다 — 업데이트 직후에는 단추만 보인다.
-       ★ 두 번째 갈래는 '상하이발 항로(Drewry)'가 아니라 진짜 SCFI 다.
-         둘은 다른 지수다(SCFI 는 상하이항운교역연구소 발표). 이름을 SCFI 로
-         바꾸면서 내용도 SCFI 로 맞췄다 — 이름만 바꾸면 Drewry 값을 SCFI 라고
-         부르게 된다. Drewry 항로별 값은 WCI 갈래의 표·미니 차트에 그대로 있다. */
+    /* ★ 단추는 하나다. 누르면 두 갈래가 나오고, 갈래를 눌러야 그래프가
+       나온다 — 업데이트 직후에는 단추만 보인다.
+       ★ 두 번째 갈래의 그래프는 Drewry 상하이발 4개 항로 차트다(이름은 사용자
+         지정에 따라 SCFI). 항로를 눌러 하나만 볼 수 있다. */
     { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
       ways: [
         { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', chart: 0,
           desc: '전 세계 주요 항로 운임을 하나로 묶은 값입니다. 해상 운임이'
             + ' 전체적으로 오르내리는지 여기서 먼저 봅니다.' },
-        { id: 'scfi', label: 'SCFI(상하이 컨테이너 운임지수)', keys: ['SCFI'],
-          desc: '상하이에서 출발하는 컨테이너 운임을 지수로 만든 값입니다.'
-            + ' 아시아 수출 운임이 어떻게 움직이는지 봅니다.' },
+        { id: 'route', label: 'SCFI(상하이 컨테이너 운임지수)', chart: 1,
+          desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
+            + ' 있는지 네 항로를 한 그림에서 견줍니다.' },
       ] },
   ] },
 ];
@@ -7050,7 +7048,8 @@ function friOneRoute(code) {
       + '" r="' + (last ? 6 : 4) + '"/>'
       + (last ? '<text class="fri-cv fri-cv--last" text-anchor="end" x="'
         + (pts[i][0] - 10).toFixed(1) + '" y="' + (pts[i][1] - 12).toFixed(1) + '">$'
-        + escapeHtml(Math.round(x).toLocaleString('ko-KR')) + '</text>' : '')
+        + escapeHtml(Math.round(x).toLocaleString('ko-KR'))
+        + (krwOf(x) ? ' (' + escapeHtml(krwOf(x)) + ')' : '') + '</text>' : '')
       + '<text class="fri-cx" x="' + pts[i][0].toFixed(1) + '" y="' + (H - 12) + '">'
       + escapeHtml(d[i].slice(5)) + '</text>';
   });
@@ -7364,27 +7363,19 @@ function renderFreightHtml() {
       + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
   }
 
-  /* ── SCFI — 우리가 그린 차트(2014년~, 기간·표 보기). 단추와 같은 오른쪽 칸에 ── */
+  /* ── SCFI 갈래 — 수정 전 그래프 그대로: Drewry 상하이발 4개 항로 원본 차트.
+     항로 단추를 누르면 그 항로만(세로축 $0~$12,000, 확대하지 않는다).
+     단추와 같은 오른쪽 칸에 둔다. ── */
   const list = friSeries(_friPick);
-  if (!list.length) {
-    return wrap(head + friPicker() + friWays(_friPick)
-      + '<div class="chart-empty">이 지수는 아직 수집된 값이 없습니다</div>');
-  }
-  const cut = list.map((x) => friCut(x, _friSpan));
-  const bar = '<div class="fri-bar"><span class="fri-unit">단위: '
-    + escapeHtml(list[0].unit) + '</span>'
-    + '<div class="fri-spans">' + FRI_SPANS.map((sp) =>
-      '<button class="fri-span' + (sp.id === _friSpan ? ' is-on' : '') + '" type="button"'
-      + ' data-frispan="' + sp.id + '">' + escapeHtml(sp.label) + '</button>').join('')
-    + '<button class="fri-span fri-span--t' + (_friTable ? ' is-on' : '') + '" type="button"'
-    + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div></div>';
   return wrap(head + friPicker() + friWays(_friPick)
     + '<div class="fri-slot fri-slot--scfi"><div>'
-    + friSummary(cut, false) + bar
-    + (_friTable ? friTableHtml(cut) : friChart(cut))
+    + friRoutePicks()
+    + (_friOne ? friOneRoute(_friOne) : friOfficialChart(way.chart))
     + '</div></div>'
-    + warn + friSourceHtml(cut));
+    + krwNote('USD')
+    + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
 }
+
 
 /** 값이 없는 묶음(항로별 운임 표)용 출처 줄. */
 function friSourceDrewry() {
