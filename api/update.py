@@ -178,6 +178,15 @@ def _decode_gnews_url(link, timeout=15, _retry=1):
 _CANONICAL_RE = re.compile(
     r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', re.I)
 
+# ★ <meta http-equiv="refresh" content="0;url=..."> 로 한 번 더 넘기는 중간 페이지.
+#   requests 는 HTTP 3xx 는 따라가지만 meta refresh 는 따라가지 않는다. 경북신문
+#   (kbsm.net)이 그랬다 — 구글이 준 주소를 열면 본문이 89바이트짜리 이 태그 한 줄
+#   뿐이라 og:image 도 canonical 도 없어 사진을 못 찾고 카드가 워드마크로 남았다.
+#   진짜 주소(/news/view.php?idx=…)에는 og:image 가 멀쩡히 있다.
+_META_REFRESH_RE = re.compile(
+    r'<meta[^>]+http-equiv=["\']?refresh["\']?[^>]*content=["\'][^"\']*?url\s*=\s*([^"\'\s>]+)',
+    re.I)
+
 
 def _https_img(url):
     """이미지 주소를 https 로 올린다.
@@ -230,10 +239,11 @@ def _img_from_html(html, base_url):
 def _page_image(page_url, timeout=8, _depth=0):
     """기사 페이지 대표 이미지: og:image → twitter:image → link[image_src] → 본문 첫 큰 이미지.
 
-    ★ 못 찾으면 rel="canonical" 을 한 번만 따라간다. Google News 가 주는 주소가
-      AMP 판(articleViewAmp.html)인 경우가 있는데, AMP 판에는 og:image 가 아예
-      없고 정규 주소에는 있다(인사이트코리아 기사에서 실제로 그랬다:
-      AMP 11KB·이미지 없음 / 정규 197KB·og:image 있음).
+    ★ 못 찾으면 두 가지를 한 번씩만 따라가 본다(둘 다 _depth 로 한 번만 막는다).
+      · meta refresh — 본문 없이 주소만 넘기는 중간 페이지(경북신문 kbsm.net).
+      · rel="canonical" — Google News 가 주는 주소가 AMP 판(articleViewAmp.html)
+        인 경우. AMP 판에는 og:image 가 없고 정규 주소에는 있다(인사이트코리아:
+        AMP 11KB·이미지 없음 / 정규 197KB·og:image 있음).
     """
     if not page_url or not page_url.startswith("http"):
         return None
@@ -248,12 +258,17 @@ def _page_image(page_url, timeout=8, _depth=0):
     if img:
         return _https_img(img)
 
-    if _depth == 0:                       # 정규 주소로 딱 한 번만 더 가 본다
-        m = _CANONICAL_RE.search(html)
-        if m:
-            canon = urllib.parse.urljoin(page_url, m.group(1).strip())
-            if canon.startswith("http") and canon != page_url:
-                return _page_image(canon, timeout=timeout, _depth=1)
+    if _depth == 0:                       # 다음 주소로 딱 한 번만 더 가 본다
+        # meta refresh 를 먼저 본다 — 이게 있으면 이 페이지는 본문이 아니다.
+        for rx in (_META_REFRESH_RE, _CANONICAL_RE):
+            m = rx.search(html)
+            if not m:
+                continue
+            nxt = urllib.parse.urljoin(page_url, m.group(1).strip().strip("'\""))
+            if nxt.startswith("http") and nxt != page_url:
+                got = _page_image(nxt, timeout=timeout, _depth=1)
+                if got:
+                    return got
     return None
 
 
