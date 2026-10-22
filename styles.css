@@ -6276,3 +6276,26 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-dot__v small { display: block; margin-top: 1px; font-size: 10px; font-weight: 700;
   opacity: .9; text-align: center; }
 .fri-dot__v--left { text-align: center; }
+
+/* ── ICIS — 원료를 고르면 최신값 점 · 주요 이슈를 누르면 그 해 표시 ── */
+.ii-now { display: none; }
+.icis-figure.is-iipick .ii-s.is-on .ii-now { display: inline; }
+.ii-evhl { fill: var(--navy); opacity: 0; transition: opacity .15s; pointer-events: none; }
+.ii-evln { stroke: var(--navy); stroke-width: 1.4; stroke-dasharray: 4 3; opacity: 0;
+  pointer-events: none; }
+.ii-evtx { font-size: 11px; font-weight: 800; fill: var(--navy); opacity: 0;
+  paint-order: stroke; stroke: var(--surface-1); stroke-width: 3; pointer-events: none; }
+.icis-svg.is-evhl .ii-evhl { opacity: .08; }
+.icis-svg.is-evhl .ii-evln, .icis-svg.is-evhl .ii-evtx { opacity: 1; }
+.ii-ev__c.is-pick { cursor: pointer; transition: border-color .14s, box-shadow .14s; }
+.ii-ev__c.is-pick:hover { border-color: var(--slate); }
+.ii-ev__c.is-pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ii-ev__c.is-on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+
+/* ── 일일 국제원자재가격 — 오른쪽 표를 걷어 그래프가 폭을 다 쓴다 ── */
+.kp-solo .koima-row { grid-template-columns: minmax(0, 1fr); }
+/* 현재가격 카드는 누를 수 있다 — 누르면 그래프에 현재값과 전월 대비 구간 */
+.kpx--pick { cursor: pointer; transition: box-shadow .14s, border-color .14s; }
+.kpx--pick:hover { border-color: var(--slate); }
+.kpx--pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.kpx--pick.is-on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }

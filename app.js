@@ -3846,7 +3846,7 @@ function iiEventList(periods) {
     const a = msMonthNo(r[0]), b = msMonthNo(r[1]);
     if (a == null || b == null) return;
     if (Math.max(a, lo) > Math.min(b, hi)) return;      // 보이는 구간과 안 겹친다
-    out.push({ sort: r[0], when: iiEventWhen(raw), title: t,
+    out.push({ sort: r[0], from: r[0], to: r[1], when: iiEventWhen(raw), title: t,
       desc: String(desc || '').trim(), what: String(what || '').trim(),
       url: safeUrl(url) || '' });
   };
@@ -3873,7 +3873,13 @@ function evPanelHtml(title, list, emptyText) {
       const head = e.url
         ? '<a class="ii-ev__t" href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener noreferrer">' + t + '</a>'
         : '<b class="ii-ev__t">' + t + '</b>';
-      return '<div class="ii-ev__c"' + (e.what ? ' title="' + escapeHtml(e.what) + '"' : '') + '>'
+      /* 기간이 있으면 눌러서 그래프에 표시할 수 있다(ICIS) */
+      const pick = e.from
+        ? ' data-evfrom="' + escapeHtml(e.from) + '" data-evto="' + escapeHtml(e.to || e.from)
+          + '" data-evtitle="' + escapeHtml(e.title) + '" role="button" tabindex="0"'
+        : '';
+      return '<div class="ii-ev__c' + (e.from ? ' is-pick' : '') + '"' + pick
+        + (e.what ? ' title="' + escapeHtml(e.what) + '"' : '') + '>'
         + '<span class="ii-ev__d">' + escapeHtml(e.when) + '</span>'
         + head
         + (e.desc ? '<span class="ii-ev__s">' + escapeHtml(e.desc) + '</span>' : '')
@@ -3882,6 +3888,46 @@ function evPanelHtml(title, list, emptyText) {
     : '<div class="ii-ev__empty">' + escapeHtml(emptyText) + '</div>';
   return '<div class="ii-panel ii-ev">'
     + '<h3 class="subhead ii-h">' + escapeHtml(title) + '</h3>' + body + '</div>';
+}
+
+/** 주요 이슈 한 장을 누르면 그 사건이 있던 '해'를 그래프 위에 칠한다.
+ *  ★ 확대하지 않는다 — 축과 보는 기간은 그대로 두고, 그 해에 해당하는 칸만
+ *    옅게 칠하고 사건이 시작된 달에 세로 점선과 제목을 단다.
+ *  ★ 같은 카드를 다시 누르면 지운다. */
+function iiShowEventYear(fig, card) {
+  const svg = fig.querySelector('.icis-svg');
+  const c = _icisChart;
+  if (!svg || !c || !c.geom) return;
+  const hl = svg.querySelector('.ii-evhl'), ln = svg.querySelector('.ii-evln');
+  const tx = svg.querySelector('.ii-evtx');
+  const was = card.classList.contains('is-on');
+  fig.querySelectorAll('.ii-ev__c.is-on').forEach((x) => x.classList.remove('is-on'));
+  if (was) { svg.classList.remove('is-evhl'); return; }
+
+  const from = card.getAttribute('data-evfrom'), to = card.getAttribute('data-evto') || from;
+  const y0 = from.slice(0, 4), y1 = to.slice(0, 4);
+  const ps = c.periods.slice(0, c.extFrom || c.periods.length);
+  const idx = [];
+  ps.forEach((p, i) => { const y = p.slice(0, 4); if (y >= y0 && y <= y1) idx.push(i); });
+  if (!idx.length) return;                    // 보이는 기간 밖 — 칠할 곳이 없다
+  const X = c.geom.X;
+  const step = ps.length > 1 ? (X(1) - X(0)) : 0;
+  const a = X(idx[0]) - step / 2, b = X(idx[idx.length - 1]) + step / 2;
+  const left = Math.max(c.geom.padL, a);
+  hl.setAttribute('x', left.toFixed(1));
+  hl.setAttribute('width', Math.max(0, b - left).toFixed(1));
+  /* 사건이 시작된 달 — 그 달이 보이면 세로 점선, 아니면 칠한 칸의 왼쪽 끝 */
+  let k = ps.indexOf(from.slice(0, 7));
+  if (k < 0) k = idx[0];
+  const lx = X(k);
+  ln.setAttribute('x1', lx.toFixed(1)); ln.setAttribute('x2', lx.toFixed(1));
+  const nearR = lx > c.geom.W - 160;
+  tx.setAttribute('x', (nearR ? lx - 5 : lx + 5).toFixed(1));
+  tx.setAttribute('text-anchor', nearR ? 'end' : 'start');
+  tx.textContent = (y0 === y1 ? y0 + '년' : y0 + '~' + y1 + '년') + ' · '
+    + (card.getAttribute('data-evtitle') || '');
+  svg.classList.add('is-evhl');
+  card.classList.add('is-on');
 }
 
 /** 스폰지 주원료 — 주요 이슈 */
@@ -4610,14 +4656,7 @@ function buildIcisChart(periods, series, ext) {
      ★ 달의 '점'이 아니라 그 달이 차지하는 폭(앞뒤 반 칸)을 칠한다. */
   const step = (n > 1) ? (X(1) - X(0)) : plotW;
   const surge = iiSurgeMonths(periods);
-  const bands = surge.map((m) => {
-    const x0 = Math.max(padL, X(m.i) - step / 2);
-    const x1 = Math.min(padL + plotW, X(m.i) + step / 2);
-    const one = m.keys.length === 1;
-    return `<rect x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(0, x1 - x0).toFixed(1)}"
-      height="${plotH}" fill="${one ? m.keys[0].color : II_SURGE_MULTI}"
-      opacity="${one ? '.11' : '.09'}"/>`;
-  }).join('');
+  /* 급등 달은 색 띠로 칠하지 않는다(툴팁만 surgeAt 으로 알려 준다). */
 
   // ── ① 추세 연장: 옅은 음영 띠 + 점선. 마지막 실측점에서 이어 그린다. ──
   //    ★ 원료별로 따로 담는다 — 아래에서 그 원료의 <g> 안에 넣어야 강조·흐림이
@@ -4698,8 +4737,26 @@ function buildIcisChart(periods, series, ext) {
        같은 층에 두면 사건 글자('美 텍사스 한파' 등)가 라벨을 덮어 'MDI' 처럼
        앞 글자만 보였다. 묶음 클래스(ii-s·data-k)는 그대로라 선택 강조·흐림은
        선과 똑같이 따라 움직인다. */
-    if (mm) {
-      mmLayer.push(`<g class="ii-s${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">${mm}</g>`);
+    /* ★ 최신값 — 그 원료를 고르면 마지막 실측 점에 큰 점과 값을 띄운다.
+       평소에는 숨긴다(네 원료의 숫자가 한 자리에 겹치면 읽을 수 없다). */
+    let now = '';
+    for (let i = s.values.length - 1; i >= 0; i--) {
+      const v = s.values[i];
+      if (v == null) continue;
+      const x = X(i), y = Y(v);
+      const nearR = x > padL + plotW - 70;
+      const ly = (y - 12 < padT + 8) ? y + 18 : y - 12;
+      now = `<g class="ii-now">`
+        + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="${s.color}" stroke="#fff" stroke-width="2.4"/>`
+        + `<text x="${(nearR ? x - 9 : x).toFixed(1)}" y="${ly.toFixed(1)}"`
+        + ` text-anchor="${nearR ? 'end' : 'middle'}" font-size="12" font-weight="800"`
+        + ` fill="${s.color}" paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.2">`
+        + escapeHtml(s.key + ' ' + Math.round(v).toLocaleString('en-US') + ' · '
+          + (singleYear ? periods[i].slice(5) + '월' : periods[i])) + '</text></g>';
+      break;
+    }
+    if (mm || now) {
+      mmLayer.push(`<g class="ii-s${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">${mm}${now}</g>`);
     }
     return `<g class="ii-s${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}">`
       + `${extByKey[s.key] || ''}${line}${dot}</g>`;
@@ -4718,8 +4775,9 @@ function buildIcisChart(periods, series, ext) {
   // 범례 항목만 만들고 감싸는 것은 return 에서 한 번만 한다(예전엔 여기서 감쌌다)
   const legend = series.map((s) => `<button type="button" class="viz-legend__item ii-legend-pick${_iiPick === s.key ? ' is-on' : ''}" data-k="${escapeHtml(s.key)}" aria-pressed="${_iiPick === s.key}"><span class="viz-legend__swatch" style="background:${s.color}"></span>${s.key}</button>`).join('')
     + (ext && exP.length ? `<span class="viz-legend__item ii-legend-ext"><span class="ii-legend-dash"></span>추세 연장(추정)</span>` : '')
-    /* ★ 기준을 코드에 숨기지 않는다 — 띠가 그려진 화면에는 그 기준이 함께 적힌다. */
-    + (surge.length ? `<span class="viz-legend__item ii-legend-surge"><span class="ii-legend-band"></span>배경 강조 = 전월 대비 +${II_SURGE_PCT}% 이상 상승</span>` : '');
+    /* ★ 급등 구간 색 띠는 걷어냈다 — 원료 색으로 배경을 칠하니 선과 색이 겹쳐
+       어느 것이 값인지 읽기 어려웠다. 급등 달은 툴팁에서만 알려 준다. */
+    + '';
   // 툴팁은 늘어난 축 전체를 본다. extFrom 뒤는 추정치라고 밝힌다.
   const surgeAt = {};
   surge.forEach((m) => { surgeAt[m.i] = m.keys; });
@@ -4728,7 +4786,10 @@ function buildIcisChart(periods, series, ext) {
 
   return `<div class="viz-legend">${legend}</div>
     <svg class="viz-svg icis-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="스폰지 주원료 시황">
-      ${grid}${bands}${xticks}${extShapes}${seriesG}${labels}
+      ${grid}${xticks}${extShapes}${seriesG}${labels}
+      <rect class="ii-evhl" x="0" y="${padT}" width="0" height="${plotH}"/>
+      <line class="ii-evln" x1="0" y1="${padT}" x2="0" y2="${(padT + plotH).toFixed(1)}"/>
+      <text class="ii-evtx" x="0" y="${(padT + 10).toFixed(1)}"></text>
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
       <line class="icis-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="icis-dots"></g>
@@ -4974,12 +5035,17 @@ function wireIcisChart() {
   };
   fig.addEventListener('click', (e) => {
     const t = e.target.closest('.ii-legend-pick, .ii-mat[data-k]');
-    if (t) toggle(t);
+    if (t) { toggle(t); return; }
+    if (e.target.closest('a')) return;           // 제목 링크는 원문으로 보낸다
+    const ev = e.target.closest('.ii-ev__c[data-evfrom]');
+    if (ev) iiShowEventYear(fig, ev);
   });
   fig.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const t = e.target.closest && e.target.closest('.ii-mat[data-k]');
-    if (t) { e.preventDefault(); toggle(t); }
+    if (t) { e.preventDefault(); toggle(t); return; }
+    const ev = e.target.closest && e.target.closest('.ii-ev__c[data-evfrom]');
+    if (ev) { e.preventDefault(); iiShowEventYear(fig, ev); }
   });
   applyPick();
 }
@@ -11231,7 +11297,9 @@ let _kpIns = null;
 
 const KP_CHART_H = 250;      // ① 차트 뷰박스 높이 — 옆 패널과 키를 맞춘다
 // 기간별 변동률을 그래프 위에 구간 자로 겹쳐 볼지 (범례 줄의 [구간 변동률] 버튼)
-let _kpSpans = true;
+let _kpSpans = true;        // (쓰지 않는다 — 구간 변동률을 걷어냈다)
+/* 현재가격 카드를 누르면 그래프에 현재값 점과 전월 대비 구간을 띄운다 */
+let _kpNow = false;
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
@@ -11768,7 +11836,13 @@ function kpxSpark(rows, tone, days, opts) {
 }
 
 function kpxCard(o) {
-  return '<div class="ocx kpx' + (o.cls ? ' ' + o.cls : '') + '" style="--xt:' + o.tone + '">'
+  const pick = o.pick
+    ? ' data-kp' + o.pick + ' role="button" tabindex="0" aria-pressed="'
+      + (o.pick === 'now' ? _kpNow : false) + '"'
+    : '';
+  return '<div class="ocx kpx' + (o.cls ? ' ' + o.cls : '')
+    + (o.pick ? ' kpx--pick' + (o.pick === 'now' && _kpNow ? ' is-on' : '') : '') + '"'
+    + pick + ' style="--xt:' + o.tone + '">'
     + '<div class="ocx__hd">' + kpxIcon(o.icon, o.tone)
     + '<div class="ocx__nm">'
     + '<span class="ocx__en">' + escapeHtml(o.label)
@@ -11791,7 +11865,7 @@ function kpiSum5(cat, item, st, fc) {
   const price = (v) => (v == null || !isFinite(v) ? na : kpPrice(v));
   /* ⓘ 설명 — 화면·코드에 이미 있던 말만 옮긴다(새로 지어내지 않는다) */
   const cards = kpxCard({
-    tone: KPX_TONES.now, icon: 'drum', label: '현재가격',
+    tone: KPX_TONES.now, icon: 'drum', label: '현재가격', pick: 'now',
     desc: '선택 품목의 최근 가격 (' + u + ')',
     def: '고른 품목의 마지막 관측일 가격입니다. 단위는 품목마다 다릅니다(' + u + ').',
     val: price(st.price) + '<span class="kpx__u">' + escapeHtml(u) + '</span>',
@@ -12026,7 +12100,7 @@ function renderKoimaPriceHtml() {
     const evs = kpiEvents(rows, cat, item);
     const unitLine = (krwFactor(item.unit) != null) ? vizUnitCap(item.unit || '', 'USD')
       : '<div class="viz-unit">단위: ' + escapeHtml(item.unit || '-') + '</div>';
-    body = '<div class="ii-panel koima-panel--first">'
+    body = '<div class="ii-panel koima-panel--first kp-solo">'
       /* ★ 번호(①)를 뗀다 — ②④⑤ 가 없어져 번호가 건너뛰었다. */
       + '<h3 class="subhead ii-h">가격 추이 및 주요 이벤트'
       + (rows.length ? ' <span class="koima-h__cat">' + escapeHtml(item.name)
@@ -12038,7 +12112,9 @@ function renderKoimaPriceHtml() {
       + buildKpChart(rows, item, cat, KP_CHART_H, evs, st)
       + '<div class="viz-tooltip" id="kpTooltip"></div>'
       + kpiFlatNote(item)
-      + '</div>' + kpiChangePanel(item, st) + '</div>'
+      /* ★ 오른쪽 '기간별 변동률' 표와 그래프 위 '구간 변동률'은 걷어냈다.
+         함수(kpiChangePanel · kpiSpansSvg)는 남겨 뒀다. */
+      + '</div></div>'
       + '<div class="ii-cap ii-cap--chart">마커는 <b>실제로 일어난 사건</b>을 '
         + '그 날짜에 찍은 것입니다. 마커를 누르면 무슨 일이었는지와 <b>출처</b>, '
         + '그리고 사건 뒤 이 품목이 실제로 얼마나 움직였는지가 나옵니다 — 움직인 '
@@ -12111,9 +12187,7 @@ function buildKpChart(rows, item, cat, hOpt, evItems, st) {
   console.log('[koima-price] 차트 · %s · %s~%s · %d개 점', item.name, dates[0], dates[n - 1], n);
 
   return `<div class="viz-legend kp-legend koima-legend"><span class="viz-legend__item">
-      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(item.name)}${item.unit ? ` (${escapeHtml(item.unit)})` : ''}</span>
-      <button type="button" class="koima-spanbtn${_kpSpans ? ' is-on' : ''}" data-kp-spans
-        title="오른쪽 '기간별 변동률' 의 3·6·12개월 줄을 그래프 위에 구간으로 표시합니다">구간 변동률</button></div>
+      <span class="viz-legend__swatch" style="background:${color}"></span>${escapeHtml(item.name)}${item.unit ? ` (${escapeHtml(item.unit)})` : ''}</span></div>
     <svg class="viz-svg kp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeHtml(item.name)} 일별 가격">
       ${grid}${xticks}${line}
       <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1"/>
@@ -12121,8 +12195,57 @@ function buildKpChart(rows, item, cat, hOpt, evItems, st) {
       <g class="kp-dots"></g>
       <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
       ${vizEventsSvg(evItems || [], rows.map((r) => r.date), X, padT, plotH, W)}
-      ${_kpSpans ? kpiSpansSvg(st, dates, X, Y, padL, padT, plotW, plotH) : ''}
+      ${_kpNow ? kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) : ''}
     </svg>`;
+}
+
+/** 현재값 점 + 전월 대비 점선 구간.
+ *  ★ 축은 그대로 둔다(확대하지 않는다). 점선이 축 밖으로 나가면 가장자리에 붙인다.
+ *  ★ 전월 대비는 KOIMA 가 변동률(%)만 주고 어느 날과 견준 것인지는 주지 않는다.
+ *    그래서 기준 '날짜'를 지어내지 않고, 기준 '수준'만 현재가 ÷ (1 + 변동률) 로
+ *    역산해 가로 점선으로 긋는다 — 표의 % 와 그림이 정확히 맞는다.
+ *    가로 점선은 마지막 한 달 폭에 걸쳐 둔다('한 달 전 어딘가'라는 뜻). */
+function kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH, ymin, ymax) {
+  let li = -1;
+  for (let i = rows.length - 1; i >= 0; i--) if (rows[i].price != null) { li = i; break; }
+  if (li < 0) return '';
+  const cur = rows[li].price;
+  const cx = X(li), cy = Y(cur);
+  const clampY = (v) => Math.max(padT, Math.min(padT + plotH, Y(v)));
+  const right = cx > padL + plotW - 120;
+  let out = '';
+
+  // 전월 대비 — 기준 수준(역산)과 현재를 잇는 점선 구간
+  const mom = st && st.mom;
+  if (mom != null && isFinite(mom) && mom > -100) {
+    const base = cur / (1 + mom / 100);
+    const by = clampY(base);
+    /* 마지막 한 달 — 마지막 날짜에서 한 달 전 이후의 첫 칸 */
+    const d = new Date(rows[li].date + 'T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    const cut = d.toISOString().slice(0, 10);
+    let fi = li;
+    for (let i = 0; i <= li; i++) { if (rows[i].date >= cut) { fi = i; break; } }
+    const fx = X(fi);
+    const up = mom >= 0;
+    const col = up ? '#C8102E' : '#1D4ED8';
+    out += `<line x1="${fx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${by.toFixed(1)}"`
+      + ` stroke="${col}" stroke-width="1.6" stroke-dasharray="5 4"/>`
+      + `<line x1="${cx.toFixed(1)}" y1="${by.toFixed(1)}" x2="${cx.toFixed(1)}" y2="${cy.toFixed(1)}"`
+      + ` stroke="${col}" stroke-width="1.6" stroke-dasharray="3 3"/>`
+      + `<circle cx="${fx.toFixed(1)}" cy="${by.toFixed(1)}" r="3.2" fill="#fff" stroke="${col}" stroke-width="1.6"/>`
+      + `<text x="${(fx + 4).toFixed(1)}" y="${(by + (up ? 13 : -6)).toFixed(1)}" font-size="10.5"`
+      + ` font-weight="700" fill="${col}" paint-order="stroke" stroke="var(--surface-1)" stroke-width="3">`
+      + `전월 대비 ${up ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</text>`;
+  }
+
+  // 현재값 점 + 값
+  out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.6" fill="var(--accent)" stroke="#fff" stroke-width="2.2"/>`
+    + `<text x="${(right ? cx - 9 : cx + 9).toFixed(1)}" y="${(cy - 9).toFixed(1)}"`
+    + ` text-anchor="${right ? 'end' : 'start'}" font-size="12" font-weight="800" fill="var(--ink)"`
+    + ` paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.2">`
+    + `현재 ${escapeHtml(kpPrice(cur))} · ${escapeHtml(rows[li].date.slice(5))}</text>`;
+  return `<g class="kp-now">${out}</g>`;
 }
 
 /** 크로스헤어 + 툴팁 (날짜 · 품목 · 가격) */
@@ -12187,10 +12310,18 @@ function wireKpControls(root) {
     renderMaterial();
   });
   fig.addEventListener('click', (e) => {
+    const nw = e.target.closest && e.target.closest('[data-kpnow]');
+    if (nw) { _kpNow = !_kpNow; renderMaterial(); return; }
     const b = e.target.closest && e.target.closest('[data-kp-spans]');
     if (!b) return;
     _kpSpans = !_kpSpans;
     renderMaterial();
+  });
+  /* 키보드로도 현재가격 표시를 켜고 끈다 */
+  fig.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const nw = e.target.closest && e.target.closest('[data-kpnow]');
+    if (nw) { e.preventDefault(); _kpNow = !_kpNow; renderMaterial(); }
   });
   const chipsEl = fig.querySelector('.kp-ranges');
   if (chipsEl) chipsEl.addEventListener('click', (e) => {
