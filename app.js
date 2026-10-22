@@ -6961,8 +6961,9 @@ function friRouteTable(list) {
     + ' 운임</th><th class="fri-tb__n">전주 대비</th></tr></thead>'
     + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
     + '<div class="fri-tb__more">단위 US$/40ft · 값과 변동률은 Drewry 가 그 주'
-    + ' 논평에 적은 그대로입니다. 복항을 포함한 8개 항로 전체는 아래 Drewry'
-    + ' 공식 표에서 볼 수 있습니다.</div>';
+    + ' 논평에 적은 그대로입니다. 논평에 수치가 나오지 않는 복항 4개'
+    + '(로테르담→상하이 · LA→상하이 · 뉴욕→로테르담 · 로테르담→뉴욕)는'
+    + ' 오른쪽 Drewry 공식 표에서 볼 수 있습니다.</div>';
 }
 
 /** Drewry 공식 차트 — 수집기가 그 주 페이지에서 읽어 둔 주소를 그대로 싣는다.
@@ -7097,8 +7098,18 @@ function renderFreightHtml() {
       + escapeHtml(list[0].unit) + '</span></div>'
       + '<div class="fri-embs">'
       + embs.map((i) => friOfficialChart(i)).join('') + '</div>'
-      + (g.item.routeTable ? friRouteTable(all) : '')
-      + (g.item.officialTable != null ? friOfficialChart(g.item.officialTable) : '')
+      /* ★ 우리말 표와 Drewry 공식 표를 나란히 둔다.
+         공식 표를 없애면 복항 4개(로테르담→상하이·LA→상하이·뉴욕→로테르담·
+         로테르담→뉴욕)가 화면에서 사라진다 — 그 넷은 Drewry 논평 본문에 없고
+         이 그림 안에만 있는데, Canva 의 robots.txt 가 /design/ 수집을 막고
+         있어 값으로 가져올 수 없다. 그래서 지우는 대신 오른쪽으로 옮겼다. */
+      + '<div class="fri-tbls">'
+      + (g.item.routeTable ? '<div class="fri-tbls__k">' + friRouteTable(all)
+        + '</div>' : '')
+      + (g.item.officialTable != null
+        ? '<div class="fri-tbls__o">' + friOfficialChart(g.item.officialTable)
+          + '</div>' : '')
+      + '</div>'
       + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
       + ' 비교할 수 없습니다.</div>'
       + friSourceHtml(cut));
