@@ -4519,7 +4519,8 @@ function renderMaterial() {
   const icisDay = ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
   root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
     ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
-      'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay)}
+      'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay,
+      null, null, null, '시장가격 추이')}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
@@ -5539,7 +5540,8 @@ function renderOilProductHtml() {
   const opPts = msPtsPetro(_opData, OILP_BASE_KEY);
   const opDay = opPts.length ? opPts[opPts.length - 1].k : '';
   const head = vizHero('fuel', '국제유가·석유제품 (PETRONET)',
-    (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '', opDay, null, '데이터 기준')
+    (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '', opDay, null, '데이터 기준',
+    null, '주요 석유제품의 최근 흐름과 변동 요인을 분석')
     + `<div class="viz-head"><div>
       <div class="viz-sub">일일국제제품가격 · 휘발유·등유·경유·중유·나프타 (${escapeHtml(unit)})</div>
     </div></div>`
@@ -6579,7 +6581,8 @@ function renderScheduleReliabilityHtml() {
   const srLast = _srData.error ? null : sriLast();
   const head = vizHero('compass', '해상 정시성 (Global Schedule Reliability)',
     '선사가 사전에 공표한 도착 예정일에 실제로 도착한 선박의 비율',
-    srLast ? srLast.ym : '') + srBoxes;
+    srLast ? srLast.ym : '', null, null, null,
+    '도착 예정일에 실제로 도착한 선박의 비율') + srBoxes;
   if (_srData.error) {
     return `<div class="viz-root viz-figure sr-figure">${head}
       <div class="chart-empty">데이터를 불러오지 못했습니다(사이트 접근 차단 가능)</div>
@@ -6657,7 +6660,7 @@ function xsiHero() {
     return (d && (!a || d > a)) ? d : a;
   }, null);
   return vizHero('ship', '글로벌 컨테이너 운임지수', sub, day,
-    '(Xeneta Shipping Index by Compass)');
+    '(Xeneta Shipping Index by Compass)', null, null, '해상운송 비용');
 }
 
 /* ── 위젯 제목 배너 (진한 남색) ────────────────────────────────────────────
@@ -6695,7 +6698,22 @@ const VIZ_HERO_ICONS = {
     + '<path d="M10.2 9V4.8h5.6"/><path d="M18 12.4c1 1.2 1.6 2.1 1.6 2.9a1.6 1.6 0 1 1-3.2 0c0-.8.6-1.7 1.6-2.9Z"/>',
 };
 
-function vizHero(icon, title, sub, dateLabel, note, badgePrefix, cls) {
+/** 배너 한 줄 설명 — em 으로 준 구절만 <strong> 으로 감싼다.
+ *  ★ 문구는 한 글자도 바꾸지 않는다. escape 한 뒤 같은 방식으로 escape 한
+ *    구절을 찾아 태그만 씌운다(원문에 <>& 가 있어도 어긋나지 않게).
+ *  ★ 구절을 못 찾으면 그냥 평범한 한 줄로 돌려준다 — 문구가 바뀌어도
+ *    화면이 깨지지 않는다(강조만 사라진다). */
+function vizHeroSub(sub, em) {
+  const esc = escapeHtml(sub);
+  if (!em) return esc;
+  const key = escapeHtml(em);
+  const i = esc.indexOf(key);
+  if (i < 0) return esc;
+  return esc.slice(0, i) + '<strong class="viz-hero__em">' + key + '</strong>'
+    + esc.slice(i + key.length);
+}
+
+function vizHero(icon, title, sub, dateLabel, note, badgePrefix, cls, em) {
   const d = VIZ_HERO_ICONS[icon] || VIZ_HERO_ICONS.ship;
   /* ★ cls 로 변형을 받는다 — 기본 .viz-hero 는 .viz-figure 의 padding(11px)을
      음수 마진으로 상쇄하는 전제라, padding 이 없는 자리(예: 경쟁사 섹션)에
@@ -6708,7 +6726,8 @@ function vizHero(icon, title, sub, dateLabel, note, badgePrefix, cls) {
     <div class="viz-hero__body">
       <div class="viz-hero__title">${escapeHtml(title)}${note
         ? ` <i>${escapeHtml(note)}</i>` : ''}</div>
-      ${sub ? `<p class="viz-hero__sub">${escapeHtml(sub)}</p>` : ''}
+      ${sub ? `<p class="viz-hero__sub${em && sub.indexOf(em) >= 0
+        ? ' viz-hero__sub--dim' : ''}">${vizHeroSub(sub, em)}</p>` : ''}
     </div>
     ${dateLabel ? `<span class="viz-hero__badge">${escapeHtml(
       /* ★ '' 를 넘기면 접두어 없이 배지 본문만 쓴다. 예전엔 `||` 라서 빈 문자열이
@@ -9795,7 +9814,7 @@ function renderKoimaHtml() {
     kHero.subtitle || '주요 원자재의 장기 추이와 변동 요인을 분석하여, 향후 방향성을 예측하고 '
       + '구매 의사결정에 활용할 수 있는 인사이트를 제공합니다.',
     kSt0 ? kSt0.ym : (_koimaData && _koimaData.latestPeriod) || '',
-    null, kHero.badgePrefix || '데이터 기준');
+    null, kHero.badgePrefix || '데이터 기준', null, '원자재의 장기 추이와 변동 요인을 분석');
 
   // 1) 부문 탭 8개 — 데이터 없으면 비활성
   const tabList = ok ? koimaCatsOrdered()
@@ -11118,10 +11137,14 @@ function renderKoimaPriceHtml() {
   const kpSubT = kpHero.subtitle
     || '주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 '
       + '구매 의사결정에 필요한 인사이트를 제공합니다.';
+  /* ★ 이 문장만 {item} 자리에 고른 품목명이 들어간다('주요 글로벌 나프타
+     가격의 …'). 강조 구절도 같은 치환을 거쳐야 문장 안에서 찾아진다. */
+  const kpItemName = item ? item.name : '원자재';
   const head = vizHero('drum', kpHero.title || '일일 국제원자재가격 (KOIMA)',
-    kpSubT.split('{item}').join(item ? item.name : '원자재'),
+    kpSubT.split('{item}').join(kpItemName),
     kpSt ? kpSt.date : (_kpData && _kpData.baseDate) || '',
-    null, kpHero.badgePrefix || '데이터 기준');
+    null, kpHero.badgePrefix || '데이터 기준', null,
+    '글로벌 ' + kpItemName + ' 가격의 최근 흐름과 변동 요인을 분석');
 
   // 1) 부문 탭 5개
   const tabSrc = ok ? kpCatsOrdered() : KP_TABS;
