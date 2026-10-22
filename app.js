@@ -131,12 +131,9 @@ function setView(view) {
 function initNav() {
   document.querySelectorAll('.nav-item').forEach((n) =>
     n.addEventListener('click', () => setView(n.dataset.view)));
+  /* ★ 원자재 [더보기]도 카드를 미리 고르지 않는다 — '원자재 동향' 버튼부터 눌러 들어간다 */
   document.querySelectorAll('.more-link').forEach((m) =>
-    m.addEventListener('click', () => {
-      // 메인 카드에 보이는 것이 ICIS 라 그 카드를 고른 채로 연다
-      if (m.dataset.view === 'material') mtTreePick('icis');
-      setView(m.dataset.view);
-    }));
+    m.addEventListener('click', () => setView(m.dataset.view)));
   const back = document.getElementById('focusBack');
   if (back) back.addEventListener('click', () => setView('dashboard'));
 
