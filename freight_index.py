@@ -202,6 +202,29 @@ _ASSESS = re.compile(
     r"assessment for\s+\w+day,\s*(\d{1,2}\s+\w{3,}\s+\d{4})", re.I)
 
 
+# 변동률 — 동사가 방향을 말한다(rose/fell …). Drewry 가 직접 적은 값이라
+# 우리가 계산한 것보다 믿을 만하다(우리에게는 아직 그 주 한 점뿐이다).
+_UP = ("rose", "increased", "grew", "climbed", "gained", "jumped", "surged",
+       "inched up", "edged up", "ticked up", "moved up", "rebounded")
+_DOWN = ("fell", "dropped", "declined", "slipped", "eased", "decreased",
+         "slid", "inched down", "edged down", "ticked down", "retreated")
+_CHG = re.compile(
+    r"\b(" + "|".join(_UP + _DOWN) + r")\b\s+(?:by\s+)?([\d.]+)\s*%\s+to", re.I)
+_DOWN_L = [x.lower() for x in _DOWN]
+
+
+def _wci_change(text, anchor):
+    """닻 뒤 '<동사> N% to' 에서 부호 붙은 변동률을 집는다. 없으면 None."""
+    i = text.find(anchor)
+    if i < 0:
+        return None
+    m = _CHG.search(text, i, i + 300)
+    if not m:
+        return None
+    v = float(m.group(2))
+    return -v if m.group(1).lower() in _DOWN_L else v
+
+
 def _wci_value(text, anchor):
     """닻 문구 뒤에서 가장 먼저 나오는 '$N,NNN per 40ft' 를 집는다.
 
@@ -262,18 +285,22 @@ def fetch_drewry(verbose=True):
     # ★ 그 주의 논평 구간만 본다 — 위쪽 홍보 문단·아래쪽 FAK 범위에 걸리지 않게.
     body = text[m.end():m.end() + 4000]
 
-    vals = {}
+    vals, chg = {}, {}
     for key, _name, anchor in WCI_PARTS:
         v = _wci_value(body, anchor)
         if v is not None:
             vals[key] = v
+            c = _wci_change(body, anchor)
+            if c is not None:
+                chg[key] = c
     if not vals:
         raise RuntimeError("논평에서 값을 하나도 찾지 못했습니다")
     if verbose:
         print("[drewry] %s — %s" % (day, vals))
+        print("[drewry] 전주 대비 — %s" % chg)
         print("[drewry] 공식 차트 %d개 — %s"
               % (len(charts), " / ".join(c["caption"][:40] for c in charts)))
-    return day, vals, charts
+    return day, vals, charts, chg
 
 
 def _merge_point(prev_series, day, value):
@@ -334,9 +361,9 @@ def main():
 
     # 2) Drewry — 한 점씩 쌓는다
     try:
-        day, vals, charts = fetch_drewry()
+        day, vals, charts, chg = fetch_drewry()
     except Exception as e:                               # noqa: BLE001
-        day, vals = None, {}
+        day, vals, chg = None, {}, {}
         # 못 받았으면 지난번 차트 주소를 그대로 둔다(화면이 비지 않게)
         charts = prev.get("drewryCharts") or []
         fails.append({"source": "drewry", "part": "weekly", "reason": str(e)[:200]})
@@ -353,6 +380,8 @@ def main():
             "code": "WCI", "name": name, "unit": "US$/40ft", "freq": "주간",
             "origin": "Drewry Shipping Consultants", "via": "Drewry",
             "viaUrl": DREWRY_URL, "series": ser,
+            # Drewry 가 그 주 논평에 적은 전주 대비(%). 우리가 계산한 값이 아니다.
+            "changePct": chg.get(key, (prev_idx.get(pk) or {}).get("changePct")),
         }
 
     if not indices:

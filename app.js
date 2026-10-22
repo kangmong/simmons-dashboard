@@ -6659,6 +6659,7 @@ let _friPick = 'cfi';        // 고른 지수 묶음
 let _friSpan = '1y';         // 기간
 let _friOff = {};            // 꺼 둔 선 { 'SCFI': true, … }
 let _friTable = false;       // 표 보기
+let _friPart = 0;            // Drewry WCI 안의 파트(종합·주요 항로·항로별 운임)
 
 /* 선 색 — 대비를 재서 고른 값이다(흰 배경 위 3:1 이상).
    ★ 값의 뜻(오르면 빨강·내리면 파랑)은 요약 카드가 맡는다. 선 색은 구분용이다. */
@@ -6683,11 +6684,17 @@ const FRI_GROUPS = [
        (차트가 Canva 그림이라 글자까지 벡터다 — 실측). 좌표에서 값을 되돌리면
        추정값이 되므로 쓰지 않고, Drewry 가 공표하는 그 차트를 그대로 싣는다.
        숫자(최근값·전주 대비)는 같은 페이지 논평 본문에서 정확히 읽어 온다. */
-    { id: 'wci', label: 'WCI 종합', keys: ['WCI_COMPOSITE'], chart: 0 },
-    { id: 'wciroutes', label: 'WCI 주요 항로', chart: 1, keys: [
-      'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
-      'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
-    { id: 'wcitable', label: 'WCI 항로별 운임', keys: [], chart: 2 },
+    /* ★ 버튼 셋을 하나로 합치고 안에서 파트로 나눈다 — 위 줄에 WCI 가 셋이나
+       서면 SCFI·BDI 와 급이 같아 보이고 줄이 길어진다. */
+    { id: 'wci', label: 'Drewry WCI', keys: ['WCI_COMPOSITE'], parts: [
+      { label: '종합', chart: 0, keys: ['WCI_COMPOSITE'] },
+      { label: '주요 항로', chart: 1, keys: [
+        'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
+        'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
+      { label: '항로별 운임', chart: 2, table: true, keys: [
+        'WCI_COMPOSITE', 'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
+        'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'] },
+    ] },
   ] },
 ];
 
@@ -6700,6 +6707,14 @@ const FRI_ORIGIN_URL = {
   '발틱해운거래소(Baltic Exchange)':
     'https://www.balticexchange.com/en/data-services/market-information0/dry-services.html',
 };
+
+/** 고른 묶음에 파트가 있으면 지금 파트를, 없으면 null. */
+function friPartOf(id) {
+  const g = friGroupOf(id);
+  const ps = g && g.item.parts;
+  if (!ps || !ps.length) return null;
+  return ps[Math.min(Math.max(0, _friPart), ps.length - 1)];
+}
 
 function friGroupOf(id) {
   for (let i = 0; i < FRI_GROUPS.length; i++) {
@@ -6714,11 +6729,13 @@ function friSeries(id) {
   const g = friGroupOf(id);
   const idx = (_friData && _friData.indices) || {};
   if (!g) return [];
-  return g.item.keys.map((k) => {
+  const part = friPartOf(id);
+  const keys = (part && part.keys) || g.item.keys;
+  return keys.map((k) => {
     const d = idx[k];
     if (!d || !d.series || !d.series.dates || !d.series.dates.length) return null;
     return { key: k, name: d.name, code: d.code, unit: d.unit, freq: d.freq,
-      origin: d.origin, via: d.via, viaUrl: d.viaUrl,
+      origin: d.origin, via: d.via, viaUrl: d.viaUrl, changePct: d.changePct,
       dates: d.series.dates, values: d.series.values };
   }).filter(Boolean);
 }
@@ -6937,33 +6954,102 @@ function friHeroHtml(list) {
     day, null, '데이터 기준', null, '컨테이너·건화물선 운임지수와 Drewry 세계 컨테이너 지수');
 }
 
+/** 항로별 운임 — 우리가 모은 값으로 직접 만든 한국어 표.
+ *  ★ Drewry 공식 표는 Canva 그림이라 글자를 읽을 수 없다. 그래서 번역이 아니라
+ *    같은 주 논평에서 정확히 읽어 온 값으로 우리 표를 만든다(운임·전주 대비
+ *    모두 Drewry 가 적은 그대로다).
+ *  ★ 논평에 없는 복항(로테르담→상하이 등)은 넣지 않는다 — 아래 공식 표에 있다. */
+function friRouteTable(list) {
+  if (!list.length) return '';
+  const day = list[0].dates[list[0].dates.length - 1];
+  const row = (x) => {
+    const v = x.values[x.values.length - 1];
+    const c = x.changePct;
+    const cls = c == null ? 'flat' : (c > 0 ? 'up' : (c < 0 ? 'down' : 'flat'));
+    const arrow = c == null ? '' : (c > 0 ? '▲ ' : (c < 0 ? '▼ ' : ''));
+    return '<tr><td>' + escapeHtml(x.name) + '</td>'
+      + '<td class="fri-tb__n">$' + friNum(v, null) + '</td>'
+      + '<td class="fri-tb__n"><span class="fri-d fri-d--' + cls + '">'
+      + (c == null ? '—' : arrow + Math.abs(c) + '%') + '</span></td></tr>';
+  };
+  return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb">'
+    + '<thead><tr><th>항로</th><th class="fri-tb__n">' + escapeHtml(day)
+    + ' 운임</th><th class="fri-tb__n">전주 대비</th></tr></thead>'
+    + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
+    + '<div class="fri-tb__more">단위 US$/40ft · 값과 변동률은 Drewry 가 그 주'
+    + ' 논평에 적은 그대로입니다. 복항을 포함한 8개 항로 전체는 아래 Drewry'
+    + ' 공식 표에서 볼 수 있습니다.</div>';
+}
+
 /** Drewry 공식 차트 — 수집기가 그 주 페이지에서 읽어 둔 주소를 그대로 싣는다.
  *  ★ 우리가 그린 그림이 아니라 Drewry 가 공표한 그림이다. 그래서 값이 어긋날
  *    일이 없고, Drewry 가 갱신하면 여기도 같이 바뀐다.
  *  ★ 새 라이브러리를 쓰지 않는다 — iframe 하나다. */
+const FRI_EMB_H = 560;   // 공식 차트의 목표 높이(px)
+
+/* 공식 차트 제목을 우리말로. 원문에서 알아볼 수 있는 토막을 찾아 바꾼다.
+   ★ Drewry 가 제목을 손봐도 못 찾으면 원문을 그대로 쓴다(빈칸이 되지 않게).
+   ★ 숫자·단위는 손대지 않는다 — 옮기는 것은 제목뿐이다. */
+const FRI_CAP_KO = [
+  ['Trade Routes from Shanghai', '상하이발 주요 항로 운임 (US$/40ft)'],
+  ['World Container Index', 'Drewry 세계 컨테이너 지수 (US$/40ft)'],
+  ['Spot freight rates by major route', '주요 항로별 현물 운임'],
+];
+const FRI_SUB_KO = [
+  ['eight major East-West trades', '동서 기간항로 8개 구간에 대한 Drewry 평가'],
+];
+function friKo(text, table) {
+  const t = String(text || '');
+  for (let i = 0; i < table.length; i++) {
+    if (t.indexOf(table[i][0]) >= 0) return table[i][1];
+  }
+  return t;
+}
+
 function friOfficialChart(idx) {
   const cs = (_friData && _friData.drewryCharts) || [];
   const c = cs[idx];
   if (!c || !c.url) {
     return '<div class="chart-empty">공식 차트 주소를 아직 받지 못했습니다</div>';
   }
+  const raw = (isFinite(c.ratio) && c.ratio > 10) ? c.ratio : 75;
+  const r = raw < 70 ? raw + 10 : raw;
   return '<figure class="fri-emb">'
-    + '<figcaption class="fri-emb__c">' + escapeHtml(c.caption || 'Drewry 공식 차트')
-    + (c.sub ? ' <span>' + escapeHtml(c.sub) + '</span>' : '') + '</figcaption>'
+    + '<figcaption class="fri-emb__c">'
+    + escapeHtml(friKo(c.caption, FRI_CAP_KO) || 'Drewry 공식 차트')
+    + (c.sub ? ' <span>' + escapeHtml(friKo(c.sub, FRI_SUB_KO)) + '</span>' : '')
+    + '</figcaption>'
     /* 비율은 원본 페이지가 적어 둔 값을 쓴다. 다만 원본은 우리보다 좁은 칸에
        넣는 전제라, 납작한 것(표)은 그대로 쓰면 마지막 줄이 잘린다 — 짧은 쪽에만
-       여유를 둔다(실측: 56.25% → 마지막 항로 잘림, 66% → 전부 보임). */
-    + '<div class="fri-emb__f" style="padding-top:'
-    + (isFinite(c.ratio) && c.ratio > 10
-      ? (c.ratio < 70 ? c.ratio + 10 : c.ratio) : 75) + '%">'
+       여유를 둔다(실측: 56.25% → 마지막 항로 잘림, 66% → 전부 보임).
+       ★ 비율이 고정이라 폭을 그대로 두면 세로가 1,200px 를 넘어 화면을 다 먹는다.
+         목표 높이(FRI_EMB_H)에서 거꾸로 폭을 잡아 적당한 크기로 앉힌다. */
+    /* ★ padding-top 의 % 는 '자기 폭'이 아니라 '부모 폭' 기준이다 — 같은 칸에
+       max-width 를 걸면 폭만 줄고 높이는 그대로라 1,240px 가 나왔다(실측).
+       폭을 제한하는 칸을 하나 바깥에 두어야 비율이 그 폭을 따라간다. */
+    + '<div class="fri-emb__w" style="max-width:'
+    + Math.round(FRI_EMB_H / (r / 100)) + 'px">'
+    + '<div class="fri-emb__f" style="padding-top:' + r + '%">'
     + '<iframe src="' + escapeHtml(c.url) + '"'
     + ' title="' + escapeHtml(c.caption || 'Drewry World Container Index')
     + '" loading="lazy" referrerpolicy="no-referrer"'
-    + ' allowfullscreen></iframe></div>'
+    + ' allowfullscreen></iframe></div></div>'
     + '<div class="fri-emb__n">Drewry 가 공표한 차트를 그대로 싣습니다 ·'
     + ' <a href="' + escapeHtml((_friData && _friData.drewryUrl) || '#') + '"'
     + ' target="_blank" rel="noopener noreferrer">원본 페이지 \u2197</a></div>'
     + '</figure>';
+}
+
+/** 묶음 안의 파트 탭. 파트가 없으면 아무것도 그리지 않는다. */
+function friParts(id) {
+  const g = friGroupOf(id);
+  const ps = (g && g.item.parts) || [];
+  if (!ps.length) return '';
+  return '<div class="fri-parts" role="tablist" aria-label="Drewry WCI 파트">'
+    + ps.map((p, i) => '<button class="fri-part' + (i === _friPart ? ' is-on' : '')
+      + '" type="button" role="tab" aria-selected="' + (i === _friPart) + '"'
+      + ' data-fripart="' + i + '">' + escapeHtml(p.label) + '</button>').join('')
+    + '</div>';
 }
 
 function friPicker() {
@@ -7013,8 +7099,8 @@ function renderFreightHtml() {
     return wrap(head + '<div class="chart-empty">데이터를 불러오지 못했습니다'
       + (_friData.reason ? ' (' + escapeHtml(_friData.reason) + ')' : '') + '</div>');
   }
-  const g = friGroupOf(_friPick);
-  const useEmb = g && g.item.chart != null;   // Drewry 는 공식 차트를 싣는다
+  const part = friPartOf(_friPick);
+  const useEmb = !!part;                 // Drewry 는 공식 차트를 싣는다
   const list = friSeries(_friPick);
   if (!list.length && !useEmb) {
     return wrap(head + friPicker()
@@ -7022,7 +7108,7 @@ function renderFreightHtml() {
   }
   const cut = list.map((x) => friCut(x, _friSpan));
 
-  /* 공식 차트를 싣는 묶음에서는 기간·표 버튼을 두지 않는다 — 기간은 그 차트가
+  /* 공식 차트를 싣는 파트에는 기간·표 버튼을 두지 않는다 — 기간은 그 차트가
      스스로 들고 있고, 우리에게는 아직 그 주 값 하나뿐이라 표로 낼 것이 없다. */
   const bar = useEmb
     ? (list.length ? '<div class="fri-bar"><span class="fri-unit">단위: '
@@ -7036,12 +7122,16 @@ function renderFreightHtml() {
       + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div></div>';
 
   const body = useEmb
-    ? friOfficialChart(g.item.chart)
+    ? ((part.table ? friRouteTable(cut) : '') + friOfficialChart(part.chart))
     : (_friTable ? friTableHtml(cut) : friChart(cut));
+
+  /* 표 파트에서는 요약 카드를 내지 않는다 — 바로 아래 표가 같은 값을 더 넓게 말한다 */
+  const showSum = list.length && !(part && part.table);
 
   return wrap(head
     + friPicker()
-    + (list.length ? friSummary(cut, useEmb) : '')
+    + friParts(_friPick)
+    + (showSum ? friSummary(cut, useEmb) : '')
     + bar
     + (useEmb ? '' : friLineToggles(cut))
     + body
@@ -7075,7 +7165,18 @@ function wireFri(root) {
   if (!fig) return;
   fig.addEventListener('click', (e) => {
     const p = e.target.closest ? e.target.closest('[data-fri]') : null;
-    if (p) { _friPick = p.getAttribute('data-fri'); _friOff = {}; renderMaterial(); return; }
+    if (p) {
+      _friPick = p.getAttribute('data-fri');
+      _friOff = {}; _friPart = 0;
+      renderMaterial();
+      return;
+    }
+    const pt = e.target.closest ? e.target.closest('[data-fripart]') : null;
+    if (pt) {
+      _friPart = parseInt(pt.getAttribute('data-fripart'), 10) || 0;
+      renderMaterial();
+      return;
+    }
     const sp = e.target.closest ? e.target.closest('[data-frispan]') : null;
     if (sp) { _friSpan = sp.getAttribute('data-frispan'); renderMaterial(); return; }
     const tb = e.target.closest ? e.target.closest('[data-fritable]') : null;
