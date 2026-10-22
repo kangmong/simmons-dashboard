@@ -99,6 +99,7 @@ function setView(view) {
   const content = document.getElementById('content');
   if (!content) return;
   const isDash = view === 'dashboard';
+  const wasMat = content.dataset.view === 'material';
   content.dataset.view = view;
 
   const header = document.getElementById('dashHeader');
@@ -120,6 +121,8 @@ function setView(view) {
      새지 않게 하려면(exhFilter 가 화면을 보고 판단한다) 화면이 바뀔 때
      세 곳을 모두 새로 그려야 한다. */
   if (typeof exhRenderAll === 'function') exhRenderAll();
+  /* 원자재는 메뉴 화면에서만 가지치기 — 들고 날 때 다시 그린다 */
+  if (wasMat !== (view === 'material')) renderMaterial();
   history.replaceState(null, '', `#${view}`);
   window.scrollTo(0, 0);
 }
@@ -129,7 +132,11 @@ function initNav() {
   document.querySelectorAll('.nav-item').forEach((n) =>
     n.addEventListener('click', () => setView(n.dataset.view)));
   document.querySelectorAll('.more-link').forEach((m) =>
-    m.addEventListener('click', () => setView(m.dataset.view)));
+    m.addEventListener('click', () => {
+      // 메인 카드에 보이는 것이 ICIS 라 그 카드를 고른 채로 연다
+      if (m.dataset.view === 'material') mtTreePick('icis');
+      setView(m.dataset.view);
+    }));
   const back = document.getElementById('focusBack');
   if (back) back.addEventListener('click', () => setView('dashboard'));
 
@@ -2363,6 +2370,12 @@ function sfTreeIcon(kind) {
      눌려 190px 까지 부푸는 것을 실측했다(알약이 아이콘 하나로 가득 찼다). */
   const o = 'viewBox="0 0 16 16" aria-hidden="true" class="sf-tr__i"'
     + ' style="width:13px;height:13px;flex:0 0 auto"';
+  // 'hero:이름' — 카드 배너와 같은 그림(VIZ_HERO_ICONS)을 작게 쓴다
+  if (String(kind).indexOf('hero:') === 0) {
+    return '<svg ' + o.replace('0 0 16 16', '0 0 24 24') + ' fill="none" stroke="currentColor"'
+      + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+      + (VIZ_HERO_ICONS[kind.slice(5)] || '') + '</svg>';
+  }
   if (kind === 'donut') {
     return '<svg ' + o + '><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="3.2" opacity=".35"/>'
       + '<path d="M8 2.4a5.6 5.6 0 0 1 5.6 5.6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg>';
@@ -4505,14 +4518,13 @@ function matSeriesBoxes(items, unit, digits, krwUnit) {
   }));
 }
 
-/** 섹션 5 전체 렌더: 업데이트 전 안내 → 업데이트 후 연도 툴바 → 연도 선택 시 그래프 */
-function renderMaterial() {
-  const root = document.getElementById('materialRoot');
-  if (!root) return;
-  if (!_matReady) {
-    root.innerHTML = emptyState('업데이트 버튼을 누르면 표시됩니다');
-    return;
-  }
+/** ICIS 배너의 '업데이트 기준' — 지수의 실제 최신 데이터 월(ICIS_DATA 마지막 period) */
+function icisHeroDay() {
+  return ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
+}
+
+/** 스폰지 주원료 시황(ICIS Asia) 카드 — 연도 툴바 → 연도 선택 시 그래프 */
+function renderIcisHtml() {
   // 연도 칩은 데이터(ICIS_DATA.periods)에서 뽑는다 — 하드코딩 배열이 아니라서
   // 나중에 2027 데이터가 추가되면 2027 칩이 자동으로 생긴다.
   const icisYears = Array.from(new Set(ICIS_DATA.periods.map((p) => p.slice(0, 4)))).sort();
@@ -4574,13 +4586,13 @@ function renderMaterial() {
 
   // 순수 추가: KOIMA 요약 한 줄을 맨 앞에 덧붙인다(데이터 없으면 '' → 기존 출력과 동일).
   // 배너의 '업데이트 기준'은 지수의 실제 최신 데이터 월(ICIS_DATA 마지막 period)
-  const icisDay = ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
+  const icisDay = icisHeroDay();
   /* ★ 화면에서 뺀 카드 — 해상 정시성 · 글로벌 컨테이너 운임지수 · 국제유가 동향 ·
      원자재 원가 부문별 지수(KOIMA, 맨 위 한 줄 요약 포함). 그리는 함수와 수집기·
      데이터는 그대로 두었다. 되살리려면 아래 템플릿에 호출을 다시 넣으면 된다:
        renderKoimaSummaryHtml() · renderScheduleReliabilityHtml() ·
        renderXsiHtml() · renderOilPricesHtml() · renderKoimaHtml() */
-  root.innerHTML = `<div class="viz-root viz-figure icis-figure">
+  return `<div class="viz-root viz-figure icis-figure">
     ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
       'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay,
       null, null, null, '시장가격 추이')}
@@ -4588,10 +4600,103 @@ function renderMaterial() {
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
     <div class="comp-caption">출처: ICIS Asia</div>
-  </div>
-  ${renderFreightHtml()}
-  ${renderOilProductHtml()}
-  ${renderKoimaPriceHtml()}`;
+  </div>`;
+}
+
+/* ── 원자재 동향 가지치기 ─────────────────────────────────────────────
+   뿌리 하나('원자재 동향') → 카드 제목 그대로의 항목 → 고른 카드 하나.
+   ★ 공용 트리 부품(treeNavHtml · .sf-tr*)을 그대로 쓰고 배치만 가로로 덮는다.
+   ★ 주소(해시)는 쓰지 않는다 — setView() 가 메뉴 이름으로 덮어쓰는 자리라
+     sessionStorage 에 기억한다(다른 트리와 같은 방식).
+   ★ 뿌리를 접으면 카드도 닫힌다. 고른 항목은 남아 다시 펼치면 그 자리다. */
+const MT_TREE_KEY = 'mtTree';
+const MT_TREE_ROOT = 'mt';
+const MT_TREE_HINT = '원자재 동향을 눌러 항목을 확인하세요';
+const MT_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+let _mtTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(MT_TREE_KEY) || 'null');
+    if (t && typeof t === 'object') return { open: t.open || null, pick: t.pick || null };
+  } catch (e) { /* 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: null, pick: null };
+})();
+function mtTreeSave() {
+  try { sessionStorage.setItem(MT_TREE_KEY, JSON.stringify(_mtTree)); } catch (e) { /* 무시 */ }
+}
+/** 더보기·통합 검색에서 들어올 때 — 펼치고 그 카드를 고른 채로 연다 */
+function mtTreePick(id) {
+  _mtTree.open = MT_TREE_ROOT; _mtTree.pick = id; mtTreeSave();
+}
+
+/* 항목 이름은 카드 제목 그대로, 기준일은 카드 배너와 같은 함수에서 읽는다 */
+function mtTreeDefs() {
+  const sub = (d) => (d ? d + ' 기준' : '');
+  const items = [
+    { id: 'icis', label: '스폰지 주원료 시황 (ICIS Asia)', icon: 'hero:flask',
+      sub: sub(icisHeroDay()), render: renderIcisHtml },
+    { id: 'fri', label: '해상 운임 지수', icon: 'hero:ship',
+      sub: sub(friHeroDay(friSeries(_friPick))), render: renderFreightHtml },
+    { id: 'oilp', label: '국제유가·석유제품 (PETRONET)', icon: 'hero:fuel',
+      sub: sub(opHeroDay()), render: renderOilProductHtml },
+    { id: 'kp', label: (_kpIns && _kpIns.hero && _kpIns.hero.title) || '일일 국제원자재가격 (KOIMA)',
+      icon: 'hero:drum', sub: sub(kpHeroDay()), render: renderKoimaPriceHtml },
+  ];
+  return [{ g: MT_TREE_ROOT, label: '원자재 동향', hint: items.length + '개 항목', items }];
+}
+
+function mtTreeHtml() {
+  const defs = mtTreeDefs();
+  if (!_mtTree.open) {
+    return '<div class="sf-tree sf-tree--shut" data-tree="mt">'
+      + '<nav class="sf-tr" data-tree-nav aria-label="원자재 동향 항목 선택">'
+      + treeNavHtml('mt', defs, { open: null, pick: null }, MT_TREE_HINT)
+      + '</nav></div>';
+  }
+  return treeBlockHtml('mt', defs, _mtTree, MT_TREE_HINT, MT_TREE_EMPTY, '원자재 동향 항목 선택');
+}
+
+/** #materialRoot 는 통째로 다시 그려지므로 뿌리에 한 번만 건다(특허 트리와 같은 방식).
+ *  다시 그린 뒤 누른 단추로 포커스를 돌려준다 — Tab·Enter 로 이어서 고를 수 있게. */
+function mtTreeWire(root) {
+  if (root.dataset.mtWired === '1') return;
+  root.dataset.mtWired = '1';
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest ? e.target.closest('[data-tree="mt"] [data-tree-root], [data-tree="mt"] [data-tree-item]') : null;
+    if (!t) return;
+    let sel;
+    if (t.hasAttribute('data-tree-root')) {
+      _mtTree.open = _mtTree.open ? null : MT_TREE_ROOT;
+      sel = '[data-tree-root]';
+    } else {
+      _mtTree.pick = t.getAttribute('data-tree-item');
+      sel = '[data-tree-item="' + _mtTree.pick + '"]';
+    }
+    mtTreeSave();
+    renderMaterial();
+    const b = root.querySelector('[data-tree="mt"] ' + sel);
+    if (b) b.focus();
+  });
+}
+
+/** 섹션 5 전체 렌더: 업데이트 전 안내 → 대시보드는 카드 4장, 메뉴 화면은 가지치기 */
+function renderMaterial() {
+  const root = document.getElementById('materialRoot');
+  if (!root) return;
+  if (!_matReady) {
+    root.innerHTML = emptyState('업데이트 버튼을 누르면 표시됩니다');
+    return;
+  }
+  /* ★ 원자재 메뉴 화면에서는 가지치기 — 고른 카드 하나만 그린다.
+     대시보드 메인 카드는 같은 #materialRoot 의 윗부분을 잘라 보여 주므로
+     거기서는 예전처럼 네 카드를 쌓는다(메인 카드 모양이 그대로인 이유). */
+  const content = document.getElementById('content');
+  if (content && content.dataset.view === 'material') root.innerHTML = mtTreeHtml();
+  else {
+    root.innerHTML = [renderIcisHtml(), renderFreightHtml(), renderOilProductHtml(),
+      renderKoimaPriceHtml()].join('\n  ');
+  }
+  mtTreeWire(root);
+
 
   const yearsEl = root.querySelector('.icis-years');
   if (yearsEl) yearsEl.addEventListener('click', (e) => {
@@ -5603,11 +5708,15 @@ function barrelNote(unit, who) {
     + '1배럴 ≈ 159리터입니다</span>';
 }
 
+// 배너의 '데이터 기준'은 대표 제품의 마지막 관측월(수집 시각이 아니다)
+function opHeroDay() {
+  const opPts = msPtsPetro(_opData, OILP_BASE_KEY);
+  return opPts.length ? opPts[opPts.length - 1].k : '';
+}
+
 function renderOilProductHtml() {
   const unit = (_opData && !_opData.error && _opData.unit) || '$/배럴';
-  // 배너의 '데이터 기준'은 대표 제품의 마지막 관측월(수집 시각이 아니다)
-  const opPts = msPtsPetro(_opData, OILP_BASE_KEY);
-  const opDay = opPts.length ? opPts[opPts.length - 1].k : '';
+  const opDay = opHeroDay();
   const head = vizHero('fuel', '국제유가·석유제품 (PETRONET)',
     (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '', opDay, null, '데이터 기준',
     null, '주요 석유제품의 최근 흐름과 변동 요인을 분석')
@@ -6991,16 +7100,19 @@ function friTableHtml(list) {
 }
 
 /* ── 카드 ──────────────────────────────────────────────────────────── */
-function friHeroHtml(list) {
-  /* 기준일 — 고른 지수가 있으면 그 지수의, 없으면 WCI 종합의 마지막 날 */
+/* 기준일 — 고른 지수가 있으면 그 지수의, 없으면 WCI 종합의 마지막 날 */
+function friHeroDay(list) {
   let day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
   if (!day) {
     const tb = _friData && _friData.wciRoutes;
     day = (tb && tb.dates && tb.dates[tb.dates.length - 1]) || '';
   }
+  return day;
+}
+function friHeroHtml(list) {
   return vizHero('ship', '해상 운임 지수',
     '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
-    day, null, '데이터 기준', null, '해상 운송비 변화');
+    friHeroDay(list), null, '데이터 기준', null, '해상 운송비 변화');
 }
 
 /** 항로별 운임 — 우리가 모은 값으로 직접 만든 한국어 표.
@@ -12020,6 +12132,14 @@ function kpiInsightBox(cat, item, st, fc) {
     + '</div>';
 }
 
+/* 배너의 '데이터 기준' — 고른 품목의 기준일, 없으면 수집 기준일 */
+function kpHeroDay() {
+  const ok = _kpData && !_kpData.error && _kpData.categories.length;
+  const item = ok ? kpItemOf(kpCatOf(_kpCat), _kpItem) : null;
+  const st = (ok && item) ? kpiStat(item) : null;
+  return st ? st.date : (_kpData && _kpData.baseDate) || '';
+}
+
 function renderKoimaPriceHtml() {
   const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaPrice);
   const ok = _kpData && !_kpData.error && _kpData.categories.length;
@@ -12039,7 +12159,7 @@ function renderKoimaPriceHtml() {
   const kpItemName = item ? item.name : '원자재';
   const head = vizHero('drum', kpHero.title || '일일 국제원자재가격 (KOIMA)',
     kpSubT.split('{item}').join(kpItemName),
-    kpSt ? kpSt.date : (_kpData && _kpData.baseDate) || '',
+    kpHeroDay(),
     null, kpHero.badgePrefix || '데이터 기준', null,
     '글로벌 ' + kpItemName + ' 가격의 최근 흐름과 변동 요인을 분석');
 
@@ -16090,6 +16210,7 @@ function resetDashboard() {
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
   _igData = null;       // SIMMONS IG 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
+  _mtTree = { open: null, pick: null }; mtTreeSave();   // 원자재 가지치기: 뿌리만
   _msData = null;       // 시황 해설(배지·변곡점·요인) 비우기
   _iiData = null;       // ICIS 6단 패널(변동요인·타임라인·시사점) 비우기
   _sriData = null;      // 해상 정시성 5단 패널 비우기
@@ -17965,6 +18086,8 @@ function searchFindItem(scope, title) {
  *    한 번 더 늦게 찾아본다(그래도 없으면 섹션 카드를 강조한다). */
 function searchGoto(viewId, sectionId, title) {
   const view = (VIEWS.indexOf(viewId) >= 0) ? viewId : 'dashboard';
+  // 원자재 검색 결과는 원료 용어(ICIS)뿐이다 — ICIS 카드를 고른 채로 연다
+  if (view === 'material') mtTreePick('icis');
   setView(view);
   const card = () => document.querySelector('.dash-card[data-section="' + sectionId + '"]');
   const tryFlash = (retry) => {

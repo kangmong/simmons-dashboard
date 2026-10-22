@@ -6299,3 +6299,47 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kpx--pick:hover { border-color: var(--slate); }
 .kpx--pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .kpx--pick.is-on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+
+/* ── 원자재 동향 가지치기 — 공용 트리(.sf-tr*)를 가로로 놓는다 ──────────
+   뿌리는 위 가운데, 항목은 그 아래 같은 폭으로 가로, 고른 카드는 맨 아래.
+   연결선은 뿌리 → 가로 레일 → 각 항목으로 내려간다. 좁으면 세로로 쌓인다. */
+.sf-tree[data-tree="mt"] { grid-template-columns: minmax(0, 1fr); }
+.sf-tree[data-tree="mt"] .sf-tr__roots { align-items: center; }
+.sf-tree[data-tree="mt"] .sf-tr__root { width: auto; min-width: 280px; }
+.sf-tree[data-tree="mt"] .sf-tr__hint { max-width: 420px; margin-left: auto; margin-right: auto; }
+.sf-tree[data-tree="mt"] .sf-tr__branch {
+  margin: 0; padding: 16px 0 0; display: grid; grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr); gap: 8px;
+}
+.sf-tree[data-tree="mt"] .sf-tr__branch::before {   /* 뿌리에서 레일까지 */
+  left: 50%; top: 0; bottom: auto; height: 8px;
+}
+.sf-tree[data-tree="mt"] .sf-tr__item {
+  align-items: flex-start; padding: 8px 12px; border-radius: 14px;
+}
+.sf-tree[data-tree="mt"] .sf-tr__item::before {     /* 레일에서 항목까지 */
+  left: 50%; top: -8px; width: 0; height: 8px; margin-top: 0;
+  border-bottom: 0; border-radius: 0;
+}
+.sf-tree[data-tree="mt"] .sf-tr__item::after {      /* 가로 레일 — 첫·끝 항목 가운데까지 */
+  content: ""; position: absolute; top: -8px; left: -5px; right: -5px;
+  border-top: 1px solid var(--line);
+}
+.sf-tree[data-tree="mt"] .sf-tr__item:first-child::after { left: 50%; }
+.sf-tree[data-tree="mt"] .sf-tr__item:last-child::after { right: 50%; }
+.sf-tree[data-tree="mt"] .sf-tr__i { margin-top: 2px; }
+.sf-tree[data-tree="mt"] .sf-tr__l { line-height: 1.3; word-break: keep-all; }
+.sf-tree[data-tree="mt"] .sf-tr__s { color: var(--slate); }
+.sf-tree[data-tree="mt"] .sf-one > .viz-root { margin-top: 0; }
+@media (max-width: 860px) {
+  .sf-tree[data-tree="mt"] .sf-tr__root { width: 100%; min-width: 0; }
+  .sf-tree[data-tree="mt"] .sf-tr__branch {
+    grid-auto-flow: row; margin: 8px 0 0 18px; padding: 0 0 0 16px;
+  }
+  .sf-tree[data-tree="mt"] .sf-tr__branch::before { left: 0; top: -6px; bottom: 17px; height: auto; }
+  .sf-tree[data-tree="mt"] .sf-tr__item::before {
+    left: -16px; top: 50%; width: 16px; height: 13px; margin-top: -13px;
+    border-bottom: 1px solid var(--line); border-bottom-left-radius: 9px;
+  }
+  .sf-tree[data-tree="mt"] .sf-tr__item::after { content: none; }
+}
