@@ -3891,7 +3891,8 @@ function evPanelHtml(title, list, emptyText) {
         ? ' data-evfrom="' + escapeHtml(e.from) + '" data-evto="' + escapeHtml(e.to || e.from)
           + '" data-evtitle="' + escapeHtml(e.title) + '" role="button" tabindex="0"'
         : '';
-      return '<div class="ii-ev__c' + (e.from ? ' is-pick' : '') + '"' + pick
+      return '<div class="ii-ev__c' + (e.from ? ' is-pick' : '') + (e.on ? ' is-on' : '') + '"'
+        + pick + (e.on ? ' aria-pressed="true"' : '')
         + (e.what ? ' title="' + escapeHtml(e.what) + '"' : '') + '>'
         + '<span class="ii-ev__d">' + escapeHtml(e.when) + '</span>'
         + head
@@ -11415,6 +11416,8 @@ let _kpSpans = true;        // (쓰지 않는다 — 구간 변동률을 걷어�
    현재가격 카드 → 현재값 점 · 전월대비 카드 → 전월 대비 점선 구간 */
 let _kpNow = false;
 let _kpMom = false;
+/* 주요 이슈 — 아래 카드에서 고른 사건 하나만 그래프에 찍는다('날짜|제목', '' 이면 없음) */
+let _kpEv = '';
 const KP_FC_MONTHS = 3;      // ④ 전망 지평(개월)
 const KP_TREND_WIN = 12;     // 추세를 재는 창(개월)
 const KP_VOL_WIN = 12;       // 변동성을 재는 창(개월)
@@ -12238,13 +12241,13 @@ function renderKoimaPriceHtml() {
       /* ★ 오른쪽 '기간별 변동률' 표와 그래프 위 '구간 변동률'은 걷어냈다.
          함수(kpiChangePanel · kpiSpansSvg)는 남겨 뒀다. */
       + '</div></div>'
-      + '<div class="ii-cap ii-cap--chart">마커는 <b>실제로 일어난 사건</b>을 '
-        + '그 날짜에 찍은 것입니다. 마커를 누르면 무슨 일이었는지와 <b>출처</b>, '
+      + '<div class="ii-cap ii-cap--chart">아래 <b>주요 이슈</b>를 누르면 그 사건을 '
+        + '그래프의 해당 날짜에 표시합니다. 표시된 마커를 누르면 <b>출처</b>와 '
         + '그리고 사건 뒤 이 품목이 실제로 얼마나 움직였는지가 나옵니다 — 움직인 '
         + '폭은 이 화면의 자료로 직접 잰 값입니다. <b>*</b> 표시는 이 품목에서는 '
         + '변동이 뚜렷하지 않아(' + KP_EV_REF_PCT + '% 미만) 참고용이라는 뜻입니다.'
-        + (evs.length ? '' : ' (이 부문·기간에는 확인된 사건이 없어 마커를 두지 '
-          + '않았습니다. 근거를 찾지 못한 사건은 지어내지 않습니다.)')
+        + (evs.length ? '' : ' (이 부문·기간에는 확인된 사건이 없습니다. 근거를 '
+          + '찾지 못한 사건은 지어내지 않습니다.)')
       + '</div>'
       + '</div>'
       /* ★ 뺀 것 — 주요 변동요인 분석(kpiFactors) · 향후 3개월 시나리오별
@@ -12253,7 +12256,12 @@ function renderKoimaPriceHtml() {
          문장을 덧대던 자리다.
        ★ 남긴 것 — 가격 추이 그래프와 최근 12개월 가격 현황 표(실측값).
          함수는 모두 남겨 뒀으니 되살리려면 여기에 다시 붙이면 된다. */
-      + kpiDayTable(item, st);
+      + kpiDayTable(item, st)
+      /* ★ 주요 이슈 — 스폰지 주원료(ICIS)와 같은 카드. 누르면 그래프에 표시 */
+      + evPanelHtml('주요 이슈', evs.slice().sort((a, b) => a.date.localeCompare(b.date))
+        .map((e) => ({ when: e.date, from: e.date, to: e.date, title: e.label,
+          desc: e.detail.split(' | ')[0], on: e.date + '|' + e.label === _kpEv })),
+      '이 부문·기간에는 확인된 사건이 없습니다');
   }
   const warn = (ok && _kpData.failures && _kpData.failures.length)
     ? `<div class="kp-warn">일부 품목 수집 실패 ${_kpData.failures.length}건 (해당 품목은 목록에서 제외)</div>` : '';
@@ -12317,7 +12325,8 @@ function buildKpChart(rows, item, cat, hOpt, evItems, st) {
       <line class="kp-cross" x1="0" y1="${padT}" x2="0" y2="${padT + plotH}" stroke="var(--axis)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
       <g class="kp-dots"></g>
       <rect class="kp-overlay" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>
-      ${vizEventsSvg(evItems || [], rows.map((r) => r.date), X, padT, plotH, W)}
+      ${vizEventsSvg((evItems || []).filter((e) => e.date + '|' + e.label === _kpEv),
+        rows.map((r) => r.date), X, padT, plotH, W)}
       ${(_kpNow || _kpMom) ? kpNowSvg(rows, item, st, X, Y, padL, padT, plotW, plotH,
         { now: _kpNow, mom: _kpMom }) : ''}
     </svg>`;
@@ -12438,6 +12447,16 @@ function wireKpControls(root) {
     if (nw) { _kpNow = !_kpNow; renderMaterial(); return; }
     const mo = e.target.closest && e.target.closest('[data-kpmom]');
     if (mo) { _kpMom = !_kpMom; renderMaterial(); return; }
+    const ev = e.target.closest && !e.target.closest('a') && e.target.closest('.ii-ev__c[data-evfrom]');
+    if (ev) {
+      const k = ev.getAttribute('data-evfrom') + '|' + ev.getAttribute('data-evtitle');
+      _kpEv = (_kpEv === k) ? '' : k;
+      renderMaterial();
+      const again = Array.from(document.querySelectorAll('.kp-figure .ii-ev__c[data-evfrom]'))
+        .filter((x) => x.getAttribute('data-evfrom') + '|' + x.getAttribute('data-evtitle') === k)[0];
+      if (again) again.focus();
+      return;
+    }
     const b = e.target.closest && e.target.closest('[data-kp-spans]');
     if (!b) return;
     _kpSpans = !_kpSpans;
@@ -12449,7 +12468,11 @@ function wireKpControls(root) {
     const nw = e.target.closest && e.target.closest('[data-kpnow]');
     if (nw) { e.preventDefault(); _kpNow = !_kpNow; renderMaterial(); return; }
     const mo = e.target.closest && e.target.closest('[data-kpmom]');
-    if (mo) { e.preventDefault(); _kpMom = !_kpMom; renderMaterial(); }
+    if (mo) { e.preventDefault(); _kpMom = !_kpMom; renderMaterial(); return; }
+    if (e.target.closest && e.target.closest('.ii-ev__c[data-evfrom]')) {
+      e.preventDefault();
+      e.target.click();
+    }
   });
   const chipsEl = fig.querySelector('.kp-ranges');
   if (chipsEl) chipsEl.addEventListener('click', (e) => {
@@ -16227,7 +16250,7 @@ function resetDashboard() {
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
   _kpData = null; _kpCat = null; _kpItem = null; _kpRange = null; _kpChart = null;
-  _kpDate = null; _kpBusy = false;
+  _kpDate = null; _kpBusy = false; _kpEv = '';
   _domestic = null; _domesticFeatured = null;       // 국내 브랜드 비우기
   _globalBrands = null; _globalFeatured = null;     // 국외 브랜드 비우기
   _competitors = null;      // 경쟁사(국외 SEC) 데이터 비우기
