@@ -15490,19 +15490,126 @@ function ptRows(range) {
 
 function ptCount(rows, fn) { return rows.filter(fn).length; }
 
-/** 증감 배지 — 전년 동기 대비. 기준이 0이면 비율을 만들지 않는다. */
-function ptDelta(now, before, isPct) {
-  if (before == null) return '';
+/* ── 공개 지연 ──────────────────────────────────────────────────────────
+   특허는 출원 뒤 약 1년 6개월이 지나 공개된다. 그래서 최근 연도는 아직 덜
+   잡히고, 그 낮은 수치를 '출원이 줄었다'로 읽으면 안 된다.
+   ★ 판정: 그 해 12-31 에 18개월을 더한 날이 데이터 기준일보다 앞서면 '마무리'.
+     (예전에는 '올해 − 2년' 이라는 어림이었다. 기준일이 상반기일 때 어긋난다 —
+      2027-01 이면 어림은 2025 를 마무리로 쳤지만, 실제로는 2027-06-30 이
+      지나야 마무리다.)
+   ★ 기준일은 화면의 '데이터 기준'과 같은 값(ptToday)을 쓴다. */
+const PT_PUB_LAG_MONTHS = 18;
+/* 두 평균의 차이가 이 안이면 '비슷합니다'로 쓴다(없는 차이를 만들지 않는다) */
+const PT_SIMILAR_PCT = 10;
+
+/** 공개가 마무리된 마지막 연도. */
+function ptSettledMaxYear(asOf) {
+  const base = asOf || ptToday();
+  let y = Number(base.slice(0, 4));
+  /* y 년 12-31 에 18개월 — 없는 날(6-31)은 그 달 말일로 당긴다.
+     Date.UTC(y, 12+LAG, 0) 이 '11+LAG 월의 말일'이라 그대로 맞는다
+     (setUTCMonth 로 더하면 6-31 이 7-01 로 넘어가 하루가 어긋난다). */
+  while (y > 1900) {
+    const d = new Date(Date.UTC(y, 12 + PT_PUB_LAG_MONTHS, 0));
+    if (d.toISOString().slice(0, 10) <= base) return y;
+    y -= 1;
+  }
+  return Number(base.slice(0, 4));
+}
+
+/** 증감 배지 — 기준이 0이면 비율을 만들지 않는다.
+ *  ★ 비교 건수를 같이 적는다. 모수가 작으면 비율이 부풀어 보인다
+ *    (신소재 1건 → 0건이 ▼100% 로 읽히던 자리다). 괄호 안 건수로 바로 확인된다.
+ *  ★ 변동이 없으면 '– 0.0%' 대신 '변동 없음'이라고 쓴다.
+ *  ★ vs 로 비교 대상 이름을 받는다 — '최근 3년 출원'은 전년 동기가 아니라
+ *    직전 3년과 견주므로(ptKpiCards 의 prior3) 라벨도 그렇게 적는다. */
+function ptDelta(now, before, isPct, vs) {
+  const label = vs || '전년 동기';
+  const cnt = (n) => n.toLocaleString('ko-KR') + '건';
+  if (before == null) {
+    return '<span class="pt-kpi__d pt-kpi__d--na">—<i>' + escapeHtml(label) + ' 비교 불가</i></span>';
+  }
   if (!isPct && !before) {
-    return '<span class="pt-kpi__d pt-kpi__d--flat">전년 동기 0건</span>';
+    return '<span class="pt-kpi__d pt-kpi__d--flat">' + escapeHtml(label) + ' 0건'
+      + (now ? '<i>(0건 \u2192 ' + cnt(now) + ')</i>' : '') + '</span>';
   }
   const v = isPct ? (now - before) : ((now - before) / before * 100);
   const up = v > 0, flat = Math.abs(v) < 0.05;
   const cls = flat ? 'flat' : (up ? 'up' : 'down');
-  const arrow = flat ? '–' : (up ? '▲' : '▼');
-  const num = Math.abs(v).toFixed(1) + (isPct ? '%p' : '%');
-  return '<span class="pt-kpi__d pt-kpi__d--' + cls + '">' + arrow + ' ' + num
-    + '<i>전년 동기</i></span>';
+  const head = flat ? '변동 없음'
+    : (up ? '▲ ' : '▼ ') + Math.abs(v).toFixed(1) + (isPct ? '%p' : '%');
+  return '<span class="pt-kpi__d pt-kpi__d--' + cls + '">' + head
+    + '<i>' + escapeHtml(label)
+    + (isPct ? '' : ' (' + cnt(before) + ' \u2192 ' + cnt(now) + ')') + '</i></span>';
+}
+
+/* ── KPI 카드 꾸밈 ──────────────────────────────────────────────────────
+   ★ 포인트 색은 장식이다. 숫자와 ▲▼ 는 대시보드 공통 규칙(상승 빨강 ·
+     하락 파랑)을 그대로 쓴다.
+   ★ 아이콘은 인라인 SVG 로 직접 그린다(새 이미지 파일을 쓰지 않는다). */
+/* ★ 아이콘이 같은 색 옅은 바탕 위에 놓이므로 비텍스트 대비 3:1 을 넘겨야 한다.
+   차트 선 색(#3B82F6·#F59E0B …)을 그대로 쓰면 주황이 1.95:1 까지 떨어진다 —
+   한 단계 진한 값으로 내렸다. */
+const PTK_TONES = { all: '#2563EB', ours: '#7C3AED', rivals: '#0B7F5E',
+  mat: '#B45309', last3: '#BE185D' };
+const PTK_ICONS = {
+  all: '<rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/>',
+  ours: '<path d="M2.5 13.5V5l4.5-2.5V13.5"/><path d="M7 7l6.5 2v4.5"/><path d="M1.5 13.5h13"/>'
+    + '<path d="M4 7h1M4 9.5h1M9.5 10h1"/>',
+  rivals: '<circle cx="5.5" cy="5.5" r="2"/><circle cx="11" cy="6.5" r="1.6"/>'
+    + '<path d="M2 13c0-2 1.6-3.2 3.5-3.2S9 11 9 13"/><path d="M9.5 13c0-1.5 1-2.4 2.3-2.4S14 11.5 14 13"/>',
+  mat: '<path d="M6.4 2.5v3.8L3.2 11.6A1.2 1.2 0 0 0 4.2 13.5h7.6a1.2 1.2 0 0 0 1-1.9L9.6 6.3V2.5"/>'
+    + '<path d="M5.6 2.5h4.8"/><path d="M5 9.8h6"/>',
+  last3: '<circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3.2l2.2 1.3"/><path d="M8 1.5v1.6"/>',
+};
+function ptkIcon(kind, tone) {
+  return '<span class="ptk__ico" style="--xt:' + tone + '" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"'
+    + ' stroke-linecap="round" stroke-linejoin="round">' + (PTK_ICONS[kind] || '') + '</svg></span>';
+}
+
+/** 연도별 건수 — 고른 기간의 행에서 그때그때 센다(값을 만들지 않는다). */
+function ptYearCounts(rows, fn) {
+  const yc = {};
+  rows.forEach((r) => {
+    const y = (r.date || '').slice(0, 4);
+    if (!y) return;
+    if (fn && !fn(r)) return;
+    yc[y] = (yc[y] || 0) + 1;
+  });
+  return Object.keys(yc).sort().map((y) => ({ y: Number(y), n: yc[y] }));
+}
+
+/** 카드 배경 미니 면적 차트.
+ *  ★ 공개가 덜 끝난 연도(ptSettledMaxYear 이후)는 점선·옅은 색으로 갈라 그린다
+ *    — 그 구간이 낮은 것은 출원이 준 게 아니라 아직 안 잡힌 것이다.
+ *  ★ 연도가 2개 미만이거나 전부 0이면 아예 그리지 않는다. */
+function ptkSpark(pts, tone) {
+  if (!pts || pts.length < 2) return '';
+  const maxN = pts.reduce((m, p) => Math.max(m, p.n), 0);
+  if (!maxN) return '';
+  const W = 150, H = 54, P = 3;
+  const X = (i) => P + (i / (pts.length - 1)) * (W - P * 2);
+  const Y = (n) => H - P - (n / maxN) * (H - P * 2 - 10);
+  const cut = ptSettledMaxYear();
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.n).toFixed(1)).join(' ');
+  /* 덜 잡힌 구간은 마지막 '마무리된 해'부터 점선으로 잇는다 */
+  let si = -1;
+  pts.forEach((p, i) => { if (p.y <= cut) si = i; });
+  const dash = (si >= 0 && si < pts.length - 1)
+    ? pts.slice(si).map((p, i) => (i ? 'L' : 'M')
+      + X(si + i).toFixed(1) + ' ' + Y(p.n).toFixed(1)).join(' ') : '';
+  const solidEnd = (si >= 0 ? si : pts.length - 1);
+  const solid = pts.slice(0, solidEnd + 1).map((p, i) => (i ? 'L' : 'M')
+    + X(i).toFixed(1) + ' ' + Y(p.n).toFixed(1)).join(' ');
+  const area = solid + ' L' + X(solidEnd).toFixed(1) + ' ' + H + ' L' + X(0).toFixed(1) + ' ' + H + ' Z';
+  return '<svg class="ptk-sp" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"'
+    + ' aria-hidden="true" focusable="false" style="--xt:' + tone + '">'
+    + '<title>' + escapeHtml(pts[0].y + '~' + pts[pts.length - 1].y + '년 연도별 건수') + '</title>'
+    + (solidEnd > 0 ? '<path class="ptk-sp__a" d="' + area + '"/>' : '')
+    + (solidEnd > 0 ? '<path class="ptk-sp__l" d="' + solid + '"/>' : '')
+    + (dash ? '<path class="ptk-sp__d" d="' + dash + '"/>' : '')
+    + '</svg>';
 }
 
 /* ── 1) KPI 5장 ────────────────────────────────────────────────────────── */
@@ -15523,21 +15630,36 @@ function ptKpiCards(cur, prev) {
       return y > endY - 6 && y <= endY - 3;
     }));
   const eY = yEnd(cur);
+  /* ★ 라벨·숫자·계산식은 그대로다. 아이콘·포인트 색·미니차트만 더한다.
+     ★ '최근 3년 출원'은 날짜가 아니라 출원연도 단위로 센다(위 last3/prior3).
+       비교 대상도 전년 동기가 아니라 '직전 3년'이라 라벨을 그렇게 적는다. */
   const defs = [
-    ['전체 특허 출원', cur.length, prev.length, '건', false],
-    ['시몬스 출원', ptCount(cur, (r) => r.isOurs), ptCount(prev, (r) => r.isOurs), '건', false],
-    ['경쟁사 출원(합계)', ptCount(cur, (r) => !r.isOurs), ptCount(prev, (r) => !r.isOurs), '건', false],
-    ['신소재 관련', ptCount(cur, (r) => r.newMaterial), ptCount(prev, (r) => r.newMaterial), '건', false],
-    ['최근 3년 출원', last3(cur, eY), prior3(cur, eY), '건', false],
+    ['전체 특허 출원', cur.length, prev.length, '건', false, 'all', null, null],
+    ['시몬스 출원', ptCount(cur, (r) => r.isOurs), ptCount(prev, (r) => r.isOurs),
+      '건', false, 'ours', (r) => r.isOurs, null],
+    ['경쟁사 출원(합계)', ptCount(cur, (r) => !r.isOurs), ptCount(prev, (r) => !r.isOurs),
+      '건', false, 'rivals', (r) => !r.isOurs, null],
+    ['신소재 관련', ptCount(cur, (r) => r.newMaterial), ptCount(prev, (r) => r.newMaterial),
+      '건', false, 'mat', (r) => r.newMaterial, null],
+    ['최근 3년 출원', last3(cur, eY), prior3(cur, eY), '건', false, 'last3', null,
+      (eY == null ? null : '출원연도 ' + (eY - 2) + '~' + eY + '년')],
   ];
-  return '<div class="pt-kpis">' + defs.map(([label, now, before, unit, isPct]) => {
-    const shown = isPct ? now.toFixed(1) : now.toLocaleString('ko-KR');
-    return '<div class="pt-kpi">'
-      + '<div class="pt-kpi__l">' + escapeHtml(label) + '</div>'
-      + '<div class="pt-kpi__v">' + shown + '<span>' + unit + '</span></div>'
-      + ptDelta(now, before, isPct)
-      + '</div>';
-  }).join('') + '</div>';
+  return '<div class="pt-kpis">' + defs.map(
+    ([label, now, before, unit, isPct, kind, pick, note]) => {
+      const shown = isPct ? now.toFixed(1) : now.toLocaleString('ko-KR');
+      const tone = PTK_TONES[kind] || 'var(--slate)';
+      const vs = (kind === 'last3') ? '직전 3년' : null;
+      return '<div class="pt-kpi ptk" style="--xt:' + tone + '">'
+        + ptkSpark(ptYearCounts(cur, pick), tone)
+        + '<div class="ptk__hd">' + ptkIcon(kind, tone)
+        + '<div class="ptk__lw">'
+        + '<div class="pt-kpi__l ptk__l">' + escapeHtml(label) + '</div>'
+        + (note ? '<div class="ptk__sub">' + escapeHtml(note) + '</div>' : '')
+        + '</div></div>'
+        + '<div class="pt-kpi__v ptk__v">' + shown + '<span>' + unit + '</span></div>'
+        + ptDelta(now, before, isPct, vs)
+        + '</div>';
+    }).join('') + '</div>';
 }
 
 /* ── 2) 연도별 추이 — 회사별 누적 막대 ──────────────────────────────────
@@ -16302,30 +16424,49 @@ function ptTrendNote(rows) {
   if (years.length < 3) return '';
   let peak = years[0];
   years.forEach((y) => { if (yc[y] > yc[peak]) peak = y; });
-  const thisYear = new Date().getFullYear();
-  // 공개 지연이 걸리는 최근 2년은 '덜 잡힌 구간'으로 따로 말한다
-  const LAG = 2;
-  const settled = years.filter((y) => Number(y) <= thisYear - LAG);
-  const pending = years.filter((y) => Number(y) > thisYear - LAG);
+  /* 동률이면 모두 적는다 — 하나만 고르면 없는 1등을 만드는 셈이다 */
+  const peaks = years.filter((y) => yc[y] === yc[peak]);
+
+  /* ★ 공개가 마무리된 해 — 12-31 + 18개월이 데이터 기준일 이전인 해까지. */
+  const cut = ptSettledMaxYear();
+  const settled = years.filter((y) => Number(y) <= cut);
+  const pending = years.filter((y) => Number(y) > cut);
+  const avg = (ys) => (ys.length ? (ys.reduce((s2, y) => s2 + yc[y], 0) / ys.length) : 0);
   const last3 = settled.slice(-3);
-  const avg = (ys) => (ys.length
-    ? (ys.reduce((s2, y) => s2 + yc[y], 0) / ys.length) : 0);
-  const early = settled.slice(0, Math.max(1, settled.length - 3));
-  const dir = avg(last3) < avg(early) ? '줄어드는' : '늘어나는';
-  const pendTxt = pending.length
-    ? pending.map((y) => y + '년 ' + yc[y] + '건').join(' · ')
-    : '';
-  return '<div class="pt-trend">'
-    + '<div class="pt-trend__h">특허 출원 흐름 — 있는 그대로</div>'
-    + '<ul class="pt-trend__l">'
-    + '<li>가장 많았던 해는 <b>' + peak + '년 ' + yc[peak] + '건</b>입니다.</li>'
-    + '<li>공개가 마무리된 최근 3년(' + last3.join('·') + ')은 연평균 <b>'
-    + avg(last3).toFixed(1) + '건</b>으로, 그 이전 평균(' + avg(early).toFixed(1)
-    + '건)보다 ' + dir + ' 추세입니다.</li>'
-    + (pendTxt ? '<li><b>' + escapeHtml(pendTxt) + '</b>은 아직 집계가 덜 된 구간입니다 — '
+  const early = settled.slice(0, Math.max(0, settled.length - 3));
+
+  const li = [];
+  li.push('<li>가장 많았던 해는 <b>' + peaks.map((y) => y + '년').join('·') + ' '
+    + yc[peak] + '건</b>입니다.</li>');
+
+  /* ★ '그 이전'이 1년도 안 되면 비교하지 않는다(한 해를 평균이라 부를 수 없다).
+     ★ 추세 판정('늘어나는/줄어드는')은 쓰지 않는다 — 두 평균을 견준 사실만 쓴다. */
+  if (last3.length >= 1 && early.length >= 1) {
+    const a = avg(last3), b = avg(early);
+    const diff = b ? Math.abs(a - b) / b * 100 : (a ? 100 : 0);
+    const word = (diff <= PT_SIMILAR_PCT) ? '비슷합니다'
+      : (a > b ? '많습니다' : '적습니다');
+    li.push('<li>공개가 마무리된 최근 ' + last3.length + '년(' + last3.join('·')
+      + ')은 연평균 <b>' + a.toFixed(1) + '건</b>으로, 그 이전 평균('
+      + b.toFixed(1) + '건)보다 ' + word + '.</li>');
+  }
+
+  if (pending.length) {
+    li.push('<li><b>' + escapeHtml(pending.map((y) => y + '년 ' + yc[y] + '건').join(' · '))
+      + '</b>은 아직 집계가 덜 된 구간입니다 — '
       + '특허는 출원 뒤 약 1년 6개월이 지나 공개되므로, 최근 연도의 낮은 수치를 '
-      + '출원 감소로 읽으면 안 됩니다.</li>' : '')
-    + '</ul></div>';
+      + '출원 감소로 읽으면 안 됩니다.</li>');
+  }
+  if (!li.length) return '';
+  return '<div class="pt-trend">'
+    + '<div class="pt-trend__h">'
+    + '<span class="pt-trend__ico" aria-hidden="true">'
+    + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"'
+    + ' stroke-linecap="round" stroke-linejoin="round">'
+    + '<rect x="3" y="2.5" width="10" height="11" rx="1.5"/>'
+    + '<path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3"/></svg></span>'
+    + '특허 출원 흐름 — 있는 그대로</div>'
+    + '<ul class="pt-trend__l">' + li.join('') + '</ul></div>';
 }
 
 /* ── 오류 화면 ─────────────────────────────────────────────────────────── */

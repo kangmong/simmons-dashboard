@@ -5903,3 +5903,56 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .xsi-tr__m.up { color: var(--accent); }
 .xsi-tr__m.down { color: var(--green); }
 .xsi-tr__m.flat { color: var(--muted); }
+
+/* ── 특허 KPI 카드 ────────────────────────────────────────────────────────
+   ★ 숫자·라벨은 그대로 두고 아이콘·포인트 색·배경 미니차트만 더한다.
+   ★ 포인트 색(--xt)은 카드를 구분하는 장식이다. 값의 뜻(▲ 상승 빨강 ·
+     ▼ 하락 파랑)은 대시보드 공통 규칙을 그대로 쓴다 — 카드 색이 그 자리를
+     뺏으면 같은 색이 두 가지를 뜻하게 된다.
+   ★ --muted(3.10:1)는 작은 글씨에 모자라 --slate(4.76:1)로 올려 덮는다. */
+.pt-kpi.ptk {
+  position: relative; overflow: hidden; padding: 12px 13px 13px;
+  border-top: 2px solid var(--xt);
+}
+/* 숫자 줄 뒤에 깔고 증감 줄은 비워 둔다 — 바닥까지 끌면 10px 설명글 위로
+   선이 지나가 읽기 어려워진다(큰 숫자는 굵어서 선 위에서도 버틴다). */
+.ptk-sp {
+  position: absolute; left: 0; right: 0; bottom: 22px; width: 100%; height: 44px;
+  pointer-events: none;
+}
+.ptk-sp__a { fill: var(--xt); opacity: .09; stroke: none; }
+.ptk-sp__l { fill: none; stroke: var(--xt); stroke-width: 1.6; opacity: .42;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.ptk-sp__d { fill: none; stroke: var(--xt); stroke-width: 1.6; opacity: .22;
+  stroke-dasharray: 3 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.ptk__hd { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; }
+.ptk__ico {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--xt); background: color-mix(in srgb, var(--xt) 13%, #fff);
+}
+.ptk__ico svg { width: 15px; height: 15px; }
+.ptk__lw { min-width: 0; }
+.pt-kpi__l.ptk__l { color: var(--slate); line-height: 1.3; word-break: keep-all; }
+.ptk__sub { margin-top: 2px; font-size: 10.5px; font-weight: 600; color: var(--slate); }
+.pt-kpi__v.ptk__v { position: relative; z-index: 1; margin-top: 8px; }
+.pt-kpi__v.ptk__v span { color: var(--slate); }
+.ptk .pt-kpi__d { position: relative; z-index: 1; flex-wrap: wrap; }
+.ptk .pt-kpi__d i { color: var(--slate); }
+.ptk .pt-kpi__d--flat, .ptk .pt-kpi__d--na { color: var(--slate); }
+@supports not (color: color-mix(in srgb, #000 10%, #fff)) {
+  .ptk__ico { background: var(--field); }
+}
+
+/* ▼ 의 공통 --blue 는 3.68:1 이라 11px 굵은 글씨에 모자라다 — 이 카드 안에서만
+   한 단계 진하게 쓴다(색의 뜻은 그대로 '하락'이다). */
+.ptk .pt-kpi__d--down { color: #1D4ED8; }
+
+/* 요약 박스 제목 아이콘 */
+.pt-trend__h { display: flex; align-items: center; gap: 7px; }
+.pt-trend__ico {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--navy-2); background: var(--field2, #EEF2F8);
+}
+.pt-trend__ico svg { width: 13px; height: 13px; }
