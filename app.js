@@ -4529,7 +4529,12 @@ function renderMaterial() {
   // 순수 추가: KOIMA 요약 한 줄을 맨 앞에 덧붙인다(데이터 없으면 '' → 기존 출력과 동일).
   // 배너의 '업데이트 기준'은 지수의 실제 최신 데이터 월(ICIS_DATA 마지막 period)
   const icisDay = ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
-  root.innerHTML = renderKoimaSummaryHtml() + `<div class="viz-root viz-figure icis-figure">
+  /* ★ 화면에서 뺀 카드 — 해상 정시성 · 글로벌 컨테이너 운임지수 · 국제유가 동향 ·
+     원자재 원가 부문별 지수(KOIMA, 맨 위 한 줄 요약 포함). 그리는 함수와 수집기·
+     데이터는 그대로 두었다. 되살리려면 아래 템플릿에 호출을 다시 넣으면 된다:
+       renderKoimaSummaryHtml() · renderScheduleReliabilityHtml() ·
+       renderXsiHtml() · renderOilPricesHtml() · renderKoimaHtml() */
+  root.innerHTML = `<div class="viz-root viz-figure icis-figure">
     ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
       'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay,
       null, null, null, '시장가격 추이')}
@@ -4539,11 +4544,7 @@ function renderMaterial() {
     <div class="comp-caption">출처: ICIS Asia</div>
   </div>
   ${renderFreightHtml()}
-  ${renderScheduleReliabilityHtml()}
-  ${renderXsiHtml()}
-  ${renderOilPricesHtml()}
   ${renderOilProductHtml()}
-  ${renderKoimaHtml()}
   ${renderKoimaPriceHtml()}`;
 
   const yearsEl = root.querySelector('.icis-years');
@@ -4555,24 +4556,12 @@ function renderMaterial() {
   });
   if (_matYear) wireIcisChart();
 
-  const srYearsEl = root.querySelector('.sr-years');
-  if (srYearsEl) srYearsEl.addEventListener('click', (e) => {
-    const b = e.target.closest('.sr-year');
-    if (!b) return;
-    _srYear = b.dataset.year;
-    renderMaterial();
-  });
-  if (_srData && !_srData.error) wireSrChart();
-
-  wireOilEraHover(root);     // 순수 추가: 국제유가 구간 카드 ↔ 차트 음영 연동
-  wireCrudeControls(root);   // 국제유가(원유): 기준·기간·제품 + [조회]
-  wireProductControls(root); // 국제유가(석유제품): 같은 조회 UI
-
-  wireFri(root);            // 순수 추가: 해상 운임 지수(지수 선택·기간·선 토글·표)
-  wireXsi(root);            // 순수 추가: 컨테이너 운임지수(항로 탭·기간 칩·툴팁)
-  msWireEvents(root);       // 순수 추가: 변곡점 마커 툴팁(hover·포커스·탭)
-  wireKoimaControls(root);  // 순수 추가: KOIMA 부문별 지수 카드
-  wireKpControls(root);     // 순수 추가: KOIMA 일일 국제원자재가격 카드
+  /* 화면에서 뺀 카드(해상 정시성·운임지수·국제유가 동향·KOIMA 부문별)의 배선은
+     부르지 않는다 — 그 함수들은 그대로 남아 있다. */
+  wireProductControls(root); // 국제유가(석유제품): 기준·기간 + [조회]
+  wireFri(root);             // 해상 운임 지수(단추·갈래·기간·표·미니)
+  msWireEvents(root);        // 변곡점 마커 툴팁(hover·포커스·탭)
+  wireKpControls(root);      // KOIMA 일일 국제원자재가격 카드
 }
 
 /** 4개 원료 월별 선그래프 SVG (null 구간 선 끊김) */
@@ -6655,11 +6644,11 @@ function renderScheduleReliabilityHtml() {
       추정값이 되므로 쓰지 않았다.) */
 const FRI_DATA_URL = 'public/data/freight-index.json';
 let _friData = null;
-let _friPick = 'cfi';        // 고른 지수 묶음
+let _friPick = '';           // 고른 지수 묶음 — 처음에는 아무것도 고르지 않는다
 let _friSpan = '1y';         // 기간
 let _friOff = {};            // 꺼 둔 선 { 'SCFI': true, … }
 let _friTable = false;       // 표 보기
-let _friWay = 'comp';        // WCI 안의 갈래(comp · route)
+let _friWay = '';            // 갈래(comp · scfi) — 고르기 전에는 그래프를 내지 않는다
 let _friMini = '';           // 미니 차트에서 설명을 펼친 항로 코드
 let _friOne = '';            // 항로 갈래에서 혼자 보기로 고른 항로 코드
 
@@ -6680,28 +6669,20 @@ const FRI_TONE = {
      맨 아래 한 줄이 기관명·원 발표 기관·원본 링크까지 모두 밝힌다. */
 const FRI_GROUPS = [
   { src: '', items: [
-    { id: 'cfi', label: 'SCFI·CCFI', keys: ['SCFI', 'CCFI'] },
-    { id: 'bdi', label: 'BDI', keys: ['BDI'] },
-    /* ★ WCI 는 과거 시계열이 기계가 읽을 수 있는 형태로 공개되지 않는다
-       (차트가 Canva 그림이라 글자까지 벡터다 — 실측). 좌표에서 값을 되돌리면
-       추정값이 되므로 쓰지 않고, Drewry 가 공표하는 그 차트를 그대로 싣는다.
-       숫자(최근값·전주 대비)는 같은 페이지 논평 본문에서 정확히 읽어 온다. */
-    /* ★ 버튼 셋을 하나로 합쳤다. 안에서 탭으로 또 나누지 않고 한 화면에 다
-       담는다 — 차트 둘이 나란히 서고 그 아래 표가 온다(탭을 두면 종합을 보다가
-       항로를 보려고 한 번 더 눌러야 하는데, 둘은 같이 봐야 뜻이 산다). */
-    /* ★ WCI 안은 두 갈래다 — 종합 지수와 상하이발 항로.
-       갈래마다 '무엇을 보는 것인지' 한 줄을 버튼 아래 붙인다. */
-    { id: 'wci', label: 'WCI', keys: ['WCI_COMPOSITE'], routeTable: true,
-      /* ★ 두 갈래 모두 Drewry 가 공표한 원본 차트를 그대로 싣는다.
-         우리가 다시 그리면 가진 점이 3주뿐이라 세로로 확대된 그림이 된다 —
-         1년 흐름이 사라지고 3% 움직임이 절벽처럼 보인다. */
+    /* ★ 단추는 하나다. 누르면 두 갈래(WCI · SCFI)가 나오고, 갈래를 눌러야
+       그래프가 나온다 — 업데이트 직후에는 단추만 보인다.
+       ★ 두 번째 갈래는 '상하이발 항로(Drewry)'가 아니라 진짜 SCFI 다.
+         둘은 다른 지수다(SCFI 는 상하이항운교역연구소 발표). 이름을 SCFI 로
+         바꾸면서 내용도 SCFI 로 맞췄다 — 이름만 바꾸면 Drewry 값을 SCFI 라고
+         부르게 된다. Drewry 항로별 값은 WCI 갈래의 표·미니 차트에 그대로 있다. */
+    { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
       ways: [
-        { id: 'comp', label: 'Drewry 세계 컨테이너 지수', chart: 0,
+        { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', chart: 0,
           desc: '전 세계 주요 항로 운임을 하나로 묶은 값입니다. 해상 운임이'
             + ' 전체적으로 오르내리는지 여기서 먼저 봅니다.' },
-        { id: 'route', label: '상하이발 주요 항로 운임', chart: 1,
-          desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
-            + ' 있는지 네 항로를 한 그림에서 견줍니다.' },
+        { id: 'scfi', label: 'SCFI(상하이 컨테이너 운임지수)', keys: ['SCFI'],
+          desc: '상하이에서 출발하는 컨테이너 운임을 지수로 만든 값입니다.'
+            + ' 아시아 수출 운임이 어떻게 움직이는지 봅니다.' },
       ] },
   ] },
 ];
@@ -6730,7 +6711,9 @@ function friSeries(id) {
   const g = friGroupOf(id);
   const idx = (_friData && _friData.indices) || {};
   if (!g) return [];
-  return g.item.keys.map((k) => {
+  const way = friWayOf(id);
+  const keys = (way && way.keys) || g.item.keys;
+  return keys.map((k) => {
     const d = idx[k];
     if (!d || !d.series || !d.series.dates || !d.series.dates.length) return null;
     return { key: k, name: d.name, code: d.code, unit: d.unit, freq: d.freq,
@@ -6945,12 +6928,15 @@ function friTableHtml(list) {
 
 /* ── 카드 ──────────────────────────────────────────────────────────── */
 function friHeroHtml(list) {
-  const day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
-  /* ★ 부제는 지금 카드에 든 것만 말한다 — BDI 는 컨테이너가 아니라 건화물선이고,
-     WCI 는 달러 운임이라 '지수'로만 묶으면 틀린 말이 된다. */
+  /* 기준일 — 고른 지수가 있으면 그 지수의, 없으면 WCI 종합의 마지막 날 */
+  let day = list.length ? list[0].dates[list[0].dates.length - 1] : '';
+  if (!day) {
+    const tb = _friData && _friData.wciRoutes;
+    day = (tb && tb.dates && tb.dates[tb.dates.length - 1]) || '';
+  }
   return vizHero('ship', '해상 운임 지수',
-    '컨테이너·건화물선 운임지수와 Drewry 세계 컨테이너 지수를 한 곳에서 확인합니다.',
-    day, null, '데이터 기준', null, '컨테이너·건화물선 운임지수와 Drewry 세계 컨테이너 지수');
+    '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
+    day, null, '데이터 기준', null, '해상 운송비 변화');
 }
 
 /** 항로별 운임 — 우리가 모은 값으로 직접 만든 한국어 표.
@@ -7012,7 +6998,9 @@ function friRouteTable() {
       ? ' class="fri-tb__sum"' : '') + '>'
     + '<td>' + escapeHtml(r.ko || r.name) + '</td>'
     + r.values.map((v) => '<td class="fri-tb__n">'
-      + (v == null ? '—' : '$' + friNum(v, null)) + '</td>').join('')
+      + (v == null ? '—' : '$' + friNum(v, null)
+        + (krwOf(v) ? '<span class="fri-krw">' + escapeHtml(krwOf(v)) + '</span>' : ''))
+      + '</td>').join('')
     + '<td class="fri-tb__n">' + pct(r.weekly) + '</td>'
     + '<td class="fri-tb__n">' + pct(r.annual) + '</td></tr>').join('');
   return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb">'
@@ -7161,7 +7149,9 @@ function friRouteMinis() {
       + '<div class="fri-mini__t">' + escapeHtml(r.ko || r.name) + '</div>'
       + svg
       + '<div class="fri-mini__f"><span>최저 $' + friNum(lo, null) + '</span>'
-      + '<b>$' + friNum(last, null) + '</b>'
+      + '<b>$' + friNum(last, null)
+      + (krwOf(last) ? '<span class="fri-krw">' + escapeHtml(krwOf(last)) + '</span>' : '')
+      + '</b>'
       + '<span>최고 $' + friNum(hi, null) + '</span></div>'
       + '<div class="fri-mini__d">' + escapeHtml(d[0]) + ' ~ '
       + escapeHtml(d[d.length - 1]) + ' · ' + v.length + '주</div>'
@@ -7212,7 +7202,8 @@ function friDotOverlay(kind, code) {
     + '%;top:' + (y * 100).toFixed(2) + '%" aria-hidden="true"></span>'
     + '<span class="fri-dot__v' + (near ? ' fri-dot__v--left' : '')
     + '" style="left:' + (g.x * 100).toFixed(2) + '%;top:' + (y * 100).toFixed(2)
-    + '%">$' + escapeHtml(Math.round(v).toLocaleString('ko-KR')) + '</span>';
+    + '%">$' + escapeHtml(Math.round(v).toLocaleString('ko-KR'))
+    + (krwOf(v) ? '<small>' + escapeHtml(krwOf(v)) + '</small>' : '') + '</span>';
 }
 
 /* 공식 차트 제목을 우리말로. 원문에서 알아볼 수 있는 토막을 찾아 바꾼다.
@@ -7293,7 +7284,7 @@ function friWays(id) {
 function friWayOf(id) {
   const g = friGroupOf(id);
   const ws = (g && g.item.ways) || [];
-  return ws.filter((w) => w.id === _friWay)[0] || ws[0] || null;
+  return ws.filter((w) => w.id === _friWay)[0] || null;
 }
 
 function friPicker() {
@@ -7343,50 +7334,43 @@ function renderFreightHtml() {
     return wrap(head + '<div class="chart-empty">데이터를 불러오지 못했습니다'
       + (_friData.reason ? ' (' + escapeHtml(_friData.reason) + ')' : '') + '</div>');
   }
-  const g = friGroupOf(_friPick);
-  const way = friWayOf(_friPick);              // WCI 는 갈래가 있다
-  const embs = way ? [way.chart] : null;
-  const list = friSeries(_friPick);
-  if (!list.length && !way) {
-    return wrap(head + friPicker()
-      + '<div class="chart-empty">이 지수는 아직 수집된 값이 없습니다</div>');
-  }
-  const cut = list.map((x) => friCut(x, _friSpan));
+  const warn = '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로'
+    + ' 직접 비교할 수 없습니다.</div>';
 
-  if (embs) {
-    /* 차트 둘은 나란히, 그 아래 우리 한국어 표 → Drewry 공식 표 순서.
-       기간·표 보기 버튼은 두지 않는다 — 기간은 그 차트가 스스로 들고 있다. */
-    return wrap(head
-      + friPicker()
-      /* ★ 위쪽 요약 카드(최근값·전주 대비)는 두지 않는다 — 갈래마다 상태
-         설명이 따로 붙어 같은 숫자가 두 번 나온다. */
-      /* 고른 갈래만 그린다.
-         · 종합  : Drewry 1년 차트 + 그 옆에 지금 상태 설명
-         · 항로  : 우리가 그린 차트(칩을 눌러 하나만 볼 수 있다)
-         ★ Drewry 항로 차트는 쓰지 않는다 — 범례를 눌러도 걸러지지 않아(실측)
-           고르는 기능을 줄 수 없다. 1년 흐름은 차트 아래 링크로 원본에서 본다. */
-      + friWays(_friPick)
-      /* ★ 그래프를 버튼과 같은 쪽에 둔다 — '상하이발 항로' 단추가 오른쪽에
-         있는데 그래프가 왼쪽에 서면 어느 단추의 결과인지 헷갈린다. */
-      + (way ? '<div class="fri-slot fri-slot--' + escapeHtml(way.id) + '">'
-        + (way.id === 'route'
-          ? friRoutePicks()
-            + (_friOne ? friOneRoute(_friOne)
-              : friOfficialChart(way.chart))
-          : friOfficialChart(way.chart,
-            friDotOverlay('comp', 'WCI-COMPOSITE')))
-        + '</div>' : '')
-      /* ★ 왼쪽 우리말 표(항로 9개 전부), 오른쪽 항로별 미니 차트.
-         영어 표 임베드는 걷어냈다 — 같은 값을 우리말 표가 그대로 싣는다. */
+  /* ★ 업데이트 직후 — 단추만 둔다. 고르기 전에 그래프가 떠 있으면 무엇을 보고
+     있는지 모른 채 숫자를 읽게 된다(ICIS·KOIMA 카드와 같은 규칙). */
+  if (!_friPick) {
+    return wrap(head + friPicker()
+      + '<div class="icis-prompt">항목을 선택하세요</div>');
+  }
+  const way = friWayOf(_friPick);
+  if (!way) {
+    return wrap(head + friPicker() + friWays(_friPick)
+      + '<div class="icis-prompt">위에서 보고 싶은 지수를 선택하세요</div>');
+  }
+
+  /* ── WCI — Drewry 원본 1년 차트 + 최신값 점 · 아래에 항로 표·미니 차트 ── */
+  if (way.id === 'comp') {
+    const list = friSeries(_friPick);
+    return wrap(head + friPicker() + friWays(_friPick)
+      + '<div class="fri-slot fri-slot--comp">'
+      + friOfficialChart(way.chart, friDotOverlay('comp', 'WCI-COMPOSITE'))
+      + '</div>'
+      + krwNote('USD')
       + '<div class="fri-tbls">'
       + '<div class="fri-tbls__k">' + friRouteTable() + '</div>'
       + '<div class="fri-tbls__o">' + friRouteMinis() + '</div>'
       + '</div>'
-      + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
-      + ' 비교할 수 없습니다.</div>'
-      + friSourceHtml(cut));
+      + warn + friSourceHtml(list.map((x) => friCut(x, 'all'))));
   }
 
+  /* ── SCFI — 우리가 그린 차트(2014년~, 기간·표 보기). 단추와 같은 오른쪽 칸에 ── */
+  const list = friSeries(_friPick);
+  if (!list.length) {
+    return wrap(head + friPicker() + friWays(_friPick)
+      + '<div class="chart-empty">이 지수는 아직 수집된 값이 없습니다</div>');
+  }
+  const cut = list.map((x) => friCut(x, _friSpan));
   const bar = '<div class="fri-bar"><span class="fri-unit">단위: '
     + escapeHtml(list[0].unit) + '</span>'
     + '<div class="fri-spans">' + FRI_SPANS.map((sp) =>
@@ -7394,16 +7378,12 @@ function renderFreightHtml() {
       + ' data-frispan="' + sp.id + '">' + escapeHtml(sp.label) + '</button>').join('')
     + '<button class="fri-span fri-span--t' + (_friTable ? ' is-on' : '') + '" type="button"'
     + ' data-fritable="1">' + (_friTable ? '그래프 보기' : '표 보기') + '</button></div></div>';
-
-  return wrap(head
-    + friPicker()
-    + friSummary(cut, false)
-    + bar
-    + friLineToggles(cut)
+  return wrap(head + friPicker() + friWays(_friPick)
+    + '<div class="fri-slot fri-slot--scfi"><div>'
+    + friSummary(cut, false) + bar
     + (_friTable ? friTableHtml(cut) : friChart(cut))
-    + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
-    + ' 비교할 수 없습니다.</div>'
-    + friSourceHtml(cut));
+    + '</div></div>'
+    + warn + friSourceHtml(cut));
 }
 
 /** 값이 없는 묶음(항로별 운임 표)용 출처 줄. */
@@ -7433,7 +7413,7 @@ function wireFri(root) {
     const p = e.target.closest ? e.target.closest('[data-fri]') : null;
     if (p) {
       _friPick = p.getAttribute('data-fri');
-      _friOff = {}; _friWay = 'comp'; _friMini = ''; _friOne = '';
+      _friOff = {}; _friWay = ''; _friMini = ''; _friOne = '';
       renderMaterial();
       return;
     }
@@ -16145,6 +16125,8 @@ function initUpdate() {
     _xsiRoute = null; _xsiRange = null; _xsiChart = null;
     fetchXsi();
     // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
+    /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
+    _friPick = ''; _friWay = ''; _friMini = ''; _friOne = '';
     loadFreightIndex().then(renderMaterial);
     // ★ KOIMA 부문별 지수도 같은 규칙 — 갱신 뒤에도 부문을 다시 고르게 한다.
     //   (applyKoimaUpdate 에서도 비우지만, 응답이 늦거나 실패해도 이전 선택이

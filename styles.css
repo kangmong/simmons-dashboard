@@ -6242,10 +6242,11 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-slot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px; }
 .fri-slot--comp > * { grid-column: 1; }
-.fri-slot--route > * { grid-column: 2; }
+/* SCFI 단추가 오른쪽에 있으니 그래프도 오른쪽 칸에 */
+.fri-slot--scfi > * { grid-column: 2; min-width: 0; }
 @media (max-width: 760px) {
   .fri-slot { grid-template-columns: 1fr; }
-  .fri-slot--route > * { grid-column: 1; }
+  .fri-slot--scfi > * { grid-column: 1; }
 }
 
 /* 원본 차트 위에 얹는 최신값 점 — 그림 안에는 그릴 수 없어 같은 자리에 덮는다.
@@ -6267,3 +6268,11 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-dot__v--left { transform: translate(-100%, -50%); margin-left: -13px; }
 .fri-one { margin-top: 2px; }
 .fri-one .fri-chart svg { width: 100%; height: auto; }
+
+/* 달러 옆 원화 — 작고 흐린 둘째 줄. 환율이 없으면 아예 나오지 않는다(krwOf). */
+.fri-krw { display: block; margin-top: 1px; font-size: 10px; font-weight: 600;
+  color: var(--slate); white-space: nowrap; letter-spacing: 0; }
+.fri-mini__f b .fri-krw { font-size: 10px; text-align: center; }
+.fri-dot__v small { display: block; margin-top: 1px; font-size: 10px; font-weight: 700;
+  opacity: .9; text-align: center; }
+.fri-dot__v--left { text-align: center; }
