@@ -6300,46 +6300,84 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kpx--pick:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .kpx--pick.is-on { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
 
-/* ── 원자재 동향 가지치기 — 공용 트리(.sf-tr*)를 가로로 놓는다 ──────────
-   뿌리는 위 가운데, 항목은 그 아래 같은 폭으로 가로, 고른 카드는 맨 아래.
-   연결선은 뿌리 → 가로 레일 → 각 항목으로 내려간다. 좁으면 세로로 쌓인다. */
+/* ── 원자재 동향 가지치기 — 뿌리 아래 넓은 이미지 배너를 세로로 쌓는다 ──────
+   공용 트리(.sf-tr*)의 뿌리·줄기·안내는 그대로 쓰고, 항목만 배너(.mt-bn)다.
+   ★ 글자 자리는 완전한 남색이다(흰 글자 14.9:1 · 노란 강조 10.8:1).
+     이미지는 오른쪽에만 깔고 왼쪽에서 오른쪽으로 옅어지는 남색을 덮는다. */
 .sf-tree[data-tree="mt"] { grid-template-columns: minmax(0, 1fr); }
-.sf-tree[data-tree="mt"] .sf-tr__roots { align-items: center; }
+.sf-tree[data-tree="mt"] .sf-tr__roots { align-items: flex-start; }
 .sf-tree[data-tree="mt"] .sf-tr__root { width: auto; min-width: 280px; }
-.sf-tree[data-tree="mt"] .sf-tr__hint { max-width: 420px; margin-left: auto; margin-right: auto; }
-.sf-tree[data-tree="mt"] .sf-tr__branch {
-  margin: 0; padding: 16px 0 0; display: grid; grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr); gap: 8px;
-}
-.sf-tree[data-tree="mt"] .sf-tr__branch::before {   /* 뿌리에서 레일까지 */
-  left: 50%; top: 0; bottom: auto; height: 8px;
-}
-.sf-tree[data-tree="mt"] .sf-tr__item {
-  align-items: flex-start; padding: 8px 12px; border-radius: 14px;
-}
-.sf-tree[data-tree="mt"] .sf-tr__item::before {     /* 레일에서 항목까지 */
-  left: 50%; top: -8px; width: 0; height: 8px; margin-top: 0;
-  border-bottom: 0; border-radius: 0;
-}
-.sf-tree[data-tree="mt"] .sf-tr__item::after {      /* 가로 레일 — 첫·끝 항목 가운데까지 */
-  content: ""; position: absolute; top: -8px; left: -5px; right: -5px;
-  border-top: 1px solid var(--line);
-}
-.sf-tree[data-tree="mt"] .sf-tr__item:first-child::after { left: 50%; }
-.sf-tree[data-tree="mt"] .sf-tr__item:last-child::after { right: 50%; }
-.sf-tree[data-tree="mt"] .sf-tr__i { margin-top: 2px; }
-.sf-tree[data-tree="mt"] .sf-tr__l { line-height: 1.3; word-break: keep-all; }
-.sf-tree[data-tree="mt"] .sf-tr__s { color: var(--slate); }
+.sf-tree[data-tree="mt"] .sf-tr__hint { max-width: 420px; }
+.sf-tree[data-tree="mt"] .sf-tr__branch::before { bottom: 41px; }
 .sf-tree[data-tree="mt"] .sf-one > .viz-root { margin-top: 0; }
+
+.mt-bn {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 80px; padding: 12px 16px; overflow: hidden;
+  border: 2px solid transparent; border-radius: var(--radius-sm);
+  background: var(--navy); color: #fff; font: inherit; text-align: left; cursor: pointer;
+  transition: filter .15s, border-color .15s;
+}
+.mt-bn::before {                 /* 줄기에서 배너로 이어지는 옅은 곡선(공용 알약과 같은 모양) */
+  content: ""; position: absolute; left: -18px; top: 50%; width: 16px; height: 13px;
+  margin-top: -13px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  border-bottom-left-radius: 9px;
+}
+.sf-tr__branch .mt-bn { overflow: visible; }
+.mt-bn__img {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(42%, 420px);
+  border-radius: 0 calc(var(--radius-sm) - 2px) calc(var(--radius-sm) - 2px) 0;
+  background-color: var(--navy); background-position: center; background-size: cover;
+  background-repeat: no-repeat; pointer-events: none;
+}
+.mt-bn__img::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--navy) 0%, rgba(22, 38, 74, .82) 30%,
+    rgba(22, 38, 74, .3) 100%);
+}
+.mt-bn__ico, .mt-bn__b, .mt-bn__badge, .mt-bn__cv { position: relative; }
+.mt-bn__ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 40px; height: 40px; border-radius: 11px; background: rgba(255, 255, 255, .13);
+}
+.mt-bn__b {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto;
+  max-width: calc(100% - min(42%, 420px) - 30px);
+}
+.mt-bn__t { font-size: 15px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; }
+.mt-bn__s {
+  font-size: 12.5px; line-height: 1.5; color: var(--navy-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mt-bn__badge {
+  margin-left: auto; flex: none; padding: 4px 10px; border-radius: 999px;
+  background: rgba(22, 38, 74, .82); color: #fff; font-size: 11.5px; font-weight: 700;
+  white-space: nowrap;
+}
+.mt-bn__cv {                     /* 밝은 이미지 위에서도 보이게 남색 점 위에 얹는다 */
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 20px; height: 20px; border-radius: 50%; background: rgba(22, 38, 74, .82);
+  font-size: 12px; color: #fff; visibility: hidden;
+}
+.mt-bn:hover { filter: brightness(1.12); }
+.mt-bn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.mt-bn.is-on { border-color: var(--blue); }
+.mt-bn.is-on .mt-bn__cv { visibility: visible; }
+
 @media (max-width: 860px) {
   .sf-tree[data-tree="mt"] .sf-tr__root { width: 100%; min-width: 0; }
-  .sf-tree[data-tree="mt"] .sf-tr__branch {
-    grid-auto-flow: row; margin: 8px 0 0 18px; padding: 0 0 0 16px;
+  .mt-bn {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "ico body cv" "ico badge cv";
+    align-items: center; gap: 4px 10px; min-height: 64px; padding: 10px 12px;
   }
-  .sf-tree[data-tree="mt"] .sf-tr__branch::before { left: 0; top: -6px; bottom: 17px; height: auto; }
-  .sf-tree[data-tree="mt"] .sf-tr__item::before {
-    left: -16px; top: 50%; width: 16px; height: 13px; margin-top: -13px;
-    border-bottom: 1px solid var(--line); border-bottom-left-radius: 9px;
-  }
-  .sf-tree[data-tree="mt"] .sf-tr__item::after { content: none; }
+  /* 글자가 이미지 위로 지나가므로 더 옅게 — 흰 픽셀 위 최악값도
+     흰 글자 11.0:1 · 흐린 부제 5.2:1 · 노란 강조 8.0:1 */
+  .mt-bn__img { width: 55%; opacity: .25; }
+  .mt-bn__img::after { background: linear-gradient(90deg, var(--navy) 0%, rgba(22, 38, 74, .6) 40%); }
+  .mt-bn__ico { grid-area: ico; width: 34px; height: 34px; }
+  .mt-bn__b { grid-area: body; max-width: none; }
+  .mt-bn__badge { grid-area: badge; justify-self: start; margin-left: 0; padding: 2px 8px; font-size: 10.5px; }
+  .mt-bn__cv { grid-area: cv; }
+  .mt-bn__t { font-size: 14px; }
 }

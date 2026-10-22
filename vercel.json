@@ -150,6 +150,10 @@
     {
       "src": "public/maps/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "public/banners/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
