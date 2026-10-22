@@ -6661,6 +6661,7 @@ let _friOff = {};            // 꺼 둔 선 { 'SCFI': true, … }
 let _friTable = false;       // 표 보기
 let _friWay = 'comp';        // WCI 안의 갈래(comp · route)
 let _friMini = '';           // 미니 차트에서 설명을 펼친 항로 코드
+let _friOne = '';            // 항로 갈래에서 혼자 보기로 고른 항로 코드
 
 /* 선 색 — 대비를 재서 고른 값이다(흰 배경 위 3:1 이상).
    ★ 값의 뜻(오르면 빨강·내리면 파랑)은 요약 카드가 맡는다. 선 색은 구분용이다. */
@@ -7024,6 +7025,90 @@ function friRouteTable() {
    ★ 직접 그린 SVG 다. 점은 Drewry 표가 주는 3주치로 시작해 매주 한 점씩
      늘어난다 — 없는 과거를 만들지 않는다.
    ★ 종합은 위 요약 카드와 큰 차트가 이미 말하므로 여기서는 뺀다. */
+/* ── 항로 하나만 보기 ─────────────────────────────────────────────────
+   ★ 원본 차트는 Canva 그림이라 선 하나만 남길 수 없다(범례를 눌러도 걸러지지
+     않는 것을 확인했다). 그래서 고른 항로는 우리가 그린다.
+   ★ 세로축은 원본과 같이 $0 부터 잡는다 — 값 범위에 맞춰 당기면 3% 움직임이
+     절벽처럼 보인다(확대 금지). */
+function friOneRoute(code) {
+  const tb = _friData && _friData.wciRoutes;
+  const row = tb && (tb.rows || []).filter((r) => r.code === code)[0];
+  if (!row || !row.series || row.series.values.length < 2) return '';
+  const d = row.series.dates, v = row.series.values, n = v.length;
+  const tone = FRI_RT_TONE[code] || 'var(--navy)';
+  const W = 900, H = 520, L = 78, R = 70, T = 26, B = 34;
+  /* 원본 항로 차트의 세로 눈금 꼭대기와 같게 잡는다 — 값에 맞춰 당기면
+     3% 움직임이 절벽처럼 보인다(확대 금지). */
+  const vTop = FRI_ROUTE_VTOP;
+  const X = (i) => L + (i / (n - 1)) * (W - L - R);
+  const Y = (x) => T + (1 - x / vTop) * (H - T - B);
+  let grid = '';
+  for (let k = 0; k <= 6; k++) {
+    const val = vTop * k / 6, y = Y(val);
+    grid += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="' + y.toFixed(1)
+      + '" y2="' + y.toFixed(1) + '"/>'
+      + '<text class="fri-ty" x="' + (L - 8) + '" y="' + (y + 3.5).toFixed(1) + '">$'
+      + escapeHtml(Math.round(val).toLocaleString('ko-KR')) + '</text>';
+  }
+  const pts = v.map((x, i) => [X(i), Y(x)]);
+  const line = '<path class="fri-l" style="--xt:' + tone + '" d="'
+    + pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ')
+    + '"/>';
+  let dots = '';
+  v.forEach((x, i) => {
+    const last = i === n - 1;
+    dots += '<circle class="fri-cd' + (last ? ' fri-cd--last' : '') + '" style="--xt:'
+      + tone + '" cx="' + pts[i][0].toFixed(1) + '" cy="' + pts[i][1].toFixed(1)
+      + '" r="' + (last ? 6 : 4) + '"/>'
+      + (last ? '<text class="fri-cv fri-cv--last" text-anchor="end" x="'
+        + (pts[i][0] - 10).toFixed(1) + '" y="' + (pts[i][1] - 12).toFixed(1) + '">$'
+        + escapeHtml(Math.round(x).toLocaleString('ko-KR')) + '</text>' : '')
+      + '<text class="fri-cx" x="' + pts[i][0].toFixed(1) + '" y="' + (H - 12) + '">'
+      + escapeHtml(d[i].slice(5)) + '</text>';
+  });
+  return '<figure class="fri-emb fri-one"><figcaption class="fri-emb__c">'
+    + escapeHtml(row.ko || row.name)
+    + ' <span>세로축은 원본과 같이 $0 부터입니다 · 단위 US$/40ft</span></figcaption>'
+    + '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'
+    + escapeHtml((row.ko || row.name) + ' 추이') + '">'
+    + grid + line + dots + '</svg></div>'
+    + '<div class="fri-emb__n">Drewry 가 공표한 값을 우리가 그린 것입니다 · 지금 '
+    + n + '주치 · <a href="' + escapeHtml((_friData && _friData.drewryUrl) || '#')
+    + '" target="_blank" rel="noopener noreferrer">1년 흐름은 원본 차트에서 \u2197</a></div>'
+    + '</figure>';
+}
+
+/* 항로별 색 — 흰 배경에서 서로 구분되는 값으로 골랐다. */
+const FRI_RT_TONE = {
+  'WCI-SHA-RTM': '#D97706', 'WCI-RTM-SHA': '#B45309',
+  'WCI-SHA-GOA': '#0B7F5E', 'WCI-SHA-LAX': '#0891B2',
+  'WCI-LAX-SHA': '#2563EB', 'WCI-SHA-NYC': '#7C3AED',
+  'WCI-NYC-RTM': '#BE185D', 'WCI-RTM-NYC': '#64748B',
+};
+
+/** 종합을 뺀 항로 줄들 — 미니 차트와 항로 단추가 함께 쓴다. */
+function friRouteRows() {
+  const tb = _friData && _friData.wciRoutes;
+  return (tb && tb.rows ? tb.rows : []).filter(
+    (r) => r.code !== 'WCI-COMPOSITE' && r.series && r.series.values.length);
+}
+
+/** 항로 고르기 단추들. */
+function friRoutePicks() {
+  const rows = friRouteRows().filter(
+    (r) => ['WCI-SHA-RTM', 'WCI-SHA-LAX', 'WCI-SHA-GOA', 'WCI-SHA-NYC']
+      .indexOf(r.code) >= 0);
+  if (!rows.length) return '';
+  return '<div class="fri-lines">' + rows.map((r) =>
+    '<button class="fri-line' + (_friOne === r.code ? ' is-on' : '') + '" type="button"'
+    + ' data-frione="' + escapeHtml(r.code) + '" aria-pressed="' + (_friOne === r.code)
+    + '" style="--xt:' + (FRI_RT_TONE[r.code] || 'var(--slate)') + '">'
+    + '<i aria-hidden="true"></i>' + escapeHtml(r.ko || r.name) + '</button>').join('')
+    + (_friOne ? '<button class="fri-line fri-line--all" type="button"'
+      + ' data-frione="">네 항로 함께 보기</button>' : '') + '</div>';
+}
+
 /** 미니 차트 한 줄 설명 — 수집한 값으로만 만든다. */
 function friMiniWords(r) {
   /* ★ 한 문장으로 짧게. 검게 굵은 것은 '지금 얼마'와 '어떻게 움직였나' 둘뿐이다
@@ -7096,6 +7181,40 @@ function friRouteMinis() {
  *  ★ 새 라이브러리를 쓰지 않는다 — iframe 하나다. */
 const FRI_EMB_H = 600;   // 공식 차트의 목표 높이(px)
 
+/* ── 원본 차트 위에 최신값 점 얹기 ────────────────────────────────────
+   Drewry 차트는 Canva 그림이라 그 안에 그릴 수 없다. 대신 같은 자리에 투명한
+   층을 덮고 점을 찍는다. 아래 값은 그 그림의 '그래프 영역'을 실제로 재서
+   얻은 비율이다(브라우저로 열어 축 눈금 글자의 위치를 읽었다).
+     · $0 눈금     세로 87.26%
+     · $5,000 눈금 세로 18.82%
+     · 선의 오른쪽 끝(= 최신 주) 가로 97.16%
+   세로 계산을 실측으로 검산했다: $4,485 → 25.87% 로 나오고, 그림에서 잰 선의
+   끝점이 25.88% 였다(어긋남 0.01%p).
+   ★ 눈금 범위가 바뀌면(예: 축 최대가 $6,000) 점이 엉뚱한 자리에 찍힌다.
+     그래서 최신값이 축 안에 들어올 때만 그린다. */
+const FRI_PLOT = {
+  comp: { y0: 0.8726, yTop: 0.1882, vTop: 5000, x: 0.9716 },
+};
+/* 원본 항로 차트의 세로 눈금 꼭대기($12,000) */
+const FRI_ROUTE_VTOP = 12000;
+
+function friDotOverlay(kind, code) {
+  const g = FRI_PLOT[kind];
+  const tb = _friData && _friData.wciRoutes;
+  const row = tb && (tb.rows || []).filter((r) => r.code === code)[0];
+  if (!g || !row) return '';
+  const v = row.series.values[row.series.values.length - 1];
+  if (v == null || v > g.vTop || v < 0) return '';   // 축 밖이면 그리지 않는다
+  const y = g.y0 - (v / g.vTop) * (g.y0 - g.yTop);
+  /* 점이 오른쪽 끝에 있으면 값을 왼쪽으로 뻗는다 — 그대로 두면 잘린다(실측). */
+  const near = g.x > 0.85;
+  return '<span class="fri-dot" style="left:' + (g.x * 100).toFixed(2)
+    + '%;top:' + (y * 100).toFixed(2) + '%" aria-hidden="true"></span>'
+    + '<span class="fri-dot__v' + (near ? ' fri-dot__v--left' : '')
+    + '" style="left:' + (g.x * 100).toFixed(2) + '%;top:' + (y * 100).toFixed(2)
+    + '%">$' + escapeHtml(Math.round(v).toLocaleString('ko-KR')) + '</span>';
+}
+
 /* 공식 차트 제목을 우리말로. 원문에서 알아볼 수 있는 토막을 찾아 바꾼다.
    ★ Drewry 가 제목을 손봐도 못 찾으면 원문을 그대로 쓴다(빈칸이 되지 않게).
    ★ 숫자·단위는 손대지 않는다 — 옮기는 것은 제목뿐이다. */
@@ -7115,7 +7234,7 @@ function friKo(text, table) {
   return t;
 }
 
-function friOfficialChart(idx) {
+function friOfficialChart(idx, over) {
   const cs = (_friData && _friData.drewryCharts) || [];
   const c = cs[idx];
   if (!c || !c.url) {
@@ -7147,6 +7266,7 @@ function friOfficialChart(idx) {
     + '<div class="fri-emb__w" style="max-width:'
     + Math.round(FRI_EMB_H / (r / 100)) + 'px">'
     + '<div class="fri-emb__f" style="padding-top:' + r + '%">'
+    + (over || '')
     + '<iframe src="' + escapeHtml(c.url) + '"'
     + ' title="' + escapeHtml(c.caption || 'Drewry World Container Index')
     + '" loading="lazy" referrerpolicy="no-referrer"'
@@ -7246,7 +7366,16 @@ function renderFreightHtml() {
          ★ Drewry 항로 차트는 쓰지 않는다 — 범례를 눌러도 걸러지지 않아(실측)
            고르는 기능을 줄 수 없다. 1년 흐름은 차트 아래 링크로 원본에서 본다. */
       + friWays(_friPick)
-      + (way ? friOfficialChart(way.chart) : '')
+      /* ★ 그래프를 버튼과 같은 쪽에 둔다 — '상하이발 항로' 단추가 오른쪽에
+         있는데 그래프가 왼쪽에 서면 어느 단추의 결과인지 헷갈린다. */
+      + (way ? '<div class="fri-slot fri-slot--' + escapeHtml(way.id) + '">'
+        + (way.id === 'route'
+          ? friRoutePicks()
+            + (_friOne ? friOneRoute(_friOne)
+              : friOfficialChart(way.chart))
+          : friOfficialChart(way.chart,
+            friDotOverlay('comp', 'WCI-COMPOSITE')))
+        + '</div>' : '')
       /* ★ 왼쪽 우리말 표(항로 9개 전부), 오른쪽 항로별 미니 차트.
          영어 표 임베드는 걷어냈다 — 같은 값을 우리말 표가 그대로 싣는다. */
       + '<div class="fri-tbls">'
@@ -7304,14 +7433,21 @@ function wireFri(root) {
     const p = e.target.closest ? e.target.closest('[data-fri]') : null;
     if (p) {
       _friPick = p.getAttribute('data-fri');
-      _friOff = {}; _friWay = 'comp'; _friMini = '';
+      _friOff = {}; _friWay = 'comp'; _friMini = ''; _friOne = '';
       renderMaterial();
       return;
     }
     const wy = e.target.closest ? e.target.closest('[data-friway]') : null;
     if (wy) {
       _friWay = wy.getAttribute('data-friway');
-      _friMini = '';
+      _friMini = ''; _friOne = '';
+      renderMaterial();
+      return;
+    }
+    const one = e.target.closest ? e.target.closest('[data-frione]') : null;
+    if (one) {
+      const k = one.getAttribute('data-frione');
+      _friOne = (_friOne === k) ? '' : k;   // 같은 것을 다시 누르면 전체로
       renderMaterial();
       return;
     }

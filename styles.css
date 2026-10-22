@@ -6237,3 +6237,33 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-cunit { font-size: 11px; font-weight: 700; fill: var(--slate); }
 .fri-comp .fri-chart svg, .fri-rt .fri-chart svg { width: 100%; height: auto; }
 .fri-comp { margin-top: 2px; }
+
+/* 그래프를 고른 단추와 같은 쪽에 둔다 */
+.fri-slot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px; }
+.fri-slot--comp > * { grid-column: 1; }
+.fri-slot--route > * { grid-column: 2; }
+@media (max-width: 760px) {
+  .fri-slot { grid-template-columns: 1fr; }
+  .fri-slot--route > * { grid-column: 1; }
+}
+
+/* 원본 차트 위에 얹는 최신값 점 — 그림 안에는 그릴 수 없어 같은 자리에 덮는다.
+   ★ 위치는 그 그림의 축 눈금을 실제로 재서 얻은 비율이다(FRI_PLOT 참고). */
+.fri-dot {
+  position: absolute; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%; background: #C8102E; border: 2.5px solid #fff;
+  box-shadow: 0 0 0 1.5px #C8102E, 0 2px 6px rgba(0, 0, 0, .25);
+  z-index: 2; pointer-events: none;
+}
+.fri-dot__v {
+  position: absolute; transform: translate(-50%, -150%); margin-left: 0;
+  padding: 3px 8px; border-radius: 999px; background: #C8102E; color: #fff;
+  font-size: 12px; font-weight: 800; white-space: nowrap; z-index: 2;
+  pointer-events: none; font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+/* 오른쪽 끝에 붙은 점 — 값은 왼쪽으로 뻗어야 잘리지 않는다 */
+.fri-dot__v--left { transform: translate(-100%, -50%); margin-left: -13px; }
+.fri-one { margin-top: 2px; }
+.fri-one .fri-chart svg { width: 100%; height: auto; }
