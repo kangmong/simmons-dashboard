@@ -2376,6 +2376,18 @@ function sfTreeIcon(kind) {
     return '<svg ' + o + '><path d="M2 11.5 6 7l3 2.6 5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
       + '<circle cx="14" cy="3.6" r="1.7" fill="currentColor"/></svg>';
   }
+  if (kind === 'table') {
+    return '<svg ' + o + '><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+      + '<path d="M2 6.6h12M6.3 6.6V13" stroke="currentColor" stroke-width="1.5"/></svg>';
+  }
+  if (kind === 'cloud') {
+    return '<svg ' + o + '><path d="M4.4 12.5a2.9 2.9 0 0 1-.3-5.8 3.6 3.6 0 0 1 6.9-1.1 2.9 2.9 0 0 1 .5 5.7z"'
+      + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  }
+  if (kind === 'rank') {
+    return '<svg ' + o + '><path d="M2.5 13.5V9h3v4.5M6.8 13.5V3.2h2.4v10.3M10.6 13.5V6.4h2.9v7.1"'
+      + ' fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  }
   if (kind === 'peer') {
     return '<svg ' + o + '><rect x="2" y="3" width="11" height="3" rx="1.5" fill="currentColor"/>'
       + '<rect x="2" y="7.5" width="7.5" height="3" rx="1.5" fill="currentColor" opacity=".45"/>'
@@ -15395,6 +15407,7 @@ function ptToggleFilter(kind, value) {
   else if (kind === 'co') _ptCo = (_ptCo === v) ? '' : v;
   else if (kind === 'kw') _ptKw = (_ptKw === v) ? '' : v;
   _ptPage = 1;              // 조건이 바뀌면 첫 페이지부터
+  ptTreeShowResult();
   renderPatent();
 }
 
@@ -15864,7 +15877,7 @@ function ptYearly(rows) {
     + grid + yUnit + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
     + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg></div>'
-    + '<div class="sm-foot">막대를 누르면 그 해·그 기업의 특허 목록만 아래에 표시됩니다.</div>'
+    + '<div class="sm-foot">막대를 누르면 ‘최근 주요 특허 출원’ 목록이 그 해·그 기업으로 걸러집니다.</div>'
     + '</div>';
 }
 
@@ -15936,7 +15949,7 @@ function ptTypes(rows) {
     + '<svg class="pt-dnsvg" viewBox="0 0 140 140" width="146" height="146" role="img"'
     + ' aria-label="출원 유형별 비중">' + segs + '</svg>'
     + '<div class="pt-dn__lg">' + legend + '</div></div>'
-    + '<div class="sm-foot">조각이나 항목을 누르면 아래 목록이 그 유형으로 걸러집니다.</div>'
+    + '<div class="sm-foot">조각이나 항목을 누르면 ‘최근 주요 특허 출원’ 목록이 그 유형으로 걸러집니다.</div>'
     + '</div>';
 }
 
@@ -15970,7 +15983,7 @@ function ptTech(rows) {
       + '<td><span class="pt-tb__bar" style="width:' + (x.n / max * 100).toFixed(1)
       + '%"></span></td></tr>').join('')
     + '</tbody></table>'
-    + '<div class="sm-foot">행을 누르면 아래 목록이 그 분야로 걸러집니다.</div></div>';
+    + '<div class="sm-foot">행을 누르면 ‘최근 주요 특허 출원’ 목록이 그 분야로 걸러집니다.</div></div>';
 }
 
 /* ── 5) 주요 출원인 비교 ───────────────────────────────────────────────── */
@@ -16017,7 +16030,7 @@ function ptApplicants(rows) {
       + '</div>').join('') + '</div>'
     + '<div class="sm-foot">0건은 해당 기간에 이 분야(IPC A47C) 출원이 확인되지 않은'
     + ' 기업입니다 — 조회가 안 된 것이 아닙니다.'
-    + ' 막대를 누르면 아래 목록이 그 기업으로 걸러집니다.</div></div>';
+    + ' 막대를 누르면 ‘최근 주요 특허 출원’ 목록이 그 기업으로 걸러집니다.</div></div>';
 }
 
 /* ── 6) 국가별 출원 — 세계지도 ───────────────────────────────────────────
@@ -16097,7 +16110,7 @@ function ptWords(rows) {
         + ' data-tip="' + escapeHtml(tip) + '" title="' + escapeHtml(tip) + '">'
         + escapeHtml(x.w) + '<i>' + x.n + '</i></button>';
     }).join('') + '</div>'
-    + '<div class="sm-foot">키워드를 누르면 아래 목록이 그 키워드가 걸린 출원만 남습니다. '
+    + '<div class="sm-foot">키워드를 누르면 ‘최근 주요 특허 출원’ 목록이 그 키워드가 걸린 출원만 남습니다. '
     + '형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
     + ' 사전과 맞춰 센 결과입니다.</div></div>';
 }
@@ -16311,6 +16324,119 @@ function ptRecent(rows) {
     + rangeNote + pager + '</div>';
 }
 
+/* ══ 특허 가지치기(트리) ═══════════════════════════════════════════════
+   예전에는 차트 5개와 표를 한 페이지에 길게 쌓았다(연도 막대 → 도넛·표 2열
+   → 가로막대·키워드 2열 → 20행 표). 무엇부터 봐야 할지 알기 어렵고,
+   2열에 눌린 도넛·키워드는 글자가 작았다.
+   이제 뿌리 하나에서 가지를 펴고 고른 항목 하나만 넓게 그린다.
+
+   ★ 그리는 함수(ptYearly·ptTypes·ptTech·ptApplicants·ptWords·ptRecent)는 한
+     줄도 바꾸지 않았다 — 아래 render 에서 그대로 부른다. 숫자·색·범례·필터·
+     페이지 이동·툴팁이 예전과 같은 이유다.
+   ★ 항목은 이 배열 한 곳에만 적는다. 이름을 바꾸거나 항목을 더할 때 여기만
+     고치면 버튼·보조 문구·내용이 함께 따라간다.
+   ★ 이름은 각 카드의 제목(.sm-h)을 그대로 쓴다 — 트리에서 부르는 이름과
+     펼쳤을 때 보이는 제목이 다르면 같은 것인지 알 수 없다.
+   ★ 보조 문구는 지금 고른 기간의 행에서 그때그때 센다(코드에 적지 않는다). */
+
+/* 처음 열었을 때 선택되는 항목. 가장 자주 찾는 것을 앞에 둔다. */
+const PT_TREE_FIRST = 'recent';
+const PT_TREE_ROOT = 'patent';
+const PT_TREE_KEY = 'ptTree';
+const PT_TREE_HINT = '특허 분석을 눌러 항목을 확인하세요';
+const PT_TREE_EMPTY = '위에서 보고 싶은 항목을 선택하세요.';
+
+/* ★ 주소(해시)는 쓰지 않는다 — 이 사이트의 해시는 setView() 가 메뉴 이름으로
+     통째로 덮어쓰는 자리라, 트리 상태를 넣으면 메뉴를 한 번만 눌러도 지워지고
+     새로고침 때는 VIEWS 대조에 실패해 대시보드로 튕긴다. sessionStorage 라
+     새로고침은 그대로 버틴다(다른 트리 네 벌과 같은 방식이다). */
+let _ptTree = (() => {
+  try {
+    const t = JSON.parse(sessionStorage.getItem(PT_TREE_KEY) || 'null');
+    if (t && typeof t === 'object' && t.pick) return { open: t.open || null, pick: t.pick };
+  } catch (e) { /* 사생활 보호 모드 등 — 기억 못 해도 화면은 그대로 뜬다 */ }
+  return { open: PT_TREE_ROOT, pick: PT_TREE_FIRST };
+})();
+function ptTreeSave() {
+  try { sessionStorage.setItem(PT_TREE_KEY, JSON.stringify(_ptTree)); } catch (e) { /* 무시 */ }
+}
+
+/** 고른 기간의 행에서 보조 문구에 쓸 개수를 센다. */
+function ptUniq(rows, fn) {
+  const seen = {};
+  rows.forEach((r) => {
+    const v = fn(r);
+    (Array.isArray(v) ? v : [v]).forEach((k) => { if (k) seen[k] = 1; });
+  });
+  return Object.keys(seen).length;
+}
+
+function ptTreeDefs(cur) {
+  const ys = cur.map((r) => (r.date || '').slice(0, 4)).filter(Boolean).sort();
+  const span = ys.length
+    ? (ys[0] === ys[ys.length - 1] ? ys[0] + '년' : ys[0] + '~' + ys[ys.length - 1] + '년')
+    : '해당 기간 없음';
+  const n = (v, unit) => (v ? v + unit : '해당 기간 없음');
+  /* ★ TOP5·TOP10 은 그리는 쪽에서 잘라 내므로 보조 문구도 같은 수로 맞춘다 —
+     '12개 분야'라고 적어 놓고 5줄만 보이면 빠진 줄을 찾게 된다. */
+  const cap = (v, m) => Math.min(v, m);
+  return [{
+    g: PT_TREE_ROOT, label: '특허 분석',
+    hint: '출원 목록 · 연도 · 유형 · 기술분야 · 출원인 · 키워드',
+    items: [
+      { id: 'recent', label: '최근 주요 특허 출원', icon: 'table',
+        sub: n(cur.length, '건'), render: () => ptRecent(cur) },
+      { id: 'yearly', label: '특허 출원 동향 (연도별)', icon: 'bars',
+        sub: span, render: () => ptYearly(cur) },
+      { id: 'types', label: '출원 유형별 현황', icon: 'donut',
+        sub: n(cap(ptUniq(cur, (r) => r.kind || '미표기'), 6), '개 유형'),
+        render: () => ptTypes(cur) },
+      { id: 'tech', label: '주요 기술 분야 TOP5 (특허)', icon: 'rank',
+        sub: n(cap(ptUniq(cur, (r) => r.catLabel || '기타/미분류'), 5), '개 분야'),
+        render: () => ptTech(cur) },
+      { id: 'applicants', label: '주요 출원인(기업) 비교', icon: 'peer',
+        /* ★ 0건인 설정 기업도 막대에 자리를 남기므로(ptApplicants) 그 수를 함께 센다 */
+        sub: n(ptUniq(cur.concat(((_ptData && _ptData.companies) || [])
+          .map((c) => ({ company: c.label }))), (r) => r.company || '미표기'), '개 기업'),
+        render: () => ptApplicants(cur) },
+      { id: 'words', label: '신소재 관련 특허 키워드 TOP10', icon: 'cloud',
+        sub: n(cap(ptUniq(cur, (r) => r.words || []), 10), '개 키워드'),
+        render: () => ptWords(cur) },
+    ],
+  }];
+}
+
+/** 차트에서 필터를 켰을 때 결과가 보이는 항목으로 옮긴다.
+ *  ★ 한 번에 한 항목만 보이므로, 키워드를 눌러 놓고 키워드 구름을 계속 보고
+ *    있으면 '눌렀는데 아무 일도 안 일어난' 것처럼 보인다 — 거른 결과가 나오는
+ *    '최근 주요 특허 출원'으로 옮겨 준다(필터 바와 [해제 ✕]도 그 안에 있다).
+ *  ★ 필터를 끈 경우에는 옮기지 않는다 — 보던 차트에 그대로 머문다. */
+function ptTreeShowResult() {
+  if (!ptActiveFilters().length) return;
+  if (_ptTree.pick === PT_TREE_FIRST && _ptTree.open === PT_TREE_ROOT) return;
+  _ptTree.open = PT_TREE_ROOT;
+  _ptTree.pick = PT_TREE_FIRST;
+  ptTreeSave();
+}
+
+function ptTreeHtml(cur) {
+  /* ★ 닫으면 내용 영역도 같이 닫는다. 공용 부품은 접어도 보던 것을 남기지만
+     (다른 트리 네 벌은 그대로 둔다), 여기서는 '접으면 닫힌다'가 맞다 —
+     카드 하나가 화면 한 장을 다 차서, 접었는데 그대로 있으면 접힐 이유가 없다.
+     ★ 고른 항목은 _ptTree.pick 에 그대로 남아 다시 펼치면 그 자리다. */
+  const defs = ptTreeDefs(cur);
+  if (!_ptTree.open) {
+    /* 닫힌 모습은 짧게 — 누르라는 말 한 줄이면 된다.
+       빈 틀까지 두면 같은 말을 두 번 하고 220px 를 더 차지한다. */
+    return '<div class="sf-tree sf-tree--shut" data-tree="pt">'
+      + '<nav class="sf-tr" data-tree-nav aria-label="특허 분석 항목 선택">'
+      + treeNavHtml('pt', defs, { open: null, pick: null }, PT_TREE_HINT)
+      + '</nav></div>';
+  }
+  return treeBlockHtml('pt', defs, _ptTree,
+    PT_TREE_HINT, PT_TREE_EMPTY, '특허 분석 항목 선택');
+}
+
 /* ── 9) 기간 필터 ──────────────────────────────────────────────────────── */
 function ptRangeUi() {
   const sp = ptDataSpan();
@@ -16512,17 +16638,12 @@ function renderPatent() {
     body = ptRangeUi()
       + ptKpiCards(cur, prev)
       + ptTrendNote(cur)
-      + '<div class="sm-wrap">'
-      + ptYearly(cur)
-      + '<div class="sm-grid2">' + ptTypes(cur) + ptTech(cur) + '</div>'
-      + '<div class="sm-grid2">' + ptApplicants(cur) + ptWords(cur) + '</div>'
-      /* ★ 국가별 지도·표는 잠시 뺀다 — 해외특허 API 권한이 열리기 전에는
-         국내(KR) 하나만 찍혀 지도가 아무것도 말해 주지 않는다.
-         ptCountries() 는 지우지 않고 남겨 뒀다. 해외 데이터가 들어오면
-         이 줄의 주석을 풀기만 하면 된다. */
-      // + ptCountries(cur)
-      + ptRecent(cur)
-      + '</div>'
+      /* ★ 차트 5개와 표를 세로로 쌓던 자리를 가지치기 하나로 바꿨다.
+         그리는 함수는 ptTreeDefs 의 render 에서 그대로 부른다.
+         ★ 국가별 지도·표는 잠시 뺀 그대로다 — 해외특허 API 권한이 열리기
+           전에는 국내(KR) 하나만 찍혀 지도가 아무것도 말해 주지 않는다.
+           ptCountries() 는 지우지 않았고, 트리에 항목 한 줄을 더하면 된다. */
+      + '<div class="sm-wrap">' + ptTreeHtml(cur) + '</div>'
       /* ★ 주황 안내 박스를 걷어냈다.
          - 해외특허 대기 안내: 해외 위젯(지도·비율 KPI)을 다 뺐으니 화면에서
            설명할 대상이 없다. 수집기의 foreignNote 는 그대로 두어 로그·JSON 에는
@@ -16555,6 +16676,26 @@ function wirePatent() {
   root.dataset.wired = '1';
   root.addEventListener('click', (e) => {
     if (e.target && e.target.id === 'ptApply') { applyDates(); return; }
+    /* ── 가지치기 ──────────────────────────────────────────────────────
+       다른 트리 네 벌은 wireTree() 로 트리 영역만 부분 갱신하지만, 특허는
+       renderPatent() 가 #patentRoot 를 통째로 다시 그리는 구조라 여기에
+       얹는다(핸들러는 dataset.wired 로 한 번만 붙으므로 살아남는다).
+       ★ 뿌리를 접어도 고른 항목은 기억해 둔다 — 다시 펼치면 그 자리다. */
+    const tr = e.target.closest ? e.target.closest('[data-tree-root]') : null;
+    if (tr && tr.closest('[data-tree="pt"]')) {
+      const g = tr.getAttribute('data-tree-root');
+      _ptTree.open = (_ptTree.open === g) ? null : g;
+      ptTreeSave();
+      renderPatent();
+      return;
+    }
+    const ti = e.target.closest ? e.target.closest('[data-tree-item]') : null;
+    if (ti && ti.closest('[data-tree="pt"]')) {
+      _ptTree.pick = ti.getAttribute('data-tree-item');
+      ptTreeSave();
+      renderPatent();
+      return;
+    }
     const pg = e.target && e.target.closest ? e.target.closest('.pt-pg') : null;
     if (pg && !pg.disabled) {
       const k = parseInt(pg.getAttribute('data-ptpage'), 10);
@@ -16598,6 +16739,7 @@ function wirePatent() {
         if (_ptYear === py && _ptCo === pc) { _ptYear = ''; _ptCo = ''; }
         else { _ptYear = py; _ptCo = pc; }
         _ptPage = 1;
+        ptTreeShowResult();
         renderPatent();
         return;
       }
