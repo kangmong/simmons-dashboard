@@ -6853,8 +6853,7 @@ const FRI_GROUPS = [
     { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
       ways: [
         { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', chart: 0,
-          desc: '전 세계 주요 항로 운임을 하나로 묶은 값입니다. 해상 운임이'
-            + ' 전체적으로 오르내리는지 여기서 먼저 봅니다.' },
+          desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.' },
         { id: 'route', label: 'SCFI(상하이 컨테이너 운임지수)', chart: 1,
           desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
             + ' 있는지 네 항로를 한 그림에서 견줍니다.' },
