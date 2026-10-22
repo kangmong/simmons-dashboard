@@ -6123,8 +6123,38 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 /* 우리말 표(왼쪽) + Drewry 공식 표(오른쪽) — 오른쪽이 비어 보이던 자리를 채운다.
    ★ 공식 표를 지우지 못하는 이유: 복항 4개 항로가 그 그림 안에만 있고,
      Canva robots.txt 가 /design/ 수집을 막아 값으로 가져올 수 없다. */
-.fri-tbls { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+/* 왼쪽 칸은 표가 잘리지 않을 만큼(내용 폭 ~541px + 여유). 더 좁히면 '연간'
+   열이 스크롤 뒤로 숨는다. */
+.fri-tbls { display: grid; grid-template-columns: minmax(0, 580px) minmax(0, 1fr);
   gap: 18px; align-items: start; margin-top: 14px; }
 @media (max-width: 1000px) { .fri-tbls { grid-template-columns: 1fr; } }
+/* ★ min-width:0 이 없으면 그리드 칸이 표의 min-content 너비까지 벌어져
+   overflow:auto 가 동작하지 않는다 — 좁은 화면에서 페이지가 통째로 가로로
+   밀렸다(실측 390px 화면에서 문서 폭 582px). */
+.fri-tbls > * { min-width: 0; }
 .fri-tbls__k .fri-tb__wrap--k, .fri-tbls__k .fri-tb__more { max-width: none; }
 .fri-tbls__o .fri-emb { margin: 0; }
+
+/* 항로별 미니 차트 — 직접 그린 SVG. 점은 Drewry 표가 주는 3주치로 시작해
+   매주 하나씩 늘어난다(없는 과거를 만들지 않는다). */
+.fri-minis__h { font-size: 12.5px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.fri-minis__h span { font-weight: 600; font-size: 11px; color: var(--slate); }
+.fri-minis__g { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px; }
+.fri-mini { padding: 9px 11px 8px; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--card); min-width: 0; }
+.fri-mini__t { font-size: 11.5px; font-weight: 700; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fri-mini__c { display: block; width: 100%; height: 50px; margin: 4px 0 2px; }
+.fri-mini__l { fill: none; stroke: #2563EB; stroke-width: 1.8;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.fri-mini__p { fill: #2563EB; }
+.fri-mini__wait { height: 50px; display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; color: var(--slate); }
+.fri-mini__f { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 6px; font-size: 10px; color: var(--slate); font-variant-numeric: tabular-nums; }
+.fri-mini__f b { font-size: 13px; font-weight: 800; color: var(--ink); }
+.fri-mini__d { margin-top: 3px; font-size: 9.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums; }
+/* 종합 줄은 표에서 굵게 — 나머지 항로와 격이 다르다 */
+.fri-tb__sum td { font-weight: 800; background: var(--field); }

@@ -62,6 +62,15 @@ OUT = os.path.join("public", "data", "freight-index.json")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
       "SimmonsDashboard/1.0 (+https://simmons-dashboard-ten.vercel.app)")
 HEADERS = {"User-Agent": UA}
+# ★ Canva 임베드는 브라우저가 아닌 UA 에는 알맹이 없는 짧은 문서를 준다(실측
+#   12KB vs 69KB). 숨기려는 게 아니라 같은 문서를 받으려는 것이라, 크롬 토큰
+#   뒤에 우리 이름을 그대로 붙여 누가 요청했는지 드러낸다.
+BROWSER_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 " + UA),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 TIMEOUT = 45
 PAUSE = 2.0            # 같은 서버 요청 사이에 쉬는 시간(초)
 
@@ -199,6 +208,104 @@ _MONEY = re.compile(r"\$\s?([\d,]+)\s*per\s*40ft", re.I)
 _EMBED = re.compile(
     r'<iframe[^>]+src="(https://www\.canva\.com/design/[^"]+?\?embed)"', re.I)
 OEMBED = "https://api.canva.com/_spi/presentation/_oembed"
+
+
+# 표 칸 — 임베드 HTML 안에 글자/숫자가 순서대로 박혀 있다.
+#   글자: {"A":{"A?":"A","A":"$4,434"}}   숫자: {"A":{"A?":"E","A":0.03}}
+# ★ 그림에서 좌표를 되돌려 읽는 게 아니라, 문서에 들어 있는 값을 그대로 읽는다.
+_CELL = re.compile(r'\{"A":\{"A\?":"([AE])","A":("(?:[^"\\]|\\.)*"|-?[\d.]+)\}')
+# 엑셀 일련번호의 기준일
+_XL0 = datetime.date(1899, 12, 30)
+
+# 항로 코드 → 우리말. 모르는 코드가 오면 원문 이름을 그대로 쓴다(지어내지 않는다).
+ROUTE_KO = {
+    "WCI-COMPOSITE": "WCI 종합",
+    "WCI-SHA-RTM": "상하이 → 로테르담",
+    "WCI-RTM-SHA": "로테르담 → 상하이",
+    "WCI-SHA-GOA": "상하이 → 제노바",
+    "WCI-SHA-LAX": "상하이 → 로스앤젤레스",
+    "WCI-LAX-SHA": "로스앤젤레스 → 상하이",
+    "WCI-SHA-NYC": "상하이 → 뉴욕",
+    "WCI-NYC-RTM": "뉴욕 → 로테르담",
+    "WCI-RTM-NYC": "로테르담 → 뉴욕",
+}
+
+
+def _cells(html):
+    out = []
+    for kind, raw in _CELL.findall(html):
+        if kind == "A":
+            out.append(raw[1:-1].replace('\\"', '"').replace("\\/", "/"))
+        else:
+            try:
+                out.append(float(raw))
+            except ValueError:
+                out.append(None)
+    return out
+
+
+def _money(v):
+    if not isinstance(v, str) or not v.strip().startswith("$"):
+        return None
+    try:
+        return float(v.replace("$", "").replace(",", "").strip())
+    except ValueError:
+        return None
+
+
+def parse_route_table(html):
+    """항로 9개 × 기준일 3개 + 주간·연간 변동률."""
+    cs = _cells(html)
+    if "Route" not in cs:
+        raise RuntimeError("표 머리글(Route)을 찾지 못했습니다")
+    i = cs.index("Route")
+    if cs[i + 1] != "Route code":
+        raise RuntimeError("머리글이 예상과 다릅니다")
+    dates = []
+    for k in range(3):
+        n = cs[i + 2 + k]
+        if not isinstance(n, float):
+            raise RuntimeError("기준일 칸이 날짜가 아닙니다")
+        dates.append((_XL0 + datetime.timedelta(days=int(n))).isoformat())
+    rows, j = [], i + 7
+    while j + 6 < len(cs):
+        name, code = cs[j], cs[j + 1]
+        if not (isinstance(name, str) and isinstance(code, str)):
+            break
+        if not code.upper().startswith("WCI"):
+            break
+        wk, an = cs[j + 5], cs[j + 6]
+        rows.append({
+            "name": name, "code": code, "ko": ROUTE_KO.get(code, name),
+            "values": [_money(cs[j + 2 + k]) for k in range(3)],
+            "weekly": round(wk * 100, 2) if isinstance(wk, float) else None,
+            "annual": round(an * 100, 2) if isinstance(an, float) else None,
+        })
+        j += 7
+    if not rows:
+        raise RuntimeError("항로 줄을 하나도 읽지 못했습니다")
+    return {"dates": dates, "rows": rows}
+
+
+def fetch_route_table(url, prev=None, verbose=True):
+    """표 임베드를 받아 파싱하고, 지난 기록 위에 이어 붙인다."""
+    r = requests.get(url, headers=BROWSER_HEADERS, timeout=TIMEOUT)
+    if r.status_code != 200:
+        raise RuntimeError("HTTP %d" % r.status_code)
+    r.encoding = r.apparent_encoding or "utf-8"
+    tb = parse_route_table(r.text)
+    old = {x["code"]: x for x in ((prev or {}).get("rows") or [])}
+    for row in tb["rows"]:
+        got = dict(zip((old.get(row["code"], {}).get("series") or {}).get("dates", []),
+                       (old.get(row["code"], {}).get("series") or {}).get("values", [])))
+        for d, v in zip(tb["dates"], row["values"]):
+            if v is not None:
+                got[d] = v
+        ds = sorted(got)
+        row["series"] = {"dates": ds, "values": [got[d] for d in ds]}
+    if verbose:
+        print("[drewry] 항로 표 %d개 · 기준일 %s" % (len(tb["rows"]), tb["dates"][-1]))
+    return tb
 
 
 def _canva_size(url, sess=None):
@@ -388,7 +495,7 @@ def main():
             "viaUrl": NLIC_PAGE, "series": ser,
         }
 
-    # 2) Drewry — 한 점씩 쌓는다
+    # 2) Drewry — 논평(값·변동률) + 공식 차트 주소
     try:
         day, vals, charts, chg = fetch_drewry()
     except Exception as e:                               # noqa: BLE001
@@ -417,10 +524,33 @@ def main():
         print("[freight] 전부 실패 — 기존 파일을 덮어쓰지 않습니다", file=sys.stderr)
         return 1
 
+    # 2-1) 항로 표 9개 — 표 임베드에 값이 글자로 들어 있다.
+    #      ★ 논평 본문에는 상하이발 4개뿐이라 복항 4개는 여기서만 얻는다.
+    #      ★ 실패하면 지난번 표를 그대로 둔다(화면이 비지 않게).
+    route_tb = prev.get("wciRoutes")
+    tb_url = ""
+    for c in charts:
+        if "route" in (c.get("caption") or "").lower() or "Route" in (c.get("caption") or ""):
+            tb_url = c.get("url") or ""
+    if not tb_url and len(charts) >= 3:
+        tb_url = charts[2].get("url") or ""      # 세 번째가 표다(원본 배치)
+    if tb_url:
+        try:
+            time.sleep(PAUSE)
+            route_tb = fetch_route_table(tb_url, prev=route_tb)
+        except Exception as e:                           # noqa: BLE001
+            fails.append({"source": "drewry", "part": "route-table",
+                          "reason": str(e)[:200]})
+            print("[drewry] 항로 표 실패 — %s" % e, file=sys.stderr)
+    else:
+        fails.append({"source": "drewry", "part": "route-table",
+                      "reason": "표 임베드 주소를 찾지 못했습니다"})
+
     payload = {
         "status": "ok",
         "updatedAt": _now_kst(),
         "drewryCharts": charts,
+        "wciRoutes": route_tb,
         "drewryUrl": DREWRY_URL,
         "indices": indices,
         "failures": fails,

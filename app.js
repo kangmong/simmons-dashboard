@@ -6687,7 +6687,7 @@ const FRI_GROUPS = [
        담는다 — 차트 둘이 나란히 서고 그 아래 표가 온다(탭을 두면 종합을 보다가
        항로를 보려고 한 번 더 눌러야 하는데, 둘은 같이 봐야 뜻이 산다). */
     { id: 'wci', label: 'Drewry WCI', keys: ['WCI_COMPOSITE'],
-      charts: [0, 1], routeTable: true, officialTable: 2 },
+      charts: [0, 1], routeTable: true },
   ] },
 ];
 
@@ -6943,27 +6943,79 @@ function friHeroHtml(list) {
  *    같은 주 논평에서 정확히 읽어 온 값으로 우리 표를 만든다(운임·전주 대비
  *    모두 Drewry 가 적은 그대로다).
  *  ★ 논평에 없는 복항(로테르담→상하이 등)은 넣지 않는다 — 아래 공식 표에 있다. */
-function friRouteTable(list) {
-  if (!list.length) return '';
-  const day = list[0].dates[list[0].dates.length - 1];
-  const row = (x) => {
-    const v = x.values[x.values.length - 1];
-    const c = x.changePct;
-    const cls = c == null ? 'flat' : (c > 0 ? 'up' : (c < 0 ? 'down' : 'flat'));
-    const arrow = c == null ? '' : (c > 0 ? '▲ ' : (c < 0 ? '▼ ' : ''));
-    return '<tr><td>' + escapeHtml(x.name) + '</td>'
-      + '<td class="fri-tb__n">$' + friNum(v, null) + '</td>'
-      + '<td class="fri-tb__n"><span class="fri-d fri-d--' + cls + '">'
-      + (c == null ? '—' : arrow + Math.abs(c) + '%') + '</span></td></tr>';
+function friRouteTable() {
+  const tb = _friData && _friData.wciRoutes;
+  if (!tb || !tb.rows || !tb.rows.length) return '';
+  const pct = (v) => {
+    if (v == null) return '<span class="fri-d fri-d--flat">—</span>';
+    const cls = v > 0 ? 'up' : (v < 0 ? 'down' : 'flat');
+    const a = v > 0 ? '▲ ' : (v < 0 ? '▼ ' : '');
+    return '<span class="fri-d fri-d--' + cls + '">' + a
+      + Math.abs(v).toFixed(Math.abs(v) % 1 ? 1 : 0) + '%</span>';
   };
+  const head = '<tr><th>항로</th>'
+    + tb.dates.map((d) => '<th class="fri-tb__n">' + escapeHtml(d) + '</th>').join('')
+    + '<th class="fri-tb__n">주간</th><th class="fri-tb__n">연간</th></tr>';
+  const body = tb.rows.map((r) => '<tr' + (r.code === 'WCI-COMPOSITE'
+      ? ' class="fri-tb__sum"' : '') + '>'
+    + '<td>' + escapeHtml(r.ko || r.name) + '</td>'
+    + r.values.map((v) => '<td class="fri-tb__n">'
+      + (v == null ? '—' : '$' + friNum(v, null)) + '</td>').join('')
+    + '<td class="fri-tb__n">' + pct(r.weekly) + '</td>'
+    + '<td class="fri-tb__n">' + pct(r.annual) + '</td></tr>').join('');
   return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb">'
-    + '<thead><tr><th>항로</th><th class="fri-tb__n">' + escapeHtml(day)
-    + ' 운임</th><th class="fri-tb__n">전주 대비</th></tr></thead>'
-    + '<tbody>' + list.map(row).join('') + '</tbody></table></div>'
-    + '<div class="fri-tb__more">단위 US$/40ft · 값과 변동률은 Drewry 가 그 주'
-    + ' 논평에 적은 그대로입니다. 논평에 수치가 나오지 않는 복항 4개'
-    + '(로테르담→상하이 · LA→상하이 · 뉴욕→로테르담 · 로테르담→뉴욕)는'
-    + ' 오른쪽 Drewry 공식 표에서 볼 수 있습니다.</div>';
+    + '<thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>'
+    + '<div class="fri-tb__more">단위 US$/40ft · 항로 ' + tb.rows.length + '개 ·'
+    + ' 값과 변동률은 Drewry 가 공표한 항로 표에서 그대로 읽어 온 것입니다.</div>';
+}
+
+/* ── 항로별 미니 차트 ──────────────────────────────────────────────────
+   ★ 직접 그린 SVG 다. 점은 Drewry 표가 주는 3주치로 시작해 매주 한 점씩
+     늘어난다 — 없는 과거를 만들지 않는다.
+   ★ 종합은 위 요약 카드와 큰 차트가 이미 말하므로 여기서는 뺀다. */
+function friRouteMinis() {
+  const tb = _friData && _friData.wciRoutes;
+  if (!tb || !tb.rows) return '';
+  const rows = tb.rows.filter((r) => r.code !== 'WCI-COMPOSITE' && r.series
+    && r.series.values.length);
+  if (!rows.length) return '';
+  const card = (r) => {
+    const v = r.series.values, d = r.series.dates;
+    const last = v[v.length - 1];
+    let hi = v[0], lo = v[0], hiI = 0, loI = 0;
+    v.forEach((x, i) => {
+      if (x > hi) { hi = x; hiI = i; }
+      if (x < lo) { lo = x; loI = i; }
+    });
+    const W = 150, H = 54, P = 14;
+    let svg = '';
+    if (v.length >= 2) {
+      const X = (i) => P + (i / (v.length - 1)) * (W - P * 2);
+      const span = (hi - lo) || Math.abs(hi) || 1;
+      const Y = (x) => 10 + (1 - (x - lo) / span) * (H - 20);
+      const dd = v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' '
+        + Y(x).toFixed(1)).join(' ');
+      svg = '<svg class="fri-mini__c" viewBox="0 0 ' + W + ' ' + H
+        + '" preserveAspectRatio="none" aria-hidden="true">'
+        + '<path class="fri-mini__l" d="' + dd + '"/>'
+        + '<circle class="fri-mini__p" cx="' + X(v.length - 1).toFixed(1)
+        + '" cy="' + Y(last).toFixed(1) + '" r="2.6"/></svg>';
+    } else {
+      svg = '<div class="fri-mini__wait">점 1개 — 매주 쌓입니다</div>';
+    }
+    return '<div class="fri-mini">'
+      + '<div class="fri-mini__t">' + escapeHtml(r.ko || r.name) + '</div>'
+      + svg
+      + '<div class="fri-mini__f"><span>최저 $' + friNum(lo, null) + '</span>'
+      + '<b>$' + friNum(last, null) + '</b>'
+      + '<span>최고 $' + friNum(hi, null) + '</span></div>'
+      + '<div class="fri-mini__d">' + escapeHtml(d[0]) + ' ~ '
+      + escapeHtml(d[d.length - 1]) + ' · ' + v.length + '주</div>'
+      + '</div>';
+  };
+  return '<div class="fri-minis"><div class="fri-minis__h">항로별 추이'
+    + ' <span>WCI BY ROUTE · 단위 US$/40ft</span></div>'
+    + '<div class="fri-minis__g">' + rows.map(card).join('') + '</div></div>';
 }
 
 /** Drewry 공식 차트 — 수집기가 그 주 페이지에서 읽어 둔 주소를 그대로 싣는다.
@@ -7090,7 +7142,6 @@ function renderFreightHtml() {
   if (embs) {
     /* 차트 둘은 나란히, 그 아래 우리 한국어 표 → Drewry 공식 표 순서.
        기간·표 보기 버튼은 두지 않는다 — 기간은 그 차트가 스스로 들고 있다. */
-    const all = friAllWci();
     return wrap(head
       + friPicker()
       + friSummary(cut, true)
@@ -7098,17 +7149,11 @@ function renderFreightHtml() {
       + escapeHtml(list[0].unit) + '</span></div>'
       + '<div class="fri-embs">'
       + embs.map((i) => friOfficialChart(i)).join('') + '</div>'
-      /* ★ 우리말 표와 Drewry 공식 표를 나란히 둔다.
-         공식 표를 없애면 복항 4개(로테르담→상하이·LA→상하이·뉴욕→로테르담·
-         로테르담→뉴욕)가 화면에서 사라진다 — 그 넷은 Drewry 논평 본문에 없고
-         이 그림 안에만 있는데, Canva 의 robots.txt 가 /design/ 수집을 막고
-         있어 값으로 가져올 수 없다. 그래서 지우는 대신 오른쪽으로 옮겼다. */
+      /* ★ 왼쪽 우리말 표(항로 9개 전부), 오른쪽 항로별 미니 차트.
+         영어 표 임베드는 걷어냈다 — 같은 값을 우리말 표가 그대로 싣는다. */
       + '<div class="fri-tbls">'
-      + (g.item.routeTable ? '<div class="fri-tbls__k">' + friRouteTable(all)
-        + '</div>' : '')
-      + (g.item.officialTable != null
-        ? '<div class="fri-tbls__o">' + friOfficialChart(g.item.officialTable)
-          + '</div>' : '')
+      + '<div class="fri-tbls__k">' + friRouteTable() + '</div>'
+      + '<div class="fri-tbls__o">' + friRouteMinis() + '</div>'
       + '</div>'
       + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
       + ' 비교할 수 없습니다.</div>'
@@ -7132,18 +7177,6 @@ function renderFreightHtml() {
     + '<div class="fri-warn">지수마다 산출 기관과 방식, 단위가 달라 값을 서로 직접'
     + ' 비교할 수 없습니다.</div>'
     + friSourceHtml(cut));
-}
-
-/** 한국어 표에 쓸 WCI 다섯 줄 — 종합 + 주요 항로 4개. */
-function friAllWci() {
-  const idx = (_friData && _friData.indices) || {};
-  return ['WCI_COMPOSITE', 'WCI_SHANGHAI_ROTTERDAM', 'WCI_SHANGHAI_LOSANGELES',
-    'WCI_SHANGHAI_GENOA', 'WCI_SHANGHAI_NEWYORK'].map((k) => {
-    const d = idx[k];
-    if (!d || !d.series || !d.series.dates.length) return null;
-    return { key: k, name: d.name, unit: d.unit, changePct: d.changePct,
-      dates: d.series.dates, values: d.series.values };
-  }).filter(Boolean);
 }
 
 /** 값이 없는 묶음(항로별 운임 표)용 출처 줄. */
