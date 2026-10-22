@@ -6679,6 +6679,9 @@ function xsiHero() {
    운임지수·ICIS·해상 정시성이 같은 컴포넌트를 쓴다. 아이콘 path 만 다르다.
    dateLabel 은 각 위젯의 '실제 최신 데이터 날짜'를 넣는다(수집 시각이 아니다). */
 const VIZ_HERO_ICONS = {
+  /* 문서 — 특허 공보. 모서리를 접은 종이에 글줄 세 개. */
+  doc: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>'
+    + '<path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h7M8.5 9.5h2"/>',
   ship: '<path d="M3 17c1.2 1 2.3 1.4 3.5 1.4S9 18 10.2 17c1.2 1 2.3 1.4 3.5 1.4S16.3 18 17.5 17c1.2 1 2.3 1.4 3.5 1.4"/>'
     + '<path d="M4.5 14 6 9.2l6-1.9 6 1.9L19.5 14"/><path d="M12 7.3V4.6M9.6 4.6h4.8"/>',
   // 화학 원료 — 삼각 플라스크
@@ -16324,6 +16327,27 @@ function ptRecent(rows) {
     + rangeNote + pager + '</div>';
 }
 
+/* ── 머리 배너 ────────────────────────────────────────────────────────
+   원자재 카드들과 같은 공용 부품(vizHero)을 그대로 쓴다 — 새 스타일을 만들지
+   않는다. 남색 그라데이션·아이콘 상자·흰 제목·연한 부제·오른쪽 배지가 한 벌로
+   따라온다.
+   ★ --plain 변형: 기본 .viz-hero 는 .viz-figure 의 padding(11px)을 음수 마진으로
+     상쇄하는 전제인데, #patentRoot 에는 그 padding 이 없어 좌우가 삐져나온다.
+   ★ 배지의 날짜는 데이터에서 읽는다 — 수집 시각이 아니라 '가장 최근 출원일'
+     (ptDataSpan().to)이다. 다른 카드의 '데이터 기준'도 수집 시각이 아니라
+     마지막 관측 시점을 가리킨다. 값이 없으면 배지를 만들지 않는다.
+   ★ 노란 강조는 vizHero 의 8번째 인자에 구절을 넘기기만 하면 된다 —
+     색(--hero-em)과 클래스(.viz-hero__em)는 원자재 헤더 6곳이 쓰는 그대로다. */
+const PT_HERO_SUB = '주요 특허 및 신소재 분야의 출원 동향을 분석하여,'
+  + ' 기술 트렌드와 산업 동향을 파악할 수 있는 인사이트를 제공합니다.';
+const PT_HERO_EM = '주요 특허 및 신소재 분야의 출원 동향을 분석';
+
+function ptHero() {
+  const to = ptDataSpan().to;
+  return vizHero('doc', '특허\u00B7신소재 동향 (KIPRIS)', PT_HERO_SUB,
+    to, null, '데이터 기준', 'viz-hero--plain', PT_HERO_EM);
+}
+
 /* ══ 특허 가지치기(트리) ═══════════════════════════════════════════════
    예전에는 차트 5개와 표를 한 페이지에 길게 쌓았다(연도 막대 → 도넛·표 2열
    → 가로막대·키워드 2열 → 20행 표). 무엇부터 봐야 할지 알기 어렵고,
@@ -16635,7 +16659,8 @@ function renderPatent() {
     const scope = ipcf.enabled
       ? ' · 집계 범위: ' + (ipcf.label || ipcf.codes.join(', ')) + ' 분야'
       : '';
-    body = ptRangeUi()
+    body = ptHero()
+      + ptRangeUi()
       + ptKpiCards(cur, prev)
       + ptTrendNote(cur)
       /* ★ 차트 5개와 표를 세로로 쌓던 자리를 가지치기 하나로 바꿨다.
