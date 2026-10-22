@@ -198,6 +198,29 @@ _MONEY = re.compile(r"\$\s?([\d,]+)\s*per\s*40ft", re.I)
 # 페이지에 박혀 있는 공식 차트(임베드). 주소가 매주 바뀔 수 있어 그때그때 읽는다.
 _EMBED = re.compile(
     r'<iframe[^>]+src="(https://www\.canva\.com/design/[^"]+?\?embed)"', re.I)
+OEMBED = "https://api.canva.com/_spi/presentation/_oembed"
+
+
+def _canva_size(url, sess=None):
+    """디자인의 실제 가로·세로. 못 받으면 (None, None).
+
+    ★ 원본 페이지가 적어 둔 padding-top 은 Drewry 칸에 맞춘 값이라 실제 비율과
+      다르다 — 그 차이만큼 Canva 가 검은 띠를 채운다. oEmbed 가 주는 치수를 쓰면
+      띠가 없다.
+    """
+    try:
+        get = (sess or requests).get
+        view = url.split("?")[0]
+        r = get(OEMBED, params={"url": view, "format": "json"},
+                headers=HEADERS, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return None, None
+        h = (r.json() or {}).get("html") or ""
+        w = re.search(r'width="(\d+)"', h)
+        t = re.search(r'height="(\d+)"', h)
+        return (int(w.group(1)), int(t.group(1))) if (w and t) else (None, None)
+    except Exception:                                    # noqa: BLE001
+        return None, None
 _ASSESS = re.compile(
     r"assessment for\s+\w+day,\s*(\d{1,2}\s+\w{3,}\s+\d{4})", re.I)
 
@@ -259,9 +282,15 @@ def _charts(html):
         # 임베드는 가로세로 비율이 고정이다. 원본 페이지가 감싸는 div 에 적어 둔
         # padding-top 을 그대로 가져온다 — 우리가 어림잡으면 좌우에 검은 띠가 남는다.
         ar = re.search(r"padding-top:\s*([\d.]+)%", html[m.start() - 400:m.start()])
+        page_ratio = float(ar.group(1)) if ar else None
+        w, h = _canva_size(m.group(1))
+        time.sleep(1.0)                      # oEmbed 도 남의 서버다 — 사이를 쉰다
         out.append({"url": m.group(1), "caption": cap,
                     "sub": sub if (sub and len(sub) < 120) else "",
-                    "ratio": float(ar.group(1)) if ar else 75.0})
+                    "w": w, "h": h,
+                    # 실제 치수가 있으면 그것을, 없으면 페이지 값을 쓴다
+                    "ratio": round(h / float(w) * 100, 3) if (w and h)
+                             else (page_ratio or 75.0)})
     return out
 
 
