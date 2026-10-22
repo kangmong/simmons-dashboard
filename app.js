@@ -2429,9 +2429,10 @@ function treeNavHtml(ns, defs, st, hintText) {
   const branch = open
     ? '<div class="sf-tr__branch">' + open.items.map((it) => {
       const on = st.pick === it.id;
-      if (it.html) return it.html(on);
       return '<button type="button" class="sf-tr__item' + (on ? ' is-on' : '')
         + '" data-tree-item="' + escapeHtml(it.id) + '" aria-pressed="' + on + '">'
+        + (it.img ? '<span class="sf-tr__img" aria-hidden="true" style="background-image:url(\''
+          + escapeHtml(it.img) + '\')"></span>' : '')
         + sfTreeIcon(it.icon)
         + '<span class="sf-tr__b"><span class="sf-tr__l">' + escapeHtml(it.label) + '</span>'
         + (it.sub ? '<span class="sf-tr__s">' + escapeHtml(it.sub) + '</span>' : '')
@@ -4525,12 +4526,6 @@ function icisHeroDay() {
   return ICIS_DATA.periods[ICIS_DATA.periods.length - 1] || '';
 }
 
-function icisHero() {
-  return { icon: 'flask', title: '스폰지 주원료 시황 (ICIS Asia)',
-    sub: 'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료',
-    day: icisHeroDay(), prefix: null, em: '시장가격 추이' };
-}
-
 /** 스폰지 주원료 시황(ICIS Asia) 카드 — 연도 툴바 → 연도 선택 시 그래프 */
 function renderIcisHtml() {
   // 연도 칩은 데이터(ICIS_DATA.periods)에서 뽑는다 — 하드코딩 배열이 아니라서
@@ -4594,13 +4589,16 @@ function renderIcisHtml() {
 
   // 순수 추가: KOIMA 요약 한 줄을 맨 앞에 덧붙인다(데이터 없으면 '' → 기존 출력과 동일).
   // 배너의 '업데이트 기준'은 지수의 실제 최신 데이터 월(ICIS_DATA 마지막 period)
+  const icisDay = icisHeroDay();
   /* ★ 화면에서 뺀 카드 — 해상 정시성 · 글로벌 컨테이너 운임지수 · 국제유가 동향 ·
      원자재 원가 부문별 지수(KOIMA, 맨 위 한 줄 요약 포함). 그리는 함수와 수집기·
      데이터는 그대로 두었다. 되살리려면 아래 템플릿에 호출을 다시 넣으면 된다:
        renderKoimaSummaryHtml() · renderScheduleReliabilityHtml() ·
        renderXsiHtml() · renderOilPricesHtml() · renderKoimaHtml() */
   return `<div class="viz-root viz-figure icis-figure">
-    ${vizHeroOf(icisHero())}
+    ${vizHero('flask', '스폰지 주원료 시황 (ICIS Asia)',
+      'PPG·TDI·MDI·PO 월별 (USD/톤) → 원료의 월별 시장가격 추이를 보여주는 자료', icisDay,
+      null, null, null, '시장가격 추이')}
     ${toolbar}
     ${body}
     <div class="viz-tooltip" id="icisTooltip"></div>
@@ -4633,40 +4631,19 @@ function mtTreePick(id) {
   _mtTree.open = MT_TREE_ROOT; _mtTree.pick = id; mtTreeSave();
 }
 
-/* 항목 = 카드 배너와 같은 내용(제목·부제·강조 구절·기준일 배지)을 넓은 버튼으로.
-   ★ 내용은 카드가 쓰는 spec 함수에서 그대로 읽는다 — 문구를 따로 적지 않는다.
-   ★ 이미지는 장식 — CSS 배경이라 스크린리더가 읽지 않고, 가지가 펼쳐져 배너가
-     생길 때만 받는다(같은 주소라 다시 받지 않는다). 못 받으면 남색 배너만 남는다. */
-function mtBannerHtml(it, on) {
-  const h = it.hero;
-  const d = VIZ_HERO_ICONS[h.icon] || VIZ_HERO_ICONS.ship;
-  const dim = h.em && h.sub.indexOf(h.em) >= 0;
-  return '<button type="button" class="mt-bn' + (on ? ' is-on' : '')
-    + '" data-tree-item="' + escapeHtml(it.id) + '" aria-pressed="' + on + '">'
-    + (it.img ? '<span class="mt-bn__img" aria-hidden="true" style="background-image:url(\''
-      + escapeHtml(it.img) + '\')"></span>' : '')
-    + '<span class="mt-bn__ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"'
-    + ' fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
-    + ' stroke-linejoin="round">' + d + '</svg></span>'
-    + '<span class="mt-bn__b"><span class="mt-bn__t">' + escapeHtml(h.title) + '</span>'
-    + (h.sub ? '<span class="mt-bn__s' + (dim ? ' viz-hero__sub--dim' : '') + '">'
-      + vizHeroSub(h.sub, h.em) + '</span>' : '')
-    + '</span>'
-    + (h.day ? '<span class="mt-bn__badge">' + escapeHtml(vizHeroBadge(h.prefix, h.day)) + '</span>' : '')
-    + '<span class="mt-bn__cv" aria-hidden="true">\u25BE</span>'
-    + '</button>';
-}
-
+/* 항목 이름은 카드 제목 그대로, 기준일은 카드 배너와 같은 함수에서 읽는다 */
 function mtTreeDefs() {
-  const html = (it) => (on) => mtBannerHtml(it, on);
+  const sub = (d) => (d ? d + ' 기준' : '');
   const items = [
-    { id: 'icis', hero: icisHero(), img: 'public/banners/sponge.png', render: renderIcisHtml },
-    { id: 'fri', hero: friHero(friSeries(_friPick)), img: 'public/banners/sea-freight.png',
-      render: renderFreightHtml },
-    { id: 'oilp', hero: opHero(), img: 'public/banners/petronet.png', render: renderOilProductHtml },
-    { id: 'kp', hero: kpHeroSpec(), img: 'public/banners/koima.png', render: renderKoimaPriceHtml },
+    { id: 'icis', label: '스폰지 주원료 시황 (ICIS Asia)', icon: 'hero:flask', img: 'public/banners/sponge.png',
+      sub: sub(icisHeroDay()), render: renderIcisHtml },
+    { id: 'fri', label: '해상 운임 지수', icon: 'hero:ship', img: 'public/banners/sea-freight.png',
+      sub: sub(friHeroDay(friSeries(_friPick))), render: renderFreightHtml },
+    { id: 'oilp', label: '국제유가·석유제품 (PETRONET)', icon: 'hero:fuel', img: 'public/banners/petronet.png',
+      sub: sub(opHeroDay()), render: renderOilProductHtml },
+    { id: 'kp', label: (_kpIns && _kpIns.hero && _kpIns.hero.title) || '일일 국제원자재가격 (KOIMA)',
+      icon: 'hero:drum', img: 'public/banners/koima.png', sub: sub(kpHeroDay()), render: renderKoimaPriceHtml },
   ];
-  items.forEach((it) => { it.html = html(it); });
   return [{ g: MT_TREE_ROOT, label: '원자재 동향', hint: items.length + '개 항목', items }];
 }
 
@@ -5740,15 +5717,12 @@ function opHeroDay() {
   return opPts.length ? opPts[opPts.length - 1].k : '';
 }
 
-function opHero() {
-  return { icon: 'fuel', title: '국제유가·석유제품 (PETRONET)',
-    sub: (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '',
-    day: opHeroDay(), prefix: '데이터 기준', em: '주요 석유제품의 최근 흐름과 변동 요인을 분석' };
-}
-
 function renderOilProductHtml() {
   const unit = (_opData && !_opData.error && _opData.unit) || '$/배럴';
-  const head = vizHeroOf(opHero())
+  const opDay = opHeroDay();
+  const head = vizHero('fuel', '국제유가·석유제품 (PETRONET)',
+    (_oilpIns && _oilpIns.hero && _oilpIns.hero.subtitle) || '', opDay, null, '데이터 기준',
+    null, '주요 석유제품의 최근 흐름과 변동 요인을 분석')
     + `<div class="viz-head"><div>
       <div class="viz-sub">일일국제제품가격 · 휘발유·등유·경유·중유·나프타 (${escapeHtml(unit)})</div>
     </div></div>`
@@ -7138,13 +7112,10 @@ function friHeroDay(list) {
   }
   return day;
 }
-function friHero(list) {
-  return { icon: 'ship', title: '해상 운임 지수',
-    sub: '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
-    day: friHeroDay(list), prefix: '데이터 기준', em: '해상 운송비 변화' };
-}
 function friHeroHtml(list) {
-  return vizHeroOf(friHero(list));
+  return vizHero('ship', '해상 운임 지수',
+    '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
+    friHeroDay(list), null, '데이터 기준', null, '해상 운송비 변화');
 }
 
 /** 항로별 운임 — 우리가 모은 값으로 직접 만든 한국어 표.
@@ -7761,20 +7732,11 @@ function vizHero(icon, title, sub, dateLabel, note, badgePrefix, cls, em) {
         ? ' viz-hero__sub--dim' : ''}">${vizHeroSub(sub, em)}</p>` : ''}
     </div>
     ${dateLabel ? `<span class="viz-hero__badge">${escapeHtml(
-      vizHeroBadge(badgePrefix, dateLabel))}</span>` : ''}
+      /* ★ '' 를 넘기면 접두어 없이 배지 본문만 쓴다. 예전엔 `||` 라서 빈 문자열이
+         기본값('업데이트 기준')으로 되살아났다 — 날짜가 아닌 요약 배지에는 맞지 않는다. */
+      badgePrefix == null ? '업데이트 기준 ' + dateLabel : (badgePrefix ? badgePrefix + ' ' + dateLabel : dateLabel)
+    )}</span>` : ''}
   </div>`;
-}
-
-/* ★ '' 를 넘기면 접두어 없이 배지 본문만 쓴다. 예전엔 `||` 라서 빈 문자열이
-   기본값('업데이트 기준')으로 되살아났다 — 날짜가 아닌 요약 배지에는 맞지 않는다. */
-function vizHeroBadge(badgePrefix, dateLabel) {
-  return badgePrefix == null ? '업데이트 기준 ' + dateLabel
-    : (badgePrefix ? badgePrefix + ' ' + dateLabel : dateLabel);
-}
-
-/** 배너 내용 묶음(spec)으로 그린다 — 원자재 카드 4장과 트리 배너가 같은 spec 을 읽는다 */
-function vizHeroOf(h) {
-  return vizHero(h.icon, h.title, h.sub, h.day, null, h.prefix, null, h.em);
 }
 
 /** 통화 축 캡션 — 단위 + 적용 환율. 차트 위에 둔다(축 눈금과 자리를 다투지 않게). */
@@ -12183,24 +12145,6 @@ function kpHeroDay() {
   return st ? st.date : (_kpData && _kpData.baseDate) || '';
 }
 
-/* 남색 배너 — 다른 위젯과 같은 vizHero 를 그대로 쓴다.
-   ★ 제목은 부문·품목과 무관하게 항상 고정이고, 품목명은 '부제'에만 들어간다.
-   ★ 부제 문장만 {item} 자리에 고른 품목명이 들어간다('주요 글로벌 나프타
-     가격의 …'). 강조 구절도 같은 치환을 거쳐야 문장 안에서 찾아진다. */
-function kpHeroSpec() {
-  const ok = _kpData && !_kpData.error && _kpData.categories.length;
-  const item = ok ? kpItemOf(kpCatOf(_kpCat), _kpItem) : null;
-  const kpHero = (_kpIns && _kpIns.hero) || {};
-  const kpSubT = kpHero.subtitle
-    || '주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 '
-      + '구매 의사결정에 필요한 인사이트를 제공합니다.';
-  const kpItemName = item ? item.name : '원자재';
-  return { icon: 'drum', title: kpHero.title || '일일 국제원자재가격 (KOIMA)',
-    sub: kpSubT.split('{item}').join(kpItemName), day: kpHeroDay(),
-    prefix: kpHero.badgePrefix || '데이터 기준',
-    em: '글로벌 ' + kpItemName + ' 가격의 최근 흐름과 변동 요인을 분석' };
-}
-
 function renderKoimaPriceHtml() {
   const cap = capSrc('출처: 한국수입협회 국제원자재가격정보', SRC_LINKS.koimaPrice);
   const ok = _kpData && !_kpData.error && _kpData.categories.length;
@@ -12210,8 +12154,19 @@ function renderKoimaPriceHtml() {
   /* 남색 배너 — 다른 위젯과 같은 vizHero 를 그대로 쓴다.
      ★ 제목은 부문·품목과 무관하게 항상 고정이고, 품목명은 '부제'에만 들어간다
        (KOIMA 지수 위젯에서 제목 뒤에 부문명이 붙어 지적받은 것과 다른 자리다). */
+  const kpHero = (_kpIns && _kpIns.hero) || {};
   const kpSt = (ok && item) ? kpiStat(item) : null;
-  const head = vizHeroOf(kpHeroSpec());
+  const kpSubT = kpHero.subtitle
+    || '주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 '
+      + '구매 의사결정에 필요한 인사이트를 제공합니다.';
+  /* ★ 이 문장만 {item} 자리에 고른 품목명이 들어간다('주요 글로벌 나프타
+     가격의 …'). 강조 구절도 같은 치환을 거쳐야 문장 안에서 찾아진다. */
+  const kpItemName = item ? item.name : '원자재';
+  const head = vizHero('drum', kpHero.title || '일일 국제원자재가격 (KOIMA)',
+    kpSubT.split('{item}').join(kpItemName),
+    kpHeroDay(),
+    null, kpHero.badgePrefix || '데이터 기준', null,
+    '글로벌 ' + kpItemName + ' 가격의 최근 흐름과 변동 요인을 분석');
 
   // 1) 부문 탭 5개
   const tabSrc = ok ? kpCatsOrdered() : KP_TABS;
