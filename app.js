@@ -7406,6 +7406,14 @@ let _kcciOne = '';        // 그래프에 혼자 보는 코드('' = 종합지수
 let _kcciMini = '';       // 설명을 펼친 항로 카드
 let _kcciSpan = '1y';     // 그래프 기간
 let _kcciCodes = false;   // 표 옆 '코드 한눈에 보기' 펼침
+let _kcciMinisOpen = false;  // 표 옆 '부산발 항로별 추이' 펼침
+
+/** 표 오른쪽 빈칸의 펼치기 단추 — KCCI·SCFI 가 같이 쓴다 */
+function sideBtn(attr, open, label) {
+  return '<button type="button" class="kc-codebtn' + (open ? ' is-on' : '') + '" ' + attr
+    + ' aria-expanded="' + open + '">' + escapeHtml(label)
+    + ' <span>' + (open ? '접기 ▴' : '펼치기 ▾') + '</span></button>';
+}
 
 /* 코드 풀이 — 사용자와 함께 정리한 표 그대로. mid 는 코드 가운데(항로) 글자 */
 const KCCI_INFO = {
@@ -7708,11 +7716,11 @@ function kcciBody() {
     + krwNote('USD')
     /* 표 + 오른쪽 빈칸에 '코드 한눈에 보기' 단추 — 누르면 그 자리에 펼친다 */
     + '<div class="kc-tblrow"><div class="kc-tbl">' + kcciTable() + '</div>'
-    + '<div class="kc-side"><button type="button" class="kc-codebtn' + (_kcciCodes ? ' is-on' : '')
-      + '" data-kccodes aria-expanded="' + _kcciCodes + '">KCCI 코드 한눈에 보기'
-      + ' <span>' + (_kcciCodes ? '접기 ▴' : '펼치기 ▾') + '</span></button>'
-      + (_kcciCodes ? kcciCodes() : '') + '</div></div>'
-    + kcciMinis()
+    /* ★ 코드 카드·항로별 추이는 바로 펼치지 않는다 — 표 옆 단추를 눌러야 그 자리에 나온다 */
+    + '<div class="kc-side"><div class="kc-btns">'
+      + sideBtn('data-kccodes', _kcciCodes, 'KCCI 코드 한눈에 보기')
+      + sideBtn('data-kcminis', _kcciMinisOpen, '부산발 항로별 추이') + '</div>'
+      + (_kcciCodes ? kcciCodes() : '') + (_kcciMinisOpen ? kcciMinis() : '') + '</div></div>'
     + kcciSource();
 }
 
@@ -8026,6 +8034,7 @@ const SCFI_DATA_URL = 'public/data/scfi-routes.json';
 let _scfiData = null;     // RackingHub 가 정리한 SSE 항로별 값(scfi_routes.py)
 let _scfiOne = '';        // 그래프에 혼자 보는 항로('' = 종합지수, NLIC 2014년~)
 let _scfiMini = '';
+let _scfiMinisOpen = false;  // 표 옆 '상하이발 SCFI 항로별 추이' 펼침
 
 function scfiLanes() {
   return (_scfiData && _scfiData.status === 'ok' && Array.isArray(_scfiData.lanes)) ? _scfiData.lanes : [];
@@ -8177,7 +8186,10 @@ function friScfiBody() {
     /* 그래프 + 오른쪽 '지금 흐름'(마지막 점과 파란 실선으로 잇는다 — friLinkNote) */
     + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + chart + scfiNote(one, s0) + '</div>'
     + (lanes.length
-      ? krwNote('USD') + '<div class="kc-tbl">' + scfiTable(lanes) + '</div>' + scfiMinis(lanes)
+      ? krwNote('USD') + '<div class="kc-tblrow"><div class="kc-tbl">' + scfiTable(lanes) + '</div>'
+        + '<div class="kc-side"><div class="kc-btns">'
+        + sideBtn('data-scminis', _scfiMinisOpen, '상하이발 SCFI 항로별 추이') + '</div>'
+        + (_scfiMinisOpen ? scfiMinis(lanes) : '') + '</div></div>'
       : '<div class="chart-empty">항로별 SCFI 를 불러오지 못했습니다</div>')
     + src;
 }
@@ -8278,10 +8290,14 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-scone], [data-scmini]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini]') : null;
     if (kc) {
       if (kc.hasAttribute('data-kccodes')) {
         _kcciCodes = !_kcciCodes;
+      } else if (kc.hasAttribute('data-kcminis')) {
+        _kcciMinisOpen = !_kcciMinisOpen;
+      } else if (kc.hasAttribute('data-scminis')) {
+        _scfiMinisOpen = !_scfiMinisOpen;
       } else if (kc.hasAttribute('data-scone')) {
         _scfiOne = kc.getAttribute('data-scone');
       } else if (kc.hasAttribute('data-scmini')) {
@@ -17100,8 +17116,8 @@ function initUpdate() {
     // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
-    _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false;
-    _scfiOne = ''; _scfiMini = '';
+    _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false; _kcciMinisOpen = false;
+    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false;
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
