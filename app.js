@@ -3266,7 +3266,7 @@ function renderCompetitor() {
       data-side="${side}" aria-controls="compPanel-${side}">${hero}</button>`;
   el.innerHTML = `
     <div class="comp-tabs" role="tablist" aria-label="국내/국외 보기 전환">
-      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 비상장사 수기 입력',
+      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 실적은 DART 감사보고서 자동 갱신',
         compGroupBadge('kr'), 'Korea', '', 'viz-hero--tab'))}
       ${tab('gl', vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
         compGroupBadge('gl'), 'Global', '', 'viz-hero--tab'))}

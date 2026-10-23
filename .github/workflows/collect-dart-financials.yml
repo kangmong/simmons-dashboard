@@ -64,16 +64,21 @@ jobs:
           echo "실행: python dart_financials.py $ARGS"
           python dart_financials.py $ARGS
 
+      # 받은 DART 값을 국내 실적 화면 파일(simmons-market.json)에도 옮겨 적는다.
+      # 네트워크 없이 위 결과 파일만 읽는다. 수집이 실패했으면 아무것도 바꾸지 않는다.
+      - name: 국내 실적 화면 파일 맞추기
+        run: python sync_market_from_dart.py
+
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
-          if git diff --quiet -- public/data/simmons-financials.json; then
+          if git diff --quiet -- public/data/simmons-financials.json public/data/simmons-market.json; then
             echo "변경 없음 → 커밋 생략"
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/simmons-financials.json
+          git add public/data/simmons-financials.json public/data/simmons-market.json
           git commit -m "자동 수집: 시몬스 재무제표 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'))"
           git push
 
