@@ -108,6 +108,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/kcci-index.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/xsi-freight-index.json",
       "use": "@vercel/static"
     },

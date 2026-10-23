@@ -6881,6 +6881,16 @@ const FRI_GROUPS = [
             + ' 있는지 네 항로를 한 그림에서 견줍니다.',
           em: '상하이에서 출발하는 항로별 운임' },
       ] },
+    /* ★ KCCI — 한국해양진흥공사가 매주 월요일 발표하는 '부산 출발' 운임지수.
+       데이터는 kcci_index.py → public/data/kcci-index.json(주 1회 자동 수집). */
+    { id: 'kcci', label: 'KCCI', keys: [],
+      ways: [
+        { id: 'kcci', label: 'KCCI(한국 컨테이너 종합지수)', en: 'KOBC Container Composite Index',
+          desc: '한국해양진흥공사가 매주 월요일 발표하는, 부산에서 출발하는 13개 항로의 컨테이너'
+            + ' 운임을 하나로 묶은 지수입니다. 한국에서 물건을 실어 보낼 때 드는 운송비 흐름을'
+            + ' 가장 직접적으로 보여 줍니다.',
+          em: '부산에서 출발하는 13개 항로의 컨테이너 운임을 하나로 묶은 지수' },
+      ] },
   ] },
 ];
 
@@ -7134,9 +7144,10 @@ function friHeroDay(list) {
   return day;
 }
 function friHeroHtml(list) {
+  const kd = (_friPick === 'kcci' && _kcciData && _kcciData.dates) ? _kcciData.dates : null;
   return vizHero('ship', '해상 운임 지수',
     '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
-    friHeroDay(list), null, '데이터 기준', null, '해상 운송비 변화');
+    kd ? kd[kd.length - 1] : friHeroDay(list), null, '데이터 기준', null, '해상 운송비 변화');
 }
 
 /** 항로별 운임 — 우리가 모은 값으로 직접 만든 한국어 표.
@@ -7375,6 +7386,291 @@ function friRouteMinis() {
     + '(<mark class="hl-em">상하이 기준 운송비 추세 설명</mark>)'
     + ' <span>WCI BY ROUTE · 단위 US$/40ft</span></div>'
     + '<div class="fri-minis__g">' + rows.map(card).join('') + '</div></div>';
+}
+
+
+/* ══ KCCI — 한국해양진흥공사 컨테이너선 운임지수(부산 출발) ══════════════
+   ★ 값은 전부 kcci-index.json(KOBC 시계열 표를 그대로 옮긴 것)에서 읽는다.
+     전주·1년 전 대비는 그 값으로 직접 계산한다(사이트 표의 전주 대비와 같다).
+   ★ 종합지수(KCCI)는 포인트(pt), 항로별 지수는 $/FEU(40피트 1개) — 사이트 표기 그대로.
+     항로 값에만 원화 환산을 붙인다(포인트는 돈이 아니다).
+   ★ 세로축은 0 부터 — 값에 맞춰 당기면 작은 움직임이 절벽처럼 보인다(확대 금지). */
+const KCCI_DATA_URL = 'public/data/kcci-index.json';
+let _kcciData = null;
+let _kcciOne = '';        // 그래프에 혼자 보는 코드('' = 종합지수)
+let _kcciMini = '';       // 설명을 펼친 항로 카드
+let _kcciSpan = '1y';     // 그래프 기간
+
+/* 코드 풀이 — 사용자와 함께 정리한 표 그대로. mid 는 코드 가운데(항로) 글자 */
+const KCCI_INFO = {
+  KCCI: { ko: '종합지수', to: '13개 항로를 하나로 묶은 대표 지수', en: 'KOBC Container Composite Index', mid: 'CC', midEn: 'Container Composite' },
+  KUWI: { ko: '미주서안', to: '미국 서해안 (LA·롱비치 등)', en: 'Korea US West Index', mid: 'UW', midEn: 'US West' },
+  KUEI: { ko: '미주동안', to: '미국 동해안 (뉴욕 등)', en: 'Korea US East Index', mid: 'UE', midEn: 'US East' },
+  KNEI: { ko: '유럽', to: '북유럽 (로테르담·함부르크 등)', en: 'Korea North Europe Index', mid: 'NE', midEn: 'North Europe' },
+  KMDI: { ko: '지중해', to: '지중해', en: 'Korea MeDiterranean Index', mid: 'MD', midEn: 'MeDiterranean' },
+  KMEI: { ko: '중동', to: '중동', en: 'Korea Middle East Index', mid: 'ME', midEn: 'Middle East' },
+  KAUI: { ko: '호주', to: '호주', en: 'Korea AUstralia Index', mid: 'AU', midEn: 'AUstralia' },
+  KLEI: { ko: '남미동안', to: '남미 동안 (브라질 등)', en: 'Korea Latin America East Index', mid: 'LE', midEn: 'Latin America East' },
+  KLWI: { ko: '남미서안', to: '남미 서안 (칠레·페루 등)', en: 'Korea Latin America West Index', mid: 'LW', midEn: 'Latin America West' },
+  KSAI: { ko: '남아프리카', to: '남아프리카', en: 'Korea South Africa Index', mid: 'SA', midEn: 'South Africa' },
+  KWAI: { ko: '서아프리카', to: '서아프리카', en: 'Korea West Africa Index', mid: 'WA', midEn: 'West Africa' },
+  KCI: { ko: '중국', to: '중국', en: 'Korea China Index', mid: 'C', midEn: 'China' },
+  KJI: { ko: '일본', to: '일본', en: 'Korea Japan Index', mid: 'J', midEn: 'Japan' },
+  KSEI: { ko: '동남아시아', to: '동남아시아', en: 'Korea South East Asia Index', mid: 'SE', midEn: 'South East asia' },
+};
+const KCCI_GROUP_KO = {
+  'Index': '종합', 'Mainlane': '원양 간선 항로', 'Non-Mainlane': '원양 기타 항로', 'Intra Asia': '아시아 역내 항로',
+};
+
+function kcciOk() {
+  return !!(_kcciData && _kcciData.status === 'ok' && _kcciData.dates && _kcciData.dates.length > 1);
+}
+
+/** 값 표기 — 종합은 pt, 항로는 $ (원화는 따로 붙인다) */
+function kcciVal(code, v) {
+  if (v == null || !isFinite(v)) return '—';
+  const n = Math.round(v).toLocaleString('ko-KR');
+  return code === 'KCCI' ? n + 'pt' : '$' + n;
+}
+
+/** 코드 하나의 요약 — 지금·전주·1년 전(52주 전 그 주에 가장 가까운 값)·최고·최저 */
+function kcciStat(code) {
+  const d = _kcciData.dates, v = _kcciData.series[code] || [];
+  const n = v.length;
+  const cur = v[n - 1], prev = v[n - 2];
+  const last = new Date(d[n - 1] + 'T00:00:00Z');
+  last.setUTCDate(last.getUTCDate() - 364);
+  const ago = last.toISOString().slice(0, 10);
+  let yi = -1;
+  for (let i = 0; i < n; i++) { if (d[i] <= ago) yi = i; }
+  let hi = 0, lo = 0;
+  v.forEach((x, i) => { if (x > v[hi]) hi = i; if (x < v[lo]) lo = i; });
+  const pct = (a, b) => (b ? (a / b - 1) * 100 : null);
+  return { cur, prev, date: d[n - 1], prevDate: d[n - 2],
+    wk: pct(cur, prev), yr: yi >= 0 ? pct(cur, v[yi]) : null,
+    hi: v[hi], hiDate: d[hi], lo: v[lo], loDate: d[lo] };
+}
+
+function kcciPct(p) {
+  if (p == null || !isFinite(p)) return '<span class="fri-d fri-d--flat">—</span>';
+  const cls = p > 0 ? 'up' : (p < 0 ? 'down' : 'flat');
+  return '<span class="fri-d fri-d--' + cls + '">' + (p > 0 ? '▲ ' : (p < 0 ? '▼ ' : ''))
+    + Math.abs(p).toFixed(2) + '%</span>';
+}
+
+/** 그래프에서 볼 지수 고르기 — 종합 + 13개 항로 */
+function kcciPicks() {
+  const btn = (c) => '<button class="fri-line' + ((_kcciOne || 'KCCI') === c ? ' is-on' : '')
+    + '" type="button" data-kcone="' + c + '" aria-pressed="' + ((_kcciOne || 'KCCI') === c)
+    + '" style="--xt:' + (c === 'KCCI' ? 'var(--navy)' : '#2563EB') + '"><i aria-hidden="true"></i>'
+    + escapeHtml(KCCI_INFO[c].ko) + ' <span class="kc-pick__c">' + c + '</span></button>';
+  const spans = FRI_SPANS.map((p) => '<button class="icis-year kc-span' + (p.id === _kcciSpan ? ' is-active' : '')
+    + '" type="button" data-kcspan="' + p.id + '">' + p.label + '</button>').join('');
+  return '<div class="fri-lines kc-picks">' + _kcciData.codes.map(btn).join('') + '</div>'
+    + '<div class="icis-years kc-spans">' + spans + '</div>';
+}
+
+/** 큰 그래프 — 고른 지수 하나. 마지막 값·최고·최저에 값을 적는다. */
+function kcciChart() {
+  const code = _kcciOne || 'KCCI';
+  const sp = FRI_SPANS.filter((x) => x.id === _kcciSpan)[0];
+  const D = _kcciData.dates, V = _kcciData.series[code];
+  let from = 0;
+  if (sp && sp.days) {
+    const f = new Date(D[D.length - 1] + 'T00:00:00Z');
+    f.setUTCDate(f.getUTCDate() - sp.days);
+    const fs = f.toISOString().slice(0, 10);
+    while (from < D.length - 2 && D[from] < fs) from++;
+  }
+  const d = D.slice(from), v = V.slice(from), n = v.length;
+  /* 좁은 화면은 그림 폭을 줄여 그린다 — 1000 폭을 그대로 줄이면 글자가 3px 이 된다 */
+  const narrow = window.innerWidth <= 760;
+  const W = narrow ? 460 : 1000, H = narrow ? 330 : 420, L = narrow ? 52 : 72,
+    R = narrow ? 70 : 120, T = 30, B = 40;
+  const max = Math.max.apply(null, v);
+  const raw = max * 1.15, mag = Math.pow(10, Math.floor(Math.log10(raw / 5)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).filter((x) => raw / x <= 6)[0];
+  const top = Math.ceil(raw / step) * step;
+  const X = (i) => L + (n === 1 ? 0 : i / (n - 1)) * (W - L - R);
+  const Y = (x) => T + (1 - x / top) * (H - T - B);
+  const unitTick = (x) => (code === 'KCCI' ? '' : '$') + Math.round(x).toLocaleString('ko-KR');
+  let g = '';
+  for (let x = 0; x <= top + 1e-9; x += step) {
+    g += '<line class="fri-g" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(x).toFixed(1) + '" y2="' + Y(x).toFixed(1) + '"/>'
+      + '<text class="fri-ty" x="' + (L - 8) + '" y="' + (Y(x) + 3.5).toFixed(1) + '">' + unitTick(x) + '</text>';
+  }
+  const tk = Math.min(narrow ? 4 : 6, n);
+  for (let k = 0; k < tk; k++) {
+    const i = Math.round(k * (n - 1) / Math.max(1, tk - 1));
+    g += '<text class="fri-cx" x="' + X(i).toFixed(1) + '" y="' + (H - 14) + '">' + escapeHtml(d[i].slice(0, 7)) + '</text>';
+  }
+  const tone = code === 'KCCI' ? 'var(--navy)' : '#2563EB';
+  const path = '<path class="fri-l" style="--xt:' + tone + '" d="'
+    + v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x).toFixed(1)).join(' ') + '"/>';
+  let hi = 0, lo = 0;
+  v.forEach((x, i) => { if (x > v[hi]) hi = i; if (x < v[lo]) lo = i; });
+  const krw = (x) => (code === 'KCCI' ? '' : (krwOf(x) ? ' (' + krwOf(x) + ')' : ''));
+  const mark = (i, label, cls, dy) => {
+    const x = X(i), y = Y(v[i]);
+    const anc = x > W - R - (narrow ? 90 : 140) ? 'end' : (x < L + (narrow ? 90 : 140) ? 'start' : 'middle');
+    return '<circle class="fri-cd' + (cls === 'last' ? ' fri-cd--last' : '') + '" style="--xt:' + tone
+      + '" cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + (cls === 'last' ? 6 : 4) + '"/>'
+      + '<text class="fri-cv' + (cls === 'last' ? ' fri-cv--last' : '') + '" style="text-anchor:' + anc
+      + '" x="' + x.toFixed(1) + '" y="' + (y + dy).toFixed(1) + '">' + escapeHtml(label) + '</text>';
+  };
+  let marks = '';
+  if (hi !== n - 1) marks += mark(hi, '최고 ' + kcciVal(code, v[hi]) + ' · ' + d[hi], 'hi', -12);
+  if (lo !== n - 1 && lo !== hi) marks += mark(lo, '최저 ' + kcciVal(code, v[lo]) + ' · ' + d[lo], 'lo', 20);
+  marks += mark(n - 1, kcciVal(code, v[n - 1]) + krw(v[n - 1]), 'last', -14);
+  const info = KCCI_INFO[code];
+  return '<figure class="fri-emb kc-chart"><figcaption class="fri-emb__c">'
+    + escapeHtml(info.ko) + ' (' + code + ')'
+    + ' <span>' + escapeHtml(code === 'KCCI' ? '단위 pt' : '부산 → ' + info.to + ' · 단위 $/FEU(40피트 1개)')
+    + ' · 세로축은 0 부터</span></figcaption>'
+    + '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img"'
+    + ' aria-label="' + escapeHtml(info.ko + ' 추이') + '">' + g + path + marks + '</svg></div></figure>';
+}
+
+/** 항로별 표 — KOBC 표를 우리말로(구분·코드·항로·비중·이번 주·지난주·증감) */
+function kcciTable() {
+  const meta = _kcciData.meta || {};
+  let lastGroup = null;
+  const groups = {};
+  _kcciData.codes.forEach((c) => { const gk = (meta[c] || {}).group || ''; groups[gk] = (groups[gk] || 0) + 1; });
+  const rows = _kcciData.codes.map((c) => {
+    const st = kcciStat(c), m = meta[c] || {}, info = KCCI_INFO[c];
+    const gk = m.group || '';
+    const gcell = gk !== lastGroup
+      ? '<td rowspan="' + groups[gk] + '" class="kc-tb__g">' + escapeHtml(KCCI_GROUP_KO[gk] || gk) + '</td>' : '';
+    lastGroup = gk;
+    const diff = st.cur - st.prev;
+    return '<tr' + (c === 'KCCI' ? ' class="fri-tb__sum"' : '') + '>' + gcell
+      + '<td><b class="kc-tb__c">' + c + '</b></td>'
+      + '<td>' + escapeHtml(info.ko) + '</td>'
+      + '<td class="fri-tb__n">' + (m.weight != null ? m.weight + '%' : '—') + '</td>'
+      + '<td class="fri-tb__n"><b>' + kcciVal(c, st.cur) + '</b>'
+        + (c !== 'KCCI' && krwOf(st.cur) ? '<span class="fri-krw">' + escapeHtml(krwOf(st.cur)) + '</span>' : '') + '</td>'
+      + '<td class="fri-tb__n">' + kcciVal(c, st.prev) + '</td>'
+      + '<td class="fri-tb__n">' + (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('ko-KR') + ' ' + kcciPct(st.wk) + '</td>'
+      + '</tr>';
+  }).join('');
+  const st0 = kcciStat('KCCI');
+  return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb kc-tb"><thead><tr>'
+    + '<th>구분</th><th>코드</th><th>항로(부산 →)</th><th class="fri-tb__n">비중</th>'
+    + '<th class="fri-tb__n">이번 주<br>' + escapeHtml(st0.date) + '</th>'
+    + '<th class="fri-tb__n">지난주<br>' + escapeHtml(st0.prevDate) + '</th>'
+    + '<th class="fri-tb__n">증감</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div class="fri-tb__more">종합지수는 pt, 항로는 $/FEU(40피트 컨테이너 1개) · 비중은 종합지수를 계산할 때'
+    + ' 그 항로가 차지하는 몫 · 값은 KOBC 발표 그대로입니다.</div>';
+}
+
+/** 미니 카드 한 줄 설명 — 수집한 값으로만 */
+function kcciMiniWords(c) {
+  const st = kcciStat(c);
+  const dir = (p, up, down) => (p == null ? '' : (p >= 0 ? up : down));
+  return '지금 <b>' + kcciVal(c, st.cur) + '</b>'
+    + (c !== 'KCCI' && krwOf(st.cur) ? '(' + escapeHtml(krwOf(st.cur).replace('≈', '약').trim()) + ')' : '')
+    + '. 전주보다 ' + kcciPct(st.wk) + ' ' + dir(st.wk, '올랐고', '내렸고')
+    + (st.yr == null ? '.' : ', 1년 전보다 ' + kcciPct(st.yr) + ' ' + dir(st.yr, '높습니다.', '낮습니다.'))
+    + ' 발표 이래 최고 ' + kcciVal(c, st.hi) + '(' + st.hiDate + '), 최저 ' + kcciVal(c, st.lo) + '(' + st.loDate + ').';
+}
+
+/** 부산발 항로별 추이 — 13개 항로, 첫 값·최고·최저·지금을 선 위에 적는다(예시 이미지 모양) */
+function kcciMinis() {
+  const card = (c) => {
+    const v = _kcciData.series[c], n = v.length;
+    let hi = 0, lo = 0;
+    v.forEach((x, i) => { if (x > v[hi]) hi = i; if (x < v[lo]) lo = i; });
+    const W = 240, H = 92, P = 8, T = 16, Bm = 16;
+    const span = (v[hi] - v[lo]) || 1;
+    const X = (i) => P + (i / (n - 1)) * (W - P * 2);
+    const Y = (x) => T + (1 - (x - v[lo]) / span) * (H - T - Bm);
+    const dd = v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x).toFixed(1)).join(' ');
+    const lab = (i, dy, cls) => {
+      const x = X(i), anc = x < 40 ? 'start' : (x > W - 40 ? 'end' : 'middle');
+      return '<text class="kc-mini__v' + (cls ? ' ' + cls : '') + '" x="' + x.toFixed(1) + '" y="' + (Y(v[i]) + dy).toFixed(1)
+        + '" style="text-anchor:' + anc + '">' + Math.round(v[i]).toLocaleString('ko-KR') + '</text>';
+    };
+    const done = {};
+    let labels = '';
+    [[0, -5], [hi, -5], [lo, 12], [n - 1, -5, 'kc-mini__v--last']].forEach((a) => {
+      if (done[a[0]]) return;
+      done[a[0]] = 1;
+      labels += lab(a[0], a[1], a[2]);
+    });
+    const open = _kcciMini === c;
+    return '<button class="fri-mini kc-mini' + (open ? ' is-open' : '') + '" type="button" data-kcmini="' + c
+      + '" aria-expanded="' + open + '">'
+      + '<div class="fri-mini__t">' + escapeHtml(KCCI_INFO[c].ko) + ' <span class="kc-mini__c">' + c + '</span></div>'
+      + '<svg class="kc-mini__svg" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">'
+      + '<path class="kc-mini__l" d="' + dd + '"/>'
+      + '<circle class="fri-mini__p" cx="' + X(n - 1).toFixed(1) + '" cy="' + Y(v[n - 1]).toFixed(1) + '" r="2.6"/>'
+      + labels + '</svg>'
+      + '<div class="fri-mini__d">' + escapeHtml(_kcciData.dates[0]) + ' ~ ' + escapeHtml(_kcciData.dates[n - 1])
+      + ' · 전주 ' + kcciPct(kcciStat(c).wk) + '</div>'
+      + (open ? '<div class="fri-mini__s">' + kcciMiniWords(c) + '</div>' : '')
+      + '</button>';
+  };
+  return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
+    + '(<mark class="hl-em">부산 기준 운송비 추세 설명</mark>)'
+    + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
+    + '<div class="fri-minis__g kc-minis__g">'
+    + _kcciData.codes.filter((c) => c !== 'KCCI').map(card).join('') + '</div></div>';
+}
+
+/** 코드 한눈에 보기 — 코드 글자가 무엇을 뜻하는지(K + 항로 + I)와 비중·지금 값 */
+function kcciCodes() {
+  const meta = _kcciData.meta || {};
+  const order = ['Index', 'Mainlane', 'Non-Mainlane', 'Intra Asia'];
+  const card = (c) => {
+    const info = KCCI_INFO[c], m = meta[c] || {}, st = kcciStat(c);
+    const mid = info.mid;
+    const code = '<span class="kc-code__k">K</span><span class="kc-code__m">' + mid + '</span><span class="kc-code__i">I</span>';
+    return '<div class="kc-card' + (c === 'KCCI' ? ' kc-card--sum' : '') + '">'
+      + '<div class="kc-code" aria-label="' + c + '">' + code + '</div>'
+      + '<div class="kc-rule"><b>K</b> 한국 · <b class="kc-rule__m">' + mid + '</b> ' + escapeHtml(info.midEn)
+      + ' · <b>I</b> Index</div>'
+      + '<div class="kc-to">' + (c === 'KCCI' ? '' : '부산 → ') + '<b>' + escapeHtml(info.to) + '</b></div>'
+      + '<div class="kc-en" lang="en">' + escapeHtml(info.en) + '</div>'
+      /* 막대 길이는 비중 그대로(종합 100% 기준) — 늘려 그리지 않는다 */
+      + '<div class="kc-w"><span class="kc-w__bar"><i style="width:' + Math.min(100, m.weight || 0) + '%"></i></span>'
+      + '<span class="kc-w__t">비중 ' + (m.weight != null ? m.weight + '%' : '—') + '</span></div>'
+      + '<div class="kc-now"><b>' + kcciVal(c, st.cur) + '</b> ' + kcciPct(st.wk) + '</div>'
+      + '</div>';
+  };
+  return '<div class="kc-codes"><div class="fri-minis__h">KCCI 코드 한눈에 보기'
+    + '(<mark class="hl-em">K + 항로 + I 로 읽습니다</mark>) <span>막대는 종합지수 계산 비중</span></div>'
+    + order.map((gk) => {
+      const cs = _kcciData.codes.filter((c) => (meta[c] || {}).group === gk);
+      if (!cs.length) return '';
+      const sum = cs.reduce((a, c) => a + ((meta[c] || {}).weight || 0), 0);
+      return '<div class="kc-grp"><div class="kc-grp__h">' + escapeHtml(KCCI_GROUP_KO[gk] || gk)
+        + ' <span>' + escapeHtml(gk) + (gk === 'Index' ? '' : ' · 비중 합계 ' + sum + '%') + '</span></div>'
+        + '<div class="kc-grid">' + cs.map(card).join('') + '</div></div>';
+    }).join('') + '</div>';
+}
+
+function kcciSource() {
+  const d = _kcciData;
+  return '<div class="fri-src"><b>출처</b> ' + escapeHtml(d.source)
+    + ' · <a href="' + escapeHtml(d.url) + '" target="_blank" rel="noopener noreferrer">원본 페이지 ↗</a>'
+    + ' · 데이터 기준 ' + escapeHtml(d.dates[d.dates.length - 1])
+    + ' · 갱신 주간(' + escapeHtml(d.release || '매주 월요일') + ')'
+    + (d.updatedAt ? ' · 이 대시보드 수집 ' + escapeHtml(d.updatedAt) : '') + '</div>';
+}
+
+function kcciBody() {
+  if (!kcciOk()) {
+    return '<div class="chart-empty">KCCI 데이터를 불러오지 못했습니다'
+      + (_kcciData && _kcciData.reason ? ' (' + escapeHtml(_kcciData.reason) + ')' : '') + '</div>';
+  }
+  return kcciPicks() + kcciChart()
+    + krwNote('USD')
+    /* 표 아래에 항로별 추이 — 13칸이라 옆에 두면 한 줄로 길게 늘어져 표 밑이 빈다 */
+    + '<div class="kc-tbl">' + kcciTable() + '</div>'
+    + kcciMinis()
+    + kcciCodes()
+    + kcciSource();
 }
 
 /** Drewry 공식 차트 — 수집기가 그 주 페이지에서 읽어 둔 주소를 그대로 싣는다.
@@ -7624,6 +7920,11 @@ function renderFreightHtml() {
       + '<div class="icis-prompt">위에서 보고 싶은 지수를 선택하세요</div>');
   }
 
+  /* ── KCCI — 부산 출발 운임지수 ── */
+  if (way.id === 'kcci') {
+    return wrap(head + friPicker() + friWays(_friPick) + kcciBody());
+  }
+
   /* ── WCI — Drewry 원본 1년 차트 + 최신값 점 · 아래에 항로 표·미니 차트 ── */
   if (way.id === 'comp') {
     const list = friSeries(_friPick);
@@ -7669,10 +7970,15 @@ function friSourceDrewry() {
 
 /** 데이터 읽기 — 다른 카드와 같은 방식(파일 하나만 읽는다). */
 function loadFreightIndex() {
-  return fetch(FRI_DATA_URL + '?t=' + Date.now())
-    .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
-    .then((d) => { _friData = d; })
-    .catch((e) => { _friData = { status: 'error', reason: (e && e.message) || String(e) }; });
+  const get = (u) => fetch(u + '?t=' + Date.now())
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))));
+  return Promise.all([
+    get(FRI_DATA_URL).then((d) => { _friData = d; })
+      .catch((e) => { _friData = { status: 'error', reason: (e && e.message) || String(e) }; }),
+    /* KCCI 는 따로 실패할 수 있다 — 운임 카드 전체가 죽지 않게 각자 잡는다 */
+    get(KCCI_DATA_URL).then((d) => { _kcciData = d; })
+      .catch((e) => { _kcciData = { status: 'error', reason: (e && e.message) || String(e) }; }),
+  ]);
 }
 
 /** 최신값 점과 '지금 흐름' 상자를 가로 실선으로 잇는다.
@@ -7733,6 +8039,20 @@ function wireFri(root) {
     if (one) {
       const k = one.getAttribute('data-frione');
       _friOne = (_friOne === k) ? '' : k;   // 같은 것을 다시 누르면 전체로
+      renderMaterial();
+      return;
+    }
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan]') : null;
+    if (kc) {
+      if (kc.hasAttribute('data-kcone')) {
+        const k = kc.getAttribute('data-kcone');
+        _kcciOne = (k === 'KCCI') ? '' : k;
+      } else if (kc.hasAttribute('data-kcmini')) {
+        const k = kc.getAttribute('data-kcmini');
+        _kcciMini = (_kcciMini === k) ? '' : k;
+      } else {
+        _kcciSpan = kc.getAttribute('data-kcspan');
+      }
       renderMaterial();
       return;
     }
@@ -16537,6 +16857,7 @@ function initUpdate() {
     // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = '';
+    _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y';
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();

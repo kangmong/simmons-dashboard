@@ -1,0 +1,49 @@
+name: KCCI 운임지수 수집 (주 1회)
+
+# 한국해양진흥공사(KOBC) 컨테이너선 운임지수(KCCI) — 종합 + 13개 항로, 첫 발표부터 전부.
+# 발표가 매주 월요일 14시(KST)라 그 뒤에 돈다. 화요일에 한 번 더 돌려 발표가 늦은 주를 잡는다
+# (바뀐 값이 없으면 커밋하지 않는다). 요청은 실행마다 2번이다.
+on:
+  schedule:
+    - cron: '0 6 * * 1,2'     # UTC 월·화 06:00 = KST 월·화 15:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-kcci
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      # 실패하면 기존 파일을 그대로 둔다(kcci_index.py 머리말 참고)
+      - name: KCCI 수집
+        run: python kcci_index.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/kcci-index.json; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/kcci-index.json
+          git commit -m "자동 수집: KCCI 운임지수 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push
