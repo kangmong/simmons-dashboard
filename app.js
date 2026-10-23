@@ -17091,7 +17091,7 @@ function ptYearly(rows) {
     + grid + yUnit + bars
     + '<line x1="' + padL + '" y1="' + base + '" x2="' + (padL + plotW) + '" y2="' + base
     + '" stroke="var(--axis)" stroke-width="1"/>' + xlab + '</svg></div>'
-    + '<div class="sm-foot">막대를 누르면 ‘최근 주요 특허 출원’ 목록이 그 해·그 기업으로 걸러집니다.</div>'
+    + '<div class="sm-foot">막대를 누르면 ‘최근 침대업계 주요 특허 출원’ 목록이 그 해·그 기업으로 걸러집니다.</div>'
     + '</div>';
 }
 
@@ -17163,7 +17163,7 @@ function ptTypes(rows) {
     + '<svg class="pt-dnsvg" viewBox="0 0 140 140" width="146" height="146" role="img"'
     + ' aria-label="출원 유형별 비중">' + segs + '</svg>'
     + '<div class="pt-dn__lg">' + legend + '</div></div>'
-    + '<div class="sm-foot">조각이나 항목을 누르면 ‘최근 주요 특허 출원’ 목록이 그 유형으로 걸러집니다.</div>'
+    + '<div class="sm-foot">조각이나 항목을 누르면 ‘최근 침대업계 주요 특허 출원’ 목록이 그 유형으로 걸러집니다.</div>'
     + '</div>';
 }
 
@@ -17197,7 +17197,7 @@ function ptTech(rows) {
       + '<td><span class="pt-tb__bar" style="width:' + (x.n / max * 100).toFixed(1)
       + '%"></span></td></tr>').join('')
     + '</tbody></table>'
-    + '<div class="sm-foot">행을 누르면 ‘최근 주요 특허 출원’ 목록이 그 분야로 걸러집니다.</div></div>';
+    + '<div class="sm-foot">행을 누르면 ‘최근 침대업계 주요 특허 출원’ 목록이 그 분야로 걸러집니다.</div></div>';
 }
 
 /* ── 5) 주요 출원인 비교 ───────────────────────────────────────────────── */
@@ -17244,7 +17244,7 @@ function ptApplicants(rows) {
       + '</div>').join('') + '</div>'
     + '<div class="sm-foot">0건은 해당 기간에 이 분야(IPC A47C) 출원이 확인되지 않은'
     + ' 기업입니다 — 조회가 안 된 것이 아닙니다.'
-    + ' 막대를 누르면 ‘최근 주요 특허 출원’ 목록이 그 기업으로 걸러집니다.</div></div>';
+    + ' 막대를 누르면 ‘최근 침대업계 주요 특허 출원’ 목록이 그 기업으로 걸러집니다.</div></div>';
 }
 
 /* ── 6) 국가별 출원 — 세계지도 ───────────────────────────────────────────
@@ -17307,7 +17307,7 @@ function ptWords(rows) {
   const max = items[0].n, min = items[items.length - 1].n;
   const size = (n) => (max === min ? 20 : 13 + (n - min) / (max - min) * 17);
   const shade = (n) => (max === min ? 0.85 : 0.5 + (n - min) / (max - min) * 0.5);
-  /* ★ 누르면 아래 '최근 주요 특허 출원' 표가 그 키워드가 걸린 출원만 남긴다.
+  /* ★ 누르면 아래 '최근 침대업계 주요 특허 출원' 표가 그 키워드가 걸린 출원만 남긴다.
      다른 축(연도·유형·분야·출원인)과 같은 규칙이다 — 다시 누르면 해제되고,
      필터 바의 [해제 ✕]·[전체 보기]로도 풀린다.
      ★ span 이 아니라 button 이다: 키보드 Tab·Enter 가 저절로 되고, 화면 낭독기가
@@ -17324,7 +17324,7 @@ function ptWords(rows) {
         + ' data-tip="' + escapeHtml(tip) + '" title="' + escapeHtml(tip) + '">'
         + escapeHtml(x.w) + '<i>' + x.n + '</i></button>';
     }).join('') + '</div>'
-    + '<div class="sm-foot">키워드를 누르면 ‘최근 주요 특허 출원’ 목록이 그 키워드가 걸린 출원만 남습니다. '
+    + '<div class="sm-foot">키워드를 누르면 ‘최근 침대업계 주요 특허 출원’ 목록이 그 키워드가 걸린 출원만 남습니다. '
     + '형태소 분석 없이 설정 파일(kipris_taxonomy.json)의 키워드'
     + ' 사전과 맞춰 센 결과입니다.</div></div>';
 }
@@ -17483,7 +17483,7 @@ function ptRecent(rows) {
       + '</div>'
     : '';
   if (!items.length) {
-    return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원</div>'
+    return '<div class="sm-card sm-card--full"><div class="sm-h">최근 침대업계 주요 특허 출원</div>'
       + bar + chips + emptyState('이 조건에 해당하는 출원이 없습니다') + '</div>';
   }
   /* 페이지 번호 — 많아지면 현재 쪽 주변만 남기고 양 끝을 … 로 줄인다 */
@@ -17517,7 +17517,7 @@ function ptRecent(rows) {
     + (from + 1).toLocaleString('ko-KR') + '~' + (from + items.length).toLocaleString('ko-KR')
     + '건 표시' + (pages > 1 ? ' · ' + page + '/' + pages + ' 페이지' : '') + '</div>';
 
-  return '<div class="sm-card sm-card--full"><div class="sm-h">최근 주요 특허 출원'
+  return '<div class="sm-card sm-card--full"><div class="sm-h">최근 침대업계 주요 특허 출원'
     + ' <span class="sm-h__u">(최신순 · 전체 ' + total.toLocaleString('ko-KR')
     + '건)</span></div>'
     + bar + chips
@@ -17623,7 +17623,7 @@ function ptTreeDefs(cur) {
     items: [
       { id: 'yearly', label: '특허 출원 동향 (연도별)', icon: 'bars',
         sub: span, render: () => ptYearly(cur) },
-      { id: 'recent', label: '최근 주요 특허 출원', icon: 'table',
+      { id: 'recent', label: '최근 침대업계 주요 특허 출원', icon: 'table',
         sub: n(cur.length, '건'), render: () => ptRecent(cur) },
       { id: 'types', label: '출원 유형별 현황', icon: 'donut',
         sub: n(cap(ptUniq(cur, (r) => r.kind || '미표기'), 6), '개 유형'),
@@ -17646,7 +17646,7 @@ function ptTreeDefs(cur) {
 /** 차트에서 필터를 켰을 때 결과가 보이는 항목으로 옮긴다.
  *  ★ 한 번에 한 항목만 보이므로, 키워드를 눌러 놓고 키워드 구름을 계속 보고
  *    있으면 '눌렀는데 아무 일도 안 일어난' 것처럼 보인다 — 거른 결과가 나오는
- *    '최근 주요 특허 출원'으로 옮겨 준다(필터 바와 [해제 ✕]도 그 안에 있다).
+ *    '최근 침대업계 주요 특허 출원'으로 옮겨 준다(필터 바와 [해제 ✕]도 그 안에 있다).
  *  ★ 필터를 끈 경우에는 옮기지 않는다 — 보던 차트에 그대로 머문다. */
 function ptTreeShowResult() {
   if (!ptActiveFilters().length) return;
