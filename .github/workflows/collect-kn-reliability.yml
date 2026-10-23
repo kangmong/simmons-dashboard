@@ -1,0 +1,55 @@
+name: 해상 정시성(K+N) 수집 (매일 확인)
+
+# Kuehne+Nagel 월간 정시성 보고서가 매달 중순 올라온다. 매일 새 보고서가 있는지만 보고,
+# 있을 때만 노선별 표 그림을 Gemini 로 두 번 읽어(일치해야 저장) 반영한다.
+# 새 보고서가 없는 날은 Gemini 를 부르지 않는다(kn_reliability.py 머리말 참고).
+on:
+  schedule:
+    - cron: '0 0 * * *'       # UTC 00:00 = KST 09:00
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: '지난 보고서까지 읽어 과거 달 채우기'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-kn-reliability
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 정시성 보고서 확인·수집
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python kn_reliability.py ${{ inputs.backfill && '--backfill' || '' }}
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/kn-reliability.json; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/kn-reliability.json
+          git commit -m "자동 수집: 해상 정시성(K+N) 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push

@@ -6896,6 +6896,15 @@ const FRI_GROUPS = [
             + ' 가장 직접적으로 보여 줍니다.',
           em: '부산에서 출발하는 13개 항로의 컨테이너 운임을 하나로 묶은 지수' },
       ] },
+    /* ★ 해상 정시성 — Kuehne+Nagel 월간 보고서의 노선별 표(그림)를 kn_reliability.py 가
+       두 번 읽어 맞을 때만 저장한다 → public/data/kn-reliability.json */
+    { id: 'sr', label: '해상 정시성', keys: [],
+      ways: [
+        { id: 'knsr', label: '해상 정시성(Kuehne+Nagel)', en: 'seaexplorer Schedule Reliability',
+          desc: 'Kuehne+Nagel이 매달 발표하는, 주요 노선에서 배가 예정 시각 ±24시간 안에 도착한'
+            + ' 비율입니다. 높을수록 배가 일정대로 들어온다는 뜻입니다.',
+          em: '배가 예정 시각 ±24시간 안에 도착한 비율' },
+      ] },
   ] },
 ];
 
@@ -7149,7 +7158,8 @@ function friHeroDay(list) {
   return day;
 }
 function friHeroHtml(list) {
-  const kd = (_friPick === 'kcci' && _kcciData && _kcciData.dates) ? _kcciData.dates : null;
+  const kd = (_friPick === 'kcci' && _kcciData && _kcciData.dates) ? _kcciData.dates
+    : ((_friPick === 'sr' && knOk()) ? _knData.latest.months : null);
   return vizHero('ship', '해상 운임 지수',
     '전 세계 컨테이너 및 화물선의 해상 운송비 변화를 한눈에 확인할 수 있습니다.',
     kd ? kd[kd.length - 1] : friHeroDay(list), null, '데이터 기준', null, '해상 운송비 변화');
@@ -7978,6 +7988,11 @@ function renderFreightHtml() {
       + '<div class="icis-prompt">위에서 보고 싶은 지수를 선택하세요</div>');
   }
 
+  /* ── 해상 정시성 ── */
+  if (way.id === 'knsr') {
+    return wrap(head + friPicker() + friWays(_friPick) + knBody());
+  }
+
   /* ── KCCI — 부산 출발 운임지수 ── */
   if (way.id === 'kcci') {
     return wrap(head + friPicker() + friWays(_friPick) + kcciBody());
@@ -8003,6 +8018,90 @@ function renderFreightHtml() {
 
   /* ── SCFI 갈래 — 진짜 SCFI(상하이해운거래소) 종합지수 ── */
   return wrap(head + friPicker() + friWays(_friPick) + friScfiBody());
+}
+
+/* ══ 해상 정시성 — Kuehne+Nagel seaexplorer Schedule Reliability ═══════════
+   왼쪽: 최신 보고서의 노선별 표(그 보고서의 6개월) · 오른쪽: 노선별 막대(참고용 —
+   지금까지 모은 보고서의 달을 이어 그린다. 빠진 달은 비워 둔다). */
+const KN_DATA_URL = 'public/data/kn-reliability.json';
+let _knData = null;
+
+function knOk() {
+  return !!(_knData && _knData.status === 'ok' && _knData.latest && Array.isArray(_knData.lanes));
+}
+function knYm(ym) { return ym.slice(2, 4) + '.' + ym.slice(5, 7); }
+
+function knTable() {
+  const ms = _knData.latest.months;
+  const cell = (v, last) => {
+    if (v == null) return '<td class="fri-tb__n">—</td>';
+    /* 칸 바탕은 값에 비례해 옅게 칠한다 — 높을수록 진한 파랑(글자 대비는 진한 남색 글자로 지킨다) */
+    return '<td class="fri-tb__n kn-c' + (last ? ' kn-c--last' : '') + '" style="--kn:' + (v / 100).toFixed(3) + '">'
+      + v.toFixed(1) + '%</td>';
+  };
+  const rows = _knData.lanes.map((l) => '<tr><td class="kn-lane"><b>' + escapeHtml(l.ko) + '</b>'
+    + '<span>' + escapeHtml(l.from + ' ↔ ' + l.to) + '</span></td>'
+    + ms.map((m, i) => cell(l.values[m], i === ms.length - 1)).join('') + '</tr>').join('');
+  const g = _knData.latest.global;
+  return '<div class="fri-minis__h">주요 노선별 해상 평균 정시성(%)'
+    + ' <span>On-Time Performance on Major Trades · ' + escapeHtml(knYm(ms[ms.length - 1])) + ' 보고서</span></div>'
+    + '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb kn-tb"><thead><tr><th>노선</th>'
+    + ms.map((m) => '<th class="fri-tb__n">' + escapeHtml(knYm(m)) + '</th>').join('') + '</tr></thead><tbody>'
+    + rows + '</tbody></table></div>'
+    + '<div class="fri-tb__more">' + (g != null ? '전 세계 평균 <b>' + g.toFixed(1) + '%</b>(' + escapeHtml(knYm(ms[ms.length - 1])) + ') · ' : '')
+    + '첫 칸은 1년 전 같은 달 · 값은 보고서 표 그대로입니다.</div>';
+}
+
+function knBars() {
+  /* 모든 노선이 같은 달 축을 쓴다 — 모은 달 전체(가장 이른 달 ~ 가장 늦은 달) */
+  const all = {};
+  _knData.lanes.forEach((l) => Object.keys(l.values).forEach((m) => { all[m] = 1; }));
+  const ks = Object.keys(all).sort();
+  if (!ks.length) return '';
+  const months = [];
+  let [y, mo] = ks[0].split('-').map(Number);
+  const [ey, em] = ks[ks.length - 1].split('-').map(Number);
+  while (y < ey || (y === ey && mo <= em)) {
+    months.push(y + '-' + String(mo).padStart(2, '0'));
+    mo += 1; if (mo > 12) { mo = 1; y += 1; }
+  }
+  const W = 200, H = 78, T = 8, B = 4, n = months.length;
+  const bw = (W / n) * 0.72;
+  const card = (l) => {
+    const last = months.map((m) => l.values[m]).filter((v) => v != null).slice(-1)[0];
+    const bars = months.map((m, i) => {
+      const v = l.values[m];
+      if (v == null) return '';
+      const h = (v / 100) * (H - T - B);
+      return '<rect x="' + (i * W / n + (W / n - bw) / 2).toFixed(1) + '" y="' + (H - B - h).toFixed(1)
+        + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '"><title>' + escapeHtml(knYm(m) + ' ' + v.toFixed(1) + '%') + '</title></rect>';
+    }).join('');
+    const y50 = H - B - 0.5 * (H - T - B);
+    return '<div class="kn-bar">'
+      + '<div class="kn-bar__t">' + escapeHtml(l.ko) + ' <b>' + (last != null ? last.toFixed(1) + '%' : '—') + '</b></div>'
+      + '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+      + '<line class="kn-bar__g" x1="0" x2="' + W + '" y1="' + y50.toFixed(1) + '" y2="' + y50.toFixed(1) + '"/>'
+      + '<line class="kn-bar__g" x1="0" x2="' + W + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>'
+      + bars + '</svg></div>';
+  };
+  return '<div class="fri-minis__h">노선별 정시성 추이 <span>참고용 · ' + escapeHtml(knYm(months[0])) + '~'
+    + escapeHtml(knYm(months[n - 1])) + ' · 가는 선은 50% · 빈 달은 보고서에 없는 달</span></div>'
+    + '<div class="kn-bars">' + _knData.lanes.map(card).join('') + '</div>';
+}
+
+function knBody() {
+  if (!knOk()) {
+    return '<div class="chart-empty">해상 정시성 데이터를 불러오지 못했습니다'
+      + (_knData && _knData.reason ? ' (' + escapeHtml(_knData.reason) + ')' : '') + '</div>';
+  }
+  const L = _knData.latest;
+  return '<div class="kn-row"><div class="kn-left">' + knTable() + '</div>'
+    + '<div class="kn-right">' + knBars() + '</div></div>'
+    + '<div class="fri-src"><b>출처</b> Kuehne+Nagel seaexplorer Schedule Reliability Report · '
+    + '<a href="' + escapeHtml(L.url) + '" target="_blank" rel="noopener noreferrer">원본 보고서 ↗</a>'
+    + (L.published ? ' · 발표 ' + escapeHtml(L.published) : '') + ' · 갱신 월 1회(매달 중순)'
+    + ' · 표는 보고서의 그림을 두 번 읽어 일치한 값만 싣습니다'
+    + (_knData.updatedAt ? ' · 이 대시보드 수집 ' + escapeHtml(_knData.updatedAt) : '') + '</div>';
 }
 
 /** WCI 하위 단추 — Drewry 세계 지수 / 상하이발 주요 항로 */
@@ -8219,6 +8318,8 @@ function loadFreightIndex() {
       .catch((e) => { _kcciData = { status: 'error', reason: (e && e.message) || String(e) }; }),
     get(SCFI_DATA_URL).then((d) => { _scfiData = d; })
       .catch((e) => { _scfiData = { status: 'error', reason: (e && e.message) || String(e) }; }),
+    get(KN_DATA_URL).then((d) => { _knData = d; })
+      .catch((e) => { _knData = { status: 'error', reason: (e && e.message) || String(e) }; }),
   ]);
 }
 

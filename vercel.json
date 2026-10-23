@@ -108,6 +108,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/kn-reliability.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/scfi-routes.json",
       "use": "@vercel/static"
     },

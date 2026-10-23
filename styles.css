@@ -6481,3 +6481,24 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kc-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .kc-side .fri-minis { margin-top: 12px; }
 .kc-side .kc-minis__g { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+
+/* ══ 해상 정시성(K+N) — 왼쪽 표 · 오른쪽 노선별 막대 ══ */
+.kn-row { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 20px;
+  align-items: start; margin-top: 14px; }
+.kn-row > * { min-width: 0; }
+.kn-tb td, .kn-tb th { padding-top: 5px; padding-bottom: 5px; }
+.kn-lane b { display: block; font-size: 12px; font-weight: 700; color: var(--ink); word-break: keep-all; }
+.kn-lane span { display: block; font-size: 10px; color: var(--slate); }
+.kn-c { background: rgba(37, 99, 235, calc(var(--kn) * .32)); color: var(--navy);
+  font-variant-numeric: tabular-nums; }
+.kn-c--last { font-weight: 800; }
+.kn-bars { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.kn-bar { padding: 7px 9px 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--card); }
+.kn-bar__t { font-size: 11px; font-weight: 700; color: var(--ink); line-height: 1.35; word-break: keep-all;
+  min-height: 30px; }
+.kn-bar__t b { color: var(--navy); font-weight: 800; white-space: nowrap; }
+.kn-bar svg { display: block; width: 100%; height: 64px; margin-top: 3px; }
+.kn-bar rect { fill: #93C5FD; }
+.kn-bar__g { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+@media (max-width: 1100px) { .kn-row { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .kn-bars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

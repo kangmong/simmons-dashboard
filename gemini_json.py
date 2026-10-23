@@ -9,6 +9,7 @@
 ★ 실패하면 예외 대신 (None, 이유) 를 돌려준다 — 부르는 쪽이 기존 데이터를
   그대로 두고 넘어갈 수 있게.
 """
+import base64
 import json
 import os
 import time
@@ -18,7 +19,8 @@ import requests
 from fx_analysis import GEM_BASE, HDR, _load_env_key, _strip_fence, pick_model
 
 
-def gemini_json(prompt, schema, temperature=0.1, max_tokens=8192, tag="ai"):
+def gemini_json(prompt, schema, temperature=0.1, max_tokens=8192, tag="ai", images=None):
+    """images: [(mime, bytes)] — 그림을 함께 보낸다(표 그림 읽기 등)."""
     key = _load_env_key("GEMINI_API_KEY")
     if not key:
         return None, "GEMINI_API_KEY 가 없습니다(.env 또는 GitHub Secrets)"
@@ -26,7 +28,9 @@ def gemini_json(prompt, schema, temperature=0.1, max_tokens=8192, tag="ai"):
     if not model:
         return None, "쓸 수 있는 Gemini 모델이 없습니다: %s" % memo
     body = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "contents": [{"role": "user", "parts": [{"text": prompt}] + [
+            {"inline_data": {"mime_type": m, "data": base64.b64encode(b).decode("ascii")}}
+            for m, b in (images or [])]}],
         "generationConfig": {
             "temperature": temperature,
             "maxOutputTokens": max_tokens,   # 3.x Flash 는 사고 토큰을 여기서 먼저 쓴다
