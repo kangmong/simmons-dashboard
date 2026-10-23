@@ -5042,9 +5042,11 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .fxa-c.is-tap:hover .fxa-c__go { opacity: 1; }
 
 .sq-wrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
-.sq-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 13px 15px 9px; }
-.sq-h__t { font-size: 14px; font-weight: 700; color: var(--ink); }
-.sq-h__s { font-size: 11px; color: var(--muted); }
+.sq-h { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 10px; padding: 13px 15px 9px;
+  flex-wrap: wrap; }
+/* 제목이 길어졌다('침대업계 관련 …') — 좁으면 기준 시각이 아래 줄로 내려가고, 단어 가운데서 끊지 않는다 */
+.sq-h__t { font-size: 14px; font-weight: 700; color: var(--ink); word-break: keep-all; }
+.sq-h__s { font-size: 11px; color: var(--muted); word-break: keep-all; }
 .sq-list { border-top: 1px solid var(--line); }
 .sq-row { display: grid; grid-template-columns: minmax(0,1fr) 62px 116px 150px 14px; align-items: center; gap: 8px;
   padding: 11px 15px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }

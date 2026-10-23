@@ -13478,7 +13478,7 @@ function sqItem(key) {
 
 /** 1단계: 경쟁사 주가 리스트 */
 function sqListHtml() {
-  const head = '<div class="sq-h"><div class="sq-h__t">경쟁사 주가</div>'
+  const head = '<div class="sq-h"><div class="sq-h__t"><mark class="hl-em">침대업계 관련</mark> 경쟁사 주가</div>'
     + '<div class="sq-h__s">'
     + (_sq && _sq.generatedAt
       ? escapeHtml(String(_sq.generatedAt).replace('T', ' ').slice(0, 16)) + ' 기준 · 지연 시세'
