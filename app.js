@@ -5263,7 +5263,7 @@ const OP_ORIGIN = {
 let _opData = null;     // sections.oil_product
 let _opForm = null;     // 사용자가 만지는 중인 조건
 let _opQuery = null;    // [조회]로 확정된 조건
-let _opView = 'table';  // 'table' | 'chart'
+let _opView = 'chart';  // 'chart' | 'table' — 차트보기가 첫째 단추이자 처음 보이는 화면
 let _opChart = null;    // 차트 크로스헤어·툴팁 상태(원유와 분리)
 let _opPick = null;     // '제품별 현황' 표에서 고른 제품 키 · null 이면 전체
 
@@ -5768,8 +5768,8 @@ function renderOilProductHtml() {
       + ' <span class="oc-unit">(단위: ' + escapeHtml(unit) + ')</span>'
       + barrelNote(unit) + '</div>'
       + '<div class="oc-tools">'
-      + '<button type="button" class="oc-tool' + (_opView === 'table' ? ' is-on' : '') + '" data-op-view="table">표보기</button>'
       + '<button type="button" class="oc-tool' + (_opView === 'chart' ? ' is-on' : '') + '" data-op-view="chart">차트보기</button>'
+      + '<button type="button" class="oc-tool' + (_opView === 'table' ? ' is-on' : '') + '" data-op-view="table">표보기</button>'
       /* ★ [csv 저장]과 [엑셀저장]을 하나로 합쳤다. 둘 다 결국 엑셀에서 열리는
          같은 표라 버튼만 둘로 보였다. 남긴 쪽은 CSV 다 — 엑셀이 '형식이
          확장자와 다릅니다' 경고 없이 바로 열고, 다른 프로그램에서도 읽힌다.
@@ -6869,12 +6869,12 @@ const FRI_GROUPS = [
   { src: '', items: [
     /* ★ 단추마다 갈래 칸이 하나 나오고, 그 칸을 눌러야 그래프가 나온다 —
        업데이트 직후에는 단추만 보인다. (예전 'WCI·SCFI' 한 단추를 둘로 나눴다) */
-    { id: 'wci', label: 'WCI', keys: ['WCI_COMPOSITE'],
-      ways: [
-        { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', en: 'World Container Index', chart: 0,
-          desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.',
-          em: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표' },
-      ] },
+    /* ★ WCI 단추는 뺐다(사용자 요청). 그리는 함수(friWciRouteBody·friCompNote 등)와
+       Drewry 수집은 그대로 있다 — 되살리려면 아래 한 묶음을 다시 넣으면 된다:
+       { id: 'wci', label: 'WCI', keys: ['WCI_COMPOSITE'], ways: [{ id: 'comp',
+         label: 'WCI(세계 컨테이너 운임지수)', en: 'World Container Index', chart: 0,
+         desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.',
+         em: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표' }] }, */
     { id: 'scfi', label: 'SCFI', keys: ['SCFI'],
       ways: [
         /* ★ SCFI 는 상하이해운거래소(SSE) 지수다. 값은 국가물류통합정보센터(NLIC)가
@@ -17059,7 +17059,7 @@ function resetDashboard() {
   _srData = null; _srYear = null; _srChart = null; // 해상 정시성 비우기
   _srForecast = null; // 순수 추가: 정시성 예측 초기화(섹션 숨김)
   _ocData = null; _ocForm = null; _ocQuery = null; _ocView = 'table'; _oilChart = null; // 국제유가(원유) 비우기
-  _opData = null; _opForm = null; _opQuery = null; _opView = 'table'; _opChart = null; // 국제유가(제품) 비우기
+  _opData = null; _opForm = null; _opQuery = null; _opView = 'chart'; _opChart = null; // 국제유가(제품) 비우기
   // 순수 추가: KOIMA 부문별 지수 → 1단계(데이터 없음)로 복귀
   _koimaData = null; _koimaCat = null; _koimaEnd = null; _koimaRange = null; _koimaChart = null;
   // 순수 추가: KOIMA 일일 국제원자재가격 → 1단계로 복귀
