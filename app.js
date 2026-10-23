@@ -6867,15 +6867,16 @@ const FRI_TONE = {
      맨 아래 한 줄이 기관명·원 발표 기관·원본 링크까지 모두 밝힌다. */
 const FRI_GROUPS = [
   { src: '', items: [
-    /* ★ 단추는 하나다. 누르면 두 갈래가 나오고, 갈래를 눌러야 그래프가
-       나온다 — 업데이트 직후에는 단추만 보인다.
-       ★ 두 번째 갈래의 그래프는 Drewry 상하이발 4개 항로 차트다(이름은 사용자
-         지정에 따라 SCFI). 항로를 눌러 하나만 볼 수 있다. */
-    { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
+    /* ★ 단추마다 갈래 칸이 하나 나오고, 그 칸을 눌러야 그래프가 나온다 —
+       업데이트 직후에는 단추만 보인다. (예전 'WCI·SCFI' 한 단추를 둘로 나눴다) */
+    { id: 'wci', label: 'WCI', keys: ['WCI_COMPOSITE'],
       ways: [
         { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', en: 'World Container Index', chart: 0,
           desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.',
           em: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표' },
+      ] },
+    { id: 'scfi', label: 'SCFI', keys: ['SCFI'],
+      ways: [
         /* ★ SCFI 는 상하이해운거래소(SSE) 지수다. 값은 국가물류통합정보센터(NLIC)가
            옮겨 싣는 주간 종합지수(2014년~)를 쓴다 — 이미 평일마다 자동 수집 중이다.
            (예전 이 자리의 Drewry 상하이발 항로 차트는 WCI 갈래의 하위 단추로 옮겼다) */
@@ -8009,7 +8010,7 @@ function friSubPicks() {
 /** WCI › 상하이발 주요 항로 — 예전 그대로(Drewry 원본 4개 항로 차트 · 항로 표 · 항로별 추이).
  *  항로 단추를 누르면 그 항로만(세로축 $0~$12,000, 확대하지 않는다). */
 function friWciRouteBody() {
-  return '<div class="fri-slot fri-slot--scfi"><div>'
+  return '<div class="fri-slot fri-slot--left"><div>'
     + friRoutePicks()
     + (_friOne ? friOneRoute(_friOne) : friOfficialChart(1))
     + '</div></div>'
@@ -8108,6 +8109,37 @@ function scfiMinis(lanes) {
 }
 
 /** SCFI — 종합지수 그래프(NLIC, 2014년~) · 항로 고르기 · 항로 표 · 항로별 추이 */
+/** 1년 전(52주 전 그 날짜에 가장 가까운 앞선 점) 대비 % — 없으면 null */
+function yoyPct(D, V) {
+  const n = V.length;
+  const f = new Date(D[n - 1] + 'T00:00:00Z');
+  f.setUTCDate(f.getUTCDate() - 364);
+  const ago = f.toISOString().slice(0, 10);
+  let k = -1;
+  for (let i = 0; i < n; i++) { if (D[i] <= ago) k = i; }
+  return (k >= 0 && V[k]) ? (V[n - 1] / V[k] - 1) * 100 : null;
+}
+
+/** SCFI '지금 흐름' 두 줄 — 종합(NLIC) 또는 고른 항로(RackingHub). 숫자는 수집한 값 그대로. */
+function scfiNote(one, s0) {
+  const D = one ? one.dates : s0.dates, V = one ? one.values : s0.values, n = V.length;
+  const cur = V[n - 1];
+  const wk = one ? scfiWow(one) : (n >= 2 && V[n - 2] ? (cur / V[n - 2] - 1) * 100 : null);
+  let l1;
+  if (one) {
+    const krw = krwOf(cur) ? '(' + escapeHtml(krwOf(cur).replace('\u2248', '약').trim()) + ')' : '';
+    l1 = '지금 상하이 → ' + escapeHtml(one.ko) + ' 운임은 ' + escapeHtml(one.unit)
+      + (one.unit === 'FEU' ? '(40피트)' : '(20피트)') + ' 한 개에 <b>' + scfiFmt(one, cur) + '</b>' + krw + '입니다.';
+  } else {
+    l1 = '지금 상하이에서 출발하는 항로를 묶은 SCFI 종합지수는 <b>'
+      + cur.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt</b>입니다.';
+  }
+  const l2 = flowL2(V, wk, yoyPct(D, V));
+  return '<aside class="fri-note" aria-label="지금 흐름">'
+    + '<span class="fri-note__h">지금 흐름 · ' + escapeHtml(D[n - 1]) + '</span>'
+    + '<p>' + l1 + '</p>' + (l2 ? '<p>' + l2 + '</p>' : '') + '</aside>';
+}
+
 function friScfiBody() {
   const s0 = friSeries(_friPick)[0];
   if (!s0 || s0.values.length < 2) return '<div class="chart-empty">SCFI 데이터가 없습니다</div>';
@@ -8141,7 +8173,9 @@ function friScfiBody() {
     + ' · 원 발표 기관 <a href="https://www.sse.net.cn/index/singleIndex?indexType=scfi" target="_blank" rel="noopener noreferrer">상하이항운교역연구소(SSE) ↗</a>'
     + ' · 데이터 기준 ' + escapeHtml(s0.dates[s0.dates.length - 1])
     + (_scfiData && _scfiData.updatedAt ? ' · 항로별 수집 ' + escapeHtml(_scfiData.updatedAt) : '') + '</div>';
-  return picks + '<div class="icis-years kc-spans">' + spans + '</div>' + chart
+  return picks + '<div class="icis-years kc-spans">' + spans + '</div>'
+    /* 그래프 + 오른쪽 '지금 흐름'(마지막 점과 파란 실선으로 잇는다 — friLinkNote) */
+    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + chart + scfiNote(one, s0) + '</div>'
     + (lanes.length
       ? krwNote('USD') + '<div class="kc-tbl">' + scfiTable(lanes) + '</div>' + scfiMinis(lanes)
       : '<div class="chart-empty">항로별 SCFI 를 불러오지 못했습니다</div>')

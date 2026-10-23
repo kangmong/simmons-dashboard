@@ -6472,5 +6472,8 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kc-codebtn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .kc-side .kc-codes { margin-top: 10px; }
 .kc-side .kc-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
-@media (max-width: 1100px) { .kc-tblrow { grid-template-columns: 1fr; } }
+.kc-tblrow > * { min-width: 0; }   /* 표가 칸을 밀어 화면이 옆으로 넘치지 않게 */
+@media (max-width: 1100px) { .kc-tblrow { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) { .fri-slot--kc { grid-template-columns: 1fr; } }
+/* WCI › 상하이발 주요 항로 — 그래프를 왼쪽 칸에 */
+.fri-slot--left > * { grid-column: 1; min-width: 0; }
