@@ -7398,7 +7398,7 @@ function friRouteMinis() {
       + '</button>';
   };
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 항로별 추이'
-    + '(<mark class="hl-em">상하이 기준 운송비 추세 설명</mark>)'
+    + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
     + ' <span>WCI BY ROUTE · 단위 US$/40ft</span></div>'
     + '<div class="fri-minis__g">' + rows.map(card).join('') + '</div></div>';
 }
@@ -7653,7 +7653,7 @@ function kcciMinis() {
       + '</button>';
   };
   return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
-    + '(<mark class="hl-em">부산 기준 운송비 추세 설명</mark>)'
+    + '(<mark class="hl-em">부산 기준 각 항로 운송비 추세 설명</mark>)'
     + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
     + '<div class="fri-minis__g kc-minis__g">'
     + _kcciData.codes.filter((c) => c !== 'KCCI').map(card).join('') + '</div></div>';
@@ -8031,6 +8031,7 @@ function knOk() {
 }
 function knYm(ym) { return ym.slice(2, 4) + '.' + ym.slice(5, 7); }
 let _knBarsOpen = false;     // 오른쪽 '노선별 정시성 추이' 펼침
+let _knLane = '';            // 표에서 고른 노선(key) — 고르면 추이에 그 노선만 크게
 /* 색 기준 — 대시보드가 정한 3단계(70% 이상 양호 · 50~70% 보통 · 50% 미만 지연 많음).
    K+N 이 정한 기준은 아니다. 전 세계 평균이 50%대라 그 위아래로 나눴다. */
 const KN_BANDS = [
@@ -8048,7 +8049,10 @@ function knTable() {
     return '<td class="fri-tb__n kn-c kn-c--' + knBand(v).cls + (last ? ' kn-c--last' : '') + '">'
       + v.toFixed(1) + '%</td>';
   };
-  const rows = _knData.lanes.map((l) => '<tr><td class="kn-lane"><b>' + escapeHtml(l.ko) + '</b>'
+  /* 줄을 누르면 그 노선을 고른다(다시 누르면 해제) — 오른쪽 추이가 그 노선만 크게 보여 준다 */
+  const rows = _knData.lanes.map((l) => '<tr class="kn-tr' + (_knLane === l.key ? ' is-on' : '')
+    + '" data-knlane="' + escapeHtml(l.key) + '" tabindex="0" aria-pressed="' + (_knLane === l.key) + '">'
+    + '<td class="kn-lane"><b>' + escapeHtml(l.ko) + '</b>'
     + '<span>' + escapeHtml(l.from + ' ↔ ' + l.to) + '</span></td>'
     + ms.map((m, i) => cell(l.values[m], i === ms.length - 1)).join('') + '</tr>').join('');
   const g = _knData.latest.global;
@@ -8058,15 +8062,15 @@ function knTable() {
     + ms.map((m) => '<th class="fri-tb__n">' + escapeHtml(knYm(m)) + '</th>').join('') + '</tr></thead><tbody>'
     + rows + '</tbody></table></div>'
     + '<div class="fri-tb__more">' + (g != null ? '전 세계 평균 <b>' + g.toFixed(1) + '%</b>(' + escapeHtml(knYm(ms[ms.length - 1])) + ') · ' : '')
-    + '첫 칸은 1년 전 같은 달 · 값은 보고서 표 그대로입니다.</div>';
+    + '첫 칸은 1년 전 같은 달 · 값은 보고서 표 그대로입니다 · <b>노선 줄을 누르면</b> 오른쪽 추이에 그 노선만 나옵니다.</div>';
 }
 
-function knBars() {
-  /* 모든 노선이 같은 달 축을 쓴다 — 모은 달 전체(가장 이른 달 ~ 가장 늦은 달) */
+/** 모은 달 전체(가장 이른 달 ~ 가장 늦은 달) — 모든 노선이 같은 가로축을 쓴다 */
+function knMonths() {
   const all = {};
   _knData.lanes.forEach((l) => Object.keys(l.values).forEach((m) => { all[m] = 1; }));
   const ks = Object.keys(all).sort();
-  if (!ks.length) return '';
+  if (!ks.length) return [];
   const months = [];
   let [y, mo] = ks[0].split('-').map(Number);
   const [ey, em] = ks[ks.length - 1].split('-').map(Number);
@@ -8074,30 +8078,64 @@ function knBars() {
     months.push(y + '-' + String(mo).padStart(2, '0'));
     mo += 1; if (mo > 12) { mo = 1; y += 1; }
   }
-  const W = 200, H = 78, T = 8, B = 4, n = months.length;
-  const bw = (W / n) * 0.72;
-  const card = (l) => {
-    const last = months.map((m) => l.values[m]).filter((v) => v != null).slice(-1)[0];
-    const bars = months.map((m, i) => {
-      const v = l.values[m];
-      if (v == null) return '';
-      const h = (v / 100) * (H - T - B);
-      /* 축 글자 없이 — 막대에 마우스를 올리면(누르면) 달·값이 뜬다(wireFri 의 knTip) */
-      return '<rect class="kn-b--' + knBand(v).cls + '" x="' + (i * W / n + (W / n - bw) / 2).toFixed(1) + '" y="' + (H - B - h).toFixed(1)
-        + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" data-knv="'
-        + escapeHtml(l.ko + ' · ' + m.replace('-', '년 ') + '월 · ' + v.toFixed(1) + '%') + '"></rect>';
-    }).join('');
-    const y50 = H - B - 0.5 * (H - T - B);
-    return '<div class="kn-bar">'
-      + '<div class="kn-bar__t">' + escapeHtml(l.ko) + ' <b>' + (last != null ? last.toFixed(1) + '%' : '—') + '</b></div>'
-      + '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
-      + '<line class="kn-bar__g" x1="0" x2="' + W + '" y1="' + y50.toFixed(1) + '" y2="' + y50.toFixed(1) + '"/>'
-      + '<line class="kn-bar__g" x1="0" x2="' + W + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>'
-      + bars + '</svg></div>';
-  };
-  return '<div class="fri-minis__h kn-bars__h">노선별 정시성 추이 <span>참고용 · ' + escapeHtml(knYm(months[0])) + '~'
-    + escapeHtml(knYm(months[n - 1])) + ' · 막대에 마우스를 올리면 값 · 가는 선은 50% · 빈 달은 보고서에 없는 달</span></div>'
-    + '<div class="kn-bars">' + _knData.lanes.map(card).join('') + '</div>';
+  return months;
+}
+
+/** 노선 하나의 막대 그래프 — 세로축 0~100%, 가로축 달. big 이면 크게(모든 달·값 표시). */
+function knBarSvg(l, months, big) {
+  const W = big ? 900 : 240, H = big ? 330 : 128;
+  const L = big ? 46 : 30, R = 6, T = big ? 22 : 8, B = big ? 34 : 20;
+  const n = months.length, cw = (W - L - R) / n, bw = cw * 0.7;
+  const Y = (v) => T + (1 - v / 100) * (H - T - B);
+  const fs = big ? 11 : 9;
+  let g = '';
+  (big ? [0, 25, 50, 75, 100] : [0, 50, 100]).forEach((t) => {
+    g += '<line class="kn-ax__g' + (t === 50 ? ' kn-ax__g--50' : '') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(t).toFixed(1)
+      + '" y2="' + Y(t).toFixed(1) + '"/><text class="kn-ax__t" x="' + (L - 5) + '" y="' + (Y(t) + fs * 0.35).toFixed(1)
+      + '" style="text-anchor:end;font-size:' + fs + 'px">' + t + (t === 100 ? '%' : '') + '</text>';
+  });
+  /* 가로축 글자 — 크게 볼 때는 모든 달, 작을 때는 처음·가운데·끝 */
+  const xs = big ? months.map((m, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
+  xs.forEach((i) => {
+    g += '<text class="kn-ax__t" x="' + (L + i * cw + cw / 2).toFixed(1) + '" y="' + (H - B + fs + 4)
+      + '" style="text-anchor:middle;font-size:' + (big ? 10 : fs) + 'px">' + escapeHtml(knYm(months[i])) + '</text>';
+  });
+  const bars = months.map((m, i) => {
+    const v = l.values[m];
+    if (v == null) return '';
+    const x = L + i * cw + (cw - bw) / 2, y = Y(v);
+    return '<rect class="kn-b--' + knBand(v).cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1)
+      + '" width="' + bw.toFixed(1) + '" height="' + (H - B - y).toFixed(1) + '" data-knv="'
+      + escapeHtml(l.ko + ' · ' + m.replace('-', '년 ') + '월 · ' + v.toFixed(1) + '%') + '"></rect>'
+      + (big ? '<text class="kn-ax__v" x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 4).toFixed(1)
+        + '" style="text-anchor:middle">' + v.toFixed(1) + '</text>' : '');
+  }).join('');
+  return '<svg class="kn-svg' + (big ? ' kn-svg--big' : '') + '" viewBox="0 0 ' + W + ' ' + H
+    + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="' + escapeHtml(l.ko + ' 정시성 추이') + '">'
+    + g + bars + '</svg>';
+}
+
+function knBars() {
+  const months = knMonths();
+  if (!months.length) return '';
+  const n = months.length;
+  const lastOf = (l) => months.map((m) => l.values[m]).filter((v) => v != null).slice(-1)[0];
+  const one = _knLane ? _knData.lanes.filter((l) => l.key === _knLane)[0] : null;
+  const head = '<div class="fri-minis__h kn-bars__h">노선별 정시성 추이 <span>참고용 · '
+    + escapeHtml(knYm(months[0])) + '~' + escapeHtml(knYm(months[n - 1]))
+    + ' · 세로축 0~100% · 막대에 마우스를 올리면 값 · 빈 달은 보고서에 없는 달</span></div>';
+  if (one) {
+    const last = lastOf(one);
+    return head + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(one.ko) + '</b> '
+      + escapeHtml(one.from + ' ↔ ' + one.to) + ' · 최신 <b>' + (last != null ? last.toFixed(1) + '%' : '—') + '</b>'
+      + '<button type="button" class="kn-all" data-knlane="">전체 노선 보기</button></div>'
+      + knBarSvg(one, months, true) + '</div>';
+  }
+  return head + '<div class="kn-bars">' + _knData.lanes.map((l) => {
+    const last = lastOf(l);
+    return '<div class="kn-bar"><div class="kn-bar__t">' + escapeHtml(l.ko) + ' <b>'
+      + (last != null ? last.toFixed(1) + '%' : '—') + '</b></div>' + knBarSvg(l, months, false) + '</div>';
+  }).join('') + '</div>';
 }
 
 function knBody() {
@@ -8237,7 +8275,7 @@ function scfiMinis(lanes) {
       + (open ? '<div class="fri-mini__s">' + words + '</div>' : '') + '</button>';
   };
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
-    + '(<mark class="hl-em">상하이 기준 운송비 추세 설명</mark>)'
+    + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
     + ' <span>SCFI BY ROUTE · 2025년은 월 1회, 2026년부터 주 1회</span></div>'
     + '<div class="fri-minis__g kc-minis__g">'
     + lanes.filter((l) => l.id !== 'composite').map(card).join('') + '</div></div>';
@@ -8418,9 +8456,12 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars], [data-knlane]') : null;
     if (kc) {
-      if (kc.hasAttribute('data-knbars')) {
+      if (kc.hasAttribute('data-knlane')) {
+        const k = kc.getAttribute('data-knlane');
+        _knLane = (!k || _knLane === k) ? '' : k;
+      } else if (kc.hasAttribute('data-knbars')) {
         _knBarsOpen = !_knBarsOpen;
       } else if (kc.hasAttribute('data-kccodes')) {
         _kcciCodes = !_kcciCodes;
@@ -8487,6 +8528,12 @@ function wireFri(root) {
     tip.style.top = (window.scrollY + b.top - tip.offsetHeight - 6) + 'px';
   };
   fig.addEventListener('mouseover', knTip);
+  fig.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('tr[data-knlane]')) {
+      e.preventDefault();
+      e.target.closest('tr[data-knlane]').click();
+    }
+  });
   fig.addEventListener('click', knTip);
   fig.addEventListener('mouseleave', () => { const t = document.getElementById('knTip'); if (t) t.hidden = true; });
 }
@@ -17267,7 +17314,7 @@ function initUpdate() {
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
     _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false; _kcciMinisOpen = false;
-    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false;
+    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false; _knLane = '';
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
