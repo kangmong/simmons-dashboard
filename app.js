@@ -7551,7 +7551,11 @@ function idxLineChart(D, V, o) {
   marks += mark(n - 1, o.fmt(v[n - 1]) + krw(v[n - 1]), 'last', -14);
   return '<figure class="fri-emb kc-chart"><figcaption class="fri-emb__c">' + o.caption + '</figcaption>'
     + '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img"'
-    + ' aria-label="' + escapeHtml(o.aria) + '">' + g + path + marks + '</svg></div></figure>';
+    + ' aria-label="' + escapeHtml(o.aria) + '">' + g + path + marks
+    /* ★ 그래프에는 늘 단위를 적는다 — 오른쪽 위 */
+    + (o.unit ? '<text class="kn-ax__u" x="' + (W - R) + '" y="16" style="text-anchor:end;font-size:'
+      + (narrow ? 12 : 13) + 'px">(단위: ' + escapeHtml(o.unit) + ')</text>' : '')
+    + '</svg></div></figure>';
 }
 
 /** KCCI 큰 그래프 — 고른 지수 하나 */
@@ -7560,6 +7564,7 @@ function kcciChart() {
   const info = KCCI_INFO[code];
   return idxLineChart(_kcciData.dates, _kcciData.series[code], {
     span: _kcciSpan, tone: code === 'KCCI' ? 'var(--navy)' : '#2563EB',
+    unit: code === 'KCCI' ? 'pt' : '$/FEU',
     fmt: (x) => kcciVal(code, x),
     tick: (x) => (code === 'KCCI' ? '' : '$') + Math.round(x).toLocaleString('ko-KR'),
     krw: code !== 'KCCI',
@@ -8084,7 +8089,7 @@ function knMonths() {
 /** 노선 하나의 막대 그래프 — 세로축 0~100%, 가로축 달. big 이면 크게(모든 달·값 표시). */
 function knBarSvg(l, months, big) {
   const W = big ? 900 : 240, H = big ? 330 : 128;
-  const L = big ? 46 : 30, R = 6, T = big ? 22 : 8, B = big ? 34 : 20;
+  const L = big ? 46 : 30, R = 6, T = big ? 26 : 18, B = big ? 34 : 20;
   const n = months.length, cw = (W - L - R) / n, bw = cw * 0.7;
   const Y = (v) => T + (1 - v / 100) * (H - T - B);
   const fs = big ? 11 : 9;
@@ -8118,6 +8123,9 @@ function knBarSvg(l, months, big) {
   }).join('');
   return '<svg class="kn-svg' + (big ? ' kn-svg--big' : '') + '" viewBox="0 0 ' + W + ' ' + H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="' + escapeHtml(l.ko + ' 정시성 추이') + '">'
+    /* ★ 그래프에는 늘 단위를 적는다 — 오른쪽 위 */
+    + '<text class="kn-ax__u" x="' + (W - R) + '" y="' + (big ? 12 : 10) + '" style="text-anchor:end;font-size:'
+    + (big ? 12 : 9) + 'px">(단위: %)</text>'
     + g + bars + '</svg>';
 }
 
@@ -8335,14 +8343,14 @@ function friScfiBody() {
     + '" type="button" data-frispan="' + p.id + '">' + p.label + '</button>').join('');
   const chart = one
     ? idxLineChart(one.dates, one.values, {
-      span: _friSpan, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x),
+      span: _friSpan, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x), unit: '$/' + one.unit,
       tick: (x) => '$' + Math.round(x).toLocaleString('ko-KR'),
       caption: escapeHtml(one.ko) + ' <span>상하이 → ' + escapeHtml(one.en) + ' · 단위 $/' + escapeHtml(one.unit)
         + ' · 2025년은 월 1회 점 · 세로축은 0 부터</span>',
       aria: one.ko + ' SCFI 운임 추이',
     })
     : idxLineChart(s0.dates, s0.values, {
-      span: _friSpan, tone: 'var(--navy)', krw: false,
+      span: _friSpan, tone: 'var(--navy)', krw: false, unit: 'pt',
       fmt: (x) => x.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt',
       tick: (x) => Math.round(x).toLocaleString('ko-KR'),
       caption: 'SCFI 종합지수 <span>단위 포인트(pt) · 2014년부터 주 1회 · 세로축은 0 부터</span>',

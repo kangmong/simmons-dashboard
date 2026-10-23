@@ -6546,3 +6546,5 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kn-ax__v--latest { fill: #DC2626; font-weight: 900; font-size: 12px;
   paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
 .kn-svg:not(.kn-svg--big) .kn-ax__v--latest { font-size: 9px; }
+/* 그래프 단위(오른쪽 위) */
+.kn-ax__u { fill: var(--slate); font-weight: 700; }
