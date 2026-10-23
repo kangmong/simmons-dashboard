@@ -7352,6 +7352,7 @@ function friRouteMinis() {
       + '</button>';
   };
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 항로별 추이'
+    + '(<mark class="hl-em">상하이 기준 운송비 추세 설명</mark>)'
     + ' <span>WCI BY ROUTE · 단위 US$/40ft</span></div>'
     + '<div class="fri-minis__g">' + rows.map(card).join('') + '</div></div>';
 }
