@@ -168,7 +168,17 @@
         "url": ""
       }
     ],
-    "basisNote": "각 수치는 해당 매체·기관이 보도·발표한 시점의 스냅샷입니다. 기사 원문 주소가 확인된 항목만 링크로 연결했습니다."
+    "basisNote": "각 수치는 해당 매체·기관이 보도·발표한 시점의 스냅샷입니다. 기사 원문 주소가 확인된 항목만 링크로 연결했습니다.",
+    "updates": [
+      {
+        "date": "2026-07-01",
+        "kind": "시장규모",
+        "text": "슬리포노믹스가 5조 시장으로 성장했다.",
+        "label": "침구 넘어 AI·식음료까지…'슬리포노믹스' 5조 시장으로 성장 - 매경헬스",
+        "source": "",
+        "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE00U3NrS0xXTDNhNFZiWExlQ3NfdExoclBfU3BfcHVFWGV3c3c5cUtFTnpZdDdTLXVMM2xYRFdFeV84WHBnM090ZVhvbFFDZ2VqSDh5N2ZlV2tKWHlPSU90Z2ZuT05qWmpwb0tWWA?oc=5"
+      }
+    ]
   },
   "sleepTech": {
     "title": "국내 슬립테크 시장 주요 6개 기업",
@@ -211,7 +221,25 @@
             "AI로 수면단계 분석",
             "수면 리포트 생성"
           ]
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-09-10",
+            "kind": "제휴",
+            "text": "에이슬립과 에어리퀴드헬스케어가 한국서 AI 수면무호흡 관리 모델을 구축했다.",
+            "label": "에이슬립·에어리퀴드헬스케어, 한국서 AI 수면무호흡 관리 모델 구축 - 뉴스핌",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBwejBHTEtZeHZTNm5QbkRpN0w1aDM1c25uUENXOEIxOWQ2bWRlaVRtMlJrNnBCMnVWdldnVHJhYmtCYXE3blN3eXFCLWJmSmtKWU5wVkhndkstcmNQ?oc=5"
+          },
+          {
+            "date": "2026-08-02",
+            "kind": "제휴",
+            "text": "에이슬립과 텐마인즈가 AI 수면 플랫폼 제휴를 체결했다.",
+            "label": "에이슬립·텐마인즈, AI 수면 플랫폼 제휴 체결 - MEDI:GATE NEWS",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiV0FVX3lxTE5SSVJWcjRzS1U2QUJCamRRd1RvS3BlMXRiTEZzRm4wMTExTDJYalVDTEJEWE56SFg1WnZMc2NkeGFfX3hIM2RNMkpvQnYyX01UMjk1S0lndw?oc=5"
+          }
+        ]
       },
       {
         "name": "코웨이 (비렉스 BEREX)",
@@ -251,7 +279,25 @@
             "공기주머니 강도 9단계 조절",
             "개인 맞춤 지지력 제공"
           ]
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-10-02",
+            "kind": "출시",
+            "text": "코웨이가 '보행보조 웨어러블 로봇'을 출시했다.",
+            "label": "코웨이, '보행보조 웨어러블 로봇' 출시 - 디일렉",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE1CSlc1RHFJYVBmYXNNQ2xuaDhMY3VZZEh4MXNLX3JHVTd6dE9kRDBCRjRZazFKZnFmLU43dEs0YmxIMEVNbVlLLVZnVTl0VUYtMld0d19oVVUweGtzTG9WTHROS3VFZw?oc=5"
+          },
+          {
+            "date": "2026-08-07",
+            "kind": "실적",
+            "text": "코웨이는 2분기 매출 1조 4,422억 원, 영업이익 4.3% 증가를 기록했다.",
+            "label": "코웨이, 2분기 매출 1조 4,422억 원…영업이익 4.3%↑ - 연합뉴스TV",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFB6Ni03ekFxVFlwVjRrRzJtaVRTVFhDUFNvMm8tWXhqSV9yUGZnSUR6MFcwVUdSZ1ZWVG1UaTBBOE9NTnRDdzljbDVSenFMTGE1YTllMV9nT2psWHNDSWh3WElMUllwSVU?oc=5"
+          }
+        ]
       },
       {
         "name": "텐마인즈 (10minds)",
@@ -293,7 +339,25 @@
             "고개 각도 자동 조절",
             "코골이 완화"
           ]
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-09-29",
+            "kind": "출시",
+            "text": "텐마인즈, AI 슬립봇 스마트싱스 인증 획득 및 11월 출시",
+            "label": "텐마인즈, 'AI 슬립봇' 스마트싱스 인증 획득… 11월 출시 - 지디넷코리아",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE8zOWtadEZrZDVoc2tiZ05KM2hCNEVJdHpLRVp1RU9maGlGLVdHYmgzdzF2SjMzSHNBMWFYSEt2R0xmVktsYjJyUFRjTXFUT3J1SEdiRWpR?oc=5"
+          },
+          {
+            "date": "2026-08-02",
+            "kind": "제휴",
+            "text": "에이슬립·텐마인즈, AI 수면 플랫폼 제휴 체결",
+            "label": "에이슬립·텐마인즈, AI 수면 플랫폼 제휴 체결 - MEDI:GATE NEWS",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiV0FVX3lxTE5SSVJWcjRzS1U2QUJCamRRd1RvS3BlMXRiTEZzRm4wMTExTDJYalVDTEJEWE56SFg1WnZMc2NkeGFfX3hIM2RNMkpvQnYyX01UMjk1S0lndw?oc=5"
+          }
+        ]
       },
       {
         "name": "세라젬 (CERAGEM)",
@@ -333,7 +397,25 @@
             "헤드보드가 조명·온도·음향 자동 조절",
             "수면환경 최적화"
           ]
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-09-01",
+            "kind": "출시",
+            "text": "세라젬이 온열 및 마사지 기능을 세분화한 ‘마스터 V9 2027’을 출시했다.",
+            "label": "세라젬, ‘마스터 V9 2027’ 출시…온열·마사지 기능 세분화 - 에너지경제신문",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9xM3hRT0dQUk5OWERwN3hHMXJDeDd5WkRtZzEwd2lkS3pUSFlkUERkbHZlSWRXVjNiUk9tX25XN3V4emdLYVhUYktFTS1hajdtQXAxT3RZU1N0MlU?oc=5"
+          },
+          {
+            "date": "2026-07-13",
+            "kind": "출시",
+            "text": "세라젬이 24개 다양한 마사지 모드를 제공하는 '마스터 V7 2027'을 출시했다.",
+            "label": "세라젬, 마스터 V7 2027 출시…24개 다양한 마사지 모드 제공 - 전자신문",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiTkFVX3lxTE1VdGhJSTZGZ3NxTkNzdGJVYjQ3dlhHeVFiNU1LbkZRS0drRmt5V2VOVHJDQ28zRUJtTEVONW8xdURyTEk1NDUyZk52YkQ3dw?oc=5"
+          }
+        ]
       },
       {
         "name": "허니냅스 (HoneyNaps)",

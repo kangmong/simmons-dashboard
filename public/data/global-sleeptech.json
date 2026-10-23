@@ -58,7 +58,25 @@
             "앱에서 건강 지표 리포트 확인"
           ],
           "note": "공식 설명 요약"
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-09-07",
+            "kind": "제휴",
+            "text": "Withings가 프랑스 농구 국가대표팀의 공식 커넥티드 헬스 공급업체가 되었다.",
+            "label": "Withings Becomes Official Connected Health Supplier of the France Basketball National Teams - Yahoo Finance",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxOU29nYVhmeGNnWlRjY3pjemFtVGVwTmZzTDJxZWFRMXBUNlpPZVN0dHJSUWE2eUhmd3dkeW5GbnpYbjdkTmllUEpITkRHMjg4UXlGTWZ2MnVXLUp3cWZ2NVdfUU1QZTlDTUFNenJPQXExOWozMGJmNlZuT1plS0FydmRRVkxfM3djZ2FsVk5Va2QtcUVpc0pCTkd0MEhWTVZENmhrTzlR?oc=5"
+          },
+          {
+            "date": "2026-07-17",
+            "kind": "출시",
+            "text": "Withings가 600달러 스마트 헬스 스테이션인 BodyScan 2를 출시했다.",
+            "label": "Withings BodyScan 2 launches as a $600 smart health station - Mashable",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMickFVX3lxTE9mRE1QZGpsM2RsUDEtbV9aWmN2S3o3V2FEaU0yUmpZRDk5ODBqdUVWUzE5OXpKakJzWFpTUTZVNDVteDZaNGdlbU9tMjZfQmUzRm80TV9jcUdPa3VZM3NhYk5TLUd1ZEE4SFp4ZkFMc3duQQ?oc=5"
+          }
+        ]
       },
       {
         "name": "Sleep Number (미국, NASDAQ: SNBR)",
@@ -98,7 +116,17 @@
             "SleepIQ 점수로 수면 리포트 제공"
           ],
           "note": "공식 설명 요약"
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-08-10",
+            "kind": "제휴",
+            "text": "Sleep Number와 Sleep Country Canada가 파트너십을 맺었다.",
+            "label": "What the Sleep Number and Sleep Country Canada Partnership Means for You - Sleep Number",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPRVhLbTVsVERZS1JPLXhpY1N0UXc1R2J3MXhIdkJoS3hHRG8zRTNBZG1MUlJfdThvSThENE4xX3pCZUMzZzhjakxZWFdxTzBvem5yTWc1MTVhTWJvYlExb2FJbE5Ha094eTQ4YmlPZ3FWOFlOYzdoQWtvaFB1cndET2hNcUU1MF9ud1pfdVg4cFhyUll2c29ZMGJNVVZiV25ETlNrWXFrbTM?oc=5"
+          }
+        ]
       },
       {
         "name": "Oura (핀란드)",
@@ -142,7 +170,17 @@
             "앱에서 수면·준비도 점수 제공"
           ],
           "note": "공식 설명 요약"
-        }
+        },
+        "updates": [
+          {
+            "date": "2026-09-04",
+            "kind": "실적",
+            "text": "오우라의 매출이 74% 증가했습니다.",
+            "label": "Oura's Revenue Just Jumped 74% — and Its IPO Filing Shows It's Not Just a Wearables Company Anymore - Yahoo Finance",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQWlhXZGpMUmtBRzFRcTJMTkNqQUN1N3Z5RVg3czFzUmpQNWRDNzhEX0ZMN1VVX2dkamFVVUd1SWVFZHhyRnBJdzlzcE9LZ0wwazh1eFhKOFVBTGQtcnFWbWE5QUtzTTRKZE8ycENEaXptcTBvQTFDMm10ZE5JdEg4TzNfUUpOY0tKaFUxMTN2ckUwSnM?oc=5"
+          }
+        ]
       },
       {
         "name": "DeRUCCI (중국, SZSE: 001323)",

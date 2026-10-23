@@ -6390,3 +6390,13 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   /* 이미지가 들어가 항목이 높아졌다 — 줄기는 마지막 항목 가운데(곡선)까지만 */
   .sf-tree[data-tree="mt"] .sf-tr__branch::before { bottom: 61px; }
 }
+
+/* ── 슬립테크 '최근 소식'(뉴스 자동 수집) ── */
+.st-upd { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--line); }
+.st-upd__h { font-size: 11.5px; font-weight: 800; color: var(--ink); margin-bottom: 5px; }
+.st-upd__h span { font-weight: 600; font-size: 10.5px; color: var(--slate); margin-left: 4px; }
+.st-upd ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.st-upd li { font-size: 11.5px; line-height: 1.5; color: var(--ink); word-break: keep-all; }
+.st-upd__d { color: var(--slate); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.st-upd__k { display: inline-block; margin-right: 5px; padding: 0 6px; border-radius: 999px;
+  background: var(--blue-soft); color: var(--navy); font-size: 10.5px; font-weight: 800; }

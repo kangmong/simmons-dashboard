@@ -1,0 +1,51 @@
+name: KOIMA 주요 이슈 수집 (주 1회)
+
+# 일일 국제원자재가격 카드의 '주요 이슈'에 부문별 실제 사건을 붙인다.
+# 구글 뉴스 RSS → Gemini 가 사건 하나를 고름 → 파이썬이 원문 대조(숫자·날짜) 후 저장.
+# 사건 뒤 실제로 움직인 폭은 화면이 가격 자료로 직접 잰다(koima_events.py 머리말 참고).
+# KOIMA 가격 수집(월 04:30) 뒤에 돈다.
+on:
+  schedule:
+    - cron: '0 21 * * 0'     # UTC 일 21:00 = KST 월 06:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-koima-events
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 주요 이슈 수집
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python koima_events.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/kp-insights.json; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/kp-insights.json
+          git commit -m "자동 수집: KOIMA 주요 이슈 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push

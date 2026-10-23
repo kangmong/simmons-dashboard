@@ -1695,6 +1695,7 @@ function smMarketBars(d) {
     + '" y2="' + (padT + plotH) + '" stroke="var(--axis)" stroke-width="1"/></svg>'
     + (note ? '<div class="smb-note">' + escapeHtml(note) + '</div>' : '')
     + basis
+    + stUpdatesHtml(m.updates)
     + (m.source ? '<div class="sm-foot">' + escapeHtml(m.source) + '</div>' : '')
     + '</div>';
 }
@@ -1907,6 +1908,23 @@ function stCesAwards(st) {
     + (c.source ? '<div class="sm-foot">' + escapeHtml(c.source) + '</div>' : '');
 }
 
+/** '최근 소식' — sleeptech_news.py 가 주 1회 뉴스에서 골라 붙인 줄(최신 4건).
+ *  ★ 사람이 정리한 값(투자 유치·매출 등)과 섞지 않고 따로 보여 준다.
+ *    문장은 기사 제목·요약에서 숫자를 그대로 옮긴 것만 남긴다(수집기 검사). */
+function stUpdatesHtml(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  return '<div class="st-upd"><div class="st-upd__h">최근 소식 <span>뉴스 자동 수집</span></div><ul>'
+    + list.map((u) => {
+      const url = safeUrl(u.url);
+      return '<li><span class="st-upd__d">' + escapeHtml(u.date || '') + '</span>'
+        + (u.kind ? '<b class="st-upd__k">' + escapeHtml(u.kind) + '</b>' : '')
+        + '<span class="st-upd__t">' + escapeHtml(u.text || '') + '</span>'
+        + (url ? ' <a class="src-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer"'
+          + ' title="' + escapeHtml(u.label || '') + '">기사</a>' : '')
+        + '</li>';
+    }).join('') + '</ul></div>';
+}
+
 function stCardsHtml(st) {
   if (!st || !Array.isArray(st.companies) || !st.companies.length) return '';
   const row = (k, v) => (v ? '<div class="sm-st__row"><span class="sm-st__k">'
@@ -1928,6 +1946,7 @@ function stCardsHtml(st) {
       + (c.desc ? '<p class="sm-st__desc">' + escapeHtml(c.desc) + '</p>' : '')
       + row('설립', c.founded) + row('주요 제품·서비스', c.products)
       + row('투자 유치', c.funding) + row('매출·재무', c.revenue) + row('그 밖에', c.extra)
+      + stUpdatesHtml(c.updates)
       + (src ? '<div class="sm-st__src">출처<ul>' + src + '</ul>'
         + (c.logoSource ? '<div class="sm-st__srcnote">로고: '
           + escapeHtml(c.logoSource) + '</div>' : '')
@@ -2805,6 +2824,7 @@ function gsDeviceMarket(m) {
     + '" y2="' + base + '" stroke="var(--axis)" stroke-width="1"/></svg>'
     + (m.summary ? '<div class="smb-note">' + escapeHtml(m.summary) + '</div>' : '')
     + basis
+    + stUpdatesHtml(m.updates)
     + (m.foot ? '<div class="sm-foot">※ ' + escapeHtml(m.foot) + '</div>' : '')
     + '</div>';
 }
@@ -2934,7 +2954,7 @@ function gtSubTitle() {
 
 function gtSubDesc() {
   return (_gsData && _gsData.status === 'ok')
-    ? GT_DESC_GMM + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기)'
+    ? GT_DESC_GMM + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기), 최근 소식은 주 1회 뉴스 자동 수집'
     : GT_DESC_GMM;
 }
 

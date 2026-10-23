@@ -1,0 +1,51 @@
+name: 슬립테크 최근 소식 수집 (주 1회)
+
+# 국내·해외 슬립테크 12개 기업과 시장 규모 카드에 '최근 소식'을 붙인다.
+# 구글 뉴스 RSS → Gemini 가 고르고 요약 → 파이썬이 원문 대조(기업명·숫자) 후 저장.
+# 사람이 정리한 값은 고치지 않는다(sleeptech_news.py 머리말 참고).
+on:
+  schedule:
+    - cron: '0 22 * * 1'     # UTC 월 22:00 = KST 화 07:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-sleeptech-news
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 최근 소식 수집
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python sleeptech_news.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          F="public/data/simmons-market.json public/data/global-sleeptech.json"
+          if git diff --quiet -- $F; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $F
+          git commit -m "자동 수집: 슬립테크 최근 소식 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push
