@@ -8100,15 +8100,21 @@ function knBarSvg(l, months, big) {
     g += '<text class="kn-ax__t" x="' + (L + i * cw + cw / 2).toFixed(1) + '" y="' + (H - B + fs + 4)
       + '" style="text-anchor:middle;font-size:' + (big ? 10 : fs) + 'px">' + escapeHtml(knYm(months[i])) + '</text>';
   });
+  /* 최신 달 막대 — 빨간 테두리 + 위에 빨간 '최신 값'. 막대 바탕색은 기준 색 그대로 둔다
+     (빨간 바탕은 이미 '50% 미만 지연 많음' 뜻이라 섞이면 헷갈린다). */
+  let li = -1;
+  months.forEach((m, i) => { if (l.values[m] != null) li = i; });
   const bars = months.map((m, i) => {
     const v = l.values[m];
     if (v == null) return '';
     const x = L + i * cw + (cw - bw) / 2, y = Y(v);
-    return '<rect class="kn-b--' + knBand(v).cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1)
+    const lat = i === li;
+    return '<rect class="kn-b--' + knBand(v).cls + (lat ? ' kn-b--latest' : '') + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1)
       + '" width="' + bw.toFixed(1) + '" height="' + (H - B - y).toFixed(1) + '" data-knv="'
-      + escapeHtml(l.ko + ' · ' + m.replace('-', '년 ') + '월 · ' + v.toFixed(1) + '%') + '"></rect>'
-      + (big ? '<text class="kn-ax__v" x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 4).toFixed(1)
-        + '" style="text-anchor:middle">' + v.toFixed(1) + '</text>' : '');
+      + escapeHtml((lat ? '최신 · ' : '') + l.ko + ' · ' + m.replace('-', '년 ') + '월 · ' + v.toFixed(1) + '%') + '"></rect>'
+      + (big || lat ? '<text class="kn-ax__v' + (lat ? ' kn-ax__v--latest' : '') + '" x="' + (x + bw / 2).toFixed(1)
+        + '" y="' + (y - 4).toFixed(1) + '" style="text-anchor:' + (lat && !big ? 'end' : 'middle') + '">'
+        + (lat ? '최신 ' : '') + v.toFixed(1) + '</text>' : '');
   }).join('');
   return '<svg class="kn-svg' + (big ? ' kn-svg--big' : '') + '" viewBox="0 0 ' + W + ' ' + H
     + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="' + escapeHtml(l.ko + ' 정시성 추이') + '">'
