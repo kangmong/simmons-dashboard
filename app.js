@@ -7404,6 +7404,7 @@ let _kcciData = null;
 let _kcciOne = '';        // 그래프에 혼자 보는 코드('' = 종합지수)
 let _kcciMini = '';       // 설명을 펼친 항로 카드
 let _kcciSpan = '1y';     // 그래프 기간
+let _kcciCodes = false;   // 표 옆 '코드 한눈에 보기' 펼침
 
 /* 코드 풀이 — 사용자와 함께 정리한 표 그대로. mid 는 코드 가운데(항로) 글자 */
 const KCCI_INFO = {
@@ -7521,10 +7522,13 @@ function idxLineChart(D, V, o) {
       + '" x="' + x.toFixed(1) + '" y="' + (y + dy).toFixed(1) + '">' + escapeHtml(label) + '</text>';
   };
   let marks = '';
-  /* 최고점이 마지막 점 가까이 있으면 두 글자가 겹친다 — 최고 글자를 선 아래로 내린다 */
-  const nearEnd = (i) => X(n - 1) - X(i) < (narrow ? 150 : 260);
-  if (hi !== n - 1) marks += mark(hi, '최고 ' + o.fmt(v[hi]) + ' · ' + d[hi], 'hi', nearEnd(hi) ? 24 : -12);
-  if (lo !== n - 1 && lo !== hi) marks += mark(lo, '최저 ' + o.fmt(v[lo]) + ' · ' + d[lo], 'lo', 20);
+  /* 최고·최저가 마지막 점 가까이 있으면 글자가 마지막 값과 겹친다(실측) —
+     그때는 점만 찍고 글자는 쓰지 않는다. 값은 오른쪽 '지금 흐름' 상자가 말한다. */
+  const nearEnd = (i) => X(n - 1) - X(i) < (narrow ? 150 : 300);
+  const dotOnly = (i) => '<circle class="fri-cd" style="--xt:' + o.tone + '" cx="' + X(i).toFixed(1)
+    + '" cy="' + Y(v[i]).toFixed(1) + '" r="4"/>';
+  if (hi !== n - 1) marks += nearEnd(hi) ? dotOnly(hi) : mark(hi, '최고 ' + o.fmt(v[hi]) + ' · ' + d[hi], 'hi', -12);
+  if (lo !== n - 1 && lo !== hi) marks += nearEnd(lo) ? dotOnly(lo) : mark(lo, '최저 ' + o.fmt(v[lo]) + ' · ' + d[lo], 'lo', 20);
   marks += mark(n - 1, o.fmt(v[n - 1]) + krw(v[n - 1]), 'last', -14);
   return '<figure class="fri-emb kc-chart"><figcaption class="fri-emb__c">' + o.caption + '</figcaption>'
     + '<div class="fri-chart"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img"'
@@ -7611,6 +7615,8 @@ function kcciMinis() {
     let labels = '';
     [[0, -5], [hi, -5], [lo, 12], [n - 1, -5, 'kc-mini__v--last']].forEach((a) => {
       if (done[a[0]]) return;
+      /* 마지막 값 바로 옆의 최고·최저·첫 값은 숫자가 겹친다(실측) — 마지막 값만 적는다 */
+      if (a[0] !== n - 1 && X(n - 1) - X(a[0]) < 46) return;
       done[a[0]] = 1;
       labels += lab(a[0], a[1], a[2]);
     });
@@ -7666,6 +7672,21 @@ function kcciCodes() {
     }).join('') + '</div>';
 }
 
+/** KCCI '지금 흐름' 두 줄 — 고른 지수 하나. 숫자는 전부 수집한 값이다. */
+function kcciNote() {
+  const code = _kcciOne || 'KCCI';
+  const info = KCCI_INFO[code], st = kcciStat(code);
+  const krw = code !== 'KCCI' && krwOf(st.cur) ? '(' + escapeHtml(krwOf(st.cur).replace('\u2248', '약').trim()) + ')' : '';
+  const l1 = code === 'KCCI'
+    ? '지금 부산에서 출발하는 13개 항로를 묶은 종합지수는 <b>' + kcciVal(code, st.cur) + '</b>입니다.'
+    : '지금 부산 → ' + escapeHtml(info.to) + ' 운임은 40피트 컨테이너 한 개에 <b>'
+      + kcciVal(code, st.cur) + '</b>' + krw + '입니다.';
+  const l2 = flowL2(_kcciData.series[code], st.wk, st.yr);
+  return '<aside class="fri-note" aria-label="지금 흐름">'
+    + '<span class="fri-note__h">지금 흐름 · ' + escapeHtml(st.date) + '</span>'
+    + '<p>' + l1 + '</p>' + (l2 ? '<p>' + l2 + '</p>' : '') + '</aside>';
+}
+
 function kcciSource() {
   const d = _kcciData;
   return '<div class="fri-src"><b>출처</b> ' + escapeHtml(d.source)
@@ -7680,12 +7701,17 @@ function kcciBody() {
     return '<div class="chart-empty">KCCI 데이터를 불러오지 못했습니다'
       + (_kcciData && _kcciData.reason ? ' (' + escapeHtml(_kcciData.reason) + ')' : '') + '</div>';
   }
-  return kcciPicks() + kcciChart()
+  /* 그래프 + 오른쪽 '지금 흐름'(점과 파란 실선으로 잇는다 — friLinkNote) */
+  return kcciPicks()
+    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + kcciChart() + kcciNote() + '</div>'
     + krwNote('USD')
-    /* 표 아래에 항로별 추이 — 13칸이라 옆에 두면 한 줄로 길게 늘어져 표 밑이 빈다 */
-    + '<div class="kc-tbl">' + kcciTable() + '</div>'
+    /* 표 + 오른쪽 빈칸에 '코드 한눈에 보기' 단추 — 누르면 그 자리에 펼친다 */
+    + '<div class="kc-tblrow"><div class="kc-tbl">' + kcciTable() + '</div>'
+    + '<div class="kc-side"><button type="button" class="kc-codebtn' + (_kcciCodes ? ' is-on' : '')
+      + '" data-kccodes aria-expanded="' + _kcciCodes + '">KCCI 코드 한눈에 보기'
+      + ' <span>' + (_kcciCodes ? '접기 ▴' : '펼치기 ▾') + '</span></button>'
+      + (_kcciCodes ? kcciCodes() : '') + '</div></div>'
     + kcciMinis()
-    + kcciCodes()
     + kcciSource();
 }
 
@@ -7835,6 +7861,17 @@ function friCompNote() {
   const wk = isFinite(row.weekly) ? row.weekly
     : (v.length >= 2 && v[v.length - 2] ? (cur / v[v.length - 2] - 1) * 100 : null);
   const yr = isFinite(row.annual) ? row.annual : null;
+  const l2 = flowL2(v, wk, yr);
+  return '<aside class="fri-note" aria-label="지금 흐름">'
+    + '<span class="fri-note__h">지금 흐름 · ' + escapeHtml((row.series.dates || []).slice(-1)[0] || '') + '</span>'
+    + '<p>' + l1 + '</p>'
+    + (l2 ? '<p>' + l2 + '</p>' : '')
+    + '</aside>';
+}
+
+/** '지금 흐름' 둘째 줄 — 지난주 대비·연속 주수(가진 점으로 셈)·1년 전 대비.
+ *  v: 값 배열, wk·yr: 변동률(%) 또는 null. WCI·KCCI 가 같이 쓴다. */
+function flowL2(v, wk, yr) {
   /* 2줄 — 1년 비교가 뒤에 붙으면 '…고,' 로 잇고, 없으면 거기서 끝낸다 */
   const more = yr != null;
   let l2 = '';
@@ -7861,11 +7898,7 @@ function friCompNote() {
       : '1년 전보다 <b>' + Math.abs(yr).toFixed(0) + '% ' + (yr >= 0 ? '비싼' : '싼')
         + '</b> 수준입니다.';
   }
-  return '<aside class="fri-note" aria-label="지금 흐름">'
-    + '<span class="fri-note__h">지금 흐름 · ' + escapeHtml((row.series.dates || []).slice(-1)[0] || '') + '</span>'
-    + '<p>' + l1 + '</p>'
-    + (l2 ? '<p>' + l2 + '</p>' : '')
-    + '</aside>';
+  return l2;
 }
 
 function friWayOf(id) {
@@ -7988,35 +8021,131 @@ function friWciRouteBody() {
     + friSourceDrewry();
 }
 
-/** SCFI — 종합지수 그래프 + 최근 주간 표. 값은 NLIC 가 옮겨 싣는 SSE 발표치. */
+const SCFI_DATA_URL = 'public/data/scfi-routes.json';
+let _scfiData = null;     // RackingHub 가 정리한 SSE 항로별 값(scfi_routes.py)
+let _scfiOne = '';        // 그래프에 혼자 보는 항로('' = 종합지수, NLIC 2014년~)
+let _scfiMini = '';
+
+function scfiLanes() {
+  return (_scfiData && _scfiData.status === 'ok' && Array.isArray(_scfiData.lanes)) ? _scfiData.lanes : [];
+}
+function scfiFmt(l, x) {
+  if (x == null || !isFinite(x)) return '—';
+  return l.unit === 'pt'
+    ? x.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt'
+    : '$' + Math.round(x).toLocaleString('ko-KR');
+}
+/** 전주 대비 — 페이지 카드 값이 있으면 그대로, 없으면 마지막 두 점으로 계산 */
+function scfiWow(l) {
+  if (l.wow != null) return l.wow;
+  const v = l.values, n = v.length;
+  return n >= 2 && v[n - 2] ? (v[n - 1] / v[n - 2] - 1) * 100 : null;
+}
+
+/** 항로 표 — 이번 주 값·단위·전주 대비 */
+function scfiTable(lanes) {
+  const rows = lanes.map((l) => {
+    const v = l.values[l.values.length - 1];
+    return '<tr' + (l.id === 'composite' ? ' class="fri-tb__sum"' : '') + '>'
+      + '<td>' + escapeHtml(l.ko) + ' <span class="kc-pick__c">' + escapeHtml(l.en) + '</span></td>'
+      + '<td class="fri-tb__n">' + (l.unit === 'pt' ? 'pt' : '$/' + escapeHtml(l.unit)) + '</td>'
+      + '<td class="fri-tb__n"><b>' + scfiFmt(l, v) + '</b>'
+        + (l.unit !== 'pt' && krwOf(v) ? '<span class="fri-krw">' + escapeHtml(krwOf(v)) + '</span>' : '') + '</td>'
+      + '<td class="fri-tb__n">' + kcciPct(scfiWow(l)) + '</td></tr>';
+  }).join('');
+  const day = lanes[0].dates[lanes[0].dates.length - 1];
+  return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb"><thead><tr>'
+    + '<th>항로(상하이 →)</th><th class="fri-tb__n">단위</th><th class="fri-tb__n">이번 주<br>' + escapeHtml(day)
+    + '</th><th class="fri-tb__n">전주 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div class="fri-tb__more">TEU = 20피트, FEU = 40피트 컨테이너 1개 · 해상운임과 할증료 포함 · '
+    + 'SSE 발표치를 RackingHub 가 정리한 값 그대로입니다.</div>';
+}
+
+/** 상하이발 SCFI 항로별 추이 — 첫 값·최고·최저·지금을 선 위에 적는다(KCCI 와 같은 모양) */
+function scfiMinis(lanes) {
+  const card = (l) => {
+    const v = l.values, n = v.length;
+    let hi = 0, lo = 0;
+    v.forEach((x, i) => { if (x > v[hi]) hi = i; if (x < v[lo]) lo = i; });
+    const W = 240, H = 92, P = 8, T = 16, Bm = 16;
+    const span = (v[hi] - v[lo]) || 1;
+    const X = (i) => P + (i / (n - 1)) * (W - P * 2);
+    const Y = (x) => T + (1 - (x - v[lo]) / span) * (H - T - Bm);
+    const dd = v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x).toFixed(1)).join(' ');
+    const done = {};
+    let labels = '';
+    [[0, -5], [hi, -5], [lo, 12], [n - 1, -5, 'kc-mini__v--last']].forEach((a) => {
+      if (done[a[0]]) return;
+      /* 마지막 값 바로 옆의 최고·최저·첫 값은 숫자가 겹친다(실측) — 마지막 값만 적는다 */
+      if (a[0] !== n - 1 && X(n - 1) - X(a[0]) < 46) return;
+      done[a[0]] = 1;
+      const x = X(a[0]), anc = x < 40 ? 'start' : (x > W - 40 ? 'end' : 'middle');
+      labels += '<text class="kc-mini__v' + (a[2] ? ' ' + a[2] : '') + '" x="' + x.toFixed(1) + '" y="'
+        + (Y(v[a[0]]) + a[1]).toFixed(1) + '" style="text-anchor:' + anc + '">'
+        + Math.round(v[a[0]]).toLocaleString('ko-KR') + '</text>';
+    });
+    const open = _scfiMini === l.id;
+    const words = '지금 <b>' + scfiFmt(l, v[n - 1]) + '</b>'
+      + (l.unit !== 'pt' ? ' (' + escapeHtml(l.unit) + ' 1개)' : '') + '. 전주보다 ' + kcciPct(scfiWow(l))
+      + '. 2025년 이후 최고 ' + scfiFmt(l, v[hi]) + '(' + l.dates[hi] + '), 최저 ' + scfiFmt(l, v[lo])
+      + '(' + l.dates[lo] + ').';
+    return '<button class="fri-mini kc-mini' + (open ? ' is-open' : '') + '" type="button" data-scmini="'
+      + escapeHtml(l.id) + '" aria-expanded="' + open + '">'
+      + '<div class="fri-mini__t">' + escapeHtml(l.ko) + ' <span class="kc-mini__c">' + escapeHtml(l.en) + '</span></div>'
+      + '<svg class="kc-mini__svg" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">'
+      + '<path class="kc-mini__l" d="' + dd + '"/>'
+      + '<circle class="fri-mini__p" cx="' + X(n - 1).toFixed(1) + '" cy="' + Y(v[n - 1]).toFixed(1) + '" r="2.6"/>'
+      + labels + '</svg>'
+      + '<div class="fri-mini__d">' + escapeHtml(l.dates[0]) + ' ~ ' + escapeHtml(l.dates[n - 1])
+      + ' · 전주 ' + kcciPct(scfiWow(l)) + '</div>'
+      + (open ? '<div class="fri-mini__s">' + words + '</div>' : '') + '</button>';
+  };
+  return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
+    + '(<mark class="hl-em">상하이 기준 운송비 추세 설명</mark>)'
+    + ' <span>SCFI BY ROUTE · 2025년은 월 1회, 2026년부터 주 1회</span></div>'
+    + '<div class="fri-minis__g kc-minis__g">'
+    + lanes.filter((l) => l.id !== 'composite').map(card).join('') + '</div></div>';
+}
+
+/** SCFI — 종합지수 그래프(NLIC, 2014년~) · 항로 고르기 · 항로 표 · 항로별 추이 */
 function friScfiBody() {
-  const s = friSeries(_friPick)[0];
-  if (!s || s.values.length < 2) return '<div class="chart-empty">SCFI 데이터가 없습니다</div>';
-  const fmt = (x) => x.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt';
+  const s0 = friSeries(_friPick)[0];
+  if (!s0 || s0.values.length < 2) return '<div class="chart-empty">SCFI 데이터가 없습니다</div>';
+  const lanes = scfiLanes();
+  const one = _scfiOne ? lanes.filter((l) => l.id === _scfiOne)[0] : null;
+  const picks = '<div class="fri-lines kc-picks">'
+    + [{ id: '', ko: '종합지수' }].concat(lanes.filter((l) => l.id !== 'composite')).map((l) =>
+      '<button class="fri-line' + (_scfiOne === l.id ? ' is-on' : '') + '" type="button" data-scone="'
+      + escapeHtml(l.id) + '" aria-pressed="' + (_scfiOne === l.id) + '" style="--xt:'
+      + (l.id ? '#2563EB' : 'var(--navy)') + '"><i aria-hidden="true"></i>' + escapeHtml(l.ko) + '</button>').join('')
+    + '</div>';
   const spans = FRI_SPANS.map((p) => '<button class="icis-year kc-span' + (p.id === _friSpan ? ' is-active' : '')
     + '" type="button" data-frispan="' + p.id + '">' + p.label + '</button>').join('');
-  /* 최근 8주 표 — 전주 대비는 받은 값으로 직접 계산한다 */
-  const D = s.dates, V = s.values, n = V.length;
-  let rows = '';
-  for (let i = n - 1; i >= Math.max(1, n - 8); i--) {
-    const p = (V[i] / V[i - 1] - 1) * 100;
-    rows += '<tr' + (i === n - 1 ? ' class="fri-tb__sum"' : '') + '><td>' + escapeHtml(D[i]) + '</td>'
-      + '<td class="fri-tb__n"><b>' + fmt(V[i]) + '</b></td>'
-      + '<td class="fri-tb__n">' + (V[i] - V[i - 1] > 0 ? '+' : '') + (V[i] - V[i - 1]).toFixed(2) + '</td>'
-      + '<td class="fri-tb__n">' + kcciPct(p) + '</td></tr>';
-  }
-  return '<div class="icis-years kc-spans">' + spans + '</div>'
-    + idxLineChart(D, V, {
-      span: _friSpan, tone: '#2563EB', fmt, krw: false,
-      tick: (x) => Math.round(x).toLocaleString('ko-KR'),
-      caption: 'SCFI 종합지수 <span>단위 포인트(pt) · 세로축은 0 부터</span>',
-      aria: 'SCFI 종합지수 추이',
+  const chart = one
+    ? idxLineChart(one.dates, one.values, {
+      span: _friSpan, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x),
+      tick: (x) => '$' + Math.round(x).toLocaleString('ko-KR'),
+      caption: escapeHtml(one.ko) + ' <span>상하이 → ' + escapeHtml(one.en) + ' · 단위 $/' + escapeHtml(one.unit)
+        + ' · 2025년은 월 1회 점 · 세로축은 0 부터</span>',
+      aria: one.ko + ' SCFI 운임 추이',
     })
-    + '<div class="kc-tbl"><div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb">'
-    + '<thead><tr><th>발표일</th><th class="fri-tb__n">SCFI 종합</th><th class="fri-tb__n">전주 대비</th>'
-    + '<th class="fri-tb__n">증감률</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
-    + '<div class="fri-tb__more">최근 8주 · 값은 상하이해운거래소 발표치(국가물류통합정보센터 게재) 그대로입니다.</div></div>'
-    + friSourceHtml([friCut(s, 'all')]);
+    : idxLineChart(s0.dates, s0.values, {
+      span: _friSpan, tone: 'var(--navy)', krw: false,
+      fmt: (x) => x.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt',
+      tick: (x) => Math.round(x).toLocaleString('ko-KR'),
+      caption: 'SCFI 종합지수 <span>단위 포인트(pt) · 2014년부터 주 1회 · 세로축은 0 부터</span>',
+      aria: 'SCFI 종합지수 추이',
+    });
+  const src = '<div class="fri-src"><b>출처</b> 종합지수 — 국가물류통합정보센터 · 항로별 — '
+    + (_scfiData && _scfiData.url ? '<a href="' + escapeHtml(_scfiData.url) + '" target="_blank" rel="noopener noreferrer">RackingHub Ocean Freight Trends ↗</a>' : 'RackingHub')
+    + ' · 원 발표 기관 <a href="https://www.sse.net.cn/index/singleIndex?indexType=scfi" target="_blank" rel="noopener noreferrer">상하이항운교역연구소(SSE) ↗</a>'
+    + ' · 데이터 기준 ' + escapeHtml(s0.dates[s0.dates.length - 1])
+    + (_scfiData && _scfiData.updatedAt ? ' · 항로별 수집 ' + escapeHtml(_scfiData.updatedAt) : '') + '</div>';
+  return picks + '<div class="icis-years kc-spans">' + spans + '</div>' + chart
+    + (lanes.length
+      ? krwNote('USD') + '<div class="kc-tbl">' + scfiTable(lanes) + '</div>' + scfiMinis(lanes)
+      : '<div class="chart-empty">항로별 SCFI 를 불러오지 못했습니다</div>')
+    + src;
 }
 
 
@@ -8042,6 +8171,8 @@ function loadFreightIndex() {
     /* KCCI 는 따로 실패할 수 있다 — 운임 카드 전체가 죽지 않게 각자 잡는다 */
     get(KCCI_DATA_URL).then((d) => { _kcciData = d; })
       .catch((e) => { _kcciData = { status: 'error', reason: (e && e.message) || String(e) }; }),
+    get(SCFI_DATA_URL).then((d) => { _scfiData = d; })
+      .catch((e) => { _scfiData = { status: 'error', reason: (e && e.message) || String(e) }; }),
   ]);
 }
 
@@ -8052,7 +8183,7 @@ function loadFreightIndex() {
 function friLinkNote(fig) {
   const slot = fig && fig.querySelector('.fri-slot--comp');
   const note = slot && slot.querySelector('.fri-note');
-  const dot = slot && slot.querySelector('.fri-dot');
+  const dot = slot && slot.querySelector('.fri-dot, .fri-cd--last');
   if (!note || !dot) return;
   let ln = slot.querySelector('.fri-link');
   if (!ln) {
@@ -8113,9 +8244,16 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-scone], [data-scmini]') : null;
     if (kc) {
-      if (kc.hasAttribute('data-kcone')) {
+      if (kc.hasAttribute('data-kccodes')) {
+        _kcciCodes = !_kcciCodes;
+      } else if (kc.hasAttribute('data-scone')) {
+        _scfiOne = kc.getAttribute('data-scone');
+      } else if (kc.hasAttribute('data-scmini')) {
+        const k = kc.getAttribute('data-scmini');
+        _scfiMini = (_scfiMini === k) ? '' : k;
+      } else if (kc.hasAttribute('data-kcone')) {
         const k = kc.getAttribute('data-kcone');
         _kcciOne = (k === 'KCCI') ? '' : k;
       } else if (kc.hasAttribute('data-kcmini')) {
@@ -16928,7 +17066,8 @@ function initUpdate() {
     // 순수 추가: 해상 운임 지수(NLIC·Drewry). 미리 수집해 둔 정적 JSON 이라 즉시 끝난다.
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
-    _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y';
+    _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false;
+    _scfiOne = ''; _scfiMini = '';
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
