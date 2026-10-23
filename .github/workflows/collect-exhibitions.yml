@@ -1,0 +1,51 @@
+name: 전시·컨퍼런스 일정 갱신 (주 1회)
+
+# 끝난 행사의 다음 회차 날짜를 공식 사이트(안 되면 구글 뉴스)에서 찾아
+# public/data/exhibitions.json 을 고친다. 근거 문장이 원문에 그대로 있고
+# 날짜가 맞을 때만 바꾼다(exhibitions_update.py 머리말 참고).
+# 끝난 행사가 없으면 Gemini 를 부르지 않는다 — 대부분의 주는 요청 0번이다.
+on:
+  schedule:
+    - cron: '0 22 * * 0'     # UTC 일 22:00 = KST 월 07:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-exhibitions
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 전시 일정 갱신
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python exhibitions_update.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          if git diff --quiet -- public/data/exhibitions.json; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/exhibitions.json
+          git commit -m "자동 수집: 전시·컨퍼런스 일정 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push

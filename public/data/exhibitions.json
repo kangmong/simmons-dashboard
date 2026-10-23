@@ -14,7 +14,7 @@
     "   비어 있으면 분야 색 배너로 표시됩니다."
   ],
   "provisional": false,
-  "updatedAt": "2026-10-13",
+  "updatedAt": "2026-10-23",
   "source": "각 행사 공식 사이트",
   "items": [
     {
@@ -102,9 +102,9 @@
       "image": "https://sleepproducts.org/wp-content/uploads/Featured-Image.png"
     },
     {
-      "name": "Interzum Guangzhou 2026",
-      "start": "2026-03-28",
-      "end": "2026-03-31",
+      "name": "Interzum Guangzhou 2027",
+      "start": "2027-03-28",
+      "end": "2027-03-31",
       "city": "광저우",
       "country": "중국",
       "category": "소재·기술",
@@ -198,9 +198,9 @@
       "image": "https://cdn.imweb.me/upload/S202301255ecabf7801e78/5a0e2511ef885.png"
     },
     {
-      "name": "Sleep Expo Middle East 2026",
-      "start": "2026-09-29",
-      "end": "2026-09-30",
+      "name": "Sleep Expo Middle East 2027",
+      "start": "2027-09-21",
+      "end": "2027-09-23",
       "city": "두바이",
       "country": "UAE",
       "category": "수면·매트리스",
