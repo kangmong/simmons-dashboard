@@ -6249,6 +6249,10 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-slot--comp > * { grid-column: 1; }
 /* WCI 그래프 오른쪽 '지금 흐름' — 최신값 점 높이쯤에 두고 왼쪽(그래프)을 가리킨다 */
 .fri-slot--comp > .fri-note { grid-column: 2; grid-row: 1; }
+.fri-slot--comp { position: relative; }
+/* 최신값 점 → '지금 흐름' 상자 연결선(위치는 friLinkNote 가 잰다) */
+.fri-link { position: absolute; display: none; height: 3px; background: #1D4ED8;
+  border-radius: 1px; pointer-events: none; z-index: 1; }
 .fri-note {
   position: relative; align-self: start; margin-top: 150px; max-width: 600px;
   padding: 14px 16px; border: 1.5px solid var(--navy); border-radius: var(--radius-sm);

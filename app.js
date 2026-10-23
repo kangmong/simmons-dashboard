@@ -7652,9 +7652,45 @@ function loadFreightIndex() {
     .catch((e) => { _friData = { status: 'error', reason: (e && e.message) || String(e) }; });
 }
 
+/** 최신값 점과 '지금 흐름' 상자를 가로 실선으로 잇는다.
+ *  ★ 점 높이는 값마다 달라진다 — 그래서 상자를 점 높이로 내리고(화살촉이 점과
+ *    같은 높이), 그 사이를 선으로 채운다. 화면 크기가 바뀌면 다시 잰다.
+ *  ★ 좁은 화면에서는 상자가 그래프 아래로 내려가므로 선을 숨긴다. */
+function friLinkNote(fig) {
+  const slot = fig && fig.querySelector('.fri-slot--comp');
+  const note = slot && slot.querySelector('.fri-note');
+  const dot = slot && slot.querySelector('.fri-dot');
+  if (!note || !dot) return;
+  let ln = slot.querySelector('.fri-link');
+  if (!ln) {
+    ln = document.createElement('span');
+    ln.className = 'fri-link';
+    ln.setAttribute('aria-hidden', 'true');
+    slot.appendChild(ln);
+  }
+  note.style.marginTop = '';
+  if (getComputedStyle(note).gridColumnStart !== '2') { ln.style.display = 'none'; return; }
+  const sr = slot.getBoundingClientRect(), dr = dot.getBoundingClientRect();
+  const cy = dr.top + dr.height / 2 - sr.top;
+  note.style.marginTop = Math.max(0, cy - 29) + 'px';     // 화살촉 가운데가 위에서 29px
+  const nr = note.getBoundingClientRect();
+  const x0 = dr.right - sr.left + 1, x1 = nr.left - sr.left - 11;   // 화살촉 끝
+  ln.style.display = x1 > x0 ? 'block' : 'none';
+  ln.style.left = x0.toFixed(1) + 'px';
+  ln.style.top = (cy - 1.5).toFixed(1) + 'px';
+  ln.style.width = Math.max(0, x1 - x0).toFixed(1) + 'px';
+}
+let _friLinkResize = false;
+
 function wireFri(root) {
   const fig = root.querySelector('.fri-figure');
   if (!fig) return;
+  requestAnimationFrame(() => friLinkNote(fig));
+  if (!_friLinkResize) {
+    _friLinkResize = true;
+    window.addEventListener('resize', () =>
+      friLinkNote(document.querySelector('#materialRoot .fri-figure')));
+  }
   fig.addEventListener('click', (e) => {
     const p = e.target.closest ? e.target.closest('[data-fri]') : null;
     if (p) {
@@ -19165,8 +19201,10 @@ function renderExhExtra() {
   const items = exhSorted();
   /* ★ 부제도 하드코딩하지 않는다 — 등록된 건수를 그대로 쓴다 */
   const sub = '등록 ' + items.length + '건';
+  /* ★ 2·3번(분야별 비중·지역별 행사 수) 제목은 노란 형광펜으로 강조한다 */
   const head = (no, title, sub) => '<div class="exs__h">'
-    + '<span class="exs__t">' + escapeHtml(title) + '</span>'
+    + '<span class="exs__t">' + (no >= 2 ? '<mark class="hl-em">' + escapeHtml(title) + '</mark>'
+      : escapeHtml(title)) + '</span>'
     + (sub ? '<span class="exs__s">' + escapeHtml(sub) + '</span>' : '') + '</div>';
 
   el.innerHTML = '<div class="exs">'
