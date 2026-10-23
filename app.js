@@ -6852,10 +6852,11 @@ const FRI_GROUPS = [
          지정에 따라 SCFI). 항로를 눌러 하나만 볼 수 있다. */
     { id: 'wci', label: 'WCI·SCFI', keys: ['WCI_COMPOSITE'], routeTable: true,
       ways: [
-        { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', chart: 0,
+        { id: 'comp', label: 'WCI(세계 컨테이너 운임지수)', en: 'World Container Index', chart: 0,
           desc: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표입니다.',
           em: '전 세계 주요 뱃길의 운송비 흐름을 한눈에 보여주는 지표' },
-        { id: 'route', label: 'SCFI(상하이 컨테이너 운임지수)', chart: 1,
+        { id: 'route', label: 'SCFI(상하이 컨테이너 운임지수)',
+          en: 'Shanghai Containerized Freight Index', chart: 1,
           desc: '상하이에서 출발하는 항로별 운임입니다. 어느 방면이 비싸지고'
             + ' 있는지 네 항로를 한 그림에서 견줍니다.',
           em: '상하이에서 출발하는 항로별 운임' },
@@ -7468,6 +7469,7 @@ function friWays(id) {
     '<div class="fri-way' + (w.id === _friWay ? ' is-on' : '') + '">'
     + '<button class="fri-way__b" type="button" data-friway="' + escapeHtml(w.id) + '"'
     + ' aria-pressed="' + (w.id === _friWay) + '">' + escapeHtml(w.label) + '</button>'
+    + (w.en ? '<span class="fri-way__en" lang="en">' + escapeHtml(w.en) + '</span>' : '')
     + '<p class="fri-way__d">' + friWayDesc(w) + '</p></div>').join('') + '</div>';
 }
 

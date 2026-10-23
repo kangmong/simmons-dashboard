@@ -6187,6 +6187,9 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .fri-way.is-on .fri-way__b { background: var(--navy); border-color: var(--navy);
   color: #fff; font-weight: 800; }
 .fri-way__b:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+/* 지수의 영문 정식 명칭 — 단추 옆에 작게 */
+.fri-way__en { display: inline-block; margin-left: 10px; vertical-align: middle;
+  font-size: 12px; font-weight: 700; color: var(--slate); letter-spacing: .01em; }
 .fri-way__d { margin: 8px 0 0; font-size: 12px; line-height: 1.6;
   font-weight: 700; color: var(--ink); word-break: keep-all; }
 /* 설명의 핵심 구절 — 노란 형광펜. 글자는 진한 남색이라 대비가 충분하다(11.4:1).
