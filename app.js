@@ -8148,7 +8148,8 @@ function knBody() {
   /* 표 옆 설명 — 화살표가 표를 가리킨다. 숫자·색·열이 무엇인지 */
   const guide = '<div class="kn-guide">'
     + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>칸의 숫자</b>'
-      + ' 그 달에 배가 예정 시각 ±24시간 안에 도착한 비율(%)입니다. 높을수록 일정대로 들어옵니다.</div></div>'
+      + ' 그 달에 배가 예정 시각 <mark class="hl-em">±24시간 안에 도착한 비율(%)</mark>입니다.'
+      + ' <mark class="hl-em">높을수록 일정대로 들어옵니다.</mark></div></div>'
     + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>칸의 색</b> '
       + KN_BANDS.map((b) => '<span class="kn-chip kn-c--' + b.cls + '">' + b.label + ' ' + b.word + '</span>').join(' ')
       + '<br><small>대시보드가 정한 기준입니다'
