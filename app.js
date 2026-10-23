@@ -8030,13 +8030,22 @@ function knOk() {
   return !!(_knData && _knData.status === 'ok' && _knData.latest && Array.isArray(_knData.lanes));
 }
 function knYm(ym) { return ym.slice(2, 4) + '.' + ym.slice(5, 7); }
+let _knBarsOpen = false;     // 오른쪽 '노선별 정시성 추이' 펼침
+/* 색 기준 — 대시보드가 정한 3단계(70% 이상 양호 · 50~70% 보통 · 50% 미만 지연 많음).
+   K+N 이 정한 기준은 아니다. 전 세계 평균이 50%대라 그 위아래로 나눴다. */
+const KN_BANDS = [
+  { min: 70, cls: 'hi', label: '70% 이상', word: '양호' },
+  { min: 50, cls: 'mid', label: '50~70%', word: '보통' },
+  { min: 0, cls: 'lo', label: '50% 미만', word: '지연 많음' },
+];
+function knBand(v) { return KN_BANDS.filter((b) => v >= b.min)[0]; }
 
 function knTable() {
   const ms = _knData.latest.months;
   const cell = (v, last) => {
     if (v == null) return '<td class="fri-tb__n">—</td>';
     /* 칸 바탕은 값에 비례해 옅게 칠한다 — 높을수록 진한 파랑(글자 대비는 진한 남색 글자로 지킨다) */
-    return '<td class="fri-tb__n kn-c' + (last ? ' kn-c--last' : '') + '" style="--kn:' + (v / 100).toFixed(3) + '">'
+    return '<td class="fri-tb__n kn-c kn-c--' + knBand(v).cls + (last ? ' kn-c--last' : '') + '">'
       + v.toFixed(1) + '%</td>';
   };
   const rows = _knData.lanes.map((l) => '<tr><td class="kn-lane"><b>' + escapeHtml(l.ko) + '</b>'
@@ -8073,8 +8082,10 @@ function knBars() {
       const v = l.values[m];
       if (v == null) return '';
       const h = (v / 100) * (H - T - B);
-      return '<rect x="' + (i * W / n + (W / n - bw) / 2).toFixed(1) + '" y="' + (H - B - h).toFixed(1)
-        + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '"><title>' + escapeHtml(knYm(m) + ' ' + v.toFixed(1) + '%') + '</title></rect>';
+      /* 축 글자 없이 — 막대에 마우스를 올리면(누르면) 달·값이 뜬다(wireFri 의 knTip) */
+      return '<rect class="kn-b--' + knBand(v).cls + '" x="' + (i * W / n + (W / n - bw) / 2).toFixed(1) + '" y="' + (H - B - h).toFixed(1)
+        + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" data-knv="'
+        + escapeHtml(l.ko + ' · ' + m.replace('-', '년 ') + '월 · ' + v.toFixed(1) + '%') + '"></rect>';
     }).join('');
     const y50 = H - B - 0.5 * (H - T - B);
     return '<div class="kn-bar">'
@@ -8084,8 +8095,8 @@ function knBars() {
       + '<line class="kn-bar__g" x1="0" x2="' + W + '" y1="' + (H - B) + '" y2="' + (H - B) + '"/>'
       + bars + '</svg></div>';
   };
-  return '<div class="fri-minis__h">노선별 정시성 추이 <span>참고용 · ' + escapeHtml(knYm(months[0])) + '~'
-    + escapeHtml(knYm(months[n - 1])) + ' · 가는 선은 50% · 빈 달은 보고서에 없는 달</span></div>'
+  return '<div class="fri-minis__h kn-bars__h">노선별 정시성 추이 <span>참고용 · ' + escapeHtml(knYm(months[0])) + '~'
+    + escapeHtml(knYm(months[n - 1])) + ' · 막대에 마우스를 올리면 값 · 가는 선은 50% · 빈 달은 보고서에 없는 달</span></div>'
     + '<div class="kn-bars">' + _knData.lanes.map(card).join('') + '</div>';
 }
 
@@ -8095,8 +8106,24 @@ function knBody() {
       + (_knData && _knData.reason ? ' (' + escapeHtml(_knData.reason) + ')' : '') + '</div>';
   }
   const L = _knData.latest;
+  const ms = L.months, g = L.global;
+  /* 표 옆 설명 — 화살표가 표를 가리킨다. 숫자·색·열이 무엇인지 */
+  const guide = '<div class="kn-guide">'
+    + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>칸의 숫자</b>'
+      + ' 그 달에 배가 예정 시각 ±24시간 안에 도착한 비율(%)입니다. 높을수록 일정대로 들어옵니다.</div></div>'
+    + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>칸의 색</b> '
+      + KN_BANDS.map((b) => '<span class="kn-chip kn-c--' + b.cls + '">' + b.label + ' ' + b.word + '</span>').join(' ')
+      + '<br><small>대시보드가 정한 기준입니다'
+      + (g != null ? ' · 이번 달 전 세계 평균 ' + g.toFixed(1) + '%' : '') + '</small></div></div>'
+    + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>맨 오른쪽 굵은 열</b> 최신 달('
+      + escapeHtml(knYm(ms[ms.length - 1])) + ') · <b>첫 열</b> 1년 전 같은 달(' + escapeHtml(knYm(ms[0])) + ') — 1년 전과 견줄 때 봅니다.</div></div>'
+    + '<div class="kn-guide__i"><span class="kn-guide__a" aria-hidden="true">◀</span><div><b>노선 이름의 ↔</b>'
+      + ' 두 지역 사이를 오가는 노선입니다(예: 아시아 ↔ 북유럽).</div></div>'
+    + '</div>';
   return '<div class="kn-row"><div class="kn-left">' + knTable() + '</div>'
-    + '<div class="kn-right">' + knBars() + '</div></div>'
+    + '<div class="kn-right">' + guide
+    + '<div class="kc-btns kn-btns">' + sideBtn('data-knbars', _knBarsOpen, '노선별 정시성 추이') + '</div>'
+    + (_knBarsOpen ? knBars() : '') + '</div></div>'
     + '<div class="fri-src"><b>출처</b> Kuehne+Nagel seaexplorer Schedule Reliability Report · '
     + '<a href="' + escapeHtml(L.url) + '" target="_blank" rel="noopener noreferrer">원본 보고서 ↗</a>'
     + (L.published ? ' · 발표 ' + escapeHtml(L.published) : '') + ' · 갱신 월 1회(매달 중순)'
@@ -8391,9 +8418,11 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars]') : null;
     if (kc) {
-      if (kc.hasAttribute('data-kccodes')) {
+      if (kc.hasAttribute('data-knbars')) {
+        _knBarsOpen = !_knBarsOpen;
+      } else if (kc.hasAttribute('data-kccodes')) {
         _kcciCodes = !_kcciCodes;
       } else if (kc.hasAttribute('data-kcminis')) {
         _kcciMinisOpen = !_kcciMinisOpen;
@@ -8440,6 +8469,26 @@ function wireFri(root) {
   });
   /* 값 말풍선 — 특허 카드가 쓰는 것과 같은 부품(ptTip*) 을 그대로 쓴다 */
   wirePtTips(fig);
+  /* 해상 정시성 막대 — 올리면(누르면) 달·값 */
+  const knTip = (e) => {
+    const r = e.target && e.target.closest ? e.target.closest('[data-knv]') : null;
+    let tip = document.getElementById('knTip');
+    if (!r) { if (tip) tip.hidden = true; return; }
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'knTip'; tip.className = 'kn-tip'; tip.setAttribute('role', 'tooltip');
+      document.body.appendChild(tip);
+    }
+    tip.textContent = r.getAttribute('data-knv');
+    tip.hidden = false;
+    const b = r.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8,
+      b.left + b.width / 2 - tip.offsetWidth / 2)) + 'px';
+    tip.style.top = (window.scrollY + b.top - tip.offsetHeight - 6) + 'px';
+  };
+  fig.addEventListener('mouseover', knTip);
+  fig.addEventListener('click', knTip);
+  fig.addEventListener('mouseleave', () => { const t = document.getElementById('knTip'); if (t) t.hidden = true; });
 }
 
 /* ══ 글로벌 컨테이너 운임지수 — Xeneta Shipping Index by Compass (XSI-C) ══
@@ -17218,7 +17267,7 @@ function initUpdate() {
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
     _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false; _kcciMinisOpen = false;
-    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false;
+    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false;
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
