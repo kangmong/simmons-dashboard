@@ -7508,7 +7508,7 @@ function idxLineChart(D, V, o) {
   }
   const d = D.slice(from), v = V.slice(from), n = v.length;
   /* 좁은 화면은 그림 폭을 줄여 그린다 — 1000 폭을 그대로 줄이면 글자가 3px 이 된다 */
-  const narrow = window.innerWidth <= 760;
+  const narrow = o.compact || window.innerWidth <= 760;   // compact: 좁은 칸에 들어갈 때
   const W = narrow ? 460 : 1000, H = narrow ? 330 : 420, L = narrow ? 52 : 72,
     R = narrow ? 70 : 120, T = 30, B = 40;
   const max = Math.max.apply(null, v);
@@ -8214,6 +8214,7 @@ let _scfiData = null;     // RackingHub 가 정리한 SSE 항로별 값(scfi_rou
 let _scfiOne = '';        // 그래프에 혼자 보는 항로('' = 종합지수, NLIC 2014년~)
 let _scfiMini = '';
 let _scfiMinisOpen = false;  // 표 옆 '상하이발 SCFI 항로별 추이' 펼침
+let _scfiLane = '';          // 표에서 고른 항로 — 고르면 항로별 추이에 그 항로만 크게
 
 function scfiLanes() {
   return (_scfiData && _scfiData.status === 'ok' && Array.isArray(_scfiData.lanes)) ? _scfiData.lanes : [];
@@ -8235,7 +8236,9 @@ function scfiWow(l) {
 function scfiTable(lanes) {
   const rows = lanes.map((l) => {
     const v = l.values[l.values.length - 1];
-    return '<tr' + (l.id === 'composite' ? ' class="fri-tb__sum"' : '') + '>'
+    /* 줄을 누르면 그 항로를 고른다(다시 누르면 해제) — 항로별 추이가 그 항로만 보여 준다 */
+    return '<tr class="kn-tr' + (l.id === 'composite' ? ' fri-tb__sum' : '') + (_scfiLane === l.id ? ' is-on' : '')
+      + '" data-sclane="' + escapeHtml(l.id) + '" tabindex="0" aria-pressed="' + (_scfiLane === l.id) + '">'
       + '<td>' + escapeHtml(l.ko) + ' <span class="kc-pick__c">' + escapeHtml(l.en) + '</span></td>'
       + '<td class="fri-tb__n">' + (l.unit === 'pt' ? 'pt' : '$/' + escapeHtml(l.unit)) + '</td>'
       + '<td class="fri-tb__n"><b>' + scfiFmt(l, v) + '</b>'
@@ -8247,11 +8250,30 @@ function scfiTable(lanes) {
     + '<th>항로(상하이 →)</th><th class="fri-tb__n">단위</th><th class="fri-tb__n">이번 주<br>' + escapeHtml(day)
     + '</th><th class="fri-tb__n">전주 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
     + '<div class="fri-tb__more">TEU = 20피트, FEU = 40피트 컨테이너 1개 · 해상운임과 할증료 포함 · '
-    + 'SSE 발표치를 RackingHub 가 정리한 값 그대로입니다.</div>';
+    + 'SSE 발표치를 RackingHub 가 정리한 값 그대로입니다 · <b>항로 줄을 누르면</b> 항로별 추이에 그 항로만 나옵니다.</div>';
 }
 
 /** 상하이발 SCFI 항로별 추이 — 첫 값·최고·최저·지금을 선 위에 적는다(KCCI 와 같은 모양) */
 function scfiMinis(lanes) {
+  const one = _scfiLane ? lanes.filter((l) => l.id === _scfiLane)[0] : null;
+  if (one) {
+    const v = one.values;
+    return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
+      + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
+      + ' <span>SCFI BY ROUTE · 2025년은 월 1회, 2026년부터 주 1회</span></div>'
+      + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(one.ko) + '</b> ' + escapeHtml(one.en)
+      + ' · 지금 <b>' + scfiFmt(one, v[v.length - 1]) + '</b> · 전주 ' + kcciPct(scfiWow(one))
+      + '<button type="button" class="kn-all" data-sclane="">전체 항로 보기</button></div>'
+      + idxLineChart(one.dates, one.values, {
+        span: 'all', compact: true, tone: one.id === 'composite' ? 'var(--navy)' : '#2563EB',
+        krw: one.unit !== 'pt', fmt: (x) => scfiFmt(one, x),
+        unit: one.unit === 'pt' ? 'pt' : '$/' + one.unit,
+        tick: (x) => (one.unit === 'pt' ? '' : '$') + Math.round(x).toLocaleString('ko-KR'),
+        caption: '상하이 → ' + escapeHtml(one.en) + ' <span>' + escapeHtml(one.dates[0]) + ' ~ '
+          + escapeHtml(one.dates[one.dates.length - 1]) + ' · 세로축은 0 부터</span>',
+        aria: one.ko + ' SCFI 추이',
+      }) + '</div></div>';
+  }
   const card = (l) => {
     const v = l.values, n = v.length;
     let hi = 0, lo = 0;
@@ -8471,9 +8493,12 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars], [data-knlane]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars], [data-knlane], [data-sclane]') : null;
     if (kc) {
-      if (kc.hasAttribute('data-knlane')) {
+      if (kc.hasAttribute('data-sclane')) {
+        const k = kc.getAttribute('data-sclane');
+        _scfiLane = (!k || _scfiLane === k) ? '' : k;
+      } else if (kc.hasAttribute('data-knlane')) {
         const k = kc.getAttribute('data-knlane');
         _knLane = (!k || _knLane === k) ? '' : k;
       } else if (kc.hasAttribute('data-knbars')) {
@@ -8544,10 +8569,9 @@ function wireFri(root) {
   };
   fig.addEventListener('mouseover', knTip);
   fig.addEventListener('keydown', (e) => {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('tr[data-knlane]')) {
-      e.preventDefault();
-      e.target.closest('tr[data-knlane]').click();
-    }
+    const tr = (e.key === 'Enter' || e.key === ' ') && e.target.closest
+      ? e.target.closest('tr[data-knlane], tr[data-sclane]') : null;
+    if (tr) { e.preventDefault(); tr.click(); }
   });
   fig.addEventListener('click', knTip);
   fig.addEventListener('mouseleave', () => { const t = document.getElementById('knTip'); if (t) t.hidden = true; });
@@ -17329,7 +17353,7 @@ function initUpdate() {
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
     _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false; _kcciMinisOpen = false;
-    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false; _knLane = '';
+    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false; _knLane = ''; _scfiLane = '';
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
