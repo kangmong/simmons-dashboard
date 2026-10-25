@@ -7417,6 +7417,7 @@ let _kcciMini = '';       // 설명을 펼친 항로 카드
 let _kcciSpan = '1y';     // 그래프 기간
 let _kcciCodes = false;   // 표 옆 '코드 한눈에 보기' 펼침
 let _kcciMinisOpen = false;  // 표 옆 '부산발 항로별 추이' 펼침
+let _kcciSel = '';           // 표에서 고른 코드 — 고르면 코드 카드·항로별 추이가 그것만
 
 /** 표 오른쪽 빈칸의 펼치기 단추 — KCCI·SCFI 가 같이 쓴다 */
 function sideBtn(attr, open, label) {
@@ -7588,7 +7589,9 @@ function kcciTable() {
       ? '<td rowspan="' + groups[gk] + '" class="kc-tb__g">' + escapeHtml(KCCI_GROUP_KO[gk] || gk) + '</td>' : '';
     lastGroup = gk;
     const diff = st.cur - st.prev;
-    return '<tr' + (c === 'KCCI' ? ' class="fri-tb__sum"' : '') + '>' + gcell
+    /* 줄을 누르면 그 코드를 고른다(다시 누르면 해제) — 오른쪽 펼침 내용이 그것만 보여 준다 */
+    return '<tr class="kn-tr' + (c === 'KCCI' ? ' fri-tb__sum' : '') + (_kcciSel === c ? ' is-on' : '')
+      + '" data-kcsel="' + c + '" tabindex="0" aria-pressed="' + (_kcciSel === c) + '">' + gcell
       + '<td><b class="kc-tb__c">' + c + '</b></td>'
       + '<td>' + escapeHtml(info.ko) + '</td>'
       + '<td class="fri-tb__n">' + (m.weight != null ? m.weight + '%' : '—') + '</td>'
@@ -7605,7 +7608,8 @@ function kcciTable() {
     + '<th class="fri-tb__n">지난주<br>' + escapeHtml(st0.prevDate) + '</th>'
     + '<th class="fri-tb__n">증감</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
     + '<div class="fri-tb__more">종합지수는 pt, 항로는 $/FEU(40피트 컨테이너 1개) · 비중은 종합지수를 계산할 때'
-    + ' 그 항로가 차지하는 몫 · 값은 KOBC 발표 그대로입니다.</div>';
+    + ' 그 항로가 차지하는 몫 · 값은 KOBC 발표 그대로입니다 · <b>줄을 누르면</b> 오른쪽 코드 카드·항로별 추이가'
+    + ' 그것만 보여 줍니다.</div>';
 }
 
 /** 미니 카드 한 줄 설명 — 수집한 값으로만 */
@@ -7621,6 +7625,23 @@ function kcciMiniWords(c) {
 
 /** 부산발 항로별 추이 — 13개 항로, 첫 값·최고·최저·지금을 선 위에 적는다(예시 이미지 모양) */
 function kcciMinis() {
+  if (_kcciSel) {
+    const c = _kcciSel, info = KCCI_INFO[c], st = kcciStat(c);
+    return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
+      + '(<mark class="hl-em">부산 기준 각 항로 운송비 추세 설명</mark>)'
+      + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
+      + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(info.ko) + '</b> ' + c
+      + ' · 지금 <b>' + kcciVal(c, st.cur) + '</b> · 전주 ' + kcciPct(st.wk)
+      + '<button type="button" class="kn-all" data-kcsel="">전체 항로 보기</button></div>'
+      + idxLineChart(_kcciData.dates, _kcciData.series[c], {
+        span: 'all', compact: true, tone: c === 'KCCI' ? 'var(--navy)' : '#2563EB',
+        krw: c !== 'KCCI', fmt: (x) => kcciVal(c, x), unit: c === 'KCCI' ? 'pt' : '$/FEU',
+        tick: (x) => (c === 'KCCI' ? '' : '$') + Math.round(x).toLocaleString('ko-KR'),
+        caption: (c === 'KCCI' ? '종합지수' : '부산 → ' + escapeHtml(info.to)) + ' <span>'
+          + escapeHtml(_kcciData.dates[0]) + ' ~ ' + escapeHtml(st.date) + ' · 세로축은 0 부터</span>',
+        aria: info.ko + ' KCCI 추이',
+      }) + '</div></div>';
+  }
   const card = (c) => {
     const v = _kcciData.series[c], n = v.length;
     let hi = 0, lo = 0;
@@ -7666,6 +7687,7 @@ function kcciMinis() {
 
 /** 코드 한눈에 보기 — 코드 글자가 무엇을 뜻하는지(K + 항로 + I)와 비중·지금 값 */
 function kcciCodes() {
+  const allBtn = _kcciSel ? '<button type="button" class="kn-all kc-codes__all" data-kcsel="">전체 코드 보기</button>' : '';
   const meta = _kcciData.meta || {};
   const order = ['Index', 'Mainlane', 'Non-Mainlane', 'Intra Asia'];
   const card = (c) => {
@@ -7684,12 +7706,14 @@ function kcciCodes() {
       + '<div class="kc-now"><b>' + kcciVal(c, st.cur) + '</b> ' + kcciPct(st.wk) + '</div>'
       + '</div>';
   };
-  return '<div class="kc-codes"><div class="fri-minis__h">KCCI 코드 한눈에 보기'
+  return '<div class="kc-codes"><div class="fri-minis__h">' + allBtn + 'KCCI 코드 한눈에 보기'
     + '(<mark class="hl-em">K + 항로 + I 로 읽습니다</mark>) <span>막대는 종합지수 계산 비중</span></div>'
     + order.map((gk) => {
-      const cs = _kcciData.codes.filter((c) => (meta[c] || {}).group === gk);
+      const cs = _kcciData.codes.filter((c) => (meta[c] || {}).group === gk && (!_kcciSel || c === _kcciSel));
       if (!cs.length) return '';
-      const sum = cs.reduce((a, c) => a + ((meta[c] || {}).weight || 0), 0);
+      /* 합계는 고른 것과 상관없이 그 구분 전체로 센다 */
+      const sum = _kcciData.codes.filter((c) => (meta[c] || {}).group === gk)
+        .reduce((a, c) => a + ((meta[c] || {}).weight || 0), 0);
       return '<div class="kc-grp"><div class="kc-grp__h">' + escapeHtml(KCCI_GROUP_KO[gk] || gk)
         + ' <span>' + escapeHtml(gk) + (gk === 'Index' ? '' : ' · 비중 합계 ' + sum + '%') + '</span></div>'
         + '<div class="kc-grid">' + cs.map(card).join('') + '</div></div>';
@@ -8493,9 +8517,12 @@ function wireFri(root) {
       renderMaterial();
       return;
     }
-    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars], [data-knlane], [data-sclane]') : null;
+    const kc = e.target.closest ? e.target.closest('[data-kcone], [data-kcmini], [data-kcspan], [data-kccodes], [data-kcminis], [data-scminis], [data-scone], [data-scmini], [data-knbars], [data-knlane], [data-sclane], [data-kcsel]') : null;
     if (kc) {
-      if (kc.hasAttribute('data-sclane')) {
+      if (kc.hasAttribute('data-kcsel')) {
+        const k = kc.getAttribute('data-kcsel');
+        _kcciSel = (!k || _kcciSel === k) ? '' : k;
+      } else if (kc.hasAttribute('data-sclane')) {
         const k = kc.getAttribute('data-sclane');
         _scfiLane = (!k || _scfiLane === k) ? '' : k;
       } else if (kc.hasAttribute('data-knlane')) {
@@ -8570,7 +8597,7 @@ function wireFri(root) {
   fig.addEventListener('mouseover', knTip);
   fig.addEventListener('keydown', (e) => {
     const tr = (e.key === 'Enter' || e.key === ' ') && e.target.closest
-      ? e.target.closest('tr[data-knlane], tr[data-sclane]') : null;
+      ? e.target.closest('tr[data-knlane], tr[data-sclane], tr[data-kcsel]') : null;
     if (tr) { e.preventDefault(); tr.click(); }
   });
   fig.addEventListener('click', knTip);
@@ -17353,7 +17380,7 @@ function initUpdate() {
     /* ★ 업데이트하면 고른 것을 비운다 — 단추만 보이는 처음 상태로 */
     _friPick = ''; _friWay = ''; _friMini = ''; _friOne = ''; _friSub = '';
     _kcciOne = ''; _kcciMini = ''; _kcciSpan = '1y'; _kcciCodes = false; _kcciMinisOpen = false;
-    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false; _knLane = ''; _scfiLane = '';
+    _scfiOne = ''; _scfiMini = ''; _scfiMinisOpen = false; _knBarsOpen = false; _knLane = ''; _scfiLane = ''; _kcciSel = '';
     /* ★ 원자재 가지치기도 처음으로 — '원자재 동향' 버튼만 보이고, 눌러야 항목이,
        항목을 눌러야 카드가 나온다 */
     _mtTree = { open: null, pick: null }; mtTreeSave();
