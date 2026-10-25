@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-23",
+  "updated": "2026-10-26",
   "hero": {
     "title": "일일 국제원자재가격 (KOIMA)",
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
@@ -102,6 +102,50 @@
       "detail": "상하이 재고가 급감하면서 구리 가격이 급등하여 1t당 1만 4790달러를 돌파했다.",
       "source": "뉴스 (뉴스 자동 수집)",
       "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE4yUnlyMWpvTVZlOU5OcTFjUWhiR2JEb1NRd0tKdTdXM1VKb3Y3Yk40bW15V2NJSzF5Z0RReTluSlhBeUY4cXN6SVVTZ1FHcUdEVWd4X3FfcFRqb1o5d292XzJoN3RVWEdLVzVqaTdQVEFDR2xKaGlN?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-09-28",
+      "cats": [
+        "petchem"
+      ],
+      "label": "TPC 그룹 공장 가동 중단",
+      "detail": "TPC 그룹의 공장 가동 중단과 나프타 비용 상승으로 미국 라피네이트 시장의 압박이 가중되었다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxPcjQxYUhha3ZuTDRpdVVVMVRWUDhTVXlPZVlSNXNUZTBTaVRnNzFYS0JUbEtIMzQ0QVhSRXVJMnB5NE93TUVSVVBsMU1JTmRLckxnZjlWOTFMZUpjRXd0V1VlZy1RcTQzaW5wM0lvSE9icXlHRFJVanItbDVjRVNvQWp5T0Z4aWR4NGl2MlI3QmdxMkpqbW5uZlg1dkNiSkxHemd5NDZha3RfV2hEcFdaaDhNOHBzYW1leFZNRUhn?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-15",
+      "cats": [
+        "textile"
+      ],
+      "label": "미국 농무부 면화 조면 발표",
+      "detail": "2026년 10월 15일 기준 미국 농무부의 면화 조면량이 1,653,100 러닝 베일을 기록했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxQMElsSG5YcUVGRGRNcXhHWjVPaEhuZFFlcU1uQTkwcEhyRUF5RHhoVUx5Rnhocmtxd0dIYUF3QnpwMVFRUWFMak5tbjhrVjlyY0ktOVNyZXIwdUN3enBwOG5IUndHUTVBYVBKc1Y3eklvYlNwVms3YWtvY3pVSDBjWDNHQmgteE5OMzVwZ1pn?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-23",
+      "cats": [
+        "nonferrous"
+      ],
+      "label": "LME 구리 재고 27만2,950톤 증가",
+      "detail": "LME 구리 재고가 27만2,950톤으로 증가하면서 구리 가격이 5주 만의 최저 수준으로 하락했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMiREFVX3lxTE9DZVR5bFhtTWtZYlEtdVFOSmltZW1qNDZUOXRONGk2dnZkcTk2dUYtQjhiQ1JLRmQwcEp1bDRicW5fVjc3?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-09",
+      "cats": [
+        "rare"
+      ],
+      "label": "콩고 ARECOMS의 코발트 수출 통제 강화",
+      "detail": "ARECOMS는 코발트 가격을 뒷받침하기 위해 콩고의 코발트 수출 통제를 강화했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxNQW5KbjI2ZDVOTWdldkpNQ0JaRW9sWEFjWUR4V1pMeFdtR2lzelh4aVhHNUItdnpGQTR5REFtSHhHWmVKWjFZTHhOS3FxYTRTVWNURVlybGRJckhXamZkRDNJd2FTQXpRODk1M3ZLUkYxQTNEUFVyVUFDb0YwVVhKcTJyZ0puMjNWRmc5bm55Zkg5bHpWWUZBTw?oc=5",
       "auto": true
     }
   ],
