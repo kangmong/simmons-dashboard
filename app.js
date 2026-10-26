@@ -8270,7 +8270,11 @@ function scfiTable(lanes) {
       + '<td class="fri-tb__n">' + kcciPct(scfiWow(l)) + '</td></tr>';
   }).join('');
   const day = lanes[0].dates[lanes[0].dates.length - 1];
-  return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb"><thead><tr>'
+  /* 표 제목 — 무엇을 보는 표인지 한 줄로(해상 정시성 표 제목과 같은 모양) */
+  return '<div class="fri-minis__h">상하이발 항로별 운임'
+    + '(<mark class="hl-em">상하이에서 컨테이너 한 개를 보낼 때 드는 운송비</mark>)'
+    + ' <span>SCFI 항로별 · ' + escapeHtml(day) + ' 발표 · 지난주와 비교</span></div>'
+    + '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb"><thead><tr>'
     + '<th>항로(상하이 →)</th><th class="fri-tb__n">단위</th><th class="fri-tb__n">이번 주<br>' + escapeHtml(day)
     + '</th><th class="fri-tb__n">전주 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
     + '<div class="fri-tb__more">TEU = 20피트, FEU = 40피트 컨테이너 1개 · 해상운임과 할증료 포함 · '
