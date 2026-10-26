@@ -7631,18 +7631,19 @@ function kcciMiniWords(c) {
 function kcciMinis() {
   if (_kcciSel) {
     const c = _kcciSel, info = KCCI_INFO[c], st = kcciStat(c);
+    const i0 = miniRecentFrom(_kcciData.dates);
     return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
       + '(<mark class="hl-em">부산 기준 각 항로 운송비 추세 설명</mark>)'
-      + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
+      + ' <span>KCCI BY ROUTE · 최근 5개월(카드의 빨간 동그라미 구간)</span></div>'
       + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(info.ko) + '</b> ' + c
       + ' · 지금 <b>' + kcciVal(c, st.cur) + '</b> · 전주 ' + kcciPct(st.wk)
       + '<button type="button" class="kn-all" data-kcsel="">전체 항로 보기</button></div>'
-      + idxLineChart(_kcciData.dates, _kcciData.series[c], {
+      + idxLineChart(_kcciData.dates.slice(i0), _kcciData.series[c].slice(i0), {
         span: 'all', compact: true, tone: c === 'KCCI' ? 'var(--navy)' : '#2563EB',
         krw: c !== 'KCCI', fmt: (x) => kcciVal(c, x), unit: c === 'KCCI' ? 'pt' : '$/FEU',
         tick: (x) => (c === 'KCCI' ? '' : '$') + Math.round(x).toLocaleString('ko-KR'),
         caption: (c === 'KCCI' ? '종합지수' : '부산 → ' + escapeHtml(info.to)) + ' <span>'
-          + escapeHtml(_kcciData.dates[0]) + ' ~ ' + escapeHtml(st.date) + ' · 세로축은 0 부터</span>',
+          + escapeHtml(_kcciData.dates[i0]) + ' ~ ' + escapeHtml(st.date) + ' · 최근 5개월 · 세로축은 0 부터</span>',
         aria: info.ko + ' KCCI 추이',
       }) + '</div></div>';
   }
@@ -8288,13 +8289,19 @@ function scfiTable(lanes) {
 /** 작은 추이 카드 — 최근 5개월 구간을 빨간 타원으로 감싸고 오르내림 화살표를 붙인다.
  *  dates·v 는 그 카드의 점들, X·Y 는 카드가 쓰는 좌표 함수. 구간 점이 2개 미만이면 그리지 않는다. */
 const MINI_RECENT_MONTHS = 5;
-function miniRecentMark(dates, v, X, Y) {
-  const n = v.length;
+/** 마지막 날짜에서 5개월 전 이후 첫 점의 index — 동그라미와 '한 항로 크게 보기'가 같이 쓴다 */
+function miniRecentFrom(dates) {
+  const n = dates.length;
   const cut = new Date(dates[n - 1] + 'T00:00:00Z');
   cut.setUTCMonth(cut.getUTCMonth() - MINI_RECENT_MONTHS);
   const c = cut.toISOString().slice(0, 10);
   let i0 = n - 1;
   while (i0 > 0 && dates[i0 - 1] >= c) i0--;
+  return i0;
+}
+function miniRecentMark(dates, v, X, Y) {
+  const n = v.length;
+  const i0 = miniRecentFrom(dates);
   if (n - i0 < 2) return '';
   const ys = v.slice(i0).map(Y);
   const x0 = X(i0), x1 = X(n - 1), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
@@ -8317,20 +8324,20 @@ function miniRecentMark(dates, v, X, Y) {
 function scfiMinis(lanes) {
   const one = _scfiLane ? lanes.filter((l) => l.id === _scfiLane)[0] : null;
   if (one) {
-    const v = one.values;
+    const v = one.values, i0 = miniRecentFrom(one.dates);
     return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
       + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
-      + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span></div>'
+      + ' <span>SCFI BY ROUTE · 최근 5개월(카드의 빨간 동그라미 구간)</span></div>'
       + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(one.ko) + '</b> ' + escapeHtml(one.en)
       + ' · 지금 <b>' + scfiFmt(one, v[v.length - 1]) + '</b> · 전주 ' + kcciPct(scfiWow(one))
       + '<button type="button" class="kn-all" data-sclane="">전체 항로 보기</button></div>'
-      + idxLineChart(one.dates, one.values, {
+      + idxLineChart(one.dates.slice(i0), one.values.slice(i0), {
         span: 'all', compact: true, tone: one.id === 'composite' ? 'var(--navy)' : '#2563EB',
         krw: one.unit !== 'pt', fmt: (x) => scfiFmt(one, x),
         unit: one.unit === 'pt' ? 'pt' : '$/' + one.unit,
         tick: (x) => (one.unit === 'pt' ? '' : '$') + Math.round(x).toLocaleString('ko-KR'),
-        caption: '상하이 → ' + escapeHtml(one.en) + ' <span>' + escapeHtml(one.dates[0]) + ' ~ '
-          + escapeHtml(one.dates[one.dates.length - 1]) + ' · 세로축은 0 부터</span>',
+        caption: '상하이 → ' + escapeHtml(one.en) + ' <span>' + escapeHtml(one.dates[i0]) + ' ~ '
+          + escapeHtml(one.dates[one.dates.length - 1]) + ' · 최근 5개월 · 세로축은 0 부터</span>',
         aria: one.ko + ' SCFI 추이',
       }) + '</div></div>';
   }
