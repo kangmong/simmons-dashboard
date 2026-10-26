@@ -19234,11 +19234,16 @@ const EXH_DATA_URL = 'public/data/exhibitions.json';
 let _exh = null;        // 로드 결과 (실패하면 null)
 let _exhErr = null;     // 실패 이유 — 조용히 비우지 않고 화면에 그대로 보여 준다
 
-/** 국가 → 국기 이모지. 없는 나라는 글자만 나간다(모양이 깨지지 않게). */
+/** 국가 → 국기 그림(public/flags/xx.svg). 이모지는 Windows 에서 'CN' 같은 글자로 나와 그림을 쓴다.
+ *  표에 없는 나라는 국기 없이 글자만 나간다(모양이 깨지지 않게). */
 const EXH_FLAG = {
-  '중국': '🇨🇳', '미국': '🇺🇸', '독일': '🇩🇪', '이탈리아': '🇮🇹',
-  '프랑스': '🇫🇷', '일본': '🇯🇵', '영국': '🇬🇧', '싱가포르': '🇸🇬',
+  '중국': 'cn', '미국': 'us', '독일': 'de', '이탈리아': 'it', '프랑스': 'fr', '일본': 'jp',
+  '영국': 'gb', '싱가포르': 'sg', '한국': 'kr', '콜롬비아': 'co', 'UAE': 'ae',
 };
+function exhFlagImg(country) {
+  const cc = EXH_FLAG[sIdxStr(country)];
+  return cc ? '<img class="exh-flag" src="public/flags/' + cc + '.svg" alt="' + escapeHtml(sIdxStr(country)) + ' 국기">' : '';
+}
 
 async function fetchExhibitions() {
   try {
@@ -19673,7 +19678,7 @@ function exhPanelHtml() {
     + '<span class="exh-pan__ini">' + escapeHtml(sIdxStr(ev.name).split(' (')[0]) + '</span></div>'
     + '<div class="exh-pan__i">' + head
     + row('개최 기간', escapeHtml(exhRangeLong(ev)) + ' <i>현지시간 기준</i>')
-    + row('장소', escapeHtml(place))
+    + row('장소', escapeHtml(place) + exhFlagImg(ev.country))
     + (ev.category ? '<div class="exh-pan__tags"><span class="exh-pan__tag">#'
       + escapeHtml(sIdxStr(ev.category)) + '</span></div>' : '')
     /* ★ '행사 소개 / 주요 내용'은 데이터에 그런 칸이 생기면 그때 나온다.

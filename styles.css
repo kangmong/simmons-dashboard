@@ -6601,3 +6601,4 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kc-mini__ar { fill: none; stroke: #B91C1C; stroke-width: 2.4; stroke-linecap: round; }
 .kc-mini__ah { fill: #B91C1C; stroke: #B91C1C; stroke-width: 1; stroke-linejoin: round; }
 .kc-mini__key { color: #B91C1C; font-weight: 800; }
+.exh-flag { height: 12px; width: auto; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
