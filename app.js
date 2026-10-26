@@ -17254,7 +17254,7 @@ function resetDashboard() {
   _fxStage = null;      // 2단계 상세에서 보고 있었다면 목록으로 되돌린다
   _fxdRange = null; _fxdTab = 'chart'; _fxdCandle = '1d';
   _fxChart = null;      // 환율 추이 차트 캐시 비우기
-  _exh = null; _exhErr = null;   // 글로벌 매트리스 산업 관련 전시·컨퍼런스 비우기('준비중'으로 되돌린다)
+  _exh = null; _exhErr = null; _exhCal = true; _exhYear = null; _exhMon = null;   // 글로벌 매트리스 산업 관련 전시·컨퍼런스 비우기('준비중'으로 되돌린다)
   _fxCur = null;        // 선택 통화(배열) 미선택으로 리셋
   _fxMonths = null;     // 환율 추이 기간 미선택 상태로 리셋
   _fxReport = false;    // 환율 리포트 접기
@@ -19777,7 +19777,20 @@ function renderExhList() {
     return;
   }
 
-  el.innerHTML = chip + '<div class="exh-list">' + rows.map((x) => {
+  exhWireCal(el);
+  if (_exhCal) {
+    el.innerHTML = chip + exhCalHtml(rows.slice().sort((a, b) => String(a.start).localeCompare(String(b.start))));
+    exhWireListPick(el);
+    exhSyncPick();
+    return;
+  }
+  el.innerHTML = chip + '<div class="exh-list">' + exhCalBack() + rows.map(exhRowHtml).join('') + '</div>';
+  exhWireListPick(el);
+  exhSyncPick();
+}
+
+/** 목록 한 줄 — 전체 목록과 캘린더의 '그달 행사'가 같이 쓴다 */
+function exhRowHtml(x) {
     const d = exhDday(x);
     const link = sIdxStr(x.link);
     const inner = '<span class="exh-li__l">'
@@ -19800,9 +19813,87 @@ function renderExhList() {
       ? '<a class="exh-li" href="' + escapeHtml(link) + '" target="_blank" rel="noopener noreferrer">'
         + inner + '</a>'
       : '<div class="exh-li">' + inner + '</div>';
-  }).join('') + '</div>';
-  exhWireListPick(el);
-  exhSyncPick();
+}
+
+/* ── 연간 행사 캘린더 ─────────────────────────────────────────────────
+   목록 자리의 기본 화면. 월 칸마다 그달에 '시작하는' 행사 수만큼 점(나라 색)을 찍고,
+   월을 누르면 아래에 그달 행사를 목록 행 그대로 펼친다.
+   ★ 점은 exhibitions.json 의 items 를 세어 찍는다 — 행사가 없는 달은 비어 있다. */
+let _exhCal = true;     // true: 캘린더 · false: 전체 목록
+let _exhYear = null;    // 보고 있는 연도(null 이면 다음 행사가 있는 해)
+let _exhMon = null;     // 펼친 월(1~12) · null 이면 접힘
+
+function exhCalBack() {
+  return '<button type="button" class="exh-cal__sw exh-cal__sw--back" data-exhview="cal">← 캘린더로 보기</button>';
+}
+
+function exhCalHtml(items) {
+  const years = Array.from(new Set(items.map((x) => String(x.start).slice(0, 4))
+    .filter((y) => /^\d{4}$/.test(y)))).sort();
+  const now = exhToday();
+  const next = items.filter((x) => { const d = exhDday(x); return d != null && d >= 0; })[0];
+  if (!_exhYear || years.indexOf(_exhYear) < 0) {
+    _exhYear = next ? String(next.start).slice(0, 4) : (years.indexOf(String(now.getFullYear())) >= 0
+      ? String(now.getFullYear()) : years[years.length - 1]);
+  }
+  const ym = (x) => String(x.start).slice(0, 7);
+  const nextYm = next ? ym(next) : '';
+  const nowYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const cells = [];
+  for (let m = 1; m <= 12; m++) {
+    const k = _exhYear + '-' + String(m).padStart(2, '0');
+    const evs = items.filter((x) => ym(x) === k);
+    const cls = (k === nowYm || k === nextYm ? ' is-hl' : '') + (_exhMon === m ? ' is-sel' : '');
+    cells.push('<button type="button" class="exh-cal__c' + cls + '" data-exhmon="' + m + '"'
+      + ' aria-pressed="' + (_exhMon === m) + '" aria-label="' + m + '월 행사 ' + evs.length + '건">'
+      + '<b>' + m + '월</b><span class="exh-cal__ds">'
+      + evs.map((x) => { const d = exhDday(x); return '<i class="exh-dot' + (d != null && d < 0 ? ' is-past' : '')
+        + '" style="background:' + exhCountryColor(x.country) + '"></i>'; }).join('')
+      + '</span></button>');
+  }
+  let mon = '';
+  if (_exhMon) {
+    const k = _exhYear + '-' + String(_exhMon).padStart(2, '0');
+    const evs = items.filter((x) => ym(x) === k);
+    mon = '<div class="exh-cal__mon"><div class="exh-cal__monh">' + _exhYear + '년 ' + _exhMon + '월 행사 · '
+      + evs.length + '건</div>'
+      + (evs.length ? evs.map(exhRowHtml).join('') : '<div class="exh-cal__none">이 달에는 행사가 없습니다.</div>')
+      + '</div>';
+  }
+  return '<div class="exh-cal">'
+    + '<div class="exh-cal__h"><span class="exh-cal__t">'
+    + '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"'
+    + ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/>'
+    + '<path d="M16 3v4M8 3v4M3 10h18"/></svg>연간 행사 캘린더'
+    + '<em>월을 누르면 그달 행사</em></span>'
+    + '<select class="exh-cal__y" data-exhyear aria-label="연도 선택">'
+    + years.map((y) => '<option value="' + y + '"' + (y === _exhYear ? ' selected' : '') + '>' + y + '년</option>').join('')
+    + '</select></div>'
+    + '<div class="exh-cal__g">' + cells.join('') + '</div>'
+    + mon
+    + '<button type="button" class="exh-cal__sw" data-exhview="list">전체 행사 목록 보기 →</button>'
+    + '</div>';
+}
+
+function exhWireCal(root) {
+  if (!root || root.dataset.calWired) return;
+  root.dataset.calWired = '1';
+  root.addEventListener('click', (e) => {
+    const v = e.target.closest('[data-exhview]');
+    if (v) { _exhCal = v.getAttribute('data-exhview') === 'cal'; renderExhList(); return; }
+    const c = e.target.closest('[data-exhmon]');
+    if (!c) return;
+    const m = +c.getAttribute('data-exhmon');
+    _exhMon = (_exhMon === m) ? null : m;
+    renderExhList();
+    const box = root.querySelector('.exh-cal__mon');
+    if (box) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+  root.addEventListener('change', (e) => {
+    if (!e.target.matches('[data-exhyear]')) return;
+    _exhYear = e.target.value; _exhMon = null;
+    renderExhList();
+  });
 }
 
 /** 목록 행 클릭 → 지도 아래 패널. 한 번만 건다(매번 다시 그리므로 위임). */

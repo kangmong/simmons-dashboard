@@ -6551,3 +6551,51 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .kc-codes__all { float: right; margin: -2px 0 0 8px; }
 /* 고른 줄 표시는 그 줄 칸에만 — 여러 줄을 묶은 '구분' 칸에는 긋지 않는다 */
 .kn-tr.is-on td.kc-tb__g { box-shadow: none; }
+
+/* ── 연간 행사 캘린더(전시·컨퍼런스 목록 자리) ── */
+.exh-cal {
+  display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; scrollbar-width: thin; scrollbar-gutter: stable;
+}
+.exh-cal__h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exh-cal__t { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800;
+  color: var(--navy); white-space: nowrap; min-width: 0; }
+.exh-cal__t svg { color: var(--navy-2); flex: 0 0 auto; }
+.exh-cal__t em { font-style: normal; font-weight: 500; font-size: 10px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; }
+.exh-cal__y { font: inherit; font-size: 11px; font-weight: 700; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 6px; padding: 2px 4px; background: var(--card); cursor: pointer; }
+.exh-cal__g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.exh-cal__c {
+  font: inherit; text-align: left; border: 1px solid var(--line); border-radius: 7px; background: var(--card);
+  padding: 4px 8px; min-height: 34px; display: flex; flex-direction: column; gap: 3px; cursor: pointer;
+}
+.exh-cal__c b { font-size: 11px; color: var(--ink); }
+.exh-cal__c:hover { border-color: var(--blue); }
+.exh-cal__c.is-hl { background: var(--blue-soft); }
+.exh-cal__c.is-sel { border-color: var(--navy-2); box-shadow: inset 0 0 0 1px var(--navy-2); }
+.exh-cal__ds { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; min-height: 7px; }
+.exh-dot.is-past { opacity: .35; }
+.exh-cal__mon { border-top: 1px solid var(--line); padding-top: 4px; }
+.exh-cal__monh { font-size: 11px; font-weight: 800; color: var(--navy-2); padding: 2px 0; }
+.exh-cal__none { font-size: 11px; color: var(--muted); padding: 8px 0; }
+.exh-cal__sw {
+  font: inherit; font-size: 11px; font-weight: 700; color: var(--navy-2); background: var(--card);
+  border: 1px solid var(--blue); border-radius: 7px; padding: 5px; cursor: pointer; flex: 0 0 auto;
+}
+.exh-cal__sw:hover { background: var(--blue-soft); }
+.exh-cal__sw--back { border-color: var(--line); margin-bottom: 4px; }
+/* 더보기 화면은 칸이 넓어 오른쪽 이미지처럼 큼직하게 */
+.content[data-view="exh"] .exh-cal { gap: 10px; }
+.content[data-view="exh"] .exh-cal__g { gap: 9px; }
+.content[data-view="exh"] .exh-cal__c { min-height: 62px; padding: 9px 12px; gap: 9px; }
+.content[data-view="exh"] .exh-cal__c b { font-size: 13px; }
+.content[data-view="exh"] .exh-cal__ds .exh-dot { width: 9px; height: 9px; }
+.content[data-view="exh"] .exh-cal__t { font-size: 14px; }
+.content[data-view="exh"] .exh-cal__t em { font-size: 11px; }
+.content[data-view="exh"] .exh-cal__sw { padding: 8px; font-size: 12px; }
+/* 좁은 화면은 카드가 한 줄씩 쌓여 옆 카드와 높이를 맞출 일이 없다 — 캘린더가 반쯤 잘리지 않게 캡을 푼다 */
+@media (max-width: 768px) {
+  .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body { max-height: none; }
+  .exh-cal { overflow-y: visible; }
+}
