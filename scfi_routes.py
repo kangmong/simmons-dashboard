@@ -20,12 +20,15 @@ import io
 import json
 import re
 import sys
+import time
 
 import requests
 from bs4 import BeautifulSoup
 
 OUT = "public/data/scfi-routes.json"
 URL = "https://rackinghub.com/freight-trends/"
+KSA_URL = "https://oneksa.kr/shipping_index/lists"
+KSA_FROM = "2023-01-01"
 KST = datetime.timezone(datetime.timedelta(hours=9))
 HDR = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"}
@@ -83,15 +86,75 @@ def fetch():
     return lanes
 
 
-def merge(old, new):
-    """이미 받은 점을 지우지 않는다 — 날짜별로 합친다(같은 날짜는 새 값)."""
+def fetch_ksa(since):
+    """한국해운협회 '해상운임지수'(https://oneksa.kr/shipping_index) — SCFI 유럽·미주 서안·미주 동안
+    주간 값. RackingHub 는 2025-01 부터라 그 앞(2023-01~)을 이것으로 채운다.
+    ★ 날짜별 표(하루 한 줄, SCFI 는 발표일 줄에만 값)를 쪽마다 넘기며 since 까지 읽는다.
+    ★ 겹치는 93개 값 중 90개가 RackingHub 와 같았다(2025-04-30 하루만 달랐다) —
+      그래서 이 값은 RackingHub 에 없는 날짜만 채운다(merge)."""
+    cols = {4: "us-west", 5: "europe", 6: "us-east"}
+    out = {v: {} for v in cols.values()}
+    today = datetime.date.today().isoformat()
+    for page in range(1, 120):
+        r = requests.get(KSA_URL, params={"sdate": since, "edate": today, "page": page},
+                         headers=HDR, timeout=60)
+        r.raise_for_status()
+        rows = [[c.get_text(strip=True) for c in tr.find_all("td")]
+                for tr in BeautifulSoup(r.text, "html.parser").select("table.tbl_type1.pc tr")]
+        rows = [x for x in rows if len(x) >= 7 and re.fullmatch(r"\d{4}-\d{2}-\d{2}", x[0])]
+        if not rows:
+            break
+        for x in rows:
+            for c, lid in cols.items():
+                v = x[c].replace(",", "")
+                if re.fullmatch(r"\d+(?:\.\d+)?", v):
+                    out[lid][x[0]] = float(v) if "." in v else int(v)
+        if rows[-1][0] <= since:
+            break
+        time.sleep(0.7)
+    return out
+
+
+def merge(old, new, extra=None):
+    """이미 받은 점을 지우지 않는다 — 날짜별로 합친다(같은 날짜는 새 값).
+    extra(한국해운협회)는 비어 있는 날짜만 채운다."""
     prev = {l["id"]: dict(zip(l["dates"], l["values"])) for l in (old or {}).get("lanes", [])}
     for l in new:
         m = prev.get(l["id"], {})
         m.update(zip(l["dates"], l["values"]))
+        # ★ 중국 연휴 앞에는 SSE 가 하루이틀 일찍 발표한다(09-30·06-18 등). RackingHub 는
+        #   실제 발표일로, 한국해운협회는 그 주 금요일로 적어 같은 값이 두 점이 된다 —
+        #   이미 있는 점에서 4일 안쪽이면 같은 발표로 보고 넣지 않는다.
+        have = [datetime.date.fromisoformat(d) for d in m]
+        added = set()
+        for d, v in (extra or {}).get(l["id"], {}).items():
+            x = datetime.date.fromisoformat(d)
+            if all(abs((x - h).days) > 4 for h in have):
+                m[d] = v
+                added.add(d)
+        # ★ 한국해운협회 값은 사람이 옮겨 적은 표라 오타로 보이는 점이 있다(2025-10-17 유럽
+        #   1,955 — 앞뒤 1,068·1,246). 원자료(SSE)는 유료라 맞춰 볼 수 없으니, 채운 점 중
+        #   앞뒤 점 '둘 다'와 35% 넘게 같은 쪽으로 튄 한 주짜리 점은 넣지 않는다.
+        ds = sorted(m)
+        bad = []
+        for i in range(1, len(ds) - 1):
+            if ds[i] in added:
+                a, v, b = m[ds[i - 1]], m[ds[i]], m[ds[i + 1]]
+                if (v > a * 1.35 and v > b * 1.35) or (v < a / 1.35 and v < b / 1.35):
+                    print("[scfi] %s %s %s 는 앞뒤(%s·%s)와 크게 달라 넣지 않음" % (l["id"], ds[i], v, a, b))
+                    bad.append(ds[i])
+        for d in bad:
+            del m[d]
         ds = sorted(m)
         l["dates"], l["values"] = ds, [m[d] for d in ds]
     return new
+
+
+def _demo():
+    old = {"lanes": [{"id": "europe", "dates": ["2025-01-03"], "values": [1]}]}
+    new = [{"id": "europe", "dates": ["2025-01-10"], "values": [2]}]
+    l = merge(old, new, {"europe": {"2023-01-06": 9, "2025-01-10": 7, "2025-01-12": 7, "2025-01-17": 5}})[0]
+    assert l["dates"] == ["2023-01-06", "2025-01-03", "2025-01-10", "2025-01-17"] and l["values"] == [9, 1, 2, 5]
 
 
 def main():
@@ -104,14 +167,26 @@ def main():
         old = json.load(io.open(OUT, encoding="utf-8"))
     except (OSError, ValueError):
         old = None
-    lanes = merge(old, lanes)
+    # 처음(또는 과거가 비었을 때)만 2023-01 부터 다 읽고, 평소에는 최근 두 달만 읽는다
+    first = min((l["dates"][0] for l in (old or {}).get("lanes", []) if l["id"] == "europe"), default="9999")
+    since = KSA_FROM if first > KSA_FROM[:7] + "-31" else (
+        datetime.date.today() - datetime.timedelta(days=60)).isoformat()
+    try:
+        extra = fetch_ksa(since)
+        print("[scfi] 한국해운협회 %s~ : %s" % (since, ", ".join("%s %d주" % (k, len(v)) for k, v in extra.items())))
+    except Exception as e:  # noqa: BLE001
+        extra = None
+        print("[scfi] 한국해운협회 수집 실패(RackingHub 값만 저장): %s" % str(e)[:160])
+    lanes = merge(old, lanes, extra)
     data = {
         "status": "ok",
         "source": "RackingHub Ocean Freight Trends",
         "url": URL,
+        "source2": "한국해운협회 해상운임지수",
+        "url2": KSA_URL.rsplit("/", 1)[0],
         "origin": "상하이해운거래소(SSE)",
         "originUrl": "https://www.sse.net.cn/index/singleIndex?indexType=scfi",
-        "note": "SSE 발표치를 RackingHub 가 정리해 싣는 값 · 2025년은 월 1회, 2026년부터 주 1회 점",
+        "note": "SSE 발표치 · RackingHub(2025년은 월 1회, 2026년부터 주 1회) + 한국해운협회(유럽·미주 서안·미주 동안 2023-01~ 주 1회)",
         "asOf": max(l["dates"][-1] for l in lanes),
         "lanes": lanes,
     }
@@ -127,4 +202,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--demo" in sys.argv:
+        _demo()
+        print("ok")
+        sys.exit(0)
     sys.exit(main())

@@ -8292,7 +8292,7 @@ function scfiMinis(lanes) {
     const v = one.values;
     return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
       + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
-      + ' <span>SCFI BY ROUTE · 2025년은 월 1회, 2026년부터 주 1회</span></div>'
+      + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span></div>'
       + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(one.ko) + '</b> ' + escapeHtml(one.en)
       + ' · 지금 <b>' + scfiFmt(one, v[v.length - 1]) + '</b> · 전주 ' + kcciPct(scfiWow(one))
       + '<button type="button" class="kn-all" data-sclane="">전체 항로 보기</button></div>'
@@ -8330,7 +8330,7 @@ function scfiMinis(lanes) {
     const open = _scfiMini === l.id;
     const words = '지금 <b>' + scfiFmt(l, v[n - 1]) + '</b>'
       + (l.unit !== 'pt' ? ' (' + escapeHtml(l.unit) + ' 1개)' : '') + '. 전주보다 ' + kcciPct(scfiWow(l))
-      + '. 2025년 이후 최고 ' + scfiFmt(l, v[hi]) + '(' + l.dates[hi] + '), 최저 ' + scfiFmt(l, v[lo])
+      + '. ' + escapeHtml(l.dates[0].slice(0, 7)) + ' 이후 최고 ' + scfiFmt(l, v[hi]) + '(' + l.dates[hi] + '), 최저 ' + scfiFmt(l, v[lo])
       + '(' + l.dates[lo] + ').';
     return '<button class="fri-mini kc-mini' + (open ? ' is-open' : '') + '" type="button" data-scmini="'
       + escapeHtml(l.id) + '" aria-expanded="' + open + '">'
@@ -8345,7 +8345,7 @@ function scfiMinis(lanes) {
   };
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
     + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
-    + ' <span>SCFI BY ROUTE · 2025년은 월 1회, 2026년부터 주 1회</span></div>'
+    + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span></div>'
     + '<div class="fri-minis__g kc-minis__g">'
     + lanes.filter((l) => l.id !== 'composite').map(card).join('') + '</div></div>';
 }
@@ -8408,7 +8408,10 @@ function friScfiBody() {
       span: span, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x), unit: '$/' + one.unit,
       tick: (x) => '$' + Math.round(x).toLocaleString('ko-KR'),
       caption: escapeHtml(one.ko) + ' <span>상하이 → ' + escapeHtml(one.en) + ' · 단위 $/' + escapeHtml(one.unit)
-        + ' · 자료는 ' + escapeHtml(d0.slice(0, 7)) + '부터(2025년은 월 1회 점) · 세로축은 0 부터</span>',
+        + ' · 자료는 ' + escapeHtml(d0.slice(0, 7)) + '부터'
+        /* 2025년이 월 1회뿐인 항로만 알린다(유럽·미주는 한국해운협회 값으로 주 1회) */
+        + (one.dates.filter((d) => d.slice(0, 4) === '2025').length < 20 ? '(2025년은 월 1회 점)' : '')
+        + ' · 세로축은 0 부터</span>',
       aria: one.ko + ' SCFI 운임 추이',
     })
     : idxLineChart(s0.dates, s0.values, {
@@ -8420,6 +8423,8 @@ function friScfiBody() {
     });
   const src = '<div class="fri-src"><b>출처</b> 종합지수 — 국가물류통합정보센터 · 항로별 — '
     + (_scfiData && _scfiData.url ? '<a href="' + escapeHtml(_scfiData.url) + '" target="_blank" rel="noopener noreferrer">RackingHub Ocean Freight Trends ↗</a>' : 'RackingHub')
+    + (_scfiData && _scfiData.url2 ? ' · 유럽·미주 2023~2024년 — <a href="' + escapeHtml(_scfiData.url2)
+      + '" target="_blank" rel="noopener noreferrer">한국해운협회 해상운임지수 ↗</a>' : '')
     + ' · 원 발표 기관 <a href="https://www.sse.net.cn/index/singleIndex?indexType=scfi" target="_blank" rel="noopener noreferrer">상하이항운교역연구소(SSE) ↗</a>'
     + ' · 데이터 기준 ' + escapeHtml(s0.dates[s0.dates.length - 1])
     + (_scfiData && _scfiData.updatedAt ? ' · 항로별 수집 ' + escapeHtml(_scfiData.updatedAt) : '') + '</div>';
