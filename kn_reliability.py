@@ -298,7 +298,8 @@ def main():
             last_month = rep["months"][-1]
     if not got:
         print("[kn] 읽은 보고서 없음 → 파일을 쓰지 않음")
-        return 1
+        # 평소엔 추정한 다음 달 주소가 아직 404 인 게 정상 — 실패로 끝내지 않는다
+        return 1 if args.backfill else 0
     data = {
         "status": "ok",
         "source": "Kuehne+Nagel seaexplorer Schedule Reliability Report",
