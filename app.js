@@ -14015,7 +14015,7 @@ function brandGroupHtml(title, tag, items, featured, colors, emptyMsg, catUi) {
   //   빈 줄이 하나 끼어 예전 출력과 달라진다(내용은 같아도 그대로 두지 않는다).
   return `<div class="brand-group">
     ${head}${nav}
-    <div class="dom-feature"><div class="dom-feature__head">대표 출시 상품</div>
+    <div class="dom-feature"><div class="dom-feature__head"><mark class="hl-em">대표 출시 상품</mark></div>
       <div class="dom-feature__grid">${brandFeatureCards(featList, colors)}</div></div>
     <div class="dom-divider"></div>
     ${brandListItems(list, colors)}
