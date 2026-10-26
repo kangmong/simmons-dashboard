@@ -3412,6 +3412,33 @@ function brandImgFallback(im) {
   im.src = '/api/img?u=' + encodeURIComponent(orig);
 }
 
+/** 기사·행사 사진이 '실패도 성공도 안 하고 멈춘' 경우를 잡는다.
+ *  ★ 회사 방화벽 등이 언론사 주소를 조용히 막으면 요청이 끝나지 않아 onerror 가 오지 않는다 —
+ *    그동안 사진 아래 깔린 SIMMONS 배경만 보였다(경북신문 kbsm.net). 화면에 보이기 시작한 뒤
+ *    IMG_STALL_MS 안에 다 받지 못하면 그 사진의 onerror(= 서버 프록시로 우회)를 직접 부른다.
+ *  ★ loading="lazy" 사진은 화면에 들어와야 받기 시작하므로, 보일 때부터 시간을 잰다. */
+const IMG_STALL_MS = 5000;
+(function watchStalledImages() {
+  if (typeof IntersectionObserver === 'undefined' || typeof MutationObserver === 'undefined') return;
+  const io = new IntersectionObserver((ents) => ents.forEach((e) => {
+    if (!e.isIntersecting) return;
+    io.unobserve(e.target);
+    const im = e.target, src = im.src;
+    setTimeout(() => {
+      if (im.isConnected && im.src === src && !(im.complete && im.naturalWidth) && !im.dataset.proxied && im.onerror) {
+        im.onerror();
+      }
+    }, IMG_STALL_MS);
+  }));
+  const pick = (n) => {
+    if (n.nodeType !== 1) return;
+    const list = n.matches('img[onerror*="Fallback"]') ? [n] : n.querySelectorAll('img[onerror*="Fallback"]');
+    list.forEach((im) => io.observe(im));
+  };
+  new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach(pick)))
+    .observe(document.documentElement, { childList: true, subtree: true });
+})();
+
 /** 죽은 로고 소스를 걸러낸다.
  *  ★ logo.clearbit.com 은 서비스가 없어져 도메인 자체가 안 풀린다(모든 브랜드에서
  *    실패). 그대로 두면 카드마다 실패 요청이 한 번씩 나가고 콘솔이 404 로 덮인다.
