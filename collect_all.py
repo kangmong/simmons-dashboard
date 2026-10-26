@@ -50,6 +50,43 @@ def _strip_volatile(obj):
     return obj
 
 
+def carry_images(sections, old_sections):
+    """이번에 사진을 못 구한 기사에 지난 파일의 같은 기사 사진을 이어 붙인다.
+
+    ★ 언론사가 느리거나 러너 IP 를 막으면 그날만 사진이 빈다(한국경제·경북신문이
+      하루씩 번갈아 비었다). 같은 기사(링크 또는 제목이 같은 것)의 사진은 바뀌지
+      않으니 지난번에 받은 주소를 그대로 쓴다 — 없는 사진을 지어내지 않는다.
+    반환: 이어 붙인 건수."""
+    old = {}
+
+    def walk(o, f):
+        if isinstance(o, dict):
+            if o.get("title") and "image" in o:
+                f(o)
+            for v in o.values():
+                walk(v, f)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v, f)
+
+    def keep(it):
+        if it.get("image"):
+            for k in (it.get("link"), it.get("title")):
+                if k:
+                    old.setdefault(k, it["image"])
+    walk(old_sections or {}, keep)
+    n = [0]
+
+    def fill(it):
+        if not it.get("image"):
+            img = old.get(it.get("link")) or old.get(it.get("title"))
+            if img:
+                it["image"] = img
+                n[0] += 1
+    walk(sections, fill)
+    return n[0]
+
+
 # ── CI 결과 판정 (--report) ──────────────────────────────────────────────
 # ★ 이 단계는 '커밋·푸시 뒤'에 돌린다. 한 수집기가 실패해도 성공한 나머지는
 #   이미 커밋된 뒤이므로 롤백되지 않는다. 여기서는 알림만 담당한다.
@@ -158,6 +195,9 @@ def main():
     if os.path.isfile(out):
         try:
             old = json.load(io.open(out, encoding="utf-8"))
+            n = carry_images(sections, old.get("sections"))
+            if n:
+                print("[collect] 이번에 못 구한 기사 사진 %d건 → 지난 파일의 같은 기사 사진 사용" % n)
             if _strip_volatile(old.get("sections")) == _strip_volatile(sections):
                 print("[collect] 내용 변경 없음 → 저장 생략 (기존 %s)"
                       % old.get("updated_at"))
@@ -176,7 +216,21 @@ def main():
     return 0
 
 
+def _demo():
+    old = {"a": {"items": [{"title": "T", "link": "L", "image": "I"}, {"title": "U", "link": "M", "image": "J"}]}}
+    new = {"a": {"items": [{"title": "T", "link": "L", "image": None},
+                           {"title": "U", "link": "M2", "image": None},
+                           {"title": "V", "link": "N", "image": None},
+                           {"title": "W", "link": "L2", "image": "K"}]}}
+    assert carry_images(new, old) == 2
+    assert [x["image"] for x in new["a"]["items"]] == ["I", "J", None, "K"]
+
+
 if __name__ == "__main__":
+    if "--demo" in sys.argv:
+        _demo()
+        print("ok")
+        sys.exit(0)
     try:
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     except Exception:  # noqa: BLE001
