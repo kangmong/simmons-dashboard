@@ -8393,18 +8393,26 @@ function friScfiBody() {
       + escapeHtml(l.id) + '" aria-pressed="' + (_scfiOne === l.id) + '" style="--xt:'
       + (l.id ? '#2563EB' : 'var(--navy)') + '"><i aria-hidden="true"></i>' + escapeHtml(l.ko) + '</button>').join('')
     + '</div>';
-  const spans = FRI_SPANS.map((p) => '<button class="icis-year kc-span' + (p.id === _friSpan ? ' is-active' : '')
-    + '" type="button" data-frispan="' + p.id + '">' + p.label + '</button>').join('');
+  /* ★ 항로별 자료는 2025-01 부터라 3년치가 없다 — 그 기간 단추는 막고 '전체'로 보여 준다
+     (막지 않으면 '3년'을 눌러도 1년 10개월만 나와 3년처럼 보인다) */
+  const d0 = one ? one.dates[0] : s0.dates[0];
+  const dN = one ? one.dates[one.dates.length - 1] : s0.dates[s0.dates.length - 1];
+  const fits = (p) => !p.days || friCut({ dates: [d0, dN], values: [0, 0] }, p.id).dates[0] !== d0;
+  const span = FRI_SPANS.filter((p) => p.id === _friSpan && fits(p)).length ? _friSpan : 'all';
+  const spans = FRI_SPANS.map((p) => '<button class="icis-year kc-span' + (p.id === span ? ' is-active' : '')
+    + '" type="button" data-frispan="' + p.id + '"'
+    + (fits(p) ? '' : ' disabled title="이 항로 자료는 ' + escapeHtml(d0.slice(0, 7)) + '부터라 ' + p.label + '치가 없습니다"')
+    + '>' + p.label + '</button>').join('');
   const chart = one
     ? idxLineChart(one.dates, one.values, {
-      span: _friSpan, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x), unit: '$/' + one.unit,
+      span: span, tone: '#2563EB', krw: true, fmt: (x) => scfiFmt(one, x), unit: '$/' + one.unit,
       tick: (x) => '$' + Math.round(x).toLocaleString('ko-KR'),
       caption: escapeHtml(one.ko) + ' <span>상하이 → ' + escapeHtml(one.en) + ' · 단위 $/' + escapeHtml(one.unit)
-        + ' · 2025년은 월 1회 점 · 세로축은 0 부터</span>',
+        + ' · 자료는 ' + escapeHtml(d0.slice(0, 7)) + '부터(2025년은 월 1회 점) · 세로축은 0 부터</span>',
       aria: one.ko + ' SCFI 운임 추이',
     })
     : idxLineChart(s0.dates, s0.values, {
-      span: _friSpan, tone: 'var(--navy)', krw: false, unit: 'pt',
+      span: span, tone: 'var(--navy)', krw: false, unit: 'pt',
       fmt: (x) => x.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'pt',
       tick: (x) => Math.round(x).toLocaleString('ko-KR'),
       caption: 'SCFI 종합지수 <span>단위 포인트(pt) · 2014년부터 주 1회 · 세로축은 0 부터</span>',

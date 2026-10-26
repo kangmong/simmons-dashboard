@@ -6596,3 +6596,4 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   .content[data-view="dashboard"] .dash-card[data-section="exh"] .panel-body { max-height: none; }
   .exh-cal { overflow-y: visible; }
 }
+.kc-span:disabled { opacity: .4; cursor: not-allowed; }
