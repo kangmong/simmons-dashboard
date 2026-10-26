@@ -7636,8 +7636,7 @@ function kcciMinis() {
       + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
       + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(info.ko) + '</b> ' + c
       + ' · 지금 <b>' + kcciVal(c, st.cur) + '</b> · 전주 ' + kcciPct(st.wk)
-      + '<button type="button" class="kn-all" data-kczoom="">← 전체 기간</button>'
-      + '<button type="button" class="kn-all" data-kcsel="">전체 항로 보기</button></div>'
+      + '<button type="button" class="kn-all" data-kczoom="">← 뒤로</button></div>'
       + idxLineChart(_kcciData.dates, _kcciData.series[c], {
         span: 'all', compact: true, tone: c === 'KCCI' ? 'var(--navy)' : '#2563EB',
         krw: c !== 'KCCI', fmt: (x) => kcciVal(c, x), unit: c === 'KCCI' ? 'pt' : '$/FEU',
@@ -7691,7 +7690,7 @@ function kcciMinis() {
     return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
       + '(<mark class="hl-em">부산 기준 각 항로 운송비 추세 설명</mark>)'
       + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span>'
-      + '<button type="button" class="kn-all kc-codes__all" data-kcsel="">전체 항로 보기</button></div>'
+      + '</div>'
       + '<div class="fri-minis__g kc-minis__g">' + card(_kcciSel) + '</div></div>';
   }
   return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
@@ -7767,7 +7766,9 @@ function kcciBody() {
   }
   /* 그래프 + 오른쪽 '지금 흐름'(점과 파란 실선으로 잇는다 — friLinkNote) */
   return kcciPicks()
-    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + kcciChart() + kcciNote() + '</div>'
+    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + kcciChart()
+    + '<div class="fri-side">' + kcciNote()
+    + idxReview({ dates: _kcciData.dates, values: _kcciData.series.KCCI }, _kcciSpan, KCCI_REVIEW) + '</div></div>'
     + krwNote('USD')
     /* 표 + 오른쪽 빈칸에 '코드 한눈에 보기' 단추 — 누르면 그 자리에 펼친다 */
     + '<div class="kc-tblrow"><div class="kc-tbl">' + kcciTable() + '</div>'
@@ -8307,8 +8308,7 @@ function scfiMinis(lanes) {
       + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span></div>'
       + '<div class="kn-one"><div class="kn-one__h"><b>' + escapeHtml(one.ko) + '</b> ' + escapeHtml(one.en)
       + ' · 지금 <b>' + scfiFmt(one, v[v.length - 1]) + '</b> · 전주 ' + kcciPct(scfiWow(one))
-      + '<button type="button" class="kn-all" data-sczoom="">← 전체 기간</button>'
-      + '<button type="button" class="kn-all" data-sclane="">전체 항로 보기</button></div>'
+      + '<button type="button" class="kn-all" data-sczoom="">← 뒤로</button></div>'
       + idxLineChart(one.dates, one.values, {
         span: 'all', compact: true, tone: one.id === 'composite' ? 'var(--navy)' : '#2563EB',
         krw: one.unit !== 'pt', fmt: (x) => scfiFmt(one, x),
@@ -8368,7 +8368,7 @@ function scfiMinis(lanes) {
     return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
       + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
       + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span>'
-      + '<button type="button" class="kn-all kc-codes__all" data-sclane="">전체 항로 보기</button></div>'
+      + '</div>'
       + '<div class="fri-minis__g kc-minis__g">' + card(one) + '</div></div>';
   }
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
@@ -8403,10 +8403,13 @@ function scfiNote(s0) {
     + '<p>' + l1 + '</p>' + (l2 ? '<p>' + l2 + '</p>' : '') + '</aside>';
 }
 
-/** SCFI 종합지수 Review — 고른 기간(1년·3년·전체) 안에서 숫자로만 짚는다.
- *  ★ 모든 숫자는 수집한 종합지수(NLIC)에서 계산한다. 원인(전쟁·수요 등)은 데이터에
- *    없으니 쓰지 않는다 — 대신 '지수가 높으면 운송비가 비싸다'는 뜻만 풀어 준다. */
-function scfiReview(s0, span) {
+/** 종합지수 Review(SCFI·KCCI) — 고른 기간(1년·3년·전체) 안에서 숫자로만 짚는다.
+ *  ★ 모든 숫자는 수집한 종합지수에서 계산한다. 원인(전쟁·수요 등)은 데이터에
+ *    없으니 쓰지 않는다 — 대신 '지수가 높으면 운송비가 비싸다'는 뜻만 풀어 준다.
+ *  o = { idx: 'SCFI', from: '상하이', use: '중국에서 원자재·부품을 들여올 때' } */
+const SCFI_REVIEW = { idx: 'SCFI', from: '상하이', use: '중국에서 원자재·부품을 들여올 때' };
+const KCCI_REVIEW = { idx: 'KCCI', from: '부산', use: '부산에서 해외로 제품을 보낼 때' };
+function idxReview(s0, span, o) {
   const c = friCut(s0, span), D = c.dates, V = c.values, n = V.length;
   if (n < 5) return '';
   const pt = (x) => '약 ' + Math.round(x).toLocaleString('ko-KR') + 'pt';
@@ -8428,20 +8431,20 @@ function scfiReview(s0, span) {
   const m4t = Math.abs(m4) < 2 ? '거의 제자리(' + (m4 >= 0 ? '+' : '') + m4.toFixed(1) + '%)'
     : (m4 > 0 ? '+' + m4.toFixed(1) + '% 올라 오름세' : m4.toFixed(1) + '% 내려 내림세');
   const meaning = vsAvg >= 10
-    ? '지금은 이 기간 평균보다 운송비가 ' + em('비싼 편') + '이라, 중국에서 원자재·부품을 들여올 때 ' + em('물류비 부담이 커질 수 있는 구간') + '입니다.'
+    ? '지금은 이 기간 평균보다 운송비가 ' + em('비싼 편') + '이라, ' + o.use + ' ' + em('물류비 부담이 커질 수 있는 구간') + '입니다.'
     : vsAvg <= -10
-      ? '지금은 이 기간 평균보다 운송비가 ' + em('싼 편') + '이라, 중국에서 원자재·부품을 들여올 때 ' + em('물류비 부담이 덜한 구간') + '입니다.'
+      ? '지금은 이 기간 평균보다 운송비가 ' + em('싼 편') + '이라, ' + o.use + ' ' + em('물류비 부담이 덜한 구간') + '입니다.'
       : '지금은 이 기간 ' + em('평균과 비슷한 수준') + '이라, 물류비가 크게 튀지 않은 구간입니다.';
   return '<div class="fri-review"><div class="fri-review__h">Review <span>' + name + ' · '
     + escapeHtml(D[0]) + ' ~ ' + escapeHtml(D[n - 1]) + '</span></div>'
-    + '<p class="fri-review__lead">' + name + ' 사이 SCFI 종합지수는 ' + pt(first) + ' → ' + pt(cur) + ', '
+    + '<p class="fri-review__lead">' + name + ' 사이 ' + o.idx + ' 종합지수는 ' + pt(first) + ' → ' + pt(cur) + ', '
     + em(move) + '</p><ul>'
     + '<li><b>가장 낮았던 때</b> ' + escapeHtml(D[lo]) + ' ' + pt(V[lo]) + ' → <b>가장 높았던 때</b> '
     + escapeHtml(D[hi]) + ' ' + pt(V[hi]) + '</li>'
     + '<li><b>지금 위치</b> ' + where + ' · 이 기간 평균(' + pt(avg) + ')보다 '
     + em(Math.abs(vsAvg).toFixed(0) + '% ' + (vsAvg >= 0 ? '높음' : '낮음')) + '</li>'
     + '<li><b>최근 4주</b> ' + escapeHtml(D[k]) + ' 대비 ' + m4t + '</li>'
-    + '<li><b>쉽게 말하면</b> SCFI 가 높을수록 상하이에서 컨테이너를 보내는 운송비가 비쌉니다. ' + meaning + '</li>'
+    + '<li><b>쉽게 말하면</b> ' + o.idx + ' 가 높을수록 ' + o.from + '에서 컨테이너를 보내는 운송비가 비쌉니다. ' + meaning + '</li>'
     + '</ul></div>';
 }
 
@@ -8471,7 +8474,7 @@ function friScfiBody() {
   return picks + '<div class="icis-years kc-spans">' + spans + '</div>'
     /* 그래프 + 오른쪽 '지금 흐름'(마지막 점과 파란 실선으로 잇는다 — friLinkNote) */
     + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + chart
-    + '<div class="fri-side">' + scfiNote(s0) + scfiReview(s0, _friSpan) + '</div></div>'
+    + '<div class="fri-side">' + scfiNote(s0) + idxReview(s0, _friSpan, SCFI_REVIEW) + '</div></div>'
     + (lanes.length
       ? krwNote('USD') + '<div class="kc-tblrow"><div class="kc-tbl">' + scfiTable(lanes) + '</div>'
         + '<div class="kc-side"><div class="kc-btns">'

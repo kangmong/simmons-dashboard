@@ -161,6 +161,11 @@ def main():
         end = _d(it.get("end"))
         if not end or end >= today:
             continue
+        # ★ 같은 행사의 다음 회차가 이미 목록에 있으면(예: ISPA EXPO 2026 뒤에 2028) 손대지 않는다 —
+        #   이름을 바꾸면 그 회차와 똑같은 항목이 두 개가 된다. 지난 회차는 '종료'로 남는다.
+        if any(o is not it and name_words(o["name"]) == name_words(it["name"])
+               and (_d(o.get("start")) or end) > end for o in data["items"]):
+            continue
         got, why = None, ""
         old = _d(it["start"])
         # 공식 사이트 먼저, 안 되면 뉴스 — 어느 쪽이든 같은 검사를 통과해야 한다
