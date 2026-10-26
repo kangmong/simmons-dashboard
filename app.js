@@ -1269,16 +1269,7 @@ function gmmBlock() {
     /* ★ 3열 그리드 + 제품유형 줄을 가지치기 하나로 바꿨다(gmTreeHtml).
        요약 4박스는 위에 그대로 남는다. */
     + gmTreeHtml()
-    /* ★ 여기 위까지는 '시장을 어떻게 보는가'(규모·지역·업체·제품유형),
-       아래부터는 '그 숫자를 어디서 가져왔고 다른 기관은 얼마로 봤는가' 다.
-       같은 해 같은 지표인데 기관마다 값이 다르다는 것을 읽는 사람이 알아야
-       위 숫자를 바르게 받아들인다 — 그 전환점을 표시한다.
-       ★ 국내 탭과 같은 배너를 쓴다(sleepTechBanner) — 글자만 다르다.
-         예전에는 이 자리에만 쓰는 'SOURCES' 배너를 따로 두었는데, 같은
-         구실을 하는 틀이 둘이 되어 한쪽만 손보면 어긋났다. */
-    + sleepTechBanner('GLOBAL SLEEP&nbsp;TECH', '글로벌 슬립테크 산업 동향',
-      '해외 수면 기술 시장의 규모와 수면 부족에 따른 경제 손실을 보여주는 섹션',
-      '여기부터 글로벌 슬립테크 산업 동향')
+    /* 다른 조사기관 추정치·환율·출처는 위 '글로벌 매트리스 시장 규모'의 근거라 그 바로 아래에 둔다 */
     + gmmEstimates(d)
     + krwNote('USD')
     + stale
@@ -1288,7 +1279,12 @@ function gmmBlock() {
       ? '<a class="src-link" href="' + escapeHtml(safeUrl(d.sourceUrl)) + '" target="_blank"'
         + ' rel="noopener noreferrer">' + escapeHtml(d.source || '') + ' ›</a>'
       : escapeHtml(d.source || ''))
-    + ' · 최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—') + '</div>';
+    + ' · 최종 확인일: ' + escapeHtml(d.checkedAt || d.updatedAt || '—') + '</div>'
+    /* ★ 여기부터 글로벌 슬립테크 — 매트리스 시장의 근거(추정치·출처)가 끝난 뒤에 배너를 둔다.
+       국내 탭과 같은 배너(sleepTechBanner)를 쓴다 — 글자만 다르다. */
+    + sleepTechBanner('GLOBAL SLEEP&nbsp;TECH', '글로벌 슬립테크 산업 동향',
+      '해외 수면 기술 시장의 규모와 수면 부족에 따른 경제 손실을 보여주는 섹션',
+      '여기부터 글로벌 슬립테크 산업 동향');
 }
 
 /* ══ 국내 섹션 — 시몬스/경쟁사 실적·점유율 (public/data/simmons-market.json) ══
