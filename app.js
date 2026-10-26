@@ -7674,7 +7674,7 @@ function kcciMinis() {
       + '" aria-expanded="' + open + '">'
       + '<div class="fri-mini__t">' + escapeHtml(KCCI_INFO[c].ko) + ' <span class="kc-mini__c">' + c + '</span></div>'
       + '<svg class="kc-mini__svg" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">'
-      + '<path class="kc-mini__l" d="' + dd + '"/>'
+      + '<path class="kc-mini__l" d="' + dd + '"/>' + miniRecentMark(_kcciData.dates, v, X, Y)
       + '<circle class="fri-mini__p" cx="' + X(n - 1).toFixed(1) + '" cy="' + Y(v[n - 1]).toFixed(1) + '" r="2.6"/>'
       + labels + '</svg>'
       + '<div class="fri-mini__d">' + escapeHtml(_kcciData.dates[0]) + ' ~ ' + escapeHtml(_kcciData.dates[n - 1])
@@ -7684,7 +7684,7 @@ function kcciMinis() {
   };
   return '<div class="fri-minis"><div class="fri-minis__h">부산발 항로별 추이'
     + '(<mark class="hl-em">부산 기준 각 항로 운송비 추세 설명</mark>)'
-    + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지</span></div>'
+    + ' <span>KCCI BY ROUTE · 첫 발표부터 지금까지 · <b class="kc-mini__key">빨간 동그라미</b> 최근 5개월</span></div>'
     + '<div class="fri-minis__g kc-minis__g">'
     + _kcciData.codes.filter((c) => c !== 'KCCI').map(card).join('') + '</div></div>';
 }
@@ -8285,6 +8285,34 @@ function scfiTable(lanes) {
     + 'SSE 발표치를 RackingHub 가 정리한 값 그대로입니다 · <b>항로 줄을 누르면</b> 항로별 추이에 그 항로만 나옵니다.</div>';
 }
 
+/** 작은 추이 카드 — 최근 5개월 구간을 빨간 타원으로 감싸고 오르내림 화살표를 붙인다.
+ *  dates·v 는 그 카드의 점들, X·Y 는 카드가 쓰는 좌표 함수. 구간 점이 2개 미만이면 그리지 않는다. */
+const MINI_RECENT_MONTHS = 5;
+function miniRecentMark(dates, v, X, Y) {
+  const n = v.length;
+  const cut = new Date(dates[n - 1] + 'T00:00:00Z');
+  cut.setUTCMonth(cut.getUTCMonth() - MINI_RECENT_MONTHS);
+  const c = cut.toISOString().slice(0, 10);
+  let i0 = n - 1;
+  while (i0 > 0 && dates[i0 - 1] >= c) i0--;
+  if (n - i0 < 2) return '';
+  const ys = v.slice(i0).map(Y);
+  const x0 = X(i0), x1 = X(n - 1), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const rx = (x1 - x0) / 2 + 7, ry = Math.max(9, (y1 - y0) / 2 + 6);
+  const up = v[n - 1] > v[i0], dn = v[n - 1] < v[i0];
+  /* 화살표는 타원 왼쪽 바깥에 — 오른쪽 끝은 '지금 값' 숫자 자리라 겹친다 */
+  const ax = cx - rx - 4, sx = ax - 16;
+  const arrow = (up || dn)
+    ? '<path class="kc-mini__ar" d="M' + sx.toFixed(1) + ' ' + (cy + (up ? 9 : -9)).toFixed(1)
+      + ' L' + ax.toFixed(1) + ' ' + (cy + (up ? -5 : 5)).toFixed(1) + '"/>'
+      + '<path class="kc-mini__ah" d="M' + ax.toFixed(1) + ' ' + (cy + (up ? -5 : 5)).toFixed(1)
+      + ' l' + (up ? '-7 1.5 l4.5 4.5' : '-7 -1.5 l4.5 -4.5') + ' z"/>'
+    : '';
+  return '<ellipse class="kc-mini__o" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" rx="' + rx.toFixed(1)
+    + '" ry="' + ry.toFixed(1) + '"/>' + arrow;
+}
+
 /** 상하이발 SCFI 항로별 추이 — 첫 값·최고·최저·지금을 선 위에 적는다(KCCI 와 같은 모양) */
 function scfiMinis(lanes) {
   const one = _scfiLane ? lanes.filter((l) => l.id === _scfiLane)[0] : null;
@@ -8312,7 +8340,10 @@ function scfiMinis(lanes) {
     v.forEach((x, i) => { if (x > v[hi]) hi = i; if (x < v[lo]) lo = i; });
     const W = 240, H = 92, P = 8, T = 16, Bm = 16;
     const span = (v[hi] - v[lo]) || 1;
-    const X = (i) => P + (i / (n - 1)) * (W - P * 2);
+    /* ★ 가로는 날짜 간격대로 — 2025년이 월 1회인 항로는 점 순서대로 펴면 최근 몇 달이
+       카드 절반을 차지해 '최근 5개월' 동그라미가 실제보다 길어 보였다 */
+    const t = l.dates.map((d) => Date.parse(d)), tw = (t[n - 1] - t[0]) || 1;
+    const X = (i) => P + ((t[i] - t[0]) / tw) * (W - P * 2);
     const Y = (x) => T + (1 - (x - v[lo]) / span) * (H - T - Bm);
     const dd = v.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x).toFixed(1)).join(' ');
     const done = {};
@@ -8336,7 +8367,7 @@ function scfiMinis(lanes) {
       + escapeHtml(l.id) + '" aria-expanded="' + open + '">'
       + '<div class="fri-mini__t">' + escapeHtml(l.ko) + ' <span class="kc-mini__c">' + escapeHtml(l.en) + '</span></div>'
       + '<svg class="kc-mini__svg" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">'
-      + '<path class="kc-mini__l" d="' + dd + '"/>'
+      + '<path class="kc-mini__l" d="' + dd + '"/>' + miniRecentMark(l.dates, v, X, Y)
       + '<circle class="fri-mini__p" cx="' + X(n - 1).toFixed(1) + '" cy="' + Y(v[n - 1]).toFixed(1) + '" r="2.6"/>'
       + labels + '</svg>'
       + '<div class="fri-mini__d">' + escapeHtml(l.dates[0]) + ' ~ ' + escapeHtml(l.dates[n - 1])
@@ -8345,7 +8376,8 @@ function scfiMinis(lanes) {
   };
   return '<div class="fri-minis"><div class="fri-minis__h">상하이발 SCFI 항로별 추이'
     + '(<mark class="hl-em">상하이 기준 각 항로 운송비 추세 설명</mark>)'
-    + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)</span></div>'
+    + ' <span>SCFI BY ROUTE · 유럽·미주는 2023년부터 주 1회 · 나머지는 2025년부터(2025년은 월 1회)'
+    + ' · <b class="kc-mini__key">빨간 동그라미</b> 최근 5개월</span></div>'
     + '<div class="fri-minis__g kc-minis__g">'
     + lanes.filter((l) => l.id !== 'composite').map(card).join('') + '</div></div>';
 }
