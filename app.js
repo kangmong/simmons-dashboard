@@ -15982,6 +15982,14 @@ function wcViaBarHtml(A, B) {
 }
 
 /** 오른쪽 정보 패널 — 두 도시를 고른 뒤에만 */
+/** 국기 이미지 — 국기 이모지는 Windows 에 글리프가 없어 'CN' 같은 글자로 나온다.
+ *  이모지(지역 표시 문자 두 개)를 나라 코드로 바꿔 public/flags/xx.svg 를 쓴다. */
+function wcFlagImg(c, cls) {
+  const cc = Array.from(c.flag || '').map((ch) => String.fromCharCode(ch.codePointAt(0) - 0x1F1E6 + 97)).join('');
+  return /^[a-z]{2}$/.test(cc)
+    ? '<img class="' + cls + '" src="public/flags/' + cc + '.svg" alt="' + escapeHtml(c.ko) + ' 국기">' : '';
+}
+
 function wcPanelHtml() {
   if ((!_wcRoute && !_wcSea) || _wcTo == null || _wcFrom === _wcTo) return '';
   const A = WORLD_CITIES[_wcFrom], B = WORLD_CITIES[_wcTo];
@@ -15993,13 +16001,13 @@ function wcPanelHtml() {
   const w = _wcWeather && _wcWeather[_wcTo];
   const wx = w ? wmoIcon(w.code) + ' ' + (w.temp != null ? Math.round(w.temp) + '°C' : '—') : '—';
   const card = (c, role) => '<div class="wc-pc">'
-    + '<div class="wc-pc__art" aria-hidden="true"><span>' + c.flag + '</span></div>'
+    + '<div class="wc-pc__art">' + wcFlagImg(c, 'wc-pc__flag') + '</div>'
     + '<div class="wc-pc__ko">' + escapeHtml(c.ko) + '</div>'
     + '<div class="wc-pc__en">(' + escapeHtml(c.en) + ')</div>'
     + '<div class="wc-pc__role">' + escapeHtml(role) + '</div></div>';
   const clock = (lbl, st, c) => '<div class="wc-clk">'
     + '<div class="wc-clk__l">' + escapeHtml(lbl) + '</div>'
-    + '<div class="wc-clk__t">' + escapeHtml(st.hhmm) + '<span>' + c.flag + '</span></div>'
+    + '<div class="wc-clk__t">' + escapeHtml(st.hhmm) + wcFlagImg(c, 'wc-clk__flag') + '</div>'
     + '<div class="wc-clk__d">' + escapeHtml(st.ymd) + '</div></div>';
   const row = (k, v) => '<div class="wc-row"><span>' + escapeHtml(k) + '</span><b>' + v + '</b></div>';
   return '<aside class="wc-panel" id="wcPanel">'

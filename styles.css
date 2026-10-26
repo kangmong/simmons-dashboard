@@ -2727,12 +2727,9 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
   margin-top: 2px; font-size: 19px; font-weight: 900; color: var(--ink);
   font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 5px;
 }
-/* ★ 국기 이모지는 Windows 에 글리프가 없어 'KR' 같은 두 글자로 떨어진다.
-   그래도 뜻이 통하도록 작은 국가 태그 모양으로 둔다(어느 쪽이든 읽힌다). */
-.wc-clk__t span {
-  font-size: 10px; font-weight: 800; letter-spacing: .04em; color: var(--muted);
-  padding: 1px 5px; border-radius: 5px; background: var(--field); border: 1px solid var(--line);
-}
+/* 국기는 이미지로(public/flags) — 이모지는 Windows 에서 'CN' 같은 글자로 나온다 */
+.wc-pc__flag { height: 34px; width: auto; border-radius: 4px; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+.wc-clk__flag { height: 13px; width: auto; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
 .wc-clk__d { font-size: 10px; color: var(--muted); }
 
 .wc-row {
