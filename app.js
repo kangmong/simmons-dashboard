@@ -8407,6 +8407,48 @@ function scfiNote(s0) {
     + '<p>' + l1 + '</p>' + (l2 ? '<p>' + l2 + '</p>' : '') + '</aside>';
 }
 
+/** SCFI 종합지수 Review — 고른 기간(1년·3년·전체) 안에서 숫자로만 짚는다.
+ *  ★ 모든 숫자는 수집한 종합지수(NLIC)에서 계산한다. 원인(전쟁·수요 등)은 데이터에
+ *    없으니 쓰지 않는다 — 대신 '지수가 높으면 운송비가 비싸다'는 뜻만 풀어 준다. */
+function scfiReview(s0, span) {
+  const c = friCut(s0, span), D = c.dates, V = c.values, n = V.length;
+  if (n < 5) return '';
+  const pt = (x) => '약 ' + Math.round(x).toLocaleString('ko-KR') + 'pt';
+  const em = (t) => '<mark class="hl-em">' + t + '</mark>';
+  let hi = 0, lo = 0, sum = 0;
+  V.forEach((x, i) => { if (x > V[hi]) hi = i; if (x < V[lo]) lo = i; sum += x; });
+  const avg = sum / n, cur = V[n - 1], first = V[0];
+  const r = cur / first;
+  const move = r >= 1.5 ? '약 ' + r.toFixed(1) + '배로 올랐습니다'
+    : r <= 1 / 1.5 ? '약 ' + Math.round((1 - r) * 100) + '% 내렸습니다(' + (1 / r).toFixed(1) + '분의 1 수준)'
+      : (r >= 1 ? '약 ' + Math.round((r - 1) * 100) + '% 올랐습니다' : '약 ' + Math.round((1 - r) * 100) + '% 내렸습니다');
+  const name = { '1y': '최근 1년', '3y': '최근 3년', all: '전체 기간' }[span] || '이 기간';
+  const pos = V[hi] === V[lo] ? 0.5 : (cur - V[lo]) / (V[hi] - V[lo]);
+  const where = pos >= 0.8 ? '이 기간 ' + em('최고치에 가까운 높은 수준')
+    : pos <= 0.2 ? '이 기간 ' + em('바닥에 가까운 낮은 수준') : '이 기간 최고·최저의 ' + em('중간쯤');
+  const vsAvg = (cur / avg - 1) * 100;
+  const k = Math.max(0, n - 5);                       // 4주 전 점
+  const m4 = (cur / V[k] - 1) * 100;
+  const m4t = Math.abs(m4) < 2 ? '거의 제자리(' + (m4 >= 0 ? '+' : '') + m4.toFixed(1) + '%)'
+    : (m4 > 0 ? '+' + m4.toFixed(1) + '% 올라 오름세' : m4.toFixed(1) + '% 내려 내림세');
+  const meaning = vsAvg >= 10
+    ? '지금은 이 기간 평균보다 운송비가 ' + em('비싼 편') + '이라, 중국에서 원자재·부품을 들여올 때 ' + em('물류비 부담이 커질 수 있는 구간') + '입니다.'
+    : vsAvg <= -10
+      ? '지금은 이 기간 평균보다 운송비가 ' + em('싼 편') + '이라, 중국에서 원자재·부품을 들여올 때 ' + em('물류비 부담이 덜한 구간') + '입니다.'
+      : '지금은 이 기간 ' + em('평균과 비슷한 수준') + '이라, 물류비가 크게 튀지 않은 구간입니다.';
+  return '<div class="fri-review"><div class="fri-review__h">Review <span>' + name + ' · '
+    + escapeHtml(D[0]) + ' ~ ' + escapeHtml(D[n - 1]) + '</span></div>'
+    + '<p class="fri-review__lead">' + name + ' 사이 SCFI 종합지수는 ' + pt(first) + ' → ' + pt(cur) + ', '
+    + em(move) + '</p><ul>'
+    + '<li><b>가장 낮았던 때</b> ' + escapeHtml(D[lo]) + ' ' + pt(V[lo]) + ' → <b>가장 높았던 때</b> '
+    + escapeHtml(D[hi]) + ' ' + pt(V[hi]) + '</li>'
+    + '<li><b>지금 위치</b> ' + where + ' · 이 기간 평균(' + pt(avg) + ')보다 '
+    + em(Math.abs(vsAvg).toFixed(0) + '% ' + (vsAvg >= 0 ? '높음' : '낮음')) + '</li>'
+    + '<li><b>최근 4주</b> ' + escapeHtml(D[k]) + ' 대비 ' + m4t + '</li>'
+    + '<li><b>쉽게 말하면</b> SCFI 가 높을수록 상하이에서 컨테이너를 보내는 운송비가 비쌉니다. ' + meaning + '</li>'
+    + '</ul></div>';
+}
+
 function friScfiBody() {
   const s0 = friSeries(_friPick)[0];
   if (!s0 || s0.values.length < 2) return '<div class="chart-empty">SCFI 데이터가 없습니다</div>';
@@ -8432,7 +8474,8 @@ function friScfiBody() {
     + (_scfiData && _scfiData.updatedAt ? ' · 항로별 수집 ' + escapeHtml(_scfiData.updatedAt) : '') + '</div>';
   return picks + '<div class="icis-years kc-spans">' + spans + '</div>'
     /* 그래프 + 오른쪽 '지금 흐름'(마지막 점과 파란 실선으로 잇는다 — friLinkNote) */
-    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + chart + scfiNote(s0) + '</div>'
+    + '<div class="fri-slot fri-slot--comp fri-slot--kc">' + chart
+    + '<div class="fri-side">' + scfiNote(s0) + scfiReview(s0, _friSpan) + '</div></div>'
     + (lanes.length
       ? krwNote('USD') + '<div class="kc-tblrow"><div class="kc-tbl">' + scfiTable(lanes) + '</div>'
         + '<div class="kc-side"><div class="kc-btns">'
@@ -8489,7 +8532,8 @@ function friLinkNote(fig) {
     slot.appendChild(ln);
   }
   note.style.marginTop = '';
-  if (getComputedStyle(note).gridColumnStart !== '2') { ln.style.display = 'none'; return; }
+  const host = note.parentElement.classList.contains('fri-side') ? note.parentElement : note;
+  if (getComputedStyle(host).gridColumnStart !== '2') { ln.style.display = 'none'; return; }
   const sr = slot.getBoundingClientRect(), dr = dot.getBoundingClientRect();
   const cy = dr.top + dr.height / 2 - sr.top;
   note.style.marginTop = Math.max(0, cy - 29) + 'px';     // 화살촉 가운데가 위에서 29px
@@ -8546,12 +8590,14 @@ function wireFri(root) {
         const k = kc.getAttribute('data-kcsel');
         _kcciSel = (!k || _kcciSel === k) ? '' : k;
         _kcciZoom = false;
+        if (_kcciSel) _kcciMinisOpen = true;
       } else if (kc.hasAttribute('data-kczoom')) {
         _kcciZoom = kc.getAttribute('data-kczoom') === '1';
       } else if (kc.hasAttribute('data-sclane')) {
         const k = kc.getAttribute('data-sclane');
         _scfiLane = (!k || _scfiLane === k) ? '' : k;
         _scfiZoom = false;
+        if (_scfiLane) _scfiMinisOpen = true;
       } else if (kc.hasAttribute('data-sczoom')) {
         _scfiZoom = kc.getAttribute('data-sczoom') === '1';
       } else if (kc.hasAttribute('data-knlane')) {

@@ -6597,3 +6597,19 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   .exh-cal { overflow-y: visible; }
 }
 .exh-flag { height: 12px; width: auto; margin-left: 6px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+/* SCFI '지금 흐름' + Review 묶음(오른쪽 칸) */
+.fri-slot--comp > .fri-side { grid-column: 2; grid-row: 1; align-self: start; min-width: 0;
+  display: flex; flex-direction: column; gap: 12px; max-width: 600px; }
+.fri-side > .fri-note { margin-top: 150px; max-width: none; }
+.fri-review { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--ink); font-size: 13px; line-height: 1.7; word-break: keep-all; }
+.fri-review__h { font-size: 15px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+.fri-review__h span { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.fri-review__lead { margin: 0 0 4px; font-weight: 800; }
+.fri-review ul { margin: 0; padding-left: 18px; }
+.fri-review li + li { margin-top: 3px; }
+.fri-review b { font-weight: 800; }
+@media (max-width: 760px) {
+  .fri-slot--comp > .fri-side { grid-column: 1; grid-row: auto; max-width: none; }
+  .fri-side > .fri-note { margin-top: 0; }
+}

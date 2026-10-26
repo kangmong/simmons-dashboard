@@ -1200,8 +1200,11 @@ BRAND_IMG_WORKERS = 8
 #   섞여 있어도 그 자리를 그대로 차지했다. 뒤에 사진 있는 기사가 줄지어 있어도
 #   쳐다보지도 않고 넘어갔다 — 구글 뉴스는 브랜드당 100건씩 준다.
 #   이제 후보를 넉넉히 모아 두고, 사진을 받을 수 있는 것을 먼저 골라 쓴다.
-BRAND_CAND_PER_BRAND = 6      # 모아 두는 후보 수
-BRAND_SHOW_PER_BRAND = 3      # 화면에 내보내는 최대 건수(예전과 같다)
+BRAND_CAND_PER_BRAND = 8      # 모아 두는 후보 수
+BRAND_SHOW_PER_BRAND = 5      # 화면에 내보내는 최대 건수(2026-10-26 사용자 요청으로 3 → 5)
+# ★ 이 날짜보다 오래된 기사는 받지 않는다 — 구글 뉴스가 2012년 기사(템퍼 '침대 프레임
+#   3종 출시')까지 섞어 줘 '신제품 동향'에 10년 넘은 소식이 떴다(사용자 요청: 2023년부터).
+BRAND_MIN_DATE = "2023-01-01"
 
 # ── 신제품 동향 판정 (국내·국외 공통) ───────────────────────────────────
 # 제외: 실적·재무·M&A·인사 기사. 섹션 제목이 '신제품·브랜드 동향'인데 이런 기사가 섞였다.
@@ -1545,6 +1548,9 @@ def _brand_news(brands, query_fn, hl, gl, featured_brands=None, items_brands=Non
             seen += 1
             link = (item.findtext("link") or "").strip()
             pub = item.findtext("pubDate") or ""
+            if _fmt_pubdate(pub) < BRAND_MIN_DATE:      # 오래된 기사는 자리를 차지하지 않게 먼저 거른다
+                dropped.append((title, "", "오래된 기사(%s)" % (_fmt_pubdate(pub) or "날짜 없음")))
+                continue
             src_el = item.find("source")
             source = (src_el.text.strip() if (src_el is not None and src_el.text) else "")
             # 국외(영문)만 관련성 필터. 검색어를 좁혀도 새어 나오는 무관 기사를 여기서 막는다.
@@ -1784,7 +1790,7 @@ def _domestic_query(brand):
     return q if q else '"%s" (신제품 OR 출시 OR 론칭)' % brand
 
 
-DOMESTIC_ITEMS_MAX = 36     # 하단 목록 상한. 브랜드 14곳 × 최대 3건 = 42 후보를
+DOMESTIC_ITEMS_MAX = 70     # 하단 목록 상한(브랜드 14곳 × 최대 5건). 예전 메모: 브랜드 14곳 × 최대 3건 = 42 후보를
                             # 거의 자르지 않는 값. 화면에서 분류별로 걸러 보므로
                             # 풀을 남겨 두는 편이 낫다(24 로 두면 9건이 잘렸다).
 
@@ -1807,7 +1813,7 @@ def _global_query(brand):
     return q if q else '"%s" (new OR launch OR release OR mattress)' % brand
 
 
-GLOBAL_ITEMS_MAX = 27       # 하단 목록 상한(브랜드 9곳 × 최대 3건). 국내와 같은 이유로 넉넉히
+GLOBAL_ITEMS_MAX = 45       # 하단 목록 상한(브랜드 9곳 × 최대 5건). 국내와 같은 이유로 넉넉히
 
 
 def update_global_brands():
