@@ -7602,7 +7602,11 @@ function kcciTable() {
       + '</tr>';
   }).join('');
   const st0 = kcciStat('KCCI');
-  return '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb kc-tb"><thead><tr>'
+  /* 표 제목 — 무엇을 보는 표인지 한 줄로(SCFI 표 제목과 같은 모양) */
+  return '<div class="fri-minis__h">부산발 항로별 운임'
+    + '(<mark class="hl-em">부산에서 컨테이너 한 개를 보낼 때 드는 운송비</mark>)'
+    + ' <span>KCCI 항로별 · ' + escapeHtml(st0.date) + ' 발표 · 지난주와 비교</span></div>'
+    + '<div class="fri-tb__wrap fri-tb__wrap--k"><table class="fri-tb kc-tb"><thead><tr>'
     + '<th>구분</th><th>코드</th><th>항로(부산 →)</th><th class="fri-tb__n">비중</th>'
     + '<th class="fri-tb__n">이번 주<br>' + escapeHtml(st0.date) + '</th>'
     + '<th class="fri-tb__n">지난주<br>' + escapeHtml(st0.prevDate) + '</th>'

@@ -6549,3 +6549,5 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 /* 그래프 단위(오른쪽 위) */
 .kn-ax__u { fill: var(--slate); font-weight: 700; }
 .kc-codes__all { float: right; margin: -2px 0 0 8px; }
+/* 고른 줄 표시는 그 줄 칸에만 — 여러 줄을 묶은 '구분' 칸에는 긋지 않는다 */
+.kn-tr.is-on td.kc-tb__g { box-shadow: none; }
