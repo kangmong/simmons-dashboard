@@ -6884,7 +6884,7 @@ const FRI_GROUPS = [
           en: 'Shanghai Containerized Freight Index', chart: 1, keys: ['SCFI'],
           desc: '상하이해운거래소가 매주 금요일 발표하는, 상하이에서 출발하는 항로별 운임을 묶은'
             + ' 지수입니다. 중국에서 들여오는 물건의 운송비 흐름을 볼 때 씁니다.',
-          em: '상하이에서 출발하는 항로별 운임' },
+          em: '상하이에서 출발하는 항로별 운임을 묶은 지수' },
       ] },
     /* ★ KCCI — 한국해양진흥공사가 매주 월요일 발표하는 '부산 출발' 운임지수.
        데이터는 kcci_index.py → public/data/kcci-index.json(주 1회 자동 수집). */
