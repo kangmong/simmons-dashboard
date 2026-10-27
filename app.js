@@ -2618,7 +2618,16 @@ function sfPeerBars(title, unitLabel, pickFn, fmt) {
   /* 회사마다 결산 연도가 다를 수 있어 그대로 밝힌다 */
   const note = '<div class="sf-pr__foot">기준 ' + years.join('·') + '년 · '
     + '상장사는 정기보고서 <b>별도</b>, 비상장사는 감사보고서 <b>개별</b> 기준</div>';
-  return sfPanel(title, unitLabel, '<div class="sf-pr">' + body + '</div>' + note);
+  /* 출처 — 회사마다 어느 공시에서 왔는지. 접수번호가 있으면 DART 원문으로 바로 잇는다 */
+  const dart = (no, label) => no
+    ? '<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + encodeURIComponent(no)
+      + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + ' ↗</a>'
+    : escapeHtml(label);
+  const srcs = [dart(_sfData.rceptNo, SF_ME + ' 감사보고서')].concat((_sfData.peers || [])
+    .filter((p) => p && !p.error && p.accounts)
+    .map((p) => dart(p.rceptNo, p.name + ' ' + (p.via || '공시'))));
+  const src = '<div class="fri-src"><b>출처</b> 금융감독원 전자공시(DART) · ' + srcs.join(' · ') + '</div>';
+  return sfPanel(title, unitLabel, '<div class="sf-pr">' + body + '</div>' + note + src);
 }
 
 /** 자산 구성 도넛의 조각.
