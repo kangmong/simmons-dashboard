@@ -4,7 +4,7 @@
  "symbol": "002240.KS",
  "market": "KOSPI",
  "note": "경강선(Hard Drawn Steel Wire) 생산 — 침대 스프링용 강선 포함",
- "generatedAt": "2026-10-26T23:10:52+09:00",
+ "generatedAt": "2026-10-27T22:09:23+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
@@ -252,10 +252,11 @@
    ["2026-10-21", 16110.0, 16250.0, 15710.0, 15760.0, 25541],
    ["2026-10-22", 15890.0, 15890.0, 15460.0, 15530.0, 16893],
    ["2026-10-23", 15390.0, 15410.0, 14980.0, 15250.0, 29279],
-   ["2026-10-26", 14950.0, 15180.0, 14560.0, 14560.0, 23322]
+   ["2026-10-26", 14950.0, 15180.0, 14560.0, 14560.0, 23063],
+   ["2026-10-27", 14630.0, 14750.0, 14560.0, 14710.0, 16775]
   ],
   "1wk": [
-   ["2021-10-24", 23637.3906, 23850.3398, 22743.002, 23381.8516, 137936],
+   ["2021-10-24", 23041.1309, 23850.3398, 22743.002, 23381.8516, 97159],
    ["2021-10-31", 23168.9004, 23168.9004, 21294.9453, 21806.0254, 170737],
    ["2021-11-07", 21976.3848, 22146.7441, 20145.0195, 20698.6875, 214983],
    ["2021-11-14", 20741.2773, 20741.2773, 17248.9062, 17589.625, 952827],
@@ -516,7 +517,8 @@
    ["2026-10-04", 17300.0, 17300.0, 16510.0, 16510.0, 96940],
    ["2026-10-11", 16330.0, 16680.0, 15500.0, 16110.0, 379658],
    ["2026-10-18", 15640.0, 16370.0, 14980.0, 15250.0, 120326],
-   ["2026-10-26", 14950.0, 15180.0, 14560.0, 14560.0, 23322]
+   ["2026-10-25", 14950.0, 15180.0, 14560.0, 14560.0, 23063],
+   ["2026-10-27", 14630.0, 14750.0, 14560.0, 14710.0, 16775]
   ],
   "1mo": [
    ["2016-10-31", 25896.832, 30629.5859, 24630.3203, 27863.2578, 625681],
@@ -639,7 +641,7 @@
    ["2026-07-31", 16650.0, 18000.0, 16290.0, 17270.0, 412640],
    ["2026-08-31", 17510.0, 17720.0, 16490.0, 16550.0, 463322],
    ["2026-09-30", 19170.0, 19380.0, 14980.0, 15250.0, 826770],
-   ["2026-10-26", 14950.0, 15180.0, 14560.0, 14560.0, 23322]
+   ["2026-10-27", 14630.0, 14750.0, 14560.0, 14710.0, 16775]
   ]
  },
  "candleFormat": [
@@ -680,13 +682,13 @@
   }
  ],
  "quote": {
-  "now": 14560.0,
-  "prev": 15250.0655,
-  "change": -690.0655,
-  "changePct": -4.525,
-  "changePctMeta": -4.525,
-  "changePctSeries": -4.5246,
-  "asOf": "2026-10-26 06:30"
+  "now": 14710.0,
+  "prev": 14560.0317,
+  "change": 149.9683,
+  "changePct": 1.03,
+  "changePctMeta": 1.03,
+  "changePctSeries": 1.0302,
+  "asOf": "2026-10-27 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -704,17 +706,17 @@
   },
   "summaryBar": {
    "dayLow": 14560.0,
-   "dayHigh": 15180.0,
+   "dayHigh": 14750.0,
    "week52Low": 14560.0,
    "week52High": 28300.0,
-   "marketCap": 392885731328.0,
-   "volume": 23322,
-   "avgVolume": 30971,
-   "avgVolume10": 49998
+   "marketCap": 396933300224.0,
+   "volume": 16775,
+   "avgVolume": 30734,
+   "avgVolume10": 48524
   },
   "valuation": {
-   "psr": 0.217448,
-   "dividendYield": 0.023,
+   "psr": 0.219689,
+   "dividendYield": 0.024,
    "dividendRate": 350.0,
    "payoutRatio": 0.1943,
    "beta": 0.849,
@@ -722,8 +724,8 @@
    "operatingMargin": 0.01105,
    "revenue": 1806799077376.0,
    "revenueGrowth": 0.016,
-   "change52w": -0.152778,
-   "ma50": 16803.2
+   "change52w": -0.190661,
+   "ma50": 16749.6
   },
   "holding": {
    "heldInstitutions": 0.01091,
@@ -738,22 +740,22 @@
    "published": "Wed, 28 Jan 2026 08:00:00 GMT"
   },
   {
-   "title": "키스트론, 고려제강 주식 57만8080주 처분 결정",
-   "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTE85Rlhxa1NrQWpFb01RVlBzengxZ29SRXA0R0hiM0hVb0phZ2l0M2k1SHhaUnppYkMxNEdueUJ6c1VsTExuakZjd0xYdEdFR1JfbGFwa0xYYjJTSFU2OWRJV0g0OEpCR1hDdC1fLU5zbS1OMFhBWEhHWUhkcw?oc=5",
+   "title": "고려제강 사실상지배주주 홍석표 부회장, 소유 주식 수량 13만5000주 증가…소유 지분율 0.50%p 상승",
+   "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTFB2MUtSZzl3MVVkcXJiUWpVQ0ExSW5sMDRXcWhZM0ZPXy03QXlUdXdNbDk2Sm1pX0RYRWhLMnpJVElEcVM0NGtFakUzLVJVcmI1Mzl3bzBqekdiellYX0lXUmJRU1lseTdzTGc1Y01hQ2NjYXNrODNTSUdkYw?oc=5",
    "media": "디지털투데이",
-   "published": "Tue, 20 Oct 2026 07:53:06 GMT"
-  },
-  {
-   "title": "키스트론, 계열사 고려제강 주식 94억원에 처분 결정",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB0aFE3VTBrX252QlNNMWpLME5ZdlE0Wmg5V05JbjJsNnZOS1hmVF8zelNzcWtsN05JUWY4ZlYwTUJfUHNBODJlbnhMRDB4YnpOZTJubWptN2Rmb3NTdnhOYWg4b3VNUGxvUUZKM1psV2FhdlU?oc=5",
-   "media": "데이터투자",
-   "published": "Tue, 20 Oct 2026 07:15:24 GMT"
+   "published": "Fri, 16 Oct 2026 09:14:05 GMT"
   },
   {
    "title": "고려제강그룹 지배구조 개편 속도…키스트론, 홍희연 대표 품으로",
    "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE1ReDFwTHlGakRPWGlTOE54YVBReEprY0U4UGtMQ2drNm9md2JOOWVrVlVqMDhxUlR4NVc5bWdRRml6NWtXRk1vdFJzSW10WFBib2VpZw?oc=5",
    "media": "이투데이",
    "published": "Fri, 14 Aug 2026 07:00:00 GMT"
+  },
+  {
+   "title": "키스트론(주), 고려제강 주식 13만5000주 ↓…지분율 10.06%",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1ORXpoWGh5Q1puVWtKTGVmeFpaekFEd19NWUZ5N3dXdTdCaWxfWm9HY0FhTjRiZGxiT2xuai1lbEtmMGlKWWZSMlJ3N3RQVktEVy00LWp2aHlieGhLUjlKNGV2RnhwR2NqWDBJWHhJZXZzNG8?oc=5",
+   "media": "데이터투자",
+   "published": "Fri, 16 Oct 2026 08:33:18 GMT"
   }
  ]
 }
