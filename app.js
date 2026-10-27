@@ -20032,8 +20032,11 @@ function exhWireListPick(root) {
 
 /** 분야 색 — 도넛·막대·점이 모두 같은 표를 본다 */
 function exhCatColor(key) {
-  const M = { furn: 'var(--blue)', sleep: 'var(--accent)', mat: 'var(--green)',
-    tech: 'var(--violet)', health: 'var(--teal)', ai: 'var(--amber)', etc: 'var(--slate)' };
+  /* ★ 분야 색은 일부러 차분한 흙빛 계열로 둔다 — 나라 색(지도·지역별 막대)이 파랑·빨강·초록·
+     보라 같은 원색이라, 분야까지 같은 색을 쓰면 '미국'과 '가구·인테리어'가 같은 파랑이 되어 헷갈렸다.
+     styles.css 의 .exh-dot--* 와 같은 값이다. */
+  const M = { furn: '#8B5E3C', sleep: '#1E3A5F', mat: '#6B7F3A',
+    tech: '#52525B', health: '#C9A27E', ai: '#A1A1AA', etc: '#D4D4D8' };
   return M[exhCatCls(key)] || 'var(--slate)';
 }
 
