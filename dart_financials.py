@@ -506,8 +506,10 @@ def collect_company(key, name, corp_code):
             continue
         got = _fnltt_accounts(rows)
         if got:
+            # rcept_no — 화면 출처가 DART 원문(사업보고서)으로 바로 잇는다
             return {"name": name, "corpCode": corp_code, "fiscalYear": yr,
                     "basis": "별도", "via": "정기보고서",
+                    "rceptNo": (rows[0].get("rcept_no") or "").strip(),
                     "accounts": {k: {"label": LABEL_KO[k], "current": _eok(v[0]),
                                      "previous": _eok(v[1])} for k, v in got.items()}}
     # 2) 감사보고서 원문
