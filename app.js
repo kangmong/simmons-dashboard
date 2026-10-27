@@ -14437,10 +14437,13 @@ function sqPct(v) {
   return (v == null) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
 }
 /** 주가 표 회사 로고 — 각 회사 공식 사이트의 로고·아이콘을 public/logos 에 받아 둔 것.
- *  ★ 공식 로고를 구하지 못한 회사(에넥스·고려제강)는 지어내지 않고 첫 글자 배지로 둔다. */
+ *  ★ 에넥스는 공식 몰 머리 로고 원본(빨강 ENEX), 고려제강은 공식 사이트가 '공사중'이라
+ *    인터넷 아카이브의 kiswire.com(2025-06) 메인 배경에 들어 있던 로고를 잘라 썼다.
+ *  ★ 표에 없는 회사는 지어내지 않고 첫 글자 배지로 둔다. */
 const SQ_LOGO = {
   simmons: 'simmons-logo.png', acebed: 'stock-acebed.png', coway: 'coway.png', fursys: 'stock-fursys.png',
   zinus: 'stock-zinus.png', hanssem: 'stock-hanssem.png', livart: 'stock-livart.png', somnigroup: 'stock-somnigroup.png',
+  enex: 'stock-enex.png', kiswire: 'stock-kiswire.png',
 };
 function sqLogo(i) {
   const f = SQ_LOGO[i.key];
