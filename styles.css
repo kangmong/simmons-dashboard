@@ -6614,3 +6614,18 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   .fri-slot--comp > .fri-side { grid-column: 1; grid-row: auto; max-width: none; }
   .fri-side > .fri-note { margin-top: 0; }
 }
+/* 주가 표 — 이름 뒤 회사 로고(공식 로고를 못 구한 곳은 첫 글자 배지) */
+.sq-nm { display: inline-flex; align-items: center; gap: 6px; }
+/* PC 대시보드 요약 카드는 이름 칸이 좁아(약 30px) 로고 자리가 없다 — 더보기 화면·모바일에서만 보인다 */
+@media (min-width: 761px) { .content[data-view="dashboard"] .sq-logo { display: none; } }
+.content:not([data-view="dashboard"]) .sq-nm { min-width: 8.5em; }
+.sq-logo { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; height: 22px; min-width: 22px; max-width: 72px;
+  font-size: 11px; font-weight: 800; color: var(--muted); background: var(--field); border-radius: 6px; overflow: hidden; }
+.sq-logo:has(img) { background: transparent; }
+.sq-logo img { height: 22px; width: auto; max-width: 72px; object-fit: contain; }
+/* 환율 카드 — 통화 이름 뒤 국기 */
+.fxa-c__flag { height: 13px; width: auto; margin-left: 6px; vertical-align: -2px; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+/* 연간 행사 캘린더 — 점 아래 나라 국기 */
+.exh-cal__fl { display: inline-flex; gap: 3px; align-items: center; margin-left: 4px; }
+.exh-cal__fl .exh-flag { margin-left: 0; height: 10px; }
+.content[data-view="exh"] .exh-cal__fl .exh-flag { height: 13px; }

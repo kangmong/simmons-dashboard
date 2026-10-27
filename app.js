@@ -14236,7 +14236,10 @@ function fxaCardsHtml() {
       + ' title="' + escapeHtml(c.name + ' 상세 보기') + '">'
       + '<div class="fxa-c__top">'
       + '<span class="fxa-c__cur"><i style="background:' + c.color + '"></i><b>' + escapeHtml(c.cur) + '</b>'
-      + '<span class="fxa-c__nm">' + escapeHtml(c.name) + '</span></span>'
+      + '<span class="fxa-c__nm">' + escapeHtml(c.name) + '</span>'
+      + ({ USD: 'us', EUR: 'eu', JPY: 'jp' }[c.cur]
+        ? '<img class="fxa-c__flag" src="public/flags/' + { USD: 'us', EUR: 'eu', JPY: 'jp' }[c.cur] + '.svg" alt="'
+          + escapeHtml(c.name) + ' 국기">' : '') + '</span>'
       + '<span class="fxa-c__bd">' + badges + '</span></div>'
       + '<div class="fxa-c__now">' + fxNum(c.now) + '<span class="fxa-c__u">원 / ' + escapeHtml(c.unit || '') + '</span></div>'
       + '<div class="fxa-c__chg ' + tone + '">' + arrow + ' ' + fxNum(chg == null ? null : Math.abs(chg))
@@ -14433,6 +14436,19 @@ function sqNum(v, cur) {
 function sqPct(v) {
   return (v == null) ? '—' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
 }
+/** 주가 표 회사 로고 — 각 회사 공식 사이트의 로고·아이콘을 public/logos 에 받아 둔 것.
+ *  ★ 공식 로고를 구하지 못한 회사(에넥스·고려제강)는 지어내지 않고 첫 글자 배지로 둔다. */
+const SQ_LOGO = {
+  simmons: 'simmons-logo.png', acebed: 'stock-acebed.png', coway: 'coway.png', fursys: 'stock-fursys.png',
+  zinus: 'stock-zinus.png', hanssem: 'stock-hanssem.png', livart: 'stock-livart.png', somnigroup: 'stock-somnigroup.png',
+};
+function sqLogo(i) {
+  const f = SQ_LOGO[i.key];
+  return '<span class="sq-logo" aria-hidden="true">' + (f
+    ? '<img src="public/logos/' + f + '" alt="" loading="lazy" onerror="this.parentNode.textContent=\'' + escapeHtml(String(i.name || '').slice(0, 1)) + '\'">'
+    : escapeHtml(String(i.name || '').slice(0, 1))) + '</span>';
+}
+
 function sqTone(pct) {
   return (pct == null || Math.abs(pct) < 0.005) ? 'fx-flat' : (pct > 0 ? 'up' : 'down');
 }
@@ -14462,18 +14478,20 @@ function sqListHtml() {
     return '<div class="sq-wrap">' + head + emptyState('주가 조회 일시 불가') + '</div>';
   }
   const failed = items.filter((i) => i.listed && i.status !== 'ok');
+  /* 이름 뒤 로고 칸 — 이름 칸 폭을 맞춰 로고가 한 줄로 서게 한다 */
+  const nm = (i, badges) => '<span class="sq-row__n"><span class="sq-nm">' + escapeHtml(i.name) + (badges || '')
+    + '</span>' + sqLogo(i) + '</span>';
   const rows = items.map((i) => {
     if (i.status === 'unlisted') {
       return '<div class="sq-row is-unlisted' + (i.own ? ' is-own' : '') + '">'
-        + '<span class="sq-row__n">' + escapeHtml(i.name)
-        + (i.own ? '<em class="sq-own">자사</em>' : '') + '</span>'
+        + nm(i, i.own ? '<em class="sq-own">자사</em>' : '')
         + '<span class="sq-row__m">비상장</span>'
         + '<span class="sq-row__p">—</span>'
         + '<span class="sq-row__c fx-flat">—</span></div>';
     }
     if (i.status !== 'ok') {
       return '<div class="sq-row is-err" tabindex="0" role="button" data-sqkey="' + escapeHtml(i.key) + '">'
-        + '<span class="sq-row__n">' + escapeHtml(i.name) + '</span>'
+        + nm(i)
         + '<span class="sq-row__m">' + escapeHtml(i.market || '') + '</span>'
         + '<span class="sq-row__p sq-na" title="' + escapeHtml(i.reason || '시세를 받지 못했습니다')
         + '">조회 불가</span><span class="sq-row__c fx-flat">—</span></div>';
@@ -14481,10 +14499,8 @@ function sqListHtml() {
     const t = sqTone(i.changePct);
     return '<div class="sq-row" tabindex="0" role="button" data-sqkey="' + escapeHtml(i.key) + '"'
       + ' title="' + escapeHtml(i.name + ' 상세 보기') + '">'
-      + '<span class="sq-row__n">' + escapeHtml(i.name)
-      + (i.own ? '<em class="sq-own">자사</em>' : '')
-      + (i.quoteWarning ? '<em class="sq-warn" title="' + escapeHtml(i.quoteWarning) + '">검증 경고</em>' : '')
-      + '</span>'
+      + nm(i, (i.own ? '<em class="sq-own">자사</em>' : '')
+        + (i.quoteWarning ? '<em class="sq-warn" title="' + escapeHtml(i.quoteWarning) + '">검증 경고</em>' : ''))
       + '<span class="sq-row__m">' + escapeHtml(i.market || '') + '</span>'
       + '<span class="sq-row__p">' + sqNum(i.now, i.currency)
       + '<u>' + (i.currency === 'USD' ? '$' : '원') + '</u></span>'
@@ -19959,6 +19975,9 @@ function exhCalHtml(items) {
       + '<b>' + m + '월</b><span class="exh-cal__ds">'
       + evs.map((x) => { const d = exhDday(x); return '<i class="exh-dot' + (d != null && d < 0 ? ' is-past' : '')
         + '" style="background:' + exhCountryColor(x.country) + '"></i>'; }).join('')
+      /* 그달 행사가 열리는 나라 국기 — 같은 나라는 한 번만 */
+      + (evs.length ? '<span class="exh-cal__fl">'
+        + Array.from(new Set(evs.map((x) => sIdxStr(x.country)))).map(exhFlagImg).join('') + '</span>' : '')
       + '</span></button>');
   }
   let mon = '';
