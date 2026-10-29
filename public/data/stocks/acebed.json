@@ -4,12 +4,11 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-10-28T22:58:09+09:00",
+ "generatedAt": "2026-10-29T23:11:14+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
   "1d": [
-   ["2025-10-28", 26750.0, 27100.0, 26700.0, 26900.0, 18520],
    ["2025-10-29", 26950.0, 27250.0, 26700.0, 27200.0, 5209],
    ["2025-10-30", 27200.0, 27550.0, 26900.0, 26900.0, 12426],
    ["2025-10-31", 27050.0, 27300.0, 26800.0, 27000.0, 10776],
@@ -253,10 +252,11 @@
    ["2026-10-23", 31800.0, 31800.0, 31100.0, 31750.0, 4626],
    ["2026-10-26", 31750.0, 31800.0, 31300.0, 31500.0, 2403],
    ["2026-10-27", 31400.0, 31700.0, 31300.0, 31650.0, 2891],
-   ["2026-10-28", 31400.0, 31850.0, 31400.0, 31850.0, 1389]
+   ["2026-10-28", 31400.0, 31850.0, 31400.0, 31850.0, 1389],
+   ["2026-10-29", 31700.0, 31750.0, 31400.0, 31750.0, 1365]
   ],
   "1wk": [
-   ["2021-10-24", 47300.0, 47650.0, 46400.0, 47600.0, 1565],
+   ["2021-10-24", 46850.0, 47600.0, 46400.0, 47600.0, 842],
    ["2021-10-31", 48000.0, 48200.0, 46900.0, 47850.0, 4615],
    ["2021-11-07", 47600.0, 47600.0, 45300.0, 46050.0, 5500],
    ["2021-11-14", 46250.0, 46450.0, 41850.0, 42050.0, 26725],
@@ -517,8 +517,8 @@
    ["2026-10-04", 32000.0, 32350.0, 31700.0, 31700.0, 5687],
    ["2026-10-11", 32550.0, 32550.0, 31000.0, 31750.0, 19263],
    ["2026-10-18", 31750.0, 32500.0, 31100.0, 31750.0, 9757],
-   ["2026-10-25", 31750.0, 31800.0, 31300.0, 31650.0, 5294],
-   ["2026-10-28", 31400.0, 31850.0, 31400.0, 31850.0, 1389]
+   ["2026-10-25", 31750.0, 31850.0, 31300.0, 31850.0, 6683],
+   ["2026-10-29", 31700.0, 31750.0, 31400.0, 31750.0, 1365]
   ],
   "1mo": [
    ["2016-10-31", 30220.0, 32800.0, 29640.0, 31000.0, 27265],
@@ -640,8 +640,8 @@
    ["2026-06-30", 32350.0, 33500.0, 31000.0, 32550.0, 102722],
    ["2026-07-31", 32200.0, 33850.0, 30900.0, 33050.0, 50609],
    ["2026-08-31", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
-   ["2026-09-30", 32400.0, 32600.0, 31000.0, 31650.0, 44358],
-   ["2026-10-28", 31400.0, 31850.0, 31400.0, 31850.0, 1389]
+   ["2026-09-30", 32400.0, 32600.0, 31000.0, 31850.0, 45747],
+   ["2026-10-29", 31700.0, 31750.0, 31400.0, 31750.0, 1365]
   ]
  },
  "candleFormat": [
@@ -682,13 +682,13 @@
   }
  ],
  "quote": {
-  "now": 31850.0,
-  "prev": 31649.9722,
-  "change": 200.0278,
-  "changePct": 0.632,
-  "changePctMeta": 0.632,
-  "changePctSeries": 0.6319,
-  "asOf": "2026-10-28 06:30"
+  "now": 31750.0,
+  "prev": 31850.009,
+  "change": -100.009,
+  "changePct": -0.314,
+  "changePctMeta": -0.314,
+  "changePctSeries": -0.314,
+  "asOf": "2026-10-29 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -708,17 +708,17 @@
   },
   "summaryBar": {
    "dayLow": 31400.0,
-   "dayHigh": 31850.0,
+   "dayHigh": 31750.0,
    "week52Low": 26400.0,
    "week52High": 39850.0,
-   "marketCap": 336238706688.0,
-   "volume": 1389,
-   "avgVolume": 2438,
-   "avgVolume10": 2878
+   "marketCap": 335183020032.0,
+   "volume": 1365,
+   "avgVolume": 2281,
+   "avgVolume10": 2840
   },
   "valuation": {
-   "psr": 1.021298,
-   "dividendYield": 0.0727,
+   "psr": 1.018091,
+   "dividendYield": 0.0722,
    "dividendRate": 2300.0,
    "payoutRatio": 0.397,
    "beta": 0.355,
@@ -726,8 +726,8 @@
    "operatingMargin": 0.19604,
    "revenue": 329226911744.0,
    "revenueGrowth": 0.109,
-   "change52w": 0.163603,
-   "ma50": 32392.0
+   "change52w": 0.184015,
+   "ma50": 32362.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -748,16 +748,16 @@
    "published": "Fri, 10 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "에이스침대 투자분석 2026. 10. 11",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5UeTQ1WDJJTlEzLVNlYTE4eGd5M0VHRm45cWZRSVZqU3FkMm13dl91Q0VMZlhxS3hDbGtZRUw1aG1XcHJtdVJHQzFXZkdma3NPSU1OeHFJZDZKSWp1Y0pZSEhtNHU1bGtiR3p5S2Rzb2s3QUk?oc=5",
-   "media": "주달",
-   "published": "Sun, 11 Oct 2026 07:00:00 GMT"
+   "title": "배당 늘린 에이스침대…지분 증여와 맞물린 '승계 시계'",
+   "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBreFNGVXd2ajRRVm9ldkdqenJrSFR4RmYyZTdRSkcwUG5NSW8zeFNIdnk1THFFM1NaRHpKVGJiTVp2UlA1MXNsQ01veXIwaHM?oc=5",
+   "media": "딜사이트",
+   "published": "Wed, 25 Feb 2026 08:00:00 GMT"
   },
   {
-   "title": "에이스침대 투자분석 2026. 10. 04",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5LYTJpdmJTUXg5SkM0UVBJdzMyLW9JYlZSMXBfakhicjBxOWt4WHVTcnFzTnhiTGduRWlmOVM1a1U5LW1mT2V3aUkxSy14MVdOVkhqUDZUdzdONHFzSWJLTmhxRm0wMXhGRGpzRWVNNi1LQTQ?oc=5",
-   "media": "주달",
-   "published": "Sun, 04 Oct 2026 07:00:00 GMT"
+   "title": "에이스침대, 배당소득세 최고세율 목전까지 배당…증여세 대비 관측",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
+   "media": "뉴스핌",
+   "published": "Wed, 04 Feb 2026 08:00:00 GMT"
   }
  ]
 }
