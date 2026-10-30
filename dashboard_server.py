@@ -2212,7 +2212,7 @@ def api_ask():
     """AI에게 물어보기(베타) — 배포(api/ask.py)와 같은 ask_core 를 로컬에서도 쓴다."""
     import ask_core
     data = request.get_json(silent=True) or {}
-    status, out = ask_core.answer(data.get("q"), data.get("code"), ip=request.remote_addr or "?",
+    status, out = ask_core.answer(data.get("q"), ip=request.remote_addr or "?",
                                   prev=data.get("prev") or [])
     return jsonify(out), status
 

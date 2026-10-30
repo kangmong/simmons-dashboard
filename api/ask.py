@@ -31,7 +31,7 @@ class handler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "kind": "error", "text": "요청이 올바르지 않습니다."})
             data = json.loads(self.rfile.read(n).decode("utf-8"))
             ip = (self.headers.get("x-forwarded-for") or "").split(",")[0].strip() or "?"
-            status, out = ask_core.answer(data.get("q"), data.get("code"), ip=ip, prev=data.get("prev") or [])
+            status, out = ask_core.answer(data.get("q"), ip=ip, prev=data.get("prev") or [])
             self._send(status, out)
         except Exception:  # noqa: BLE001 — 질문 내용은 남기지 않는다
             self._send(500, {"ok": False, "kind": "error", "text": "일시적인 오류가 났습니다. 잠시 후 다시 시도해 주세요."})

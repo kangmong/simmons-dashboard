@@ -20339,8 +20339,6 @@ const ASK_Q_MAX = 200;
 let _askPrev = [];      // 직전 답의 항목 ID — "그럼 TDI는?" 같은 이어 묻기에 쓴다
 let _askBusy = false;
 
-function askCode() { try { return localStorage.getItem('askCode') || ''; } catch (e) { return ''; } }
-function askSaveCode(v) { try { localStorage.setItem('askCode', v); } catch (e) { /* 기억 못 해도 동작한다 */ } }
 
 function askPanel() {
   let p = document.getElementById('askPanel');
@@ -20353,8 +20351,6 @@ function askPanel() {
   p.innerHTML = '<div class="ask-h"><b>AI에게 물어보기</b><span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
     + '<div class="ask-scope">원자재 원가 동향 데이터(ICIS·국제유가·석유제품·KOIMA·KCCI)로만 답합니다.</div>'
-    + '<label class="ask-code"' + (askCode() ? ' hidden' : '') + '>접속 코드 '
-    + '<input type="password" id="askCodeIn" autocomplete="off" placeholder="사내 공유 코드"></label>'
     + '<div class="ask-ex">' + ASK_EXAMPLES.map((q) => '<button type="button" class="ask-chip" data-askq="'
       + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>'
     + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
@@ -20386,7 +20382,7 @@ function askToggle(open) {
   document.body.classList.toggle('ask-on', open);
   const b = document.getElementById('askOpen');
   if (b) b.setAttribute('aria-expanded', String(open));
-  if (open) setTimeout(() => { const t = p.querySelector(askCode() ? '#askQ' : '#askCodeIn'); if (t) t.focus(); }, 50);
+  if (open) setTimeout(() => { const t = p.querySelector('#askQ'); if (t) t.focus(); }, 50);
 }
 
 /** '해당 카드 보기' — 원자재 메뉴에서 그 카드를 골라 연다 */
@@ -20450,8 +20446,6 @@ async function askAsk(raw) {
   const p = askPanel();
   const q = String(raw || '').trim();
   if (!q || _askBusy) return;
-  const codeIn = p.querySelector('#askCodeIn');
-  if (codeIn && codeIn.value.trim()) askSaveCode(codeIn.value.trim());
   const log = p.querySelector('#askLog');
   /* 이 창에서는 최근 3개 질문만 남긴다 */
   while (log.querySelectorAll('.ask-turn').length >= 3) log.removeChild(log.querySelector('.ask-turn'));
@@ -20468,13 +20462,9 @@ async function askAsk(raw) {
   try {
     const res = await fetch(API_BASE + '/api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
-      body: JSON.stringify({ q: q.slice(0, ASK_Q_MAX), code: askCode(), prev: _askPrev }),
+      body: JSON.stringify({ q: q.slice(0, ASK_Q_MAX), prev: _askPrev }),
     });
     const r = await res.json().catch(() => ({}));
-    if (r.kind === 'code') {
-      try { localStorage.removeItem('askCode'); } catch (e) { /* 무시 */ }
-      const l = p.querySelector('.ask-code'); if (l) l.hidden = false;
-    }
     if (r.ok && r.kind === 'answer') { _askPrev = r.ids || []; html = askAnswerHtml(r); } else {
       html = '<div class="ask-a is-info">' + escapeHtml(r.text || '답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
     }

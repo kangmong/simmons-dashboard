@@ -11,7 +11,6 @@
 ★ 질문 원문은 로그로 남기지 않는다(print 하지 않는다).
 """
 import datetime
-import hmac
 import io
 import json
 import os
@@ -393,13 +392,9 @@ def _source(s):
     return {"card": s["card"], "view": s["view"], "asOf": s["dates"][-1]}
 
 
-def answer(q, code, ip="", prev=None):
+def answer(q, ip="", prev=None):
+    """누구나 쓸 수 있다(2026-10-30 사용자 결정으로 접속 코드 없앰) — IP별·하루 상한만 둔다."""
     q = (q or "").strip()
-    want = (os.environ.get("ASK_ACCESS_CODE") or "").strip()
-    if not want:
-        return 503, {"ok": False, "kind": "error", "text": "관리자 설정(접속 코드)이 아직 되지 않았습니다."}
-    if not hmac.compare_digest(str(code or "").strip(), want):
-        return 403, {"ok": False, "kind": "code", "text": "접속 코드가 맞지 않습니다."}
     if not q:
         return 400, {"ok": False, "kind": "error", "text": "질문을 입력해 주세요."}
     if len(q) > Q_MAX:

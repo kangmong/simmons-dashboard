@@ -6648,9 +6648,6 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .ask-x { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--card); color: var(--muted); cursor: pointer; }
 .ask-scope { font-size: 11.5px; color: var(--muted); }
-.ask-code { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; }
-.ask-code[hidden] { display: none; }
-.ask-code input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 .ask-ex { display: flex; flex-wrap: wrap; gap: 6px; }
 .ask-chip { font: inherit; font-size: 11.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--field); color: var(--ink); cursor: pointer; }
