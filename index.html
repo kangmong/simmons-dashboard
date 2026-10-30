@@ -9,7 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20261027h" />
+  <link rel="stylesheet" href="styles.css?v=20261030a" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -87,6 +87,11 @@
       </button>
 
       <div class="sidebar-fill"></div>
+
+      <!-- AI에게 물어보기(베타) — 원자재 원가 동향 데이터로만 답한다(app.js askWire · api/ask.py) -->
+      <button class="ask-btn" id="askOpen" type="button" aria-expanded="false" aria-controls="askPanel">
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z"/><path d="M12 6.6l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9z"/></svg></span>AI에게 물어보기<span class="ask-btn__beta">베타</span>
+      </button>
 
       <!-- 상시 실시간 업데이트 위젯 (어느 화면에서든 항상 표시) -->
       <div class="upload-widget" id="uploadWidget">
@@ -255,6 +260,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20261027h"></script>
+  <script src="app.js?v=20261030a"></script>
 </body>
 </html>

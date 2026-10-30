@@ -2207,6 +2207,16 @@ def api_weather_news():
     return jsonify(fetch_region_news(region))
 
 
+@app.route("/api/ask", methods=["POST"])
+def api_ask():
+    """AI에게 물어보기(베타) — 배포(api/ask.py)와 같은 ask_core 를 로컬에서도 쓴다."""
+    import ask_core
+    data = request.get_json(silent=True) or {}
+    status, out = ask_core.answer(data.get("q"), data.get("code"), ip=request.remote_addr or "?",
+                                  prev=data.get("prev") or [])
+    return jsonify(out), status
+
+
 @app.route("/api/img", methods=["GET"])
 def api_img():
     """기사 썸네일 프록시 — 배포(api/img.py)와 같은 동작을 로컬에서도 쓴다.

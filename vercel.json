@@ -28,6 +28,20 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/ask.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": [
+          "ask_core.py",
+          "icis_forecast.py",
+          "public/data/dashboard.json",
+          "public/data/koima-price.json",
+          "public/data/kcci-index.json",
+          "public/data/kp-insights.json"
+        ]
+      }
+    },
+    {
       "src": "index.html",
       "use": "@vercel/static"
     },
@@ -209,6 +223,13 @@
         "GET"
       ],
       "dest": "/api/img.py"
+    },
+    {
+      "src": "/api/ask",
+      "methods": [
+        "POST"
+      ],
+      "dest": "/api/ask.py"
     },
     {
       "handle": "filesystem"

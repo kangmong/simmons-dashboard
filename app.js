@@ -20325,3 +20325,173 @@ function renderExhExtra() {
     + (_exh.updatedAt ? ' · 기준 ' + escapeHtml(sIdxStr(_exh.updatedAt)) : '')
     + '</div>';
 }
+
+
+/* ============================================================
+   AI에게 물어보기(베타) — 사이드바 버튼 + 오른쪽 질문 패널
+   ★ 숫자는 서버(ask_core.py)가 원자재 원가 동향 데이터로 계산한다. AI 는 문장만.
+   ★ 그래프는 기존 idxLineChart(선)를 그대로 쓰고, 순위는 같은 꼴의 가로 막대로 그린다.
+   ★ 대화는 이 창에서 최근 3개만 기억하고, 새로고침하면 지운다(서버에 저장하지 않는다).
+   ============================================================ */
+const ASK_EXAMPLES = ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?',
+  '국제유가 전월 대비 변화는?', '부산에서 유럽 가는 운임은?', '구리 3개월 추이 알려줘'];
+const ASK_Q_MAX = 200;
+let _askPrev = [];      // 직전 답의 항목 ID — "그럼 TDI는?" 같은 이어 묻기에 쓴다
+let _askBusy = false;
+
+function askCode() { try { return localStorage.getItem('askCode') || ''; } catch (e) { return ''; } }
+function askSaveCode(v) { try { localStorage.setItem('askCode', v); } catch (e) { /* 기억 못 해도 동작한다 */ } }
+
+function askPanel() {
+  let p = document.getElementById('askPanel');
+  if (p) return p;
+  p = document.createElement('aside');
+  p.id = 'askPanel';
+  p.className = 'ask-panel';
+  p.setAttribute('role', 'dialog');
+  p.setAttribute('aria-label', 'AI에게 물어보기');
+  p.innerHTML = '<div class="ask-h"><b>AI에게 물어보기</b><span class="ask-beta">베타</span>'
+    + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
+    + '<div class="ask-scope">원자재 원가 동향 데이터(ICIS·국제유가·석유제품·KOIMA·KCCI)로만 답합니다.</div>'
+    + '<label class="ask-code"' + (askCode() ? ' hidden' : '') + '>접속 코드 '
+    + '<input type="password" id="askCodeIn" autocomplete="off" placeholder="사내 공유 코드"></label>'
+    + '<div class="ask-ex">' + ASK_EXAMPLES.map((q) => '<button type="button" class="ask-chip" data-askq="'
+      + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>'
+    + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
+    + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
+    + '" placeholder="예: PPG 가격이 최근에 얼마나 올랐어?"></textarea>'
+    + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
+    + '<button type="submit" class="ask-send">보내기</button></div></form>'
+    + '<div class="ask-warn">사내 기밀 정보는 입력하지 마세요. 입력한 내용은 외부 AI 서비스로 전송됩니다.</div>';
+  document.body.appendChild(p);
+  p.addEventListener('click', (e) => {
+    if (e.target.closest('[data-askclose]')) { askToggle(false); return; }
+    const c = e.target.closest('[data-askq]');
+    if (c) { askAsk(c.getAttribute('data-askq')); return; }
+    const g = e.target.closest('[data-askgo]');
+    if (g) askGo(g.getAttribute('data-askgo'));
+  });
+  const ta = p.querySelector('#askQ');
+  ta.addEventListener('input', () => { p.querySelector('#askN').textContent = ta.value.length + '/' + ASK_Q_MAX; });
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); askAsk(ta.value); }
+  });
+  p.querySelector('#askForm').addEventListener('submit', (e) => { e.preventDefault(); askAsk(ta.value); });
+  return p;
+}
+
+function askToggle(open) {
+  const p = askPanel();
+  p.classList.toggle('is-open', open);
+  document.body.classList.toggle('ask-on', open);
+  const b = document.getElementById('askOpen');
+  if (b) b.setAttribute('aria-expanded', String(open));
+  if (open) setTimeout(() => { const t = p.querySelector(askCode() ? '#askQ' : '#askCodeIn'); if (t) t.focus(); }, 50);
+}
+
+/** '해당 카드 보기' — 원자재 메뉴에서 그 카드를 골라 연다 */
+function askGo(view) {
+  const kc = view === 'fri:kcci';
+  mtTreePick(kc ? 'fri' : view);
+  setView('material');
+  renderMaterial();
+  if (kc) {
+    const a = document.querySelector('[data-fri="kcci"]'); if (a) a.click();
+    const b = document.querySelector('[data-friway="kcci"]'); if (b) b.click();
+  }
+  if (window.innerWidth <= 720) askToggle(false);
+}
+
+function askBars(ch) {
+  const max = Math.max.apply(null, ch.rows.map((r) => Math.abs(r.v))) || 1;
+  return '<div class="ask-bars"><div class="ask-bars__u">(단위: %)</div>' + ch.rows.map((r) =>
+    '<div class="ask-bar"><span class="ask-bar__k">' + escapeHtml(r.name) + '</span>'
+    + '<span class="ask-bar__t"><i class="' + (r.v >= 0 ? 'is-up' : 'is-down') + '" style="width:'
+    + Math.max(2, Math.abs(r.v) / max * 100).toFixed(1) + '%"></i></span>'
+    + '<b class="' + (r.v >= 0 ? 'is-up' : 'is-down') + '">' + (r.v >= 0 ? '+' : '') + r.v.toFixed(1) + '%</b></div>').join('')
+    + '</div>';
+}
+
+function askChart(ch) {
+  if (!ch) return '';
+  if (ch.type === 'bar' && ch.rows && ch.rows.length) return askBars(ch);
+  if (ch.type !== 'line' || !ch.series) return '';
+  return ch.series.filter((s) => s.values && s.values.length > 1).map((s) => {
+    const f = (x) => x.toLocaleString('ko-KR', { maximumFractionDigits: x >= 1000 ? 0 : 2 });
+    return '<div class="ask-chart">' + idxLineChart(s.dates, s.values, {
+      span: 'all', compact: true, tone: '#2563EB', krw: false, unit: s.unit,
+      fmt: (x) => f(x) + ' ' + s.unit, tick: f,
+      caption: escapeHtml(s.name) + ' <span>' + escapeHtml(s.dates[0]) + ' ~ ' + escapeHtml(s.dates[s.dates.length - 1])
+        + ' · 세로축은 0 부터</span>',
+      aria: s.name + ' 추이',
+    }) + '</div>';
+  }).join('');
+}
+
+function askAnswerHtml(r) {
+  const by = r.by === 'ai' ? 'AI가 정리한 내용입니다' : '계산 결과를 그대로 정리한 내용입니다';
+  const ev = (r.events || []).length
+    ? '<div class="ask-ev"><b>같은 시기 주요 이슈</b> (인과관계를 뜻하지 않습니다)<ul>' + r.events.map((e) =>
+      '<li>' + escapeHtml(e.date) + ' · <a href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener noreferrer">'
+      + escapeHtml(e.label) + ' ↗</a>' + (e.source ? ' <span>' + escapeHtml(e.source) + '</span>' : '') + '</li>').join('')
+      + '</ul></div>' : '';
+  const facts = (r.facts || []).length
+    ? '<details class="ask-facts"><summary>계산 근거 보기</summary><ul>'
+      + r.facts.map((x) => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul></details>' : '';
+  const src = (r.sources || []).map((s) => '<div class="ask-src"><span>출처 ' + escapeHtml(s.card) + ' · 기준 '
+    + escapeHtml(s.asOf) + '</span><button type="button" class="ask-go" data-askgo="' + escapeHtml(s.view)
+    + '">해당 카드 보기 ›</button></div>').join('');
+  return '<div class="ask-a"><p>' + escapeHtml(r.text || '') + '</p>'
+    + askChart(r.chart) + ev + facts + src
+    + '<div class="ask-by">' + by + (r.note ? ' · ' + escapeHtml(r.note) : '') + '</div></div>';
+}
+
+async function askAsk(raw) {
+  const p = askPanel();
+  const q = String(raw || '').trim();
+  if (!q || _askBusy) return;
+  const codeIn = p.querySelector('#askCodeIn');
+  if (codeIn && codeIn.value.trim()) askSaveCode(codeIn.value.trim());
+  const log = p.querySelector('#askLog');
+  /* 이 창에서는 최근 3개 질문만 남긴다 */
+  while (log.querySelectorAll('.ask-turn').length >= 3) log.removeChild(log.querySelector('.ask-turn'));
+  const turn = document.createElement('div');
+  turn.className = 'ask-turn';
+  turn.innerHTML = '<div class="ask-q">' + escapeHtml(q) + '</div><div class="ask-a is-wait">답을 찾는 중…</div>';
+  log.appendChild(turn);
+  const ta = p.querySelector('#askQ');
+  ta.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
+  _askBusy = true;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 30000);
+  let html;
+  try {
+    const res = await fetch(API_BASE + '/api/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
+      body: JSON.stringify({ q: q.slice(0, ASK_Q_MAX), code: askCode(), prev: _askPrev }),
+    });
+    const r = await res.json().catch(() => ({}));
+    if (r.kind === 'code') {
+      try { localStorage.removeItem('askCode'); } catch (e) { /* 무시 */ }
+      const l = p.querySelector('.ask-code'); if (l) l.hidden = false;
+    }
+    if (r.ok && r.kind === 'answer') { _askPrev = r.ids || []; html = askAnswerHtml(r); } else {
+      html = '<div class="ask-a is-info">' + escapeHtml(r.text || '답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
+    }
+  } catch (e) {
+    html = '<div class="ask-a is-info">' + (e && e.name === 'AbortError'
+      ? '응답이 늦어지고 있습니다. 잠시 후 다시 시도해 주세요.' : '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
+  } finally {
+    clearTimeout(timer);
+    _askBusy = false;
+  }
+  turn.querySelector('.ask-a').outerHTML = html;
+  turn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+(function askWire() {
+  const b = document.getElementById('askOpen');
+  if (!b) return;
+  b.addEventListener('click', () => askToggle(!(document.getElementById('askPanel') || {}).classList?.contains('is-open')));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const p = document.getElementById('askPanel'); if (p && p.classList.contains('is-open')) askToggle(false); } });
+})();
