@@ -1,7 +1,7 @@
 {
   "status": "ok",
-  "generatedAt": "2026-10-30T10:19:42+09:00",
-  "asOf": "2026-10-29",
+  "generatedAt": "2026-10-31T10:00:21+09:00",
+  "asOf": "2026-10-30",
   "cards": [
     {
       "cur": "USD",
@@ -9,14 +9,13 @@
       "unit": "1달러",
       "color": "#C8102E",
       "status": "ok",
-      "now": 1337.29,
-      "prev": 1340.47,
-      "change": -3.18,
-      "changePct": -0.24,
-      "asOf": "2026-10-29",
-      "prevAsOf": "2026-10-28",
+      "now": 1335.27,
+      "prev": 1337.29,
+      "change": -2.02,
+      "changePct": -0.15,
+      "asOf": "2026-10-30",
+      "prevAsOf": "2026-10-29",
       "spark": [
-        1427.11,
         1423.72,
         1423.57,
         1415.95,
@@ -78,10 +77,10 @@
         1325.28,
         1327.75,
         1340.47,
-        1337.29
+        1337.29,
+        1335.27
       ],
       "sparkDates": [
-        "2026-08-04",
         "2026-08-05",
         "2026-08-06",
         "2026-08-07",
@@ -143,12 +142,13 @@
         "2026-10-26",
         "2026-10-27",
         "2026-10-28",
-        "2026-10-29"
+        "2026-10-29",
+        "2026-10-30"
       ],
       "stats": {
-        "high3m": 1427.11,
+        "high3m": 1423.72,
         "low3m": 1324.45,
-        "avg3m": 1364.9,
+        "avg3m": 1363.44,
         "high12m": 1558.09,
         "low12m": 1324.45,
         "windowDays": 63
@@ -157,7 +157,7 @@
         {
           "text": "보합",
           "tone": "flat",
-          "why": "전일대비 -0.24% (±0.3% 이내)"
+          "why": "전일대비 -0.15% (±0.3% 이내)"
         }
       ]
     },
@@ -167,14 +167,13 @@
       "unit": "1유로",
       "color": "#F59E0B",
       "status": "ok",
-      "now": 1488.4,
-      "prev": 1492.35,
-      "change": -3.95,
-      "changePct": -0.26,
-      "asOf": "2026-10-29",
-      "prevAsOf": "2026-10-28",
+      "now": 1491.76,
+      "prev": 1488.4,
+      "change": 3.36,
+      "changePct": 0.23,
+      "asOf": "2026-10-30",
+      "prevAsOf": "2026-10-29",
       "spark": [
-        1643.32,
         1644.97,
         1643.09,
         1633.3,
@@ -236,10 +235,10 @@
         1482.72,
         1480.44,
         1492.35,
-        1488.4
+        1488.4,
+        1491.76
       ],
       "sparkDates": [
-        "2026-08-04",
         "2026-08-05",
         "2026-08-06",
         "2026-08-07",
@@ -301,12 +300,13 @@
         "2026-10-26",
         "2026-10-27",
         "2026-10-28",
-        "2026-10-29"
+        "2026-10-29",
+        "2026-10-30"
       ],
       "stats": {
         "high3m": 1644.97,
         "low3m": 1480.44,
-        "avg3m": 1561.26,
+        "avg3m": 1558.86,
         "high12m": 1793.64,
         "low12m": 1480.44,
         "windowDays": 63
@@ -315,7 +315,7 @@
         {
           "text": "보합",
           "tone": "flat",
-          "why": "전일대비 -0.26% (±0.3% 이내)"
+          "why": "전일대비 +0.23% (±0.3% 이내)"
         }
       ]
     },
@@ -325,14 +325,13 @@
       "unit": "100엔",
       "color": "#3B82F6",
       "status": "ok",
-      "now": 846.07,
-      "prev": 848.6,
-      "change": -2.53,
-      "changePct": -0.3,
-      "asOf": "2026-10-29",
-      "prevAsOf": "2026-10-28",
+      "now": 849.13,
+      "prev": 846.07,
+      "change": 3.06,
+      "changePct": 0.36,
+      "asOf": "2026-10-30",
+      "prevAsOf": "2026-10-29",
       "spark": [
-        906.61,
         903.43,
         901.95,
         894.27,
@@ -394,10 +393,10 @@
         841.74,
         841.3,
         848.6,
-        846.07
+        846.07,
+        849.13
       ],
       "sparkDates": [
-        "2026-08-04",
         "2026-08-05",
         "2026-08-06",
         "2026-08-07",
@@ -459,28 +458,28 @@
         "2026-10-26",
         "2026-10-27",
         "2026-10-28",
-        "2026-10-29"
+        "2026-10-29",
+        "2026-10-30"
       ],
       "stats": {
-        "high3m": 906.61,
+        "high3m": 903.43,
         "low3m": 839.62,
-        "avg3m": 865.44,
+        "avg3m": 864.53,
         "high12m": 963.91,
         "low12m": 839.62,
         "windowDays": 63
       },
       "badges": [
         {
-          "text": "하락",
-          "tone": "down",
-          "why": "전일대비 -0.30% (기준 ±0.3%)"
+          "text": "상승",
+          "tone": "up",
+          "why": "전일대비 +0.36% (기준 ±0.3%)"
         }
       ]
     }
   ],
   "series": {
     "dates": [
-      "2025-09-25",
       "2025-09-26",
       "2025-09-29",
       "2025-09-30",
@@ -759,10 +758,10 @@
       "2026-10-26",
       "2026-10-27",
       "2026-10-28",
-      "2026-10-29"
+      "2026-10-29",
+      "2026-10-30"
     ],
     "USD": [
-      1403.93,
       1409.82,
       1401.78,
       1403.67,
@@ -1041,10 +1040,10 @@
       1325.28,
       1327.75,
       1340.47,
-      1337.29
+      1337.29,
+      1335.27
     ],
     "EUR": [
-      1648.07,
       1645.54,
       1643.31,
       1648.05,
@@ -1323,10 +1322,10 @@
       1482.72,
       1480.44,
       1492.35,
-      1488.4
+      1488.4,
+      1491.76
     ],
     "JPY": [
-      943.37,
       941.44,
       942.37,
       948.46,
@@ -1605,7 +1604,8 @@
       841.74,
       841.3,
       848.6,
-      846.07
+      846.07,
+      849.13
     ]
   },
   "rateSource": "Frankfurter (ECB 기반)",
@@ -1617,12 +1617,12 @@
         "key": "DXY",
         "label": "달러지수(DXY)",
         "unit": "",
-        "value": 102.282,
-        "prev": 102.348,
-        "change": -0.066,
-        "yoyPct": 3.45,
+        "value": 101.847,
+        "prev": 102.282,
+        "change": -0.435,
+        "yoyPct": 2.15,
         "yoyPp": null,
-        "asOf": "2026-10-29",
+        "asOf": "2026-10-30",
         "freq": "일",
         "source": "ICE DXY 산식 (Frankfurter 환율로 계산)",
         "note": "EUR·JPY·GBP·CAD·SEK·CHF 6개 통화 가중. 연준 광범위 달러지수와는 다른 지수입니다.",
@@ -1665,7 +1665,7 @@
         "change": 0.0,
         "yoyPct": null,
         "yoyPp": -0.24,
-        "asOf": "2026-10-28",
+        "asOf": "2026-10-29",
         "freq": "일",
         "source": "뉴욕 연방준비은행",
         "url": "https://www.newyorkfed.org/markets/reference-rates/effr"
@@ -1674,8 +1674,8 @@
         "key": "UST2Y",
         "label": "미 국채 2년물",
         "unit": "%",
-        "value": 4.61,
-        "asOf": "2026-10-29",
+        "value": 4.56,
+        "asOf": "2026-10-30",
         "freq": "일",
         "source": "미 재무부",
         "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve"
@@ -1684,8 +1684,8 @@
         "key": "UST10Y",
         "label": "미 국채 10년물",
         "unit": "%",
-        "value": 4.98,
-        "asOf": "2026-10-29",
+        "value": 4.94,
+        "asOf": "2026-10-30",
         "freq": "일",
         "source": "미 재무부",
         "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve"
@@ -1694,8 +1694,8 @@
         "key": "UST10Y2Y",
         "label": "장단기 금리차(10Y-2Y)",
         "unit": "%p",
-        "value": 0.37,
-        "asOf": "2026-10-29",
+        "value": 0.38,
+        "asOf": "2026-10-30",
         "freq": "일",
         "source": "미 재무부(계산)",
         "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve"
@@ -1707,24 +1707,45 @@
     "status": "ok",
     "items": [
       {
-        "title": "원·달러 환율, 0.7원 오른 1337.5원",
-        "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxQeDZyOEMxQ1I5N3ZnMEhGV2d0ZjdER3BxRlUyOGxJbS0xX2Fab2ZLQUhUQl9LSUhVVktfVDd2ZS1RY3E4dTgzU0c2NWhMdnBMaENWQUhjZlEwRnFITEh5cnpnb09aR1ZyX1pxNF9ROGJpOHJHdHdQbldsZVM1dVN2ZlRacUtud9IBmgFBVV95cUxQQW1FNGVMYTlfb3cwX2RfSlNpWDhVODc0TnBSejJic1dycUFNSjVhc21aNXdhTUwwODlYUGRIRXhjdjJfT1BrUEpra2xFZ2NTb0FSc015Vzd5R1VseWFxVFE2R18tandvbWZEd2VxY2NyUEgyc1JVTU5wVzdMQ0VhMHhtV184TWdLSnA0amMydEFLUUt2YXh2UnFR?oc=5",
-        "media": "Chosunbiz",
-        "published": "Fri, 30 Oct 2026 00:24:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "미 금리 동결에 원/달러 환율 소폭 하락",
-        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9fVUwwcl9GQkpVaC1pWkl5VHp2WEVUMEJ3d1VNMEJ5S1lBSWRnWUF0MUVoUElJTEJoWHRoMEpyazVSTF9OcUt1RWNBbUhyWWV0S3lpVnZUNGUzSVnSAWBBVV95cUxPeFR1UXBDcS15eHdXaDMtTWVHRVV6R01LVUkyckVkYXRHbEQ1MXJ4UG5qVHloZkt0MDVEank5a0JPcFRIZ18wY2liTU9sdkw2RlR5bFI2OWVMTUliMmpVNXA?oc=5",
+        "title": "원/달러 환율, 수출기업 달러 매도에 소폭 하락",
+        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1MQW5FUXNINUFjTXo2QldZTm0weF84WUNpU2ZqdmhidWNhOGVWQnF4c1l2MVpkMkJzenFiYm0zWjdacFpVNFZNUHl1SDBXN2R5QkJSbGtYZ1RlZnPSAWBBVV95cUxORldxY3dHOUQ1aU5GQllUV2NjSl81VEMyeXdnYW9ZOGJTTkhqSVE2UmJRWVZYUl8yRlZ4YnZiU3hHZHdCb2t3OEdFTmNBYzEyd0Qzb1EwVWFoM3RKTHFJUEM?oc=5",
         "media": "연합뉴스",
-        "published": "Thu, 29 Oct 2026 07:34:41 GMT",
+        "published": "Fri, 30 Oct 2026 07:50:27 GMT",
         "feed": "구글 뉴스"
       },
       {
-        "title": "[모닝 리포트] \"기술주 급락에 환율 하락, 1340원대 반등 전망\"",
-        "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE5uU21iSjB1dldzQ1hPREtwOXpEM1JhdF9hN2Z6RlNIeURraVIyX3pYMzZrNFFpZzctLUJZbUMyb09mbXJjanFUbjF5OGNxSExOLS0zaUs5dmY0OFRS?oc=5",
-        "media": "뉴스핌",
-        "published": "Thu, 29 Oct 2026 23:15:00 GMT",
+        "title": "원·달러 환율, 2.5원 내린 1334.3원",
+        "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxNaUtoZEhuenYzd1ota0tTSUJtZEJFUjFHLW1pUEpabzA5MHhxcWlSV1J3OE5mVDlrY1l2RTZHcGVmUU1Vcm5STEVwTE9uVll5ZUZyUkJramZwMVhnWXd2cFZBNmstWVkwb2FCbEoxMGZMQXEyMmtiUWxfZUNuVnpYUlVSZHVmUdIBmgFBVV95cUxQalFGTGZHcEs3MWVhN1BFWWk4VTM3WXdMeWItTjFJSTQ5cWdCUWVUT25ldk5ZZGw1dzVlRjlLZUpYTzN1bi1vaGs3ODU1OTJXdDBQUzU4blY3cVBIMFI1WC1GS2tRNzdwY09fZ1dNbTVVS2V2NGd0ekRBbVZvcmhWN3Q2ZllNVTF2WHl0ZjZSVGpBdTA0ZDFsRTln?oc=5",
+        "media": "Chosunbiz",
+        "published": "Fri, 30 Oct 2026 06:58:00 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "원·달러 환율, 1334.3원 마감…증시 하락에도 원화 강세 보여",
+        "link": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE9URXY2X0tnNHZGckJsOWFUV2dNMU1Iel9kRHZ0Z2JLalp3cVYzQ2wzSVVTSTRWdWpkVWVQdGh4NGVpcE9SV3VTRWlkZ1J5clpfck9KS0t6OUJpNTVjV25v?oc=5",
+        "media": "조세일보",
+        "published": "Fri, 30 Oct 2026 07:33:00 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "원·달러 환율 2년 만에 최저…하락세 이어지나",
+        "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE94Ym5ndlNRY2RQdU5xM25ITTg5dktDZm9ESTNkSDlkN3BFZ0tBaHEyc3U5YnB2TncyeTduLUh4NXN0SkJRbHR1Z1ZZUlNTMXZNYTU5S00ySFdlZUhSMHItdUloTENyZzg?oc=5",
+        "media": "연합뉴스TV",
+        "published": "Tue, 13 Oct 2026 07:00:00 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "[환율 전망] 주가와 환율의 기묘한 동행",
+        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE00VHFBYTdjNFh2SU1Pajh5QXlvUTdudTVJV3lsZFlidlVDWWNwRW1PeUdrUldEVnJjZ25lOWJLVndTTC1kXzMtaER5VlBHYmgyRU9aMTJWb1lBLTI2X0twZQ?oc=5",
+        "media": "KB Think",
+        "published": "Wed, 28 Oct 2026 23:07:28 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "원/달러 환율 1310원대 근접…명목실효환율 2년만에 최고",
+        "link": "https://news.google.com/rss/articles/CBMibkFVX3lxTE12SkoybW9NMUgzbmx3Rmp5UmRKRU5qNmpoRUpuUE05NVpKZ0dpVi1qMEFDWlZVdGRfQUJ4akhTVnN1SDdmTGxPS2g0Z3ItLVdvemRhVDd3UTdrN3hadnFRNlVSZ0hLWDFlQy0wbTFn?oc=5",
+        "media": "세무사신문",
+        "published": "Mon, 26 Oct 2026 00:22:41 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1735,24 +1756,52 @@
         "feed": "구글 뉴스"
       },
       {
-        "title": "“지금이 기회”…5대 은행 달러대출 올해 최대",
-        "link": "https://news.google.com/rss/articles/CBMibEFVX3lxTE43eUl2STl3eGJGc1NTU2hHbmpzZGs2RENDMk1wcHlET1ZUemw2cTU4eFRjUTc4QUFmRlBTZE9vUm9HaHZxOE1TbkNna0tBMy1IaF9TemFGR3Qyb2Y1ZldfMGhJODhqeUhKU0FSbA?oc=5",
-        "media": "한경매거진",
-        "published": "Thu, 29 Oct 2026 23:25:00 GMT",
+        "title": "원·달러 환율, 14원 오른 1337.7원",
+        "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxONk5MMVp4N19Bc3haY1R6emotaVpmbGhIb2ViRXBTUVc0eG9mNmZhV1FuSGtOM1FKVGJNUHNQT3NlLTNGUVRFZWZzNVllWXAySzlGSmQwYlB3RHZ1VzlSOXlyMklMazhBQkxuamtBalFTcHhIOWZQZHJLR210UkMwVlJjVGNvUdIBmgFBVV95cUxNQ3lLcFVEbmNPQzlmdjVzSlBablJvYVh1MWhqNVJwZ1FxZHlUeGxKdnZRcm5EWkhNcmtNTXNnZ2xJUmJ4Z3J2NVoyN2FCRGtFazBnSFR4MlExXy1GVVN6NFd0LUdFd3ZZdlgxcGx0ckYxMzJuWXNRX1E3QWZvOXgxVE5ZNDdvQmNMYi1oNlVRQ29TeHBXdGZFUVFR?oc=5",
+        "media": "Chosunbiz",
+        "published": "Wed, 28 Oct 2026 07:05:00 GMT",
         "feed": "구글 뉴스"
       },
       {
-        "title": "연준 금리 동결에 달러 강세 압력 완화…1330원대 등락 전망",
-        "link": "https://news.google.com/rss/articles/CBMib0FVX3lxTE8zMTl2Ni1aY0lEeG5fZmd1OGJGOTdYY3M1VlFTZDd0SFY5cDNqaExrcVJDd3RJVmxhbU04Mjd2VFVPeEViYUplWnZQQUpCcno2eW5LRUo3NmxmdEtncFF5UFRWOTVhWkcxREIyb0dzUQ?oc=5",
-        "media": "조세일보",
-        "published": "Fri, 30 Oct 2026 00:09:53 GMT",
+        "title": "[공동락의 금리산책] 안전자산 선호 반영한 '금리하락' 일시적",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1kRXhtVlFXMERrUjV2V293NHo2bEV5bkNqc3VqZHpwWXJwNld3eVdzOGJxOXhLaHJQaW5SWHJiVXA4QjZrY2o3YlVKMjhOQjNrU3BzZzI4Q0lYVVVjY1U4bXgwUXRQZ1VMam5uUlNHXznSAXRBVV95cUxNMFFLVUZBejZLNEFRbVZQbERIbk9FQWIxZzIzTWV0WGUxS1NtcGVFZmx2VEo0NGVULVhnSFMyUWpzVmp3NzlpRF9vLVNxdlhPRlBMUU1SdWNrMGdEZ05neFA4clJxcjdaVi0yZmxRbTVCX0Uxdg?oc=5",
+        "media": "주간한국",
+        "published": "Fri, 30 Oct 2026 08:26:43 GMT",
         "feed": "구글 뉴스"
       },
       {
-        "title": "의외의 곳에서 방향이 바뀐다 원·달러 환율은 다시 오를 겁니다",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFB4dldHendCNFFnS3MzWFRON3JtYldKQkpkRFkxeHk0N2VTT1hFUHdRbzFzWEIxUGpZN1pvTWtoa3k3RVRkV1pVS19ELVhpTDVuNFpQQVdnSWpKOW9zbTVOdXdIbzdESHNmTHhheklQV27SAXRBVV95cUxNdHUxVFVZWDNrN3FackxqNE53Z0JsWnlxSXJ6ZVQxU1VMQjhGMktEclE4djJZQlkwQjRRQ0FXQWxlRzNSUVBzbW5kWG5ZLXNwa3FFZUVKeW51SjR4RW40Ym1IRDNQTmI1OGVvRllHbFN5dEo3aA?oc=5",
-        "media": "연합인포맥스",
-        "published": "Sun, 25 Oct 2026 23:49:48 GMT",
+        "title": "한은 금리 두 번 올리자…4% 예금 비중 한 달 새 20배 급증",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFA0T1hlX1E5UjBoTkxXbEgwMnd5S1NIZmdVbU1rQ0tMOG5HNjlEWF9raENrdlJveFFGcjFvZnFWSGp2V3RVTDNsNTF0UDAzT3d6ckxwUjJkbVJGRnJ6LXI5Q09xdW5yZ0VZSlRSaWsyRDgwM00?oc=5",
+        "media": "마켓인",
+        "published": "Fri, 30 Oct 2026 06:18:43 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "日 기준금리 1.25%로 유지…\"물가 목표 2% 달성\" 추가 인상에 힘 실려",
+        "link": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNQTc0UnRsdmV4a3o0bnJqVHczS2UxVWpadm12Zzg0YTBkZElzT3lxNEI5UEVfS2FPeGtWNV94RXF5bUlPUEwxQTBtZmw3MnI3UUhTRUp1REpYS3ZPc3BvY01idWtFQkZjUkdQUUlaN2QtRFNSRUtESUJKZXRXQ1BVS2Rwbkh3SDJZZ2diTmRR?oc=5",
+        "media": "조선일보",
+        "published": "Fri, 30 Oct 2026 04:57:24 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "다음달 한은 금리 올릴까… 연준 동결에도 깜짝 성장·고물가 부담",
+        "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE13a1lLYnhBYlBjQ09nUFJtYTJkQ04tNzhuelRLRFg4Y3pnRzd1eUF5TUlPVmRobFAyQ1JjejhxdDg3WEZDQllWZERYcHR5RlJ1VzRKVmt1VDZmQnRoZmRIaHNNVEN0aFdSVXc?oc=5",
+        "media": "천지일보",
+        "published": "Thu, 29 Oct 2026 05:27:31 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "한국은행 내년 첫 기준금리 결정은 1월 14일",
+        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE9NN0VnRHoxSlVHUXZqSzhjQW1KT1RwVTY2bGIyZ19sdkJzSlM1dHNjcDhSNjNWbmJmVmphQkJtdzFZRnp1SjBwdkNqaTFGNUlhZk4yS3hLMWtmdw?oc=5",
+        "media": "파이낸셜뉴스",
+        "published": "Thu, 29 Oct 2026 06:58:04 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "[속보] 일본은행, 기준금리 동결…연 1.25% 유지",
+        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFB3eUdFUDhiRGlvMGJPNGxVeFVDUzgwVXFNT3ZvWTJfMlE3OFJIekt2dkdDYWVWdm85R2lfSlhUaGo0T1hzcHVYZHV3elpIbzJ1bXhxQUU2RkJQUQ?oc=5",
+        "media": "한국경제",
+        "published": "Fri, 30 Oct 2026 03:32:22 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1763,52 +1812,10 @@
         "feed": "구글 뉴스"
       },
       {
-        "title": "내년 첫 기준금리 결정은 1월 14일…미·일 보다 먼저 새해 첫 판단",
-        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBuWnVVLXllSWJsTWwydlplSEJxc09jaGF1TFM5STBiMHdWZjZTS1daOUpHdUFzZzZ6Z3BjMnhuSDA4cU5falhGaExrZWY2ejYxWXQyUkJDQURKYTB1bnBHNVZqY0dCalo3X1RwN3ctcVBlYUk?oc=5",
-        "media": "마켓인",
-        "published": "Thu, 29 Oct 2026 05:50:19 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "한은, 2027년 금통위 일정 발표…1월 14일 첫 기준금리 결정",
-        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1tMHRETjRsWDc1elA1QmVWbm1lTVU3eEp1MFc2Uy01RGZiUDRmZGl6X3Ezc3Mwclg2eXdzQ2pVSlp2QXdFMkw4RWhPNmFfdVRpNlHSAVNBVV95cUxQZUJVOURiQnk5MVJHSnFER242dWZ4OXhJZjJGRmRVdmpzUWNGakMwbVNER1pDbWMxZk1oR2YxdVJlVXhNZWkyUE45SEs4eUtZa2RBdw?oc=5",
-        "media": "서울경제",
-        "published": "Thu, 29 Oct 2026 05:08:03 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "'과수요·고물가' 속 한은, 11월에 '호미' 꺼내나",
-        "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBXMEh1U1J6UG9ucHBpYVE3VmlHeGxLak5ieW9LUHF5ODdkanViVGxnYWxYNVBHS191Qy11eWk4Y284ZUFpeUhEenhKbXlEMWlQblhnZ0hQR05jSTdy?oc=5",
-        "media": "부산파이낸셜뉴스",
-        "published": "Thu, 29 Oct 2026 06:45:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "한은, 내년 금통위 일정 공개…첫 금리 결정은 1월 14일",
-        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFAxZjl4RmxNd18zNlB1V2V6YVduTWZrTWtGTWFkeWxkdmg3Z3pYMll5OTdYcGM4TUJ3QkhITFRqZmdFUlJTZktfeWhJWkllLS1UZzJOUVR0Q2hJQWpJUEpVV9IBeEFVX3lxTFBxcFdselU3ZmNpanYtNHplUmp3dDNrLUp2TW8wS1kwUXpUdnk3UVRYZUphNWhhLUpKcVRmSlJrSk1MV213SXl6TTFXTXU0LWNHWVRGT081UWxRdHlSNmRzbmNKa0dhemZYalZzYThhUTZaWk10NUpUYQ?oc=5",
-        "media": "뉴시스",
-        "published": "Thu, 29 Oct 2026 05:20:59 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "내년 첫 기준금리 결정 1월 14일…한은 금통위 연 8회 개최",
-        "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE1MeEE0R2JSQjU0ZnlQSHE0TDhwcEU5aVcySGJJWm4xN0JXZkppUi01YVpaWXpweDNoVFl4alNtQlc1MG5xbmViSUNOX0ppdEhYYzM5dg?oc=5",
-        "media": "뉴스1",
-        "published": "Thu, 29 Oct 2026 08:34:53 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "내년 첫 금리 결정 1월 14일…금통위 일정 확정",
-        "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE1CbThEOHFWajBRZGNpZFN2REc5d3BmcHdsdEhCajg3YlFXU1Y4NG5fVllXTk1qSFRWZlJ2ejd4U3dHc0xpcUJ1ZlZwNUhuRXFGOWVVcHR6OHBiN1djei10aHNlYm45RTA?oc=5",
-        "media": "연합뉴스TV",
-        "published": "Thu, 29 Oct 2026 06:35:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "11년 전엔 美 따라 8회로…연준은 금리결정 횟수 더 줄인다는데 한은은",
-        "link": "https://news.google.com/rss/articles/CBMickFVX3lxTE8wUTN5bGFGRy01SUR3dzI5Rlc5NlhnMlpDc29TbXRWT1ZPb18wd0NiS3J6LXhURHRmdW9UUWsySGxZU21VSDMwZXdJWjNoMldBQ2xiRzdva0dkcnN5LWhfMVlNcWxSQVFzaHdHR0hjY1dqZw?oc=5",
-        "media": "KB Think",
-        "published": "Thu, 29 Oct 2026 23:26:34 GMT",
+        "title": "[속보] 일본은행, 기준금리 1.25%로 동결",
+        "link": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE9LWlNJS3piVlNXWFVBdVhoM1M3QWo3ME04eVY1emU4dVZqWEV4U2NCN29iRVNld1F5VnRqZm9wUlp2cHhmenl0MlZoUE1JS1Q2Wmln0gFYQVVfeXFMTkJReTl6bnVYblRya2c2WGZqRHRVMGxyTWd1VWZjU3JYZ2VsSFhFRDA0RTZNcV9BY1FDdlVjTkl1b3k0NDBPdkNlcXdja1NlT3FxNzVGVk16TA?oc=5",
+        "media": "SBS Biz",
+        "published": "Fri, 30 Oct 2026 03:04:00 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1819,17 +1826,10 @@
         "feed": "구글 뉴스"
       },
       {
-        "title": "美연준 금리 동결, 회의 횟수 줄여… 시장에선 \"물가 대응 의지 안 보여\"",
-        "link": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNa3VDclZVWlpTeFNSVFF6Rm45WWkxcHFSUURzcGVId18wSXpYdko5akFadlp1UU1vYkFjUk5VVGNLbWtoNUJQNjB1ZC1DRlRRbDJNdU03TTBaYlc5OENKU2IzdkZEbkhzQzY2c2RKMFQwTFhUZHRsV2wzdVZsM2ZEdkJVbU9HLWRfakF1bElR?oc=5",
-        "media": "조선일보",
-        "published": "Thu, 29 Oct 2026 15:32:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "美 연준 금리 동결에도 매파 기조 유지…12월 인상론 확산",
-        "link": "https://news.google.com/rss/articles/CBMib0FVX3lxTE1VbXhncy1vX2xVMEFseDVGT3FFb0tCdzdkMkYzZnVPbWJpRTByUFhiZ0t0ZXFQYjFCS3dLejBhbXNrT1NRMkFqME9oYkozc3ktTms0bTdEdmU3bnVRTm5GTm1YMUJDNWRMUFRERWZjOA?oc=5",
-        "media": "조세일보",
-        "published": "Fri, 30 Oct 2026 00:40:00 GMT",
+        "title": "\"미국도 금리인상 불씨\"…한은 11월 선택은",
+        "link": "https://news.google.com/rss/articles/CBMibEFVX3lxTFBDRV9xVUQ3YThPbFFMN3RQRmVRMGhSX3VBYmJGcmNncXY2cnpZeC1Va2N1TExtVjlRYm43aFJvcjhaMFphZVNGRVZWcTByc0xhN0hPempGR1BQZkdJcUZ5QUtfT19EempIaTAwbtIBcEFVX3lxTE1NWUdLRXlGLWN5SHRBSUlhVjJjcFZnQnMzaE05V2lQekF2TTJ5WHNnOGhyX3RmbFppamlaVDZLcmJfcmU5WW5HT1QwSk9GQk9URTVrdjUzelppRENQSGtSNDFfbXllVXVBd3lRS3lRNEY?oc=5",
+        "media": "엠에스투데이",
+        "published": "Fri, 30 Oct 2026 06:46:01 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1840,20 +1840,6 @@
         "feed": "구글 뉴스"
       },
       {
-        "title": "[경제 이슈] 국제금융센터, 미국 연준 10월 FOMC 기준금리 동결",
-        "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5XZXI1UXE5WThTMVgtZHlfc2psbklKS1B5em55cEdRM25lQmNXRWRiRzdWdnJyNzFra1JybU1aWk5ta3dWVUpVN1FlX1dkZ2Z2WllFYzkzd0VhRXRwOG85SVc4cGs0LWNP?oc=5",
-        "media": "시사캐스트",
-        "published": "Fri, 30 Oct 2026 00:35:03 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "미국 연준 금리 동결…12월 인상 여부 주목",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFBDQkZYMFhvNWpuMWY5Q2ZmWkZ0SElLanBxQXI3WnI2MWxhVndUSmlwQm1XNV9oVDRIdW5pajBZeHRLSTlrd3U3Smg4SHQzaHVYdy1HWUlyaUF3aXBJaHc?oc=5",
-        "media": "동행미디어 시대",
-        "published": "Thu, 29 Oct 2026 20:00:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
         "title": "美연준, 금리 동결로 숨고르기…12월 인상 유력",
         "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9lVkwzWjFqVzN4MVdWMkZHbDhqWXdvMGtSZTdBbDlNcFZhVEhZZXlVSTZMQWpZcXNxN2dVZ1pEaFMyVTFBM2E0ck5oVTlvX09LRmllbkU3a0JnMGU4aDVaa0ZKZG9TVTQ?oc=5",
         "media": "연합뉴스TV",
@@ -1861,10 +1847,38 @@
         "feed": "구글 뉴스"
       },
       {
-        "title": "올해 경상수지 흑자 5천억弗 넘나…달러-원 하방 압력 가중",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1JSF9NTjV2MWZaUXJBQW9sQm52Y3FmcGlnSHBwY2k5b0lRSl9nQW9aX0ZfYW5wQVhnSkU3eEk2b2RWVHlvLXo0REZLZUdJUExTci02RTE3anJyMzVMZnczRk1HRndObzFFdklveWoxODg?oc=5",
+        "title": "11년 전엔 美 따라 8회로…연준은 금리결정 횟수 더 줄인다는데 한은은",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5UTGNrTmJYczh6SmRyRFcwWFluNWtfU3B0bHRUTjYwN2JKcjdab0tQTWF6eHBWcnRkRkdHTHQ1bW5ScTFaX0MwbTh5LVdvczNYVlpneWtVMmlyTlFoRENkRzAyaFVHTWp3Yl9Tamt2dGE?oc=5",
         "media": "연합인포맥스",
-        "published": "Mon, 05 Oct 2026 07:00:00 GMT",
+        "published": "Fri, 30 Oct 2026 01:26:35 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "미국 연준, 기준금리 3.75∼4.00% 동결...\"인플레이션은 여전히 높은 수준\"",
+        "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFA3Q3Q0UzdXQ0lhR0MwMTE0aUdwcXFBTnFQVEJCbGRXT3p6T0plY2pfOUdjbGtfaWRJa3pLLUpFVTc5aHJoNlN1Nm9LTEswTGZtMEhDUFdhbDBXWnNKM0QycHl3R1VicW0wVG9Z?oc=5",
+        "media": "BBS불교방송",
+        "published": "Wed, 28 Oct 2026 22:56:52 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "美연준 금리 동결, 회의 횟수 줄여… 시장에선 \"물가 대응 의지 안 보여\"",
+        "link": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNa3VDclZVWlpTeFNSVFF6Rm45WWkxcHFSUURzcGVId18wSXpYdko5akFadlp1UU1vYkFjUk5VVGNLbWtoNUJQNjB1ZC1DRlRRbDJNdU03TTBaYlc5OENKU2IzdkZEbkhzQzY2c2RKMFQwTFhUZHRsV2wzdVZsM2ZEdkJVbU9HLWRfakF1bElR?oc=5",
+        "media": "조선일보",
+        "published": "Thu, 29 Oct 2026 22:01:09 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "미국 연준, 내년부터 금리 결정 회의 축소…2028년 연 6회로",
+        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5xeDY0RHhHdHFlR1BGb3dCSDhzc3NsNjhYd01FRUJ2RnJtbjZBMTJaSzc0VnJfTHRmY0FTRGh1Z2Z6Wk9USXBIempLekdsXzZoUEVEblhTZ2REdTQ?oc=5",
+        "media": "KBS 뉴스",
+        "published": "Wed, 28 Oct 2026 19:50:00 GMT",
+        "feed": "구글 뉴스"
+      },
+      {
+        "title": "무역흑자 500억달러 육박…9월 경상흑자 역대 최대 찍나[한은 미리보기]",
+        "link": "https://news.google.com/rss/articles/CBMigAFBVV95cUxNWkVtX2VCVzZEYmY5ZkFNVVQ3M1pJeml5LW5mTTRVN0Z2a0drOXZnWmVEV184TG1RaHdyRy1LSmUtQkRJSFFqY3B3MDNIS0NuRHZPRUpKQTZVcWZHVlFlZ3h4X3ZYaGJUQzRZZEtkMmJyTGw0eHE0N1pvNEp2UEg4dw?oc=5",
+        "media": "이데일리",
+        "published": "Fri, 30 Oct 2026 23:00:35 GMT",
         "feed": "구글 뉴스"
       },
       {
@@ -1873,74 +1887,60 @@
         "media": "연합뉴스",
         "published": "Thu, 06 Aug 2026 07:00:00 GMT",
         "feed": "구글 뉴스"
-      },
-      {
-        "title": "'반도체 수출 갈수록 늘어' 한국 경상수지, 연간 흑자 4500억 달러 넘는다",
-        "link": "https://news.google.com/rss/articles/CBMihAFBVV95cUxOcW12LU9nWklMWE1XaUR1TDRTdGZKcHJvQXBDV2JmY1hERlFRaUtjdUdxTHg0VHk2M3h3MEpfYlNXNVNjZEtNbHZISFNZTGFEUFgyNF9kclJMeDMyYmV3bjZrTVRSUk5SR1p0MnFJOU40cnJpb0g4OEgtTFlUX1dubk5Sclc?oc=5",
-        "media": "글로벌이코노믹",
-        "published": "Sun, 11 Oct 2026 07:00:00 GMT",
-        "feed": "구글 뉴스"
-      },
-      {
-        "title": "올해 무역수지 얼마될까...한은 4672억 달러 전망",
-        "link": "https://news.google.com/rss/articles/CBMid0FVX3lxTFBQZkxENFFMeUg2MmR6UndOQmRSRHVKWkNyNDlTaEZkWHNuXzhwdzM2bmdVRkhUbW9ROXdBRHlvTUdCZ2ZiX2dZMWNXWkZkQjJUUS00cFNQSFBvVUc5WTF0c3pfa195NDJjYy13OV9ORUcyQ0ZSVnJz?oc=5",
-        "media": "CNews",
-        "published": "Tue, 01 Sep 2026 07:00:00 GMT",
-        "feed": "구글 뉴스"
       }
     ],
     "errors": []
   },
   "analysis": {
     "status": "ok",
-    "current": "2026년 10월 29일 기준 원/달러 환율은 전일 대비 3.18원 하락한 1337.29원에 거래를 마쳤습니다. 최근 3개월간 최고 1427.11원에서 최저 1324.45원 사이에서 움직였으며, 평균 환율은 1364.90원을 나타내고 있습니다.",
+    "current": "2026년 10월 30일 기준 원/달러 환율은 전일 대비 2.02원 내린 1335.27원을 기록했습니다. 최근 3개월간 최고치는 1423.72원, 최저치는 1324.45원, 평균은 1363.44원으로 집계되었습니다.",
     "upsideLimiters": [
       {
-        "point": "미 연준 금리 동결 및 달러 압력 완화",
-        "evidence": "미 연준의 금리 동결로 달러 강세 압력이 완화되어 원/달러 환율 상단을 제한하는 요인으로 작용할 전망입니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMib0FVX3lxTE8zMTl2Ni1aY0lEeG5fZmd1OGJGOTdYY3M1VlFTZDd0SFY5cDNqaExrcVJDd3RJVmxhbU04Mjd2VFVPeEViYUplWnZQQUpCcno2eW5LRUo3NmxmdEtncFF5UFRWOTVhWkcxREIyb0dzUQ?oc=5",
-        "sourceLabel": "연준 금리 동결에 달러 강세 압력 완화…1330원대 등락 전망 — 조세일보"
+        "point": "수출기업 달러 매도",
+        "evidence": "수출기업의 달러 매도 물량이 시장에 유입되면서 원/달러 환율이 소폭 하락한 것으로 나타났습니다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1MQW5FUXNINUFjTXo2QldZTm0weF84WUNpU2ZqdmhidWNhOGVWQnF4c1l2MVpkMkJzenFiYm0zWjdacFpVNFZNUHl1SDBXN2R5QkJSbGtYZ1RlZnPSAWBBVV95cUxORldxY3dHOUQ1aU5GQllUV2NjSl81VEMyeXdnYW9ZOGJTTkhqSVE2UmJRWVZYUl8yRlZ4YnZiU3hHZHdCb2t3OEdFTmNBYzEyd0Qzb1EwVWFoM3RKTHFJUEM?oc=5",
+        "sourceLabel": "원/달러 환율, 수출기업 달러 매도에 소폭 하락 — 연합뉴스"
       },
       {
-        "point": "경상수지 흑자 확대 기대감",
-        "evidence": "올해 경상수지 흑자가 5천억 달러를 넘어설 것이라는 분석이 나오면서 원/달러 환율에 하방 압력을 가할 것으로 보입니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1JSF9NTjV2MWZaUXJBQW9sQm52Y3FmcGlnSHBwY2k5b0lRSl9nQW9aX0ZfYW5wQVhnSkU3eEk2b2RWVHlvLXo0REZLZUdJUExTci02RTE3anJyMzVMZnczRk1HRndObzFFdklveWoxODg?oc=5",
-        "sourceLabel": "올해 경상수지 흑자 5천억弗 넘나…달러-원 하방 압력 가중 — 연합인포맥스"
+        "point": "경상수지 흑자 기대",
+        "evidence": "무역흑자가 500억달러에 육박함에 따라 9월 경상수지 흑자가 역대 최대치를 기록할 수 있다는 관측이 나오고 있습니다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMigAFBVV95cUxNWkVtX2VCVzZEYmY5ZkFNVVQ3M1pJeml5LW5mTTRVN0Z2a0drOXZnWmVEV184TG1RaHdyRy1LSmUtQkRJSFFqY3B3MDNIS0NuRHZPRUpKQTZVcWZHVlFlZ3h4X3ZYaGJUQzRZZEtkMmJyTGw0eHE0N1pvNEp2UEg4dw?oc=5",
+        "sourceLabel": "무역흑자 500억달러 육박…9월 경상흑자 역대 최대 찍나[한은 미리보기] — 이데일리"
       },
       {
-        "point": "한국은행의 11월 금리 인상 가능성",
-        "evidence": "과수요와 고물가 우려 속에 한국은행이 11월 기준금리를 인상할 가능성이 제기되고 있습니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBXMEh1U1J6UG9ucHBpYVE3VmlHeGxLak5ieW9LUHF5ODdkanViVGxnYWxYNVBHS191Qy11eWk4Y284ZUFpeUhEenhKbXlEMWlQblhnZ0hQR05jSTdy?oc=5",
-        "sourceLabel": "'과수요·고물가' 속 한은, 11월에 '호미' 꺼내나 — 부산파이낸셜뉴스"
+        "point": "한은 금리 인상 가능성",
+        "evidence": "미국 연준의 금리 동결에도 불구하고 한국은행이 11월 기준금리 인상에 무게를 둘 수 있다는 가능성이 제기되고 있습니다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1XMng5azhmRGQzVk9ndzZYaVB3cU1RZTFLbW5ZRWRpbm1HTGlnM2FHZGV3UzNxUmtpdm9lcDJqRUtjRDdydG15clZEQ01yZG5WZ0tNZWlJLU9vZknSAWBBVV95cUxQbXk5VEhReU9YdDZGM2Y1TUdoZEswZWlrV2k0R2luc20yTG4yMml0OW1RWDd0a1N3dmo0TzBybjVXdDhJcks5MmVfLUlPVUtWbFV1VmxyOTB4TWNlQjE5anQ?oc=5",
+        "sourceLabel": "美 금리 동결에도 한은 또 '호미' 꺼내나…11월 인상에 무게 — 연합뉴스"
       }
     ],
     "downsideSupports": [
       {
-        "point": "연준 매파 기조와 12월 인상 가능성",
-        "evidence": "미 연준이 금리를 동결했으나 매파 기조를 유지함에 따라 12월 금리 인상론이 확산되며 환율 하단을 지지할 것으로 전망됩니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMib0FVX3lxTE1VbXhncy1vX2xVMEFseDVGT3FFb0tCdzdkMkYzZnVPbWJpRTByUFhiZ0t0ZXFQYjFCS3dLejBhbXNrT1NRMkFqME9oYkozc3ktTms0bTdEdmU3bnVRTm5GTm1YMUJDNWRMUFRERWZjOA?oc=5",
-        "sourceLabel": "美 연준 금리 동결에도 매파 기조 유지…12월 인상론 확산 — 조세일보"
+        "point": "미 연준 12월 인상 가능성",
+        "evidence": "미 연준이 금리를 동결하며 숨고르기에 들어갔으나 12월 금리 인상 가능성이 유력하게 거론되고 있습니다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9lVkwzWjFqVzN4MVdWMkZHbDhqWXdvMGtSZTdBbDlNcFZhVEhZZXlVSTZMQWpZcXNxN2dVZ1pEaFMyVTFBM2E0ck5oVTlvX09LRmllbkU3a0JnMGU4aDVaa0ZKZG9TVTQ?oc=5",
+        "sourceLabel": "美연준, 금리 동결로 숨고르기…12월 인상 유력 — 연합뉴스TV"
       },
       {
-        "point": "기술주 급락 및 반등 심리",
-        "evidence": "기술주 급락 영향으로 환율이 하락했으나 1340원대로 다시 반등할 것이라는 시장 전망이 존재합니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE5uU21iSjB1dldzQ1hPREtwOXpEM1JhdF9hN2Z6RlNIeURraVIyX3pYMzZrNFFpZzctLUJZbUMyb09mbXJjanFUbjF5OGNxSExOLS0zaUs5dmY0OFRS?oc=5",
-        "sourceLabel": "[모닝 리포트] \"기술주 급락에 환율 하락, 1340원대 반등 전망\" — 뉴스핌"
+        "point": "미국 높은 물가 부담",
+        "evidence": "미 연준이 기준금리를 3.75∼4.00%로 동결하면서 인플레이션은 여전히 높은 수준이라고 평가했습니다.",
+        "sourceUrl": "https://news.google.com/rss/articles/CBMia0FVX3lxTFA3Q3Q0UzdXQ0lhR0MwMTE0aUdwcXFBTnFQVEJCbGRXT3p6T0plY2pfOUdjbGtfaWRJa3pLLUpFVTc5aHJoNlN1Nm9LTEswTGZtMEhDUFdhbDBXWnNKM0QycHl3R1VicW0wVG9Z?oc=5",
+        "sourceLabel": "미국 연준, 기준금리 3.75∼4.00% 동결...\"인플레이션은 여전히 높은 수준\" — BBS불교방송"
       },
       {
-        "point": "5대 은행 달러 대출 수요 증가",
-        "evidence": "5대 은행의 달러 대출이 올해 최대 수준을 기록하는 등 달러 수요가 받쳐주고 있습니다.",
-        "sourceUrl": "https://news.google.com/rss/articles/CBMibEFVX3lxTE43eUl2STl3eGJGc1NTU2hHbmpzZGs2RENDMk1wcHlET1ZUemw2cTU4eFRjUTc4QUFmRlBTZE9vUm9HaHZxOE1TbkNna0tBMy1IaF9TemFGR3Qyb2Y1ZldfMGhJODhqeUhKU0FSbA?oc=5",
-        "sourceLabel": "“지금이 기회”…5대 은행 달러대출 올해 최대 — 한경매거진"
+        "point": "미 국채 금리 높은 수준",
+        "evidence": "미 국채 10년물 금리가 4.94%를 기록하며 높은 수준을 지속하고 있습니다.",
+        "sourceUrl": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve",
+        "sourceLabel": "미 국채 10년물 (미 재무부)"
       }
     ],
     "outlook": {
       "direction": "박스권",
-      "rationale": "미 연준의 금리 동결 및 경상수지 흑자 기대감이 환율 상승을 제한하는 한편, 연준의 매파적 기조와 실물 달러 수요는 하단을 방어할 것으로 보입니다. 양측 요인이 상충하면서 향후 환율은 특정 방향성 없이 일정한 범위 내에서 등락을 거듭할 것으로 예상됩니다.",
+      "rationale": "수출기업의 달러 매도 물량과 경상흑자 기대감 등은 환율 상단을 누르는 요인으로 작용할 전망입니다. 반면 높은 미 국채 금리와 연준의 추가 인상 우려는 환율 하단을 받쳐줄 것으로 보입니다. 상·하방 재료가 대등하게 맞서면서 당분간 박스권 행보가 이어질 것으로 판단됩니다.",
       "confidence": "중간"
     },
     "model": "gemini-3.6-flash",
-    "tokens": 6958
+    "tokens": 6468
   },
   "model": "gemini-3.6-flash",
   "badgeRule": {
