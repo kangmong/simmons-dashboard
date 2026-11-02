@@ -4,13 +4,11 @@
  "symbol": "002240.KS",
  "market": "KOSPI",
  "note": "경강선(Hard Drawn Steel Wire) 생산 — 침대 스프링용 강선 포함",
- "generatedAt": "2026-10-30T23:03:53+09:00",
+ "generatedAt": "2026-11-03T02:00:44+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-10-30", 18000.0, 18000.0, 17810.0, 17850.0, 22281],
-   ["2025-10-31", 17860.0, 17990.0, 17710.0, 17860.0, 28100],
    ["2025-11-03", 17820.0, 18000.0, 17740.0, 17770.0, 35872],
    ["2025-11-04", 18050.0, 18050.0, 17730.0, 18000.0, 14450],
    ["2025-11-05", 18000.0, 18040.0, 17650.0, 17950.0, 19789],
@@ -256,7 +254,7 @@
    ["2026-10-30", 14380.0, 14560.0, 14180.0, 14310.0, 48339]
   ],
   "1wk": [
-   ["2021-10-31", 23168.9004, 23168.9004, 21294.9453, 21806.0254, 170737],
+   ["2021-10-31", 22913.3613, 23168.9004, 21294.9453, 21806.0254, 140024],
    ["2021-11-07", 21976.3848, 22146.7441, 20145.0195, 20698.6875, 214983],
    ["2021-11-14", 20741.2773, 20741.2773, 17248.9062, 17589.625, 952827],
    ["2021-11-21", 17632.2148, 17674.8047, 16524.8789, 16993.3672, 745462],
@@ -516,11 +514,10 @@
    ["2026-10-04", 17300.0, 17300.0, 16510.0, 16510.0, 96940],
    ["2026-10-11", 16330.0, 16680.0, 15500.0, 16110.0, 379658],
    ["2026-10-18", 15640.0, 16370.0, 14980.0, 15250.0, 120326],
-   ["2026-10-25", 14950.0, 15180.0, 14330.0, 14470.0, 80985],
-   ["2026-10-30", 14380.0, 14560.0, 14180.0, 14310.0, 48339]
+   ["2026-10-25", 14950.0, 15180.0, 14180.0, 14310.0, 129324],
+   ["2026-11-02", 14210.0, 15080.0, 14190.0, 15070.0, 36999]
   ],
   "1mo": [
-   ["2016-10-31", 25896.832, 30629.5859, 24630.3203, 27863.2578, 625681],
    ["2016-11-30", 27896.5879, 30062.9883, 26463.4297, 26763.3926, 323631],
    ["2016-12-31", 26763.3926, 29129.7695, 26496.7578, 26863.3809, 266551],
    ["2017-01-31", 27163.3438, 28396.5254, 26596.7461, 27363.3184, 323082],
@@ -639,8 +636,8 @@
    ["2026-06-30", 18170.0, 18420.0, 15300.0, 16790.0, 647201],
    ["2026-07-31", 16650.0, 18000.0, 16290.0, 17270.0, 412640],
    ["2026-08-31", 17510.0, 17720.0, 16490.0, 16550.0, 463322],
-   ["2026-09-30", 19170.0, 19380.0, 14330.0, 14470.0, 907755],
-   ["2026-10-30", 14380.0, 14560.0, 14180.0, 14310.0, 48339]
+   ["2026-09-30", 19170.0, 19380.0, 14180.0, 14310.0, 956094],
+   ["2026-11-02", 14210.0, 15080.0, 14190.0, 15070.0, 36999]
   ]
  },
  "candleFormat": [
@@ -681,13 +678,13 @@
   }
  ],
  "quote": {
-  "now": 14310.0,
-  "prev": 14470.0386,
-  "change": -160.0386,
-  "changePct": -1.106,
-  "changePctMeta": -1.106,
-  "changePctSeries": -1.1057,
-  "asOf": "2026-10-30 06:30"
+  "now": 15070.0,
+  "prev": 14309.9961,
+  "change": 760.0039,
+  "changePct": 5.311,
+  "changePctMeta": 5.311,
+  "changePctSeries": 5.311,
+  "asOf": "2026-11-02 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -704,34 +701,46 @@
    "shares": 26983910
   },
   "summaryBar": {
-   "dayLow": 14180.0,
-   "dayHigh": 14560.0,
+   "dayLow": 14190.0,
+   "dayHigh": 15080.0,
    "week52Low": 14180.0,
    "week52High": 28300.0,
-   "marketCap": 386139750400.0,
-   "volume": 48339,
-   "avgVolume": 30120,
-   "avgVolume10": 36420
+   "marketCap": 406647537664.0,
+   "volume": 36999,
+   "avgVolume": 30534,
+   "avgVolume10": 24965
   },
   "valuation": {
-   "psr": 0.213715,
-   "dividendYield": 0.0242,
+   "psr": 0.225065,
+   "dividendYield": 0.0245,
    "dividendRate": 350.0,
    "payoutRatio": 0.1943,
-   "beta": 0.849,
+   "beta": 0.882,
    "roe": 0.02074,
    "operatingMargin": 0.01105,
    "revenue": 1806799077376.0,
    "revenueGrowth": 0.016,
-   "change52w": -0.18981,
-   "ma50": 16579.2
+   "change52w": -0.19471,
+   "ma50": 16526.4
   },
   "holding": {
-   "heldInstitutions": 0.01092,
+   "heldInstitutions": 0.01059,
    "heldInsiders": 0.67726
   }
  },
  "news": [
+  {
+   "title": "고려제강 투자분석 2026. 11. 01",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5CN2g5VzZ2VjMzYnZXYWg3N0twRXhWTzZFa0tmeHVfZEFvLUJVVm5RMjJGOC1vd2poVWtjZE9yaThXOTNBODZYaXY1NTlQUUxrOWVLSHQyWExMZ0xnV3NaVGlTRjdJb09hamVGOElNcFpZQkk?oc=5",
+   "media": "주달",
+   "published": "Sun, 01 Nov 2026 08:44:47 GMT"
+  },
+  {
+   "title": "키스트론, 고려제강 주식 57만8080주 처분 결정",
+   "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTE85Rlhxa1NrQWpFb01RVlBzengxZ29SRXA0R0hiM0hVb0phZ2l0M2k1SHhaUnppYkMxNEdueUJ6c1VsTExuakZjd0xYdEdFR1JfbGFwa0xYYjJTSFU2OWRJV0g0OEpCR1hDdC1fLU5zbS1OMFhBWEhHWUhkcw?oc=5",
+   "media": "디지털투데이",
+   "published": "Tue, 20 Oct 2026 07:00:00 GMT"
+  },
   {
    "title": "[단독 심층진단] ‘자산주’의 늪에 빠진 고려제강, ‘초전도체’가 구원투수 될까",
    "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1LNTBZN09xZ19uZW0wNnJOUWt1ZWVsaVNRejN1U2IxZnUxQWl4bnpKQ0QxaDNpNFZqWmpSZmg0alBnQnJqMWRtaUxhN2ZtdDVSVnI5cEZjUEFPYzBDUFhoT2ZLLTd0NnVXQ1E?oc=5",
@@ -739,22 +748,10 @@
    "published": "Wed, 28 Jan 2026 08:00:00 GMT"
   },
   {
-   "title": "고려제강 10%이상주주 키스트론, 소유 주식 수량 13만5000주 감소…소유 지분율 0.50%p 하락",
-   "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTFBXWC1ETmtiempHU1Q1NVJHTUVpYW5OVjI4NzVfR3p1UWRhSXBpdF9WT1o4QXBMR1F2TVFnc1BqYXh2c01LQW9Hc0ZFdHFYWVlzWGg5N1BUbm1WYW9vV09BcGxuZTdKbHN0N1lNLU1BRGNvdXN4cXRreUJLNA?oc=5",
-   "media": "디지털투데이",
-   "published": "Fri, 16 Oct 2026 09:14:03 GMT"
-  },
-  {
    "title": "고려제강그룹 지배구조 개편 속도…키스트론, 홍희연 대표 품으로",
    "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE1ReDFwTHlGakRPWGlTOE54YVBReEprY0U4UGtMQ2drNm9md2JOOWVrVlVqMDhxUlR4NVc5bWdRRml6NWtXRk1vdFJzSW10WFBib2VpZw?oc=5",
    "media": "이투데이",
    "published": "Fri, 14 Aug 2026 07:00:00 GMT"
-  },
-  {
-   "title": "고려제강, 키스트론 지분 추가 매각…순환출자 해소 속도",
-   "link": "https://news.google.com/rss/articles/CBMibEFVX3lxTFBLdFJKRlVpMlVkem5wQW5peXJXaFhXRkNWQUVYekgzZGVJbWxKSllBQVhpcGgzUUhkYVNYd0xqZi1Fay13RTI3eTE4eUJzamZoZmNMZlhRcTZTbFVKcFhzSER3R3Z6TmdxeEVLXw?oc=5",
-   "media": "페로타임즈",
-   "published": "Mon, 14 Sep 2026 07:00:00 GMT"
   }
  ]
 }

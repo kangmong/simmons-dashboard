@@ -4,13 +4,11 @@
  "symbol": "013890.KS",
  "market": "KOSPI",
  "note": "매트리스 수출. 현대백화점그룹 편입",
- "generatedAt": "2026-10-30T23:03:32+09:00",
+ "generatedAt": "2026-11-03T02:00:22+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-10-30", 13950.0, 14080.0, 13800.0, 13940.0, 96994],
-   ["2025-10-31", 13950.0, 13970.0, 13740.0, 13810.0, 39431],
    ["2025-11-03", 13870.0, 13930.0, 13240.0, 13400.0, 78030],
    ["2025-11-04", 13210.0, 13300.0, 12940.0, 13040.0, 103016],
    ["2025-11-05", 13040.0, 13050.0, 12520.0, 12840.0, 79997],
@@ -253,10 +251,10 @@
    ["2026-10-27", 6010.0, 6230.0, 6010.0, 6230.0, 10767],
    ["2026-10-28", 6230.0, 6320.0, 6040.0, 6040.0, 25886],
    ["2026-10-29", 6110.0, 6110.0, 5990.0, 6100.0, 9362],
-   ["2026-10-30", 6400.0, 6690.0, 5840.0, 5920.0, 133838]
+   ["2026-10-30", 6400.0, 6690.0, 5840.0, 5920.0, 133368]
   ],
   "1wk": [
-   ["2021-10-31", 59429.0, 64838.4688, 58752.8164, 64012.0195, 909401],
+   ["2021-10-31", 60105.1836, 64838.4688, 59879.7891, 64012.0195, 741514],
    ["2021-11-07", 62208.8672, 65439.5195, 58527.4219, 65138.9922, 915413],
    ["2021-11-14", 66416.2266, 73478.5859, 61833.207, 64988.7305, 1559468],
    ["2021-11-21", 64613.0742, 65214.125, 60781.3672, 61307.2891, 503306],
@@ -516,8 +514,8 @@
    ["2026-10-04", 6920.0, 6950.0, 6660.0, 6670.0, 37328],
    ["2026-10-11", 6680.0, 6760.0, 6010.0, 6330.0, 100503],
    ["2026-10-18", 6230.0, 6770.0, 5900.0, 6050.0, 73667],
-   ["2026-10-25", 6050.0, 6320.0, 5990.0, 6100.0, 52229],
-   ["2026-10-30", 6400.0, 6690.0, 5840.0, 5920.0, 133838]
+   ["2026-10-25", 6050.0, 6690.0, 5840.0, 5920.0, 185597],
+   ["2026-11-02", 5840.0, 6100.0, 5740.0, 6090.0, 19960]
   ],
   "1mo": [
    ["2019-11-30", 61744.418, 63998.3594, 55255.7891, 63383.6484, 2003243],
@@ -602,8 +600,8 @@
    ["2026-06-30", 9140.0, 9220.0, 8060.0, 8680.0, 436041],
    ["2026-07-31", 8690.0, 8990.0, 7100.0, 7250.0, 560920],
    ["2026-08-31", 7390.0, 7850.0, 6850.0, 6900.0, 328082],
-   ["2026-09-30", 6930.0, 6950.0, 5900.0, 6100.0, 294221],
-   ["2026-10-30", 6400.0, 6690.0, 5840.0, 5920.0, 133838]
+   ["2026-09-30", 6930.0, 6950.0, 5840.0, 5920.0, 427589],
+   ["2026-11-02", 5840.0, 6100.0, 5740.0, 6090.0, 19960]
   ]
  },
  "candleFormat": [
@@ -644,13 +642,13 @@
   }
  ],
  "quote": {
-  "now": 5920.0,
-  "prev": 6100.0113,
-  "change": -180.0113,
-  "changePct": -2.951,
-  "changePctMeta": -2.951,
-  "changePctSeries": -2.9508,
-  "asOf": "2026-10-30 06:30"
+  "now": 6090.0,
+  "prev": 5919.9782,
+  "change": 170.0218,
+  "changePct": 2.872,
+  "changePctMeta": 2.872,
+  "changePctSeries": 2.8716,
+  "asOf": "2026-11-02 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -669,41 +667,35 @@
    "ceo": "Mr. Baek-Jae  Jeong (CEO & Director)"
   },
   "summaryBar": {
-   "dayLow": 5840.0,
-   "dayHigh": 6690.0,
-   "week52Low": 5840.0,
-   "week52High": 13970.0,
-   "marketCap": 129800806400.0,
-   "volume": 133838,
-   "avgVolume": 19820,
-   "avgVolume10": 14262
+   "dayLow": 5740.0,
+   "dayHigh": 6100.0,
+   "week52Low": 5740.0,
+   "week52High": 13930.0,
+   "marketCap": 133528199168.0,
+   "volume": 19960,
+   "avgVolume": 21943,
+   "avgVolume10": 25926
   },
   "valuation": {
-   "forwardPE": -144.39024,
-   "psr": 0.180057,
-   "dividendYield": 0.0148,
+   "forwardPE": -148.53659,
+   "psr": 0.185228,
+   "dividendYield": 0.0152,
    "dividendRate": 90.0,
    "payoutRatio": 0.0583,
-   "beta": 0.636,
+   "beta": 0.664,
    "roe": -0.13756,
    "operatingMargin": -0.18097,
    "revenue": 720886759424.0,
    "revenueGrowth": -0.357,
-   "change52w": -0.558291,
-   "ma50": 7069.6
+   "change52w": -0.558209,
+   "ma50": 7036.2
   },
   "holding": {
-   "heldInstitutions": 0.04756,
+   "heldInstitutions": 0.04712,
    "heldInsiders": 0.62021
   }
  },
  "news": [
-  {
-   "title": "[기업 이모저모] 현대百 적자회사 지누스 지분 사들인 큰손들",
-   "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1oSzZVbkt0UGlvYlVKandubFNtVndOTmhzSXd4eVVKc0RTOXF6aWxXWTAxX2ZsZlkzbUZRMGVmakZiRTVweG1uNFh6UkxyejFycDhZdTFaWjBOeFljUXA5clozRmJubTVZTjBBTHVrT3U?oc=5",
-   "media": "연합인포맥스",
-   "published": "Tue, 04 Aug 2026 07:00:00 GMT"
-  },
   {
    "title": "유진투자 \"현대백화점 목표주가 하향, 지누스 적자 부담 완화가 재평가 관건\"",
    "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9LT3l5QVF1MmZRUnNKdjRBQW4wZENRTE5TckZqNVE2MjQxX2IwWXIwQ3ZMdVowWlMxZ2hzenAxTmRzZm1DamxoWWEzRjloNGJkWkFVTFpRYXhqUGJYa1k5QnBlRzJfUm1oYVFMOUZZcVl6TWc?oc=5",
@@ -721,6 +713,12 @@
    "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE04d2dYdGhKU291WnVmbG9sZGZHY2FRa1FfNlJMTGxaWWczOHM3ZzluM2ZyU0RLZGNsLThUcy1yU3dyWE44ak9fZkc1bnhnWGNQa3RZTm1BNUR6cVXSAWBBVV95cUxOMm9zRjVWNlE2TnowVEw3MzFkOE9Pd1BGWldFMzB4eXdxVHdUYkh0RVhZNFNMYUNBbnV5UExHTGtzLV9zY2RmRlhKUmdFUmwxTTdMRHNUa1VYQUNYVGlDZUM?oc=5",
    "media": "연합뉴스",
    "published": "Wed, 16 Sep 2026 07:00:00 GMT"
+  },
+  {
+   "title": "'밑빠진 독' 지누스 … 현대百 실적·주가 다 갉아먹는다",
+   "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTE93Q1JOVFZKMEMweC1jZHhfSG5YVzVpdHZQZnN1dXpobGpobGxWeV95SGQ4QklONG51NmFad0tJazVhZnpXdDB2YnFkemVxWjZnVWEyYzE3TmNwdndxbUU4SjIxZk5sV1lSODVj?oc=5",
+   "media": "디지털포스트",
+   "published": "Wed, 23 Sep 2026 07:00:00 GMT"
   }
  ]
 }
