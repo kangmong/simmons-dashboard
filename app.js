@@ -20358,11 +20358,22 @@ function askPanel() {
     + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
     + '" placeholder="예: PPG 가격이 최근에 얼마나 올랐어?"></textarea>'
     + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
-    + '<button type="submit" class="ask-send">보내기</button></div></form>'
+    + '<span class="ask-f__acts"><button type="button" class="ask-clear" data-askclear title="질문·답을 모두 지우고 새로 시작">지우기</button>'
+    + '<button type="submit" class="ask-send">보내기</button></span></div></form>'
     + '<div class="ask-warn">사내 기밀 정보는 입력하지 마세요. 입력한 내용은 외부 AI 서비스로 전송됩니다.</div>';
   document.body.appendChild(p);
   p.addEventListener('click', (e) => {
     if (e.target.closest('[data-askclose]')) { askToggle(false); return; }
+    /* 지우기 — 지금까지의 질문·답, 입력 중인 글, 이어 묻기 기억(_askPrev)을 모두 비운다 */
+    if (e.target.closest('[data-askclear]')) {
+      if (_askBusy) return;
+      p.querySelector('#askLog').innerHTML = '';
+      _askPrev = [];
+      const t = p.querySelector('#askQ');
+      t.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
+      t.focus();
+      return;
+    }
     const c = e.target.closest('[data-askq]');
     if (c) { askAsk(c.getAttribute('data-askq')); return; }
     const g = e.target.closest('[data-askgo]');

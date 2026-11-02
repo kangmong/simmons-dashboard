@@ -6696,3 +6696,7 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   .ask-panel { top: auto; height: 100dvh; width: 100vw; border-left: 0; transform: translateY(105%); }
   .ask-panel.is-open { transform: none; }
 }
+.ask-f__acts { display: inline-flex; gap: 6px; }
+.ask-clear { font: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+.ask-clear:hover { border-color: var(--slate); background: var(--field); }
