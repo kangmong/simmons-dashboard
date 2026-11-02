@@ -20334,7 +20334,8 @@ function renderExhExtra() {
    ★ 대화는 이 창에서 최근 3개만 기억하고, 새로고침하면 지운다(서버에 저장하지 않는다).
    ============================================================ */
 const ASK_EXAMPLES = ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?',
-  '국제유가 전월 대비 변화는?', '부산에서 유럽 가는 운임은?', '구리 3개월 추이 알려줘'];
+  '달러 환율 한 달 새 얼마나 변했어?', '시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?',
+  '최근 특허 출원 많은 회사는?', '다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘'];
 const ASK_Q_MAX = 200;
 let _askPrev = [];      // 직전 답의 항목 ID — "그럼 TDI는?" 같은 이어 묻기에 쓴다
 let _askBusy = false;
@@ -20350,7 +20351,7 @@ function askPanel() {
   p.setAttribute('aria-label', 'AI에게 물어보기');
   p.innerHTML = '<div class="ask-h"><b>AI에게 물어보기</b><span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
-    + '<div class="ask-scope">원자재 원가 동향 데이터(ICIS·국제유가·석유제품·KOIMA·KCCI)로만 답합니다.</div>'
+    + '<div class="ask-scope">대시보드 데이터(원자재·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div>'
     + '<div class="ask-ex">' + ASK_EXAMPLES.map((q) => '<button type="button" class="ask-chip" data-askq="'
       + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>'
     + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
@@ -20387,6 +20388,11 @@ function askToggle(open) {
 
 /** '해당 카드 보기' — 원자재 메뉴에서 그 카드를 골라 연다 */
 function askGo(view) {
+  if (['icis', 'oilp', 'kp', 'fri:kcci'].indexOf(view) < 0) {
+    setView(view);
+    if (window.innerWidth <= 720) askToggle(false);
+    return;
+  }
   const kc = view === 'fri:kcci';
   mtTreePick(kc ? 'fri' : view);
   setView('material');
@@ -20400,11 +20406,17 @@ function askGo(view) {
 
 function askBars(ch) {
   const max = Math.max.apply(null, ch.rows.map((r) => Math.abs(r.v))) || 1;
-  return '<div class="ask-bars"><div class="ask-bars__u">(단위: %)</div>' + ch.rows.map((r) =>
+  const u = ch.unit || '';
+  /* 변화율(signed)만 오름 빨강·내림 파랑. 점유율·매출·건수는 한 색 */
+  const signed = u === '%' && !!ch.signed;
+  const tone = (v) => (signed ? (v >= 0 ? 'is-up' : 'is-down') : 'is-flat');
+  const val = (v) => (u === '%' ? ((signed && v >= 0) ? '+' : '') + v.toFixed(1) + '%'
+    : v.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + (u ? ' ' + u : ''));
+  return '<div class="ask-bars"><div class="ask-bars__u">(단위: ' + escapeHtml(u || '—') + ')</div>' + ch.rows.map((r) =>
     '<div class="ask-bar"><span class="ask-bar__k">' + escapeHtml(r.name) + '</span>'
-    + '<span class="ask-bar__t"><i class="' + (r.v >= 0 ? 'is-up' : 'is-down') + '" style="width:'
+    + '<span class="ask-bar__t"><i class="' + tone(r.v) + '" style="width:'
     + Math.max(2, Math.abs(r.v) / max * 100).toFixed(1) + '%"></i></span>'
-    + '<b class="' + (r.v >= 0 ? 'is-up' : 'is-down') + '">' + (r.v >= 0 ? '+' : '') + r.v.toFixed(1) + '%</b></div>').join('')
+    + '<b class="' + tone(r.v) + '">' + val(r.v) + '</b></div>').join('')
     + '</div>';
 }
 
@@ -20427,9 +20439,11 @@ function askChart(ch) {
 function askAnswerHtml(r) {
   const by = r.by === 'ai' ? 'AI가 정리한 내용입니다' : '계산 결과를 그대로 정리한 내용입니다';
   const ev = (r.events || []).length
-    ? '<div class="ask-ev"><b>같은 시기 주요 이슈</b> (인과관계를 뜻하지 않습니다)<ul>' + r.events.map((e) =>
-      '<li>' + escapeHtml(e.date) + ' · <a href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener noreferrer">'
-      + escapeHtml(e.label) + ' ↗</a>' + (e.source ? ' <span>' + escapeHtml(e.source) + '</span>' : '') + '</li>').join('')
+    ? '<div class="ask-ev"><b>' + escapeHtml(r.linksTitle || '같은 시기 주요 이슈') + '</b>'
+      + (r.linksTitle ? '' : ' (인과관계를 뜻하지 않습니다)') + '<ul>' + r.events.map((e) =>
+      '<li>' + (e.date ? escapeHtml(e.date) + ' · ' : '') + (e.url
+        ? '<a href="' + escapeHtml(e.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(e.label) + ' ↗</a>'
+        : escapeHtml(e.label)) + (e.source ? ' <span>' + escapeHtml(e.source) + '</span>' : '') + '</li>').join('')
       + '</ul></div>' : '';
   const facts = (r.facts || []).length
     ? '<details class="ask-facts"><summary>계산 근거 보기</summary><ul>'

@@ -37,7 +37,13 @@
           "public/data/dashboard.json",
           "public/data/koima-price.json",
           "public/data/kcci-index.json",
-          "public/data/kp-insights.json"
+          "public/data/kp-insights.json",
+          "public/data/exhibitions.json",
+          "public/data/simmons-financials.json",
+          "public/data/simmons-market.json",
+          "public/data/stock-quotes.json",
+          "public/data/stocks/*.json",
+          "public/data/kipris-patents.json"
         ]
       }
     },
