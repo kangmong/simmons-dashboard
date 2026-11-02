@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-26",
+  "updated": "2026-11-02",
   "hero": {
     "title": "일일 국제원자재가격 (KOIMA)",
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
@@ -146,6 +146,28 @@
       "detail": "ARECOMS는 코발트 가격을 뒷받침하기 위해 콩고의 코발트 수출 통제를 강화했다.",
       "source": "뉴스 (뉴스 자동 수집)",
       "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxNQW5KbjI2ZDVOTWdldkpNQ0JaRW9sWEFjWUR4V1pMeFdtR2lzelh4aVhHNUItdnpGQTR5REFtSHhHWmVKWjFZTHhOS3FxYTRTVWNURVlybGRJckhXamZkRDNJd2FTQXpRODk1M3ZLUkYxQTNEUFVyVUFDb0YwVVhKcTJyZ0puMjNWRmc5bm55Zkg5bHpWWUZBTw?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-09",
+      "cats": [
+        "petchem"
+      ],
+      "label": "쉘, 카타르 펄 GTL 공장 가동 재개",
+      "detail": "쉘이 카타르 펄 GTL 공장 가동을 재개하면서 나프타 공급이 돌아왔다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxOVmxIUTQzeE5nU2dKMG1DeTFjWTlBdGlMdG5JOUUtZnpGcXVUSU1ZQWFoVkx4TU9fcU9JRUROcHRsaV9WaFo2dUVIMUVvZTl3OEMxT0VDQjJrSUlQRzcwVldfRHNrdXlFWXRRN29yaDgyek5PZDIxemJQZ1pKMmtDMFZYNFJuRGRBREdoU3lHZXNoZTFQSzl5bHBGUTNwLWVXa2JsTThBdHZ3NjVPWE5xYnlPNXZNZ1JYWWpHQ0huYw?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-11-02",
+      "cats": [
+        "textile"
+      ],
+      "label": "파키스탄 무역로 폐쇄",
+      "detail": "파키스탄 무역로 폐쇄로 인해 헬만드 지역의 면화 가격이 60% 폭락했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE43OFRfSmt0NnFreEhxbWxyWVhYaGVudG40ZG91T2dqcnpqQ3FfMHVoeTlMNDlXaDMtblM5dmE3ZnBUWWs1bUx5MjVDZy1QYThHaHhhY1YwLW5iMzc1eXY3ZW9VQUtNbFBYT0U3azUwOE9NZ2M5NEE?oc=5",
       "auto": true
     }
   ],
