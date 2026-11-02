@@ -25,7 +25,7 @@ GEM_BASE = "https://generativelanguage.googleapis.com/v1beta"
 MODELS = [os.environ.get("ASK_MODEL") or "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 Q_MAX = 200                 # 질문 길이 상한
 DAY_MAX = int(os.environ.get("ASK_DAY_MAX") or 50)   # 하루 AI 호출 상한(인스턴스 기준 — 근사치)
-IP_MAX, IP_WIN = 10, 600    # IP 하나당 10분에 10번
+IP_MAX, IP_WIN = 30, 600    # IP 하나당 10분에 30번(같은 사무실은 IP 하나로 잡힌다 — 2026-11-02 10→30)
 AI_TIMEOUT = 15
 
 CARD = {
