@@ -4,7 +4,7 @@
  "symbol": "016800.KS",
  "market": "KOSPI",
  "note": "가구. 시디즈·일룸 계열",
- "generatedAt": "2026-11-03T02:00:17+09:00",
+ "generatedAt": "2026-11-04T00:02:02+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
@@ -251,10 +251,11 @@
    ["2026-10-27", 24250.0, 24800.0, 23750.0, 23750.0, 503],
    ["2026-10-28", 23800.0, 24450.0, 23350.0, 23350.0, 822],
    ["2026-10-29", 24950.0, 24950.0, 23500.0, 23750.0, 852],
-   ["2026-10-30", 24150.0, 24450.0, 23800.0, 23850.0, 1026]
+   ["2026-10-30", 24150.0, 24450.0, 23800.0, 23850.0, 1026],
+   ["2026-11-02", 24200.0, 24200.0, 23700.0, 23800.0, 343]
   ],
   "1wk": [
-   ["2021-10-31", 40000.0, 40000.0, 38000.0, 39450.0, 11578],
+   ["2021-10-31", 39700.0, 39950.0, 38000.0, 39450.0, 8657],
    ["2021-11-07", 39400.0, 41850.0, 39000.0, 40050.0, 33042],
    ["2021-11-14", 40250.0, 41200.0, 36550.0, 37050.0, 18586],
    ["2021-11-21", 37150.0, 38550.0, 36500.0, 36550.0, 8748],
@@ -515,7 +516,8 @@
    ["2026-10-11", 24000.0, 25000.0, 22350.0, 24050.0, 5938],
    ["2026-10-18", 23700.0, 24850.0, 23000.0, 24250.0, 4129],
    ["2026-10-25", 24250.0, 24950.0, 23350.0, 23850.0, 3325],
-   ["2026-11-02", 24200.0, 24200.0, 23700.0, 23800.0, 392]
+   ["2026-11-01", 24200.0, 24200.0, 23700.0, 23800.0, 343],
+   ["2026-11-03", 24500.0, 24500.0, 23650.0, 23850.0, 258]
   ],
   "1mo": [
    ["2016-11-30", 33100.0, 33750.0, 32350.0, 33000.0, 18734],
@@ -637,7 +639,7 @@
    ["2026-07-31", 25000.0, 28600.0, 25000.0, 28000.0, 18460],
    ["2026-08-31", 27800.0, 28300.0, 23650.0, 24100.0, 15871],
    ["2026-09-30", 24350.0, 28700.0, 22350.0, 23850.0, 18180],
-   ["2026-11-02", 24200.0, 24200.0, 23700.0, 23800.0, 392]
+   ["2026-11-03", 24500.0, 24500.0, 23650.0, 23850.0, 258]
   ]
  },
  "candleFormat": [
@@ -678,13 +680,13 @@
   }
  ],
  "quote": {
-  "now": 23800.0,
-  "prev": 23850.0852,
-  "change": -50.0852,
-  "changePct": -0.21,
-  "changePctMeta": -0.21,
-  "changePctSeries": -0.2096,
-  "asOf": "2026-11-02 06:30"
+  "now": 23850.0,
+  "prev": 23800.02,
+  "change": 49.98,
+  "changePct": 0.21,
+  "changePctMeta": 0.21,
+  "changePctSeries": 0.2101,
+  "asOf": "2026-11-03 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -703,18 +705,18 @@
    "ceo": "Mr. Jong-Tae  Lee (Chief Executive Officer, President and Representative Director)"
   },
   "summaryBar": {
-   "dayLow": 23700.0,
-   "dayHigh": 24200.0,
+   "dayLow": 23650.0,
+   "dayHigh": 24500.0,
    "week52Low": 22350.0,
    "week52High": 50800.0,
-   "marketCap": 212985053184.0,
-   "volume": 392,
-   "avgVolume": 875,
-   "avgVolume10": 745
+   "marketCap": 213432500224.0,
+   "volume": 258,
+   "avgVolume": 874,
+   "avgVolume10": 726
   },
   "valuation": {
-   "psr": 0.596017,
-   "dividendYield": 0.0419,
+   "psr": 0.597269,
+   "dividendYield": 0.042,
    "dividendRate": 1000.0,
    "payoutRatio": 0.1485,
    "beta": 0.293,
@@ -722,8 +724,8 @@
    "operatingMargin": -0.06184,
    "revenue": 357347328000.0,
    "revenueGrowth": 0.064,
-   "change52w": -0.47,
-   "ma50": 25544.0
+   "change52w": -0.465769,
+   "ma50": 25472.0
   },
   "holding": {
    "heldInstitutions": 0.16503,
@@ -744,16 +746,16 @@
    "published": "Sun, 19 Apr 2026 07:00:00 GMT"
   },
   {
-   "title": "퍼시스 투자분석 2026. 10. 11",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1fOTVnMjQ3VzRsR0UzeVZ4dkwtdnFiM1VBUnVBVWZSbDhZU0lyWU8yZi1fQ2MyVmFYR1hlUmRjNjBoRUJxaGtfdFczTG5fNWdwaWZaRW1rdzgxRXJ5VVlTY05HdFpxZzkySGtiazJhNjRMN1k?oc=5",
-   "media": "주달",
-   "published": "Sun, 11 Oct 2026 07:00:00 GMT"
-  },
-  {
    "title": "시디즈, 주가 5년째 지속 하락…상장폐지 기로 서나",
    "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFBPNjBXS2YtMklGbHI5dTBnLS03c0JXeW1KTEZuRndvUExLQjY5bWtJc0pCSU02TUFNeUMtbm9BY3BzbFVJTjFnZmZBUDlBdGFH?oc=5",
    "media": "톱데일리",
    "published": "Fri, 24 Jul 2026 07:00:00 GMT"
+  },
+  {
+   "title": "퍼시스 투자분석 2026. 10. 11",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1fOTVnMjQ3VzRsR0UzeVZ4dkwtdnFiM1VBUnVBVWZSbDhZU0lyWU8yZi1fQ2MyVmFYR1hlUmRjNjBoRUJxaGtfdFczTG5fNWdwaWZaRW1rdzgxRXJ5VVlTY05HdFpxZzkySGtiazJhNjRMN1k?oc=5",
+   "media": "주달",
+   "published": "Sun, 11 Oct 2026 07:00:00 GMT"
   }
  ]
 }
