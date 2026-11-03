@@ -181,6 +181,14 @@
         },
         "updates": [
           {
+            "date": "2026-10-28",
+            "kind": "제휴",
+            "text": "오우라가 UC 샌디에이고와 함께 비만 연구를 시작했다.",
+            "label": "Oura Launches Landmark Obesity Study With UC San Diego - Forbes",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxNWHV2ODZWTHAwT3Q2WTVrd2pRcmtKZG0ySTVDck9EcTZMX1BHZTFFcnF4WGZSbmRnUmlFbkhsRVZKQmV1Z0xmTWM1M3NoVVJtMnpoVTQ5WGZQdE91SnA4OWVPandWLXQ2VVpkX1V5MERpQk8tNEc2cDEyeTlQWGtHMGp0aFhVaDNXdW9SSTlGVWlHeURVQWlQSTIyYUdTWWZyZ3g3UndB?oc=5"
+          },
+          {
             "date": "2026-09-17",
             "kind": "제휴",
             "text": "Oura와 Counsel Health가 CMS ACCESS 모델에 참여했다.",
@@ -457,7 +465,17 @@
         "note": "전망"
       }
     ],
-    "foot": "2020년 발표된 옛 전망(2026년 321억 달러)은 같은 기관의 최신 자료로 갱신"
+    "foot": "2020년 발표된 옛 전망(2026년 321억 달러)은 같은 기관의 최신 자료로 갱신",
+    "updates": [
+      {
+        "date": "2026-09-15",
+        "kind": "시장규모",
+        "text": "스트레이츠 리서치가 2034년까지의 미국 슬립테크 시장 규모 보고서를 발표했다.",
+        "label": "United States Sleep Tech Market Size, Share & Growth Chart by 2034 - Straits Research",
+        "source": "",
+        "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBWTkVub2lFT3R2LU5uSWRVUFg1bVVkYWNkMnlnbjM5MGVXSHFsOTZERk1nVnRQWFdJT05VZFBYQ050Y1BvekRJZkhqUHpGVi1XRmxvdmhVeHVjYWNaaklrel9HTVBpd0daanNYR2t6VWxkYk45?oc=5"
+      }
+    ]
   },
   "sleepLoss": {
     "title": "주요 선진국의 수면 부족으로 인한 경제 손실 규모",
