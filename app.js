@@ -20351,7 +20351,7 @@ function askPanel() {
   p.setAttribute('aria-label', 'AI에게 물어보기');
   p.innerHTML = '<div class="ask-h"><b>AI에게 물어보기</b><span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
-    + '<div class="ask-scope">대시보드 데이터(원자재·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div>'
+    + '<div class="ask-scope">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div>'
     + '<div class="ask-ex">' + ASK_EXAMPLES.map((q) => '<button type="button" class="ask-chip" data-askq="'
       + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>'
     + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
@@ -20399,18 +20399,22 @@ function askToggle(open) {
 
 /** '해당 카드 보기' — 원자재 메뉴에서 그 카드를 골라 연다 */
 function askGo(view) {
-  if (['icis', 'oilp', 'kp', 'fri:kcci'].indexOf(view) < 0) {
+  if (['icis', 'oilp', 'kp', 'fri:kcci', 'fri:sr'].indexOf(view) < 0) {
     setView(view);
     if (window.innerWidth <= 720) askToggle(false);
     return;
   }
-  const kc = view === 'fri:kcci';
-  mtTreePick(kc ? 'fri' : view);
+  const kc = view === 'fri:kcci', sr = view === 'fri:sr';
+  mtTreePick(kc || sr ? 'fri' : view);
   setView('material');
   renderMaterial();
   if (kc) {
     const a = document.querySelector('[data-fri="kcci"]'); if (a) a.click();
     const b = document.querySelector('[data-friway="kcci"]'); if (b) b.click();
+  }
+  if (sr) {   // 해상 정시성(K+N)
+    const a = document.querySelector('[data-fri="sr"]'); if (a) a.click();
+    const b = document.querySelector('[data-friway="knsr"]'); if (b) b.click();
   }
   if (window.innerWidth <= 720) askToggle(false);
 }

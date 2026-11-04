@@ -43,7 +43,8 @@
           "public/data/simmons-market.json",
           "public/data/stock-quotes.json",
           "public/data/stocks/*.json",
-          "public/data/kipris-patents.json"
+          "public/data/kipris-patents.json",
+          "public/data/kn-reliability.json"
         ]
       }
     },
