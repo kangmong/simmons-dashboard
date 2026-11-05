@@ -1,6 +1,6 @@
 {
  "status": "ok",
- "generatedAt": "2026-11-05T00:21:29+09:00",
+ "generatedAt": "2026-11-06T00:24:54+09:00",
  "items": [
   {
    "key": "simmons",
@@ -25,16 +25,15 @@
    "exchange": "KOE",
    "longName": "Ace Bed Company Limited",
    "week52High": 39850.0,
-   "week52Low": 26400.0,
-   "now": 31750.0,
-   "prev": 31699.9141,
-   "change": 50.0859,
-   "changePct": 0.158,
-   "changePctMeta": 0.158,
-   "changePctSeries": 0.1577,
-   "asOf": "2026-11-04 06:30",
+   "week52Low": 26900.0,
+   "now": 31550.0,
+   "prev": 31750.0252,
+   "change": -200.0252,
+   "changePct": -0.63,
+   "changePctMeta": -0.63,
+   "changePctSeries": -0.6299,
+   "asOf": "2026-11-05 06:16",
    "spark": [
-    32550.0,
     32000.0,
     32800.0,
     33200.0,
@@ -96,7 +95,8 @@
     31750.0,
     31500.0,
     31700.0,
-    31700.0
+    31700.0,
+    31750.0
    ]
   },
   {
@@ -113,15 +113,14 @@
    "longName": "COWAY Co., Ltd.",
    "week52High": 111800.0,
    "week52Low": 68800.0,
-   "now": 103600.0,
-   "prev": 103900.2718,
-   "change": -300.2718,
-   "changePct": -0.289,
-   "changePctMeta": -0.289,
-   "changePctSeries": -0.2887,
-   "asOf": "2026-11-04 06:30",
+   "now": 109800.0,
+   "prev": 103599.566,
+   "change": 6200.434,
+   "changePct": 5.985,
+   "changePctMeta": 5.985,
+   "changePctSeries": 5.9846,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    91500.0,
     92200.0,
     94300.0,
     92800.0,
@@ -183,7 +182,8 @@
     101600.0,
     104000.0,
     105100.0,
-    103900.0
+    103900.0,
+    103600.0
    ]
   },
   {
@@ -200,15 +200,14 @@
    "longName": "Fursys Inc.",
    "week52High": 50800.0,
    "week52Low": 22350.0,
-   "now": 24400.0,
-   "prev": 23850.0186,
-   "change": 549.9814,
-   "changePct": 2.306,
-   "changePctMeta": 2.306,
-   "changePctSeries": 2.3061,
-   "asOf": "2026-11-04 06:30",
+   "now": 24150.0,
+   "prev": 24400.101,
+   "change": -250.101,
+   "changePct": -1.025,
+   "changePctMeta": -1.025,
+   "changePctSeries": -1.0246,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    25000.0,
     25350.0,
     25900.0,
     26300.0,
@@ -270,7 +269,8 @@
     23750.0,
     23850.0,
     23800.0,
-    23850.0
+    23850.0,
+    24400.0
    ]
   },
   {
@@ -287,15 +287,14 @@
    "longName": "Zinus, Inc",
    "week52High": 13480.0,
    "week52Low": 5740.0,
-   "now": 6150.0,
-   "prev": 6090.0,
-   "change": 60.0,
-   "changePct": 0.0,
-   "changePctMeta": 0.0,
-   "changePctSeries": 0.9852,
-   "asOf": "2026-11-04 06:30",
+   "now": 6500.0,
+   "prev": 6150.0033,
+   "change": 349.9967,
+   "changePct": 5.691,
+   "changePctMeta": 5.691,
+   "changePctSeries": 5.6911,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    8680.0,
     8670.0,
     8970.0,
     8240.0,
@@ -357,9 +356,9 @@
     6100.0,
     5920.0,
     6090.0,
+    6150.0,
     6150.0
-   ],
-   "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta +0.00% vs 시계열 +0.99%)"
+   ]
   },
   {
    "key": "hanssem",
@@ -375,15 +374,14 @@
    "longName": "Hanssem Co., Ltd.",
    "week52High": 54800.0,
    "week52Low": 28300.0,
-   "now": 40400.0,
-   "prev": 40349.966,
-   "change": 50.034,
-   "changePct": 0.124,
-   "changePctMeta": 0.124,
-   "changePctSeries": 0.1239,
-   "asOf": "2026-11-04 06:30",
+   "now": 41500.0,
+   "prev": 40399.9104,
+   "change": 1100.0896,
+   "changePct": 2.723,
+   "changePctMeta": 2.723,
+   "changePctSeries": 2.7228,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    38900.0,
     37800.0,
     39000.0,
     38650.0,
@@ -445,7 +443,8 @@
     38800.0,
     39800.0,
     40200.0,
-    40350.0
+    40350.0,
+    40400.0
    ]
   },
   {
@@ -461,16 +460,15 @@
    "exchange": "KSC",
    "longName": "Hyundai Livart Furniture Company Limited",
    "week52High": 9300.0,
-   "week52Low": 5010.0,
-   "now": 5200.0,
-   "prev": 5180.0052,
-   "change": 19.9948,
-   "changePct": 0.386,
-   "changePctMeta": 0.386,
-   "changePctSeries": 0.3861,
-   "asOf": "2026-11-04 06:30",
+   "week52Low": 5000.0,
+   "now": 5110.0,
+   "prev": 5200.0122,
+   "change": -90.0122,
+   "changePct": -1.731,
+   "changePctMeta": -1.731,
+   "changePctSeries": -1.7308,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    5490.0,
     5590.0,
     5780.0,
     5970.0,
@@ -532,7 +530,8 @@
     5270.0,
     5240.0,
     5280.0,
-    5180.0
+    5180.0,
+    5200.0
    ]
   },
   {
@@ -549,15 +548,14 @@
    "longName": "ENEX Co., LTD.",
    "week52High": 4170.0,
    "week52Low": 908.0,
-   "now": 1670.0,
-   "prev": 1691.0022,
-   "change": -21.0022,
-   "changePct": -1.242,
-   "changePctMeta": -1.242,
-   "changePctSeries": -1.2419,
-   "asOf": "2026-11-04 06:30",
+   "now": 1609.0,
+   "prev": 1670.0053,
+   "change": -61.0053,
+   "changePct": -3.653,
+   "changePctMeta": -3.653,
+   "changePctSeries": -3.6527,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    1937.0,
     1723.0,
     1788.0,
     1668.0,
@@ -619,7 +617,8 @@
     1576.0,
     1725.0,
     1730.0,
-    1691.0
+    1691.0,
+    1670.0
    ]
   },
   {
@@ -636,15 +635,14 @@
    "longName": "Kiswire Ltd.",
    "week52High": 28300.0,
    "week52Low": 14180.0,
-   "now": 14700.0,
-   "prev": 14830.0596,
-   "change": -130.0596,
-   "changePct": -0.877,
-   "changePctMeta": -0.877,
-   "changePctSeries": -0.8766,
-   "asOf": "2026-11-04 06:30",
+   "now": 14680.0,
+   "prev": 14699.992,
+   "change": -19.992,
+   "changePct": -0.136,
+   "changePctMeta": -0.136,
+   "changePctSeries": -0.1361,
+   "asOf": "2026-11-05 06:30",
    "spark": [
-    16790.0,
     16660.0,
     17020.0,
     17140.0,
@@ -706,7 +704,8 @@
     14470.0,
     14310.0,
     15070.0,
-    14830.0
+    14830.0,
+    14700.0
    ]
   },
   {
@@ -724,15 +723,14 @@
    "longName": "Somnigroup International Inc.",
    "week52High": 98.56,
    "week52Low": 60.08,
-   "now": 66.92,
-   "prev": 65.3503,
-   "change": 1.5697,
-   "changePct": 2.402,
-   "changePctMeta": 2.402,
-   "changePctSeries": 2.4024,
-   "asOf": "2026-11-04 15:21",
+   "now": 69.085,
+   "prev": 69.8103,
+   "change": -0.7253,
+   "changePct": -1.039,
+   "changePctMeta": -1.039,
+   "changePctSeries": -1.0385,
+   "asOf": "2026-11-05 15:25",
    "spark": [
-    65.25,
     64.82,
     65.24,
     64.25,
@@ -794,7 +792,8 @@
     63.56,
     66.42,
     65.35,
-    66.92
+    69.81,
+    69.085
    ]
   }
  ],
