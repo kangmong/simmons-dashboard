@@ -4,12 +4,11 @@
  "symbol": "013890.KS",
  "market": "KOSPI",
  "note": "매트리스 수출. 현대백화점그룹 편입",
- "generatedAt": "2026-11-06T00:25:11+09:00",
+ "generatedAt": "2026-11-06T23:58:02+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-05", 13040.0, 13050.0, 12520.0, 12840.0, 79997],
    ["2025-11-06", 12760.0, 13190.0, 12570.0, 12820.0, 57491],
    ["2025-11-07", 12700.0, 12790.0, 12220.0, 12450.0, 75734],
    ["2025-11-10", 12580.0, 13110.0, 12520.0, 13110.0, 49186],
@@ -252,10 +251,11 @@
    ["2026-10-30", 6400.0, 6690.0, 5840.0, 5920.0, 133368],
    ["2026-11-02", 5840.0, 6100.0, 5740.0, 6090.0, 19754],
    ["2026-11-03", 5910.0, 6170.0, 5910.0, 6150.0, 12295],
-   ["2026-11-04", 6180.0, 6180.0, 5950.0, 6150.0, 19546]
+   ["2026-11-04", 6180.0, 6180.0, 5950.0, 6150.0, 19546],
+   ["2026-11-05", 6190.0, 6750.0, 6130.0, 6500.0, 45880],
+   ["2026-11-06", 6300.0, 6670.0, 6220.0, 6550.0, 42676]
   ],
   "1wk": [
-   ["2021-10-31", 60931.6289, 64838.4688, 60706.2344, 64012.0195, 348739],
    ["2021-11-07", 62208.8672, 65439.5195, 58527.4219, 65138.9922, 915413],
    ["2021-11-14", 66416.2266, 73478.5859, 61833.207, 64988.7305, 1559468],
    ["2021-11-21", 64613.0742, 65214.125, 60781.3672, 61307.2891, 503306],
@@ -516,8 +516,8 @@
    ["2026-10-11", 6680.0, 6760.0, 6010.0, 6330.0, 100503],
    ["2026-10-18", 6230.0, 6770.0, 5900.0, 6050.0, 73667],
    ["2026-10-25", 6050.0, 6690.0, 5840.0, 5920.0, 185597],
-   ["2026-11-01", 5840.0, 6180.0, 5740.0, 6150.0, 51595],
-   ["2026-11-05", 6190.0, 6750.0, 6130.0, 6500.0, 46028]
+   ["2026-11-01", 5840.0, 6750.0, 5740.0, 6500.0, 97475],
+   ["2026-11-06", 6300.0, 6670.0, 6220.0, 6550.0, 42676]
   ],
   "1mo": [
    ["2019-11-30", 61744.418, 63998.3594, 55255.7891, 63383.6484, 2003243],
@@ -603,8 +603,8 @@
    ["2026-07-31", 8690.0, 8990.0, 7100.0, 7250.0, 560920],
    ["2026-08-31", 7390.0, 7850.0, 6850.0, 6900.0, 328082],
    ["2026-09-30", 6930.0, 6950.0, 5840.0, 5920.0, 427589],
-   ["2026-10-31", 5840.0, 6180.0, 5740.0, 6150.0, 51595],
-   ["2026-11-05", 6190.0, 6750.0, 6130.0, 6500.0, 46028]
+   ["2026-10-31", 5840.0, 6750.0, 5740.0, 6500.0, 97475],
+   ["2026-11-06", 6300.0, 6670.0, 6220.0, 6550.0, 42676]
   ]
  },
  "candleFormat": [
@@ -645,13 +645,13 @@
   }
  ],
  "quote": {
-  "now": 6500.0,
-  "prev": 6150.0033,
-  "change": 349.9967,
-  "changePct": 5.691,
-  "changePctMeta": 5.691,
-  "changePctSeries": 5.6911,
-  "asOf": "2026-11-05 06:30"
+  "now": 6550.0,
+  "prev": 6500.0149,
+  "change": 49.9851,
+  "changePct": 0.769,
+  "changePctMeta": 0.769,
+  "changePctSeries": 0.7692,
+  "asOf": "2026-11-06 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -670,19 +670,19 @@
    "ceo": "Mr. Baek-Jae  Jeong (CEO & Director)"
   },
   "summaryBar": {
-   "dayLow": 6130.0,
-   "dayHigh": 6750.0,
+   "dayLow": 6220.0,
+   "dayHigh": 6670.0,
    "week52Low": 5740.0,
    "week52High": 13480.0,
-   "marketCap": 142517780480.0,
-   "volume": 46028,
-   "avgVolume": 20641,
-   "avgVolume10": 26971
+   "marketCap": 143614066688.0,
+   "volume": 42676,
+   "avgVolume": 20935,
+   "avgVolume10": 30128
   },
   "valuation": {
-   "forwardPE": -158.53659,
-   "psr": 0.197698,
-   "dividendYield": 0.0146,
+   "forwardPE": -159.7561,
+   "psr": 0.199219,
+   "dividendYield": 0.0138,
    "dividendRate": 90.0,
    "payoutRatio": 0.0583,
    "beta": 0.664,
@@ -690,20 +690,20 @@
    "operatingMargin": -0.18097,
    "revenue": 720886759424.0,
    "revenueGrowth": -0.357,
-   "change52w": -0.520281,
-   "ma50": 6961.2
+   "change52w": -0.477912,
+   "ma50": 6943.2
   },
   "holding": {
-   "heldInstitutions": 0.04675,
+   "heldInstitutions": 0.04653,
    "heldInsiders": 0.62021
   }
  },
  "news": [
   {
-   "title": "[지누스] 지누스, 영업적자 125억까지 축소…4분기 흑자전환 가능할까?(2026년_3Q)",
-   "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQaWxPWmlzRTJ5VkFubkFzM1NHdTY2SXpuM21JblpDLVlEaV9RVXM5c2hpbFlwTzlMWnBBNjBYZHJrdjRsQXhZbmVTbnJkazV2aUItYjh4cGF0Q2xLaGM2TWM2ak9lX0dPUGgwUEZldUZqODVfYXl3eHpjdjAybU83RjBHeEt2TWI2?oc=5",
-   "media": "네이버 프리미엄콘텐츠",
-   "published": "Thu, 05 Nov 2026 07:20:00 GMT"
+   "title": "[코스피 현미경 분석] 현대백화점, 지누스 본격 턴어라운드로 주가 다시 뛸까",
+   "link": "https://news.google.com/rss/articles/CBMib0FVX3lxTE9aM2xoWnpoZjZ0anhjbmdOXzV0OEhxNXFZRFhvbThzVnJRUFVjajBwa0VrWFhWSWRlX255bjZ3MzBQUWVuWDZoYWJPdDN1czRtWFFabVE2dXlGX3Z3emZCb2N2ejR2QWk0Zk5OUUozMNIBb0FVX3lxTE9aM2xoWnpoZjZ0anhjbmdOXzV0OEhxNXFZRFhvbThzVnJRUFVjajBwa0VrWFhWSWRlX255bjZ3MzBQUWVuWDZoYWJPdDN1czRtWFFabVE2dXlGX3Z3emZCb2N2ejR2QWk0Zk5OUUozMA?oc=5",
+   "media": "데일리인베스트",
+   "published": "Fri, 06 Nov 2026 01:08:53 GMT"
   },
   {
    "title": "“환율 착시 극복한 현대백화점…백화점 구조적 성장+지누스 합류에 ‘주가 재평가’ 기대”",
@@ -712,16 +712,16 @@
    "published": "Thu, 05 Nov 2026 11:04:48 GMT"
   },
   {
+   "title": "[지누스] 지누스, 영업적자 125억까지 축소…4분기 흑자전환 가능할까?(2026년_3Q)",
+   "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQaWxPWmlzRTJ5VkFubkFzM1NHdTY2SXpuM21JblpDLVlEaV9RVXM5c2hpbFlwTzlMWnBBNjBYZHJrdjRsQXhZbmVTbnJkazV2aUItYjh4cGF0Q2xLaGM2TWM2ak9lX0dPUGgwUEZldUZqODVfYXl3eHpjdjAybU83RjBHeEt2TWI2?oc=5",
+   "media": "네이버 프리미엄콘텐츠",
+   "published": "Thu, 05 Nov 2026 07:20:00 GMT"
+  },
+  {
    "title": "“현대백화점, 지누스 적자 축소에 위안”…목표가↓",
    "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE0wQ1BDb1U2MXk0bl9NVFN1UVh6WUlKbndsczM5ZlBLNWV5QWxJd0l5MlNhSzFOMG5QVm53OG9nMm9iejBnRlp4MmJPTXJEMWVwNEE?oc=5",
    "media": "매일경제",
    "published": "Thu, 05 Nov 2026 01:24:00 GMT"
-  },
-  {
-   "title": "하나증권 \"현대백화점 4분기 모든 사업부 흑자 가능성, 지누스도 불확실성 해소 수순\"",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBBUWZxVXBzZ3F0TUdFM0JTY1FGVEpGN0FxeVh6b1h4WTJJcXQyQjFJYzYzWHBOZUhtNlNyN3Nvek8ySFR3Sk1WbHM5Z3J5WUF5T3FmQVRuSHdnTGtXaEcyMFNZZGJaVTRkM2FvaTM3cGstTEk?oc=5",
-   "media": "비즈니스포스트",
-   "published": "Thu, 05 Nov 2026 02:22:40 GMT"
   }
  ]
 }
