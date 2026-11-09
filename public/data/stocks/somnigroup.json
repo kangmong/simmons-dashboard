@@ -4,13 +4,11 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-11-06T23:58:26+09:00",
+ "generatedAt": "2026-11-10T02:25:15+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
   "1d": [
-   ["2025-11-06", 84.41, 89.71, 83.03, 88.98, 4588100],
-   ["2025-11-07", 89.44, 91.54, 88.79, 91.25, 3117300],
    ["2025-11-10", 91.42, 94.01, 91.0, 93.5, 3040600],
    ["2025-11-11", 93.5, 94.01, 91.98, 92.06, 1873300],
    ["2025-11-12", 92.43, 92.66, 91.52, 92.01, 2751100],
@@ -260,10 +258,11 @@
    ["2026-11-03", 66.36, 67.0, 64.96, 65.35, 2242100],
    ["2026-11-04", 68.0, 69.94, 66.63, 69.81, 4299400],
    ["2026-11-05", 70.0, 70.62, 66.39, 67.87, 4146700],
-   ["2026-11-06", 67.95, 67.615, 65.41, 66.635, 122040]
+   ["2026-11-06", 67.95, 67.95, 63.98, 64.17, 7195000],
+   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
   ],
   "1wk": [
-   ["2021-11-08", 45.1, 45.46, 43.43, 44.83, 6290300],
+   ["2021-11-08", 44.62, 45.44, 43.43, 44.83, 5014100],
    ["2021-11-15", 45.18, 46.46, 43.75, 43.98, 6864500],
    ["2021-11-22", 44.32, 44.77, 41.76, 42.23, 5262600],
    ["2021-11-29", 42.8, 45.3, 41.58, 43.67, 12751100],
@@ -523,8 +522,8 @@
    ["2026-10-12", 62.12, 66.2, 60.86, 63.58, 11383500],
    ["2026-10-19", 63.73, 66.06, 62.15, 64.68, 11383400],
    ["2026-10-26", 64.68, 65.03, 61.18, 63.56, 14291700],
-   ["2026-11-02", 64.51, 70.62, 64.22, 67.87, 14773900],
-   ["2026-11-06", 67.95, 67.615, 65.41, 66.635, 122040]
+   ["2026-11-02", 64.51, 70.62, 63.98, 64.17, 21968900],
+   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
   ],
   "1mo": [
    ["2016-12-01", 15.845, 17.39, 15.23, 17.07, 63276400],
@@ -646,8 +645,8 @@
    ["2026-08-01", 67.02, 70.54, 61.67, 64.75, 76313300],
    ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
    ["2026-10-01", 62.0, 66.2, 60.08, 63.56, 55222700],
-   ["2026-11-01", 64.51, 70.62, 64.22, 67.87, 14773900],
-   ["2026-11-06", 67.95, 67.615, 65.41, 66.635, 122040]
+   ["2026-11-01", 64.51, 70.62, 63.98, 64.17, 21968900],
+   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
   ]
  },
  "candleFormat": [
@@ -688,13 +687,13 @@
   }
  ],
  "quote": {
-  "now": 66.635,
-  "prev": 67.8709,
-  "change": -1.2359,
-  "changePct": -1.821,
-  "changePctMeta": -1.821,
-  "changePctSeries": -1.8197,
-  "asOf": "2026-11-06 14:58"
+  "now": 64.56,
+  "prev": 64.1698,
+  "change": 0.3902,
+  "changePct": 0.608,
+  "changePctMeta": 0.608,
+  "changePctSeries": 0.6078,
+  "asOf": "2026-11-09 17:24"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
@@ -710,27 +709,27 @@
    "city": "Dallas",
    "country": "United States",
    "employees": 19000,
-   "shares": 230239189,
+   "shares": 230243003,
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 65.41,
-   "dayHigh": 67.615,
+   "dayLow": 62.17,
+   "dayHigh": 65.83,
    "week52Low": 60.08,
    "week52High": 98.56,
-   "marketCap": 15341988864.0,
-   "volume": 122040,
-   "avgVolume": 3185979,
-   "avgVolume10": 3080620
+   "marketCap": 14864488448.0,
+   "volume": 3433272,
+   "avgVolume": 3246923,
+   "avgVolume10": 3626060
   },
   "valuation": {
-   "trailingPE": 26.54781,
-   "forwardPE": 17.302221,
-   "pbr": 4.339346,
+   "trailingPE": 25.721115,
+   "forwardPE": 16.763432,
+   "pbr": 4.20422,
    "eps": 2.51,
    "bps": 15.356,
-   "psr": 2.014442,
-   "dividendYield": 0.01,
+   "psr": 1.951745,
+   "dividendYield": 0.0106,
    "dividendRate": 0.68,
    "payoutRatio": 0.255,
    "beta": 1.292,
@@ -738,13 +737,32 @@
    "operatingMargin": 0.11127,
    "revenue": 7616000000.0,
    "revenueGrowth": -0.03,
-   "change52w": -0.256219,
-   "ma50": 64.4014
+   "change52w": -0.31369,
+   "ma50": 64.4352
   },
   "holding": {
-   "heldInstitutions": 0.98462,
+   "heldInstitutions": 0.99209,
    "heldInsiders": 0.03102
   }
  },
- "news": []
+ "news": [
+  {
+   "title": "Somnigroup, 연간 이익 전망 하향…개장 전 주가 8% 하락",
+   "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFBJTkxiWXZ5VjFzWUxTZ0NYYTZiUDQwdlpRdEJXTmtnUGRXMlUzTVlEQ2o0Z1RLQkxJUGxqQWxVTGw5WF9qbm5wSThlUU5YSUpMdU5sOWszbzBQanEwdmRSdzRTMHNuYzNCWjJZ?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Mon, 09 Nov 2026 11:49:00 GMT"
+  },
+  {
+   "title": "Somnigroup, 침구 시장 부진 속 3분기 실적 시험대",
+   "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTE9PbEhfZVJxQmk5Z2xXNzVMSGdYeUlDUFE3T29uRFJ2UVVtMW1GcW93NmlXdTROUTk3Nk5NMzNKLWlmcjg4VmlSN2ZEVG1COUZRTUJpLU1jSHhoSEVMczh4RDdyV3V3V1N3eDR3?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Mon, 09 Nov 2026 16:41:00 GMT"
+  },
+  {
+   "title": "Somnigroup International Q3 실적, 수익 에상치보다 저조",
+   "link": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE5xWm54TWdyTlU5UkYzVzZmX0pXa3lNUUYxVWVFaXhzaWRKSU4wYnk5clhEMFI4dVlyUkFNNEF2bW03X2RuNTVTd1IwTDV3WXB0dDhKOWpkYzdrN1pTWFRnR2tJTno?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Mon, 09 Nov 2026 11:47:00 GMT"
+  }
+ ]
 }

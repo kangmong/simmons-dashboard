@@ -4,13 +4,11 @@
  "symbol": "079430.KS",
  "market": "KOSPI",
  "note": "가구·인테리어",
- "generatedAt": "2026-11-06T23:58:11+09:00",
+ "generatedAt": "2026-11-10T02:25:00+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-06", 6700.0, 6740.0, 6550.0, 6570.0, 16957],
-   ["2025-11-07", 6570.0, 6610.0, 6370.0, 6380.0, 41828],
    ["2025-11-10", 6430.0, 6660.0, 6410.0, 6520.0, 39900],
    ["2025-11-11", 6520.0, 6690.0, 6390.0, 6400.0, 33986],
    ["2025-11-12", 6520.0, 6740.0, 6430.0, 6730.0, 36385],
@@ -256,7 +254,7 @@
    ["2026-11-06", 5000.0, 5030.0, 4900.0, 5030.0, 25737]
   ],
   "1wk": [
-   ["2021-11-07", 16300.0, 16950.0, 15900.0, 16300.0, 340876],
+   ["2021-11-07", 16600.0, 16850.0, 15900.0, 16300.0, 209908],
    ["2021-11-14", 16250.0, 16350.0, 15150.0, 15250.0, 310251],
    ["2021-11-21", 15200.0, 15250.0, 14000.0, 14650.0, 342905],
    ["2021-11-28", 14050.0, 15000.0, 13300.0, 14750.0, 332485],
@@ -516,8 +514,8 @@
    ["2026-10-11", 5570.0, 5750.0, 5230.0, 5480.0, 95155],
    ["2026-10-18", 5460.0, 5630.0, 5240.0, 5330.0, 84605],
    ["2026-10-25", 5200.0, 5320.0, 5100.0, 5240.0, 91528],
-   ["2026-11-01", 5160.0, 5400.0, 5000.0, 5110.0, 82388],
-   ["2026-11-06", 5000.0, 5030.0, 4900.0, 5030.0, 25737]
+   ["2026-11-01", 5160.0, 5400.0, 4900.0, 5030.0, 108125],
+   ["2026-11-09", 0.0, 0.0, 0.0, 5010.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 26050.0, 26050.0, 22900.0, 23700.0, 749229],
@@ -639,8 +637,8 @@
    ["2026-07-31", 5540.0, 6220.0, 5490.0, 6040.0, 580021],
    ["2026-08-31", 6050.0, 6100.0, 5490.0, 5500.0, 267011],
    ["2026-09-30", 5590.0, 5750.0, 5100.0, 5240.0, 324016],
-   ["2026-10-31", 5160.0, 5400.0, 5000.0, 5110.0, 82388],
-   ["2026-11-06", 5000.0, 5030.0, 4900.0, 5030.0, 25737]
+   ["2026-10-31", 5160.0, 5400.0, 4900.0, 5030.0, 108125],
+   ["2026-11-09", 0.0, 0.0, 0.0, 5010.0, 0]
   ]
  },
  "candleFormat": [
@@ -681,13 +679,13 @@
   }
  ],
  "quote": {
-  "now": 5030.0,
-  "prev": 5110.023,
-  "change": -80.023,
-  "changePct": -1.566,
-  "changePctMeta": -1.566,
-  "changePctSeries": -1.5656,
-  "asOf": "2026-11-06 06:30"
+  "now": 5010.0,
+  "prev": 5030.0195,
+  "change": -20.0195,
+  "changePct": -0.398,
+  "changePctMeta": -0.398,
+  "changePctSeries": -0.3976,
+  "asOf": "2026-11-09 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -706,19 +704,19 @@
    "ceo": "Mr. Hwa-Eung  Kim (Chief Executive Officer and Director)"
   },
   "summaryBar": {
-   "dayLow": 4900.0,
-   "dayHigh": 5030.0,
-   "week52Low": 4900.0,
+   "dayLow": 0.0,
+   "dayHigh": 0.0,
+   "week52Low": 0.0,
    "week52High": 9300.0,
-   "marketCap": 101174435840.0,
-   "volume": 25737,
-   "avgVolume": 18164,
-   "avgVolume10": 18431
+   "marketCap": 100772151296.0,
+   "volume": 0,
+   "avgVolume": 18180,
+   "avgVolume10": 19965
   },
   "valuation": {
-   "forwardPE": 7.311047,
-   "psr": 0.070868,
-   "dividendYield": 0.0254,
+   "forwardPE": 7.281977,
+   "psr": 0.070586,
+   "dividendYield": 0.0258,
    "dividendRate": 130.0,
    "payoutRatio": 0.4676,
    "beta": 0.645,
@@ -726,8 +724,8 @@
    "operatingMargin": 0.0149,
    "revenue": 1427643826176.0,
    "revenueGrowth": -0.09,
-   "change52w": -0.19906,
-   "ma50": 5617.6
+   "change52w": -0.228528,
+   "ma50": 5595.4
   },
   "holding": {
    "heldInstitutions": 0.01635,
@@ -736,16 +734,16 @@
  },
  "news": [
   {
-   "title": "\"현대리바트, 주가 반등 어려워…건설업황 회복 지연\"",
-   "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE83Zmx4NmhyaFRySUhaZTJBZ29UWF91cUQxYjZtWmFiY251TGlabldhWlhmbFdTQUpxVVBrTjJBWlN6dkR4YW5TalVIMlY4ZGlUYXpoM2pKVTNoNVpNTXBzUVZ0SFRyZWNjcEE?oc=5",
-   "media": "중기이코노미",
-   "published": "Wed, 04 Nov 2026 04:00:08 GMT"
-  },
-  {
    "title": "실적도 주가도 흔들린 가구업계…한샘·현대리바트 밸류업 ‘경고등’",
    "link": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNSWhkQlJBcnV3Zm9oTmhFWXVKVGlkRWFBc252Zl82Ty00NzN1UVNuVE1rSDJyY2lCNlE0ZDNpSGNfdmFwVTRkeF95VXFNLVZwUXgzQWZLdm9JZVVfY1psaFM4d0NHQU9SdWU5aUFnUG1FRWZNT1Z1SWFCV1R4ek1TRXBfOA?oc=5",
    "media": "네이버 프리미엄콘텐츠",
    "published": "Tue, 12 May 2026 07:00:00 GMT"
+  },
+  {
+   "title": "국민이주, 현대리바트 지분 5.09% 신규 보유",
+   "link": "https://news.google.com/rss/articles/CBMickFVX3lxTFBQeHAyQlZ2b3JUX1Y4bmdkdUN1bkJydm50RUo1NjgzTW9rUUFVbzNzTG9MM0dkejBKSHFzTGpOVy1fLWJ4T0NnZGNIOGM3blFHNHVhSnRPWWRMbllpRjRrX0xXd0FmZzN6NUNSMkRrd3NHdw?oc=5",
+   "media": "데이터투자",
+   "published": "Wed, 14 Oct 2026 07:00:00 GMT"
   },
   {
    "title": "현대리바트 투자분석 2026. 10. 12",
@@ -754,10 +752,10 @@
    "published": "Mon, 12 Oct 2026 07:00:00 GMT"
   },
   {
-   "title": "국민이주, 현대리바트 지분 5.09% 신규 보유",
-   "link": "https://news.google.com/rss/articles/CBMickFVX3lxTFBQeHAyQlZ2b3JUX1Y4bmdkdUN1bkJydm50RUo1NjgzTW9rUUFVbzNzTG9MM0dkejBKSHFzTGpOVy1fLWJ4T0NnZGNIOGM3blFHNHVhSnRPWWRMbllpRjRrX0xXd0FmZzN6NUNSMkRrd3NHdw?oc=5",
-   "media": "데이터투자",
-   "published": "Wed, 14 Oct 2026 07:00:00 GMT"
+   "title": "현대리바트, 1분기 영업이익 흑자전환…당기순이익 전년 대비 75.4% 감소",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFA5d05Xemc5bjdLb05kNnpoRmJiVG5McHFGSWZDOWc1UEVRRE1yNldfV016aExkeW9Veld0X1VDYWVQM1NJVzRZUUI4djV6VFp0d1hVcFM4dUl6VjdObUtka3Rld3V1bjF2RGxkaEl1eXZnWmM?oc=5",
+   "media": "디지털투데이",
+   "published": "Fri, 08 May 2026 07:00:00 GMT"
   }
  ]
 }
