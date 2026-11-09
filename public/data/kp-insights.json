@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-02",
+  "updated": "2026-11-09",
   "hero": {
     "title": "일일 국제원자재가격 (KOIMA)",
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
@@ -168,6 +168,39 @@
       "detail": "파키스탄 무역로 폐쇄로 인해 헬만드 지역의 면화 가격이 60% 폭락했다.",
       "source": "뉴스 (뉴스 자동 수집)",
       "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE43OFRfSmt0NnFreEhxbWxyWVhYaGVudG40ZG91T2dqcnpqQ3FfMHVoeTlMNDlXaDMtblM5dmE3ZnBUWWs1bUx5MjVDZy1QYThHaHhhY1YwLW5iMzc1eXY3ZW9VQUtNbFBYT0U3azUwOE9NZ2M5NEE?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-30",
+      "cats": [
+        "petchem"
+      ],
+      "label": "아시아 정제공장 가동 중단",
+      "detail": "복수의 정제공장 가동 중단으로 10월 공급에 차질이 생기면서 아시아 나프타 공급이 타이트해졌다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxQa044dVVvU3B4Y255dktiRlZWb0M3ZUV0ajh2SzBtUFBKZGJoX2pYdGxpZF9tY2NmSzEzUVVaMzVBdTF3T3dKYnZrQnp0QWRHQUx0alZpVnZiX2FWdnNHRFprYVFyNHhGZHlWdl9Qc0ZUSTZoOHdNTmhjOWk2SjlQdUFaeGY3dXVvVUIzVWhQQXhJNW5OUG8ySHUwTklsQWhSZmdVcFh2WUxGaEVEQ0ROeVdDWWhOMmRhVmNR?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-11-07",
+      "cats": [
+        "textile"
+      ],
+      "label": "우즈베키스탄 면화 수확 기록 달성",
+      "detail": "우즈베키스탄이 2026년 면화 수확 기록을 달성했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxQODlPOVhuVjJhd3plTzNaLWk3NnVSU2tZNDFuZk1wbDF0aWZINXdyTHBXSFcyN3RqV2h5OGkzWHhyeS1kQ3BRRTN1VU9XTnlGdmZZV012WUtiT1QwOHpmT3RwZ0lTYWZlSWF3MGozV3JyMlF6LTVqc0FsSElPb01KMnVrdHFtU0pValE?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-10-28",
+      "cats": [
+        "steel"
+      ],
+      "label": "EU 수입 규제로 철강 가격 상승",
+      "detail": "EU의 수입 규제로 인해 철강 가격이 상승하면서 SSAB의 이익이 시장 예상치를 상회했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxONy1peWliczZTb2I1SzRkWHpDZEpKTWFjcGN4V1YyRzl2Q205WTJVZ1BSdzN5VGtNVGo4NG5NZmoybjV2MDJkSndKR1pyVVl2eXk3a0JWRUVmaGlNSnFENFgwYUlIc3FVZVlPM3JoMkF5UUJ5WnhTeldJSWFIZGZkYjFCZnVLMmhrSkx0Vm1Sd000NnhnazI2dl9jcXNrekMtQzFaV1I0TkhZcGUtYVc2c09SZ0E5M3pxcFRFblVWNA?oc=5",
       "auto": true
     }
   ],
