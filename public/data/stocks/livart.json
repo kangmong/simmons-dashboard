@@ -4,7 +4,7 @@
  "symbol": "079430.KS",
  "market": "KOSPI",
  "note": "가구·인테리어",
- "generatedAt": "2026-11-10T02:25:00+09:00",
+ "generatedAt": "2026-11-11T00:31:57+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
@@ -251,10 +251,11 @@
    ["2026-11-03", 5280.0, 5340.0, 5110.0, 5180.0, 13723],
    ["2026-11-04", 5180.0, 5310.0, 5010.0, 5200.0, 25481],
    ["2026-11-05", 5200.0, 5210.0, 5000.0, 5110.0, 31455],
-   ["2026-11-06", 5000.0, 5030.0, 4900.0, 5030.0, 25737]
+   ["2026-11-06", 5000.0, 5030.0, 4900.0, 5030.0, 25737],
+   ["2026-11-09", 4930.0, 5050.0, 4930.0, 5010.0, 8028]
   ],
   "1wk": [
-   ["2021-11-07", 16600.0, 16850.0, 15900.0, 16300.0, 209908],
+   ["2021-11-07", 16400.0, 16600.0, 15900.0, 16300.0, 129110],
    ["2021-11-14", 16250.0, 16350.0, 15150.0, 15250.0, 310251],
    ["2021-11-21", 15200.0, 15250.0, 14000.0, 14650.0, 342905],
    ["2021-11-28", 14050.0, 15000.0, 13300.0, 14750.0, 332485],
@@ -515,7 +516,8 @@
    ["2026-10-18", 5460.0, 5630.0, 5240.0, 5330.0, 84605],
    ["2026-10-25", 5200.0, 5320.0, 5100.0, 5240.0, 91528],
    ["2026-11-01", 5160.0, 5400.0, 4900.0, 5030.0, 108125],
-   ["2026-11-09", 0.0, 0.0, 0.0, 5010.0, 0]
+   ["2026-11-08", 4930.0, 5050.0, 4930.0, 5010.0, 8028],
+   ["2026-11-10", 4960.0, 5120.0, 4960.0, 5080.0, 12810]
   ],
   "1mo": [
    ["2016-11-30", 26050.0, 26050.0, 22900.0, 23700.0, 749229],
@@ -638,7 +640,7 @@
    ["2026-08-31", 6050.0, 6100.0, 5490.0, 5500.0, 267011],
    ["2026-09-30", 5590.0, 5750.0, 5100.0, 5240.0, 324016],
    ["2026-10-31", 5160.0, 5400.0, 4900.0, 5030.0, 108125],
-   ["2026-11-09", 0.0, 0.0, 0.0, 5010.0, 0]
+   ["2026-11-10", 4960.0, 5120.0, 4960.0, 5080.0, 12810]
   ]
  },
  "candleFormat": [
@@ -679,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 5010.0,
-  "prev": 5030.0195,
-  "change": -20.0195,
-  "changePct": -0.398,
-  "changePctMeta": -0.398,
-  "changePctSeries": -0.3976,
-  "asOf": "2026-11-09 06:30"
+  "now": 5080.0,
+  "prev": 5010.0102,
+  "change": 69.9898,
+  "changePct": 1.397,
+  "changePctMeta": 1.397,
+  "changePctSeries": 1.3972,
+  "asOf": "2026-11-10 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -704,19 +706,19 @@
    "ceo": "Mr. Hwa-Eung  Kim (Chief Executive Officer and Director)"
   },
   "summaryBar": {
-   "dayLow": 0.0,
-   "dayHigh": 0.0,
-   "week52Low": 0.0,
+   "dayLow": 4960.0,
+   "dayHigh": 5120.0,
+   "week52Low": 4900.0,
    "week52High": 9300.0,
-   "marketCap": 100772151296.0,
-   "volume": 0,
-   "avgVolume": 18180,
-   "avgVolume10": 19965
+   "marketCap": 102180143104.0,
+   "volume": 12810,
+   "avgVolume": 17879,
+   "avgVolume10": 18461
   },
   "valuation": {
-   "forwardPE": 7.281977,
-   "psr": 0.070586,
-   "dividendYield": 0.0258,
+   "forwardPE": 7.383721,
+   "psr": 0.071573,
+   "dividendYield": 0.0259,
    "dividendRate": 130.0,
    "payoutRatio": 0.4676,
    "beta": 0.645,
@@ -724,8 +726,8 @@
    "operatingMargin": 0.0149,
    "revenue": 1427643826176.0,
    "revenueGrowth": -0.09,
-   "change52w": -0.228528,
-   "ma50": 5595.4
+   "change52w": -0.217188,
+   "ma50": 5573.6
   },
   "holding": {
    "heldInstitutions": 0.01635,
@@ -740,6 +742,12 @@
    "published": "Tue, 12 May 2026 07:00:00 GMT"
   },
   {
+   "title": "현대리바트, 1분기 영업이익 흑자전환…당기순이익 전년 대비 75.4% 감소",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFA5d05Xemc5bjdLb05kNnpoRmJiVG5McHFGSWZDOWc1UEVRRE1yNldfV016aExkeW9Veld0X1VDYWVQM1NJVzRZUUI4djV6VFp0d1hVcFM4dUl6VjdObUtka3Rld3V1bjF2RGxkaEl1eXZnWmM?oc=5",
+   "media": "디지털투데이",
+   "published": "Fri, 08 May 2026 07:00:00 GMT"
+  },
+  {
    "title": "국민이주, 현대리바트 지분 5.09% 신규 보유",
    "link": "https://news.google.com/rss/articles/CBMickFVX3lxTFBQeHAyQlZ2b3JUX1Y4bmdkdUN1bkJydm50RUo1NjgzTW9rUUFVbzNzTG9MM0dkejBKSHFzTGpOVy1fLWJ4T0NnZGNIOGM3blFHNHVhSnRPWWRMbllpRjRrX0xXd0FmZzN6NUNSMkRrd3NHdw?oc=5",
    "media": "데이터투자",
@@ -750,12 +758,6 @@
    "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5OSHc1OUFKRWc4SkwyU2x5WS1zNDFCZ0YwRzFHRHBMR3NvcFhsNXRxcHc2SHhnSGNkYUlmYUhDaW1OQ2o4dERmLVdSTlNIY0RTNmhfV2R6OHZicVpndlgyOWVEbVkxcVZaMHB1N2kwQ0l1U28?oc=5",
    "media": "주달",
    "published": "Mon, 12 Oct 2026 07:00:00 GMT"
-  },
-  {
-   "title": "현대리바트, 1분기 영업이익 흑자전환…당기순이익 전년 대비 75.4% 감소",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFA5d05Xemc5bjdLb05kNnpoRmJiVG5McHFGSWZDOWc1UEVRRE1yNldfV016aExkeW9Veld0X1VDYWVQM1NJVzRZUUI4djV6VFp0d1hVcFM4dUl6VjdObUtka3Rld3V1bjF2RGxkaEl1eXZnWmM?oc=5",
-   "media": "디지털투데이",
-   "published": "Fri, 08 May 2026 07:00:00 GMT"
   }
  ]
 }

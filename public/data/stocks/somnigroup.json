@@ -4,7 +4,7 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-11-10T02:25:15+09:00",
+ "generatedAt": "2026-11-11T00:32:12+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
@@ -259,10 +259,11 @@
    ["2026-11-04", 68.0, 69.94, 66.63, 69.81, 4299400],
    ["2026-11-05", 70.0, 70.62, 66.39, 67.87, 4146700],
    ["2026-11-06", 67.95, 67.95, 63.98, 64.17, 7195000],
-   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
+   ["2026-11-09", 62.95, 67.89, 62.14, 66.27, 7295700],
+   ["2026-11-10", 65.875, 66.1099, 63.325, 63.385, 536527]
   ],
   "1wk": [
-   ["2021-11-08", 44.62, 45.44, 43.43, 44.83, 5014100],
+   ["2021-11-08", 44.41, 45.44, 43.43, 44.83, 3912300],
    ["2021-11-15", 45.18, 46.46, 43.75, 43.98, 6864500],
    ["2021-11-22", 44.32, 44.77, 41.76, 42.23, 5262600],
    ["2021-11-29", 42.8, 45.3, 41.58, 43.67, 12751100],
@@ -523,7 +524,8 @@
    ["2026-10-19", 63.73, 66.06, 62.15, 64.68, 11383400],
    ["2026-10-26", 64.68, 65.03, 61.18, 63.56, 14291700],
    ["2026-11-02", 64.51, 70.62, 63.98, 64.17, 21968900],
-   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
+   ["2026-11-09", 62.95, 67.89, 62.14, 66.27, 7295700],
+   ["2026-11-10", 65.875, 66.1099, 63.325, 63.385, 536577]
   ],
   "1mo": [
    ["2016-12-01", 15.845, 17.39, 15.23, 17.07, 63276400],
@@ -646,7 +648,7 @@
    ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
    ["2026-10-01", 62.0, 66.2, 60.08, 63.56, 55222700],
    ["2026-11-01", 64.51, 70.62, 63.98, 64.17, 21968900],
-   ["2026-11-09", 62.95, 65.83, 62.17, 64.56, 3433272]
+   ["2026-11-10", 65.875, 66.1099, 63.325, 63.385, 536683]
   ]
  },
  "candleFormat": [
@@ -687,13 +689,13 @@
   }
  ],
  "quote": {
-  "now": 64.56,
-  "prev": 64.1698,
-  "change": 0.3902,
-  "changePct": 0.608,
-  "changePctMeta": 0.608,
-  "changePctSeries": 0.6078,
-  "asOf": "2026-11-09 17:24"
+  "now": 63.385,
+  "prev": 66.2697,
+  "change": -2.8847,
+  "changePct": -4.353,
+  "changePctMeta": -4.353,
+  "changePctSeries": -4.3534,
+  "asOf": "2026-11-10 15:31"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
@@ -713,39 +715,45 @@
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 62.17,
-   "dayHigh": 65.83,
+   "dayLow": 63.325,
+   "dayHigh": 66.1099,
    "week52Low": 60.08,
    "week52High": 98.56,
-   "marketCap": 14864488448.0,
-   "volume": 3433272,
-   "avgVolume": 3246923,
-   "avgVolume10": 3626060
+   "marketCap": 14593952768.0,
+   "volume": 536683,
+   "avgVolume": 3288204,
+   "avgVolume10": 3974740
   },
   "valuation": {
-   "trailingPE": 25.721115,
-   "forwardPE": 16.763432,
-   "pbr": 4.20422,
-   "eps": 2.51,
-   "bps": 15.356,
-   "psr": 1.951745,
-   "dividendYield": 0.0106,
+   "trailingPE": 26.08436,
+   "forwardPE": 17.548449,
+   "pbr": 2.98072,
+   "eps": 2.43,
+   "bps": 21.265,
+   "psr": 1.860477,
+   "dividendYield": 0.0103,
    "dividendRate": 0.68,
-   "payoutRatio": 0.255,
+   "payoutRatio": 0.2716,
    "beta": 1.292,
-   "roe": 0.17516,
-   "operatingMargin": 0.11127,
-   "revenue": 7616000000.0,
-   "revenueGrowth": -0.03,
-   "change52w": -0.31369,
-   "ma50": 64.4352
+   "roe": 0.13589,
+   "operatingMargin": 0.1337,
+   "revenue": 7844199936.0,
+   "revenueGrowth": 0.108,
+   "change52w": -0.280143,
+   "ma50": 64.4732
   },
   "holding": {
-   "heldInstitutions": 0.99209,
+   "heldInstitutions": 0.99489,
    "heldInsiders": 0.03102
   }
  },
  "news": [
+  {
+   "title": "KeyBanc, 업계 역풍에 Somnigroup 목표주가 100달러로 하향",
+   "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE9Vcmp1VDRWcGl6Vkgzb0pZVkN0RTI1aERFbXVqSXhZZGdmWHRlX0tuSXd4Rm5RZTdWSHo3WWdaZk42VDZYclp3dFlSSlkwUjVya3NGcUZUT3F4bi1qVVEycDIyeUdteS1Dc1l4SHVHOHNEVDhY?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Tue, 10 Nov 2026 13:29:00 GMT"
+  },
   {
    "title": "Somnigroup, 연간 이익 전망 하향…개장 전 주가 8% 하락",
    "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFBJTkxiWXZ5VjFzWUxTZ0NYYTZiUDQwdlpRdEJXTmtnUGRXMlUzTVlEQ2o0Z1RLQkxJUGxqQWxVTGw5WF9qbm5wSThlUU5YSUpMdU5sOWszbzBQanEwdmRSdzRTMHNuYzNCWjJZ?oc=5",
