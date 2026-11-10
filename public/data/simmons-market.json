@@ -306,6 +306,22 @@
         },
         "updates": [
           {
+            "date": "2026-11-06",
+            "kind": "실적",
+            "text": "코웨이 3분기 영업이익이 7.3% 늘고 매출은 1조 4,261억 원을 기록했다.",
+            "label": "코웨이, 3분기 영업이익 7.3% 늘어…매출 1조 4,261억 원 - 연합뉴스TV",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFAyNGdXdWlzMldLWmtzZHgteU5UcnlpU0xVMjJtYXktOU9HcEJPQzdtLVV2MDZWajN4X0ozcS1LWS14dXdtNnVGZVhBZElqMFhMUkxRa1RXa0RWaEFGOUQ5NTFaWnBEUWM?oc=5"
+          },
+          {
+            "date": "2026-11-05",
+            "kind": "수상",
+            "text": "코웨이가 한국서비스품질지수 1위에 올랐다.",
+            "label": "코웨이, 한국서비스품질지수 1위 - 디일렉",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBYbl9hamh2YXJBYUk1UExyendrVEZ5a2dCNzJFUFJybnNZcDJ0YXE0QU9zQ2xraWhrRzF3eWJjZHBwYXE4NGM4LXM2aEk2VzZkcklEWG02dmpYS3Jqc3dCeUdObjRIQQ?oc=5"
+          },
+          {
             "date": "2026-11-03",
             "kind": "실적",
             "text": "코웨이는 3분기 해외법인 성장에 힘입어 영업이익이 8% 넘게 늘었다.",
@@ -320,22 +336,6 @@
             "label": "코웨이, 룰루 더매너 비데 출시 - 디일렉",
             "source": "",
             "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBTRUk0RGNRWmxQRUZKWGJMQmxfeFBQVmt1UDNPeXpqdW5PYVFQUFdNT3Y0SHRZZ21JWHJWQzZqb240RloyNzZmOFMtZ1A5ZWhYMXBSZlgwUWJ6dGg5blNRTGZSZWdUUQ?oc=5"
-          },
-          {
-            "date": "2026-10-23",
-            "kind": "수상",
-            "text": "코웨이가 2026 굿디자인 어워드에서 동상을 수상했다.",
-            "label": "코웨이, 2026 굿디자인 어워드 동상 수상 - 디일렉",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE1aV3RCeWw1SW92SUp6QW16WjJlUHlQOVFTYU9lcDdOVWFkM1lFbEt0emZkQXp3UV9XYXJ5SzFLRTlJUVVTZ3NTd3ViTlVJZWlSX3ZtTVBuMm5HNVRobERUQ3JoZXFPQQ?oc=5"
-          },
-          {
-            "date": "2026-10-02",
-            "kind": "출시",
-            "text": "코웨이가 '보행보조 웨어러블 로봇'을 출시했다.",
-            "label": "코웨이, '보행보조 웨어러블 로봇' 출시 - 디일렉",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE1CSlc1RHFJYVBmYXNNQ2xuaDhMY3VZZEh4MXNLX3JHVTd6dE9kRDBCRjRZazFKZnFmLU43dEs0YmxIMEVNbVlLLVZnVTl0VUYtMld0d19oVVUweGtzTG9WTHROS3VFZw?oc=5"
           }
         ]
       },
@@ -382,6 +382,14 @@
         },
         "updates": [
           {
+            "date": "2026-11-03",
+            "kind": "출시",
+            "text": "텐마인즈가 낮 활동과 밤 수면을 잇는 ‘슬립 릴레이’를 공개하며 12월 출시한다.",
+            "label": "텐마인즈, 낮 활동과 밤 수면 잇는 ‘슬립 릴레이’ 공개…12월 출시 - 헤럴드경제",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1rLWxQaDZtdkt0TDRpbWl1bjFuQk8ydlRrUmJnN1dLbjhxUTd2bGtTTEJTSzRZRU4wTTNRMGl5MEw3M19jUWxtZ1JwS0w3Vnc4cHV1VnN3?oc=5"
+          },
+          {
             "date": "2026-10-20",
             "kind": "출시",
             "text": "텐마인즈가 원거리 가족 수면관리 기능을 강화한 AI 슬립봇을 공개했다.",
@@ -404,14 +412,6 @@
             "label": "텐마인즈, 'AI 슬립봇' 스마트싱스 인증 획득… 11월 출시 - 지디넷코리아",
             "source": "",
             "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE8zOWtadEZrZDVoc2tiZ05KM2hCNEVJdHpLRVp1RU9maGlGLVdHYmgzdzF2SjMzSHNBMWFYSEt2R0xmVktsYjJyUFRjTXFUT3J1SEdiRWpR?oc=5"
-          },
-          {
-            "date": "2026-08-02",
-            "kind": "제휴",
-            "text": "에이슬립·텐마인즈, AI 수면 플랫폼 제휴 체결",
-            "label": "에이슬립·텐마인즈, AI 수면 플랫폼 제휴 체결 - MEDI:GATE NEWS",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiV0FVX3lxTE5SSVJWcjRzS1U2QUJCamRRd1RvS3BlMXRiTEZzRm4wMTExTDJYalVDTEJEWE56SFg1WnZMc2NkeGFfX3hIM2RNMkpvQnYyX01UMjk1S0lndw?oc=5"
           }
         ]
       },
@@ -456,6 +456,14 @@
         },
         "updates": [
           {
+            "date": "2026-11-10",
+            "kind": "수상",
+            "text": "세라젬은 'CES 2027'서 혁신상 9개를 수상하며 누적 수상 30개를 달성했다.",
+            "label": "세라젬, 'CES 2027'서 혁신상 9개 수상…누적 수상 30개 달성 - 연합뉴스",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6U9IBYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6Uw?oc=5"
+          },
+          {
             "date": "2026-10-21",
             "kind": "제휴",
             "text": "세라젬이 데이터·AI 기업 데이터브릭스와 맞손을 잡았다.",
@@ -478,14 +486,6 @@
             "label": "세라젬, 혈액순환 개선 의료기기 '셀트론 순환 매트' 출시 - 연합뉴스",
             "source": "",
             "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5CX0ZacjM5Q2tHakxLQXNaWWdxZlUtaDQtOEhzM1ppNE4zZXFLY2NrYzNfX2toWE5HZWZqOXJTaG9WOFdPakV2LXNDaVNwMmt3UnJBYVliY3VkVEnSAWBBVV95cUxQbTVlRHNDaFVLRDgzVE9tcUI3bXlLM0duTUpiRS1pZWptQXhocmRkbTBycHRBNkF2eVo0cXItMWJnYkctZ3ZuR3NEMGJDXy15QjNUVUNZdkcwUElZZjJvOUo?oc=5"
-          },
-          {
-            "date": "2026-09-01",
-            "kind": "출시",
-            "text": "세라젬이 온열 및 마사지 기능을 세분화한 ‘마스터 V9 2027’을 출시했다.",
-            "label": "세라젬, ‘마스터 V9 2027’ 출시…온열·마사지 기능 세분화 - 에너지경제신문",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9xM3hRT0dQUk5OWERwN3hHMXJDeDd5WkRtZzEwd2lkS3pUSFlkUERkbHZlSWRXVjNiUk9tX25XN3V4emdLYVhUYktFTS1hajdtQXAxT3RZU1N0MlU?oc=5"
           }
         ]
       },
