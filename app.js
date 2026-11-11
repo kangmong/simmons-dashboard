@@ -20331,15 +20331,25 @@ function renderExhExtra() {
    AI에게 물어보기(베타) — 사이드바 버튼 + 오른쪽 질문 패널
    ★ 숫자는 서버(ask_core.py)가 원자재 원가 동향 데이터로 계산한다. AI 는 문장만.
    ★ 그래프는 기존 idxLineChart(선)를 그대로 쓰고, 순위는 같은 꼴의 가로 막대로 그린다.
-   ★ 대화는 이 창에서 최근 3개만 기억하고, 새로고침하면 지운다(서버에 저장하지 않는다).
+   ★ 대화는 최근 3개만 이 브라우저(localStorage)에 남긴다. 서버에는 저장하지 않는다. '지우기'로 모두 지운다.
+   ★ 핵심 숫자 카드(kpi)·후속 질문(follow)도 서버가 코드로 만든 값 그대로 보여 준다.
    ============================================================ */
-const ASK_EXAMPLES = ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?',
-  '달러 환율 한 달 새 얼마나 변했어?', '시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?',
-  '최근 특허 출원 많은 회사는?', '다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘'];
+const ASK_GROUPS = [
+  ['원자재', ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?']],
+  ['물류·환율', ['해상 정시성 가장 낮은 노선은?', '달러 환율 한 달 새 얼마나 변했어?']],
+  ['경쟁사', ['시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?', '최근 특허 출원 많은 회사는?']],
+  ['일정·뉴스', ['다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘']],
+];
 const ASK_Q_MAX = 200;
+const ASK_KEEP = 3;          // 이 창에 남기는 질문 수
+const ASK_STORE = 'askHist'; // 이 브라우저에만 저장(서버에는 저장하지 않는다)
 let _askPrev = [];      // 직전 답의 항목 ID — "그럼 TDI는?" 같은 이어 묻기에 쓴다
 let _askBusy = false;
+let _askHist = [];      // [{q, r}] — 새로고침해도 유지(localStorage)
 
+function askSave() {
+  try { localStorage.setItem(ASK_STORE, JSON.stringify({ h: _askHist, prev: _askPrev })); } catch (e) { /* 저장 못 해도 동작 */ }
+}
 
 function askPanel() {
   let p = document.getElementById('askPanel');
@@ -20348,30 +20358,48 @@ function askPanel() {
   p.id = 'askPanel';
   p.className = 'ask-panel';
   p.setAttribute('role', 'dialog');
-  p.setAttribute('aria-label', 'AI에게 물어보기');
-  p.innerHTML = '<div class="ask-h"><b>AI에게 물어보기</b><span class="ask-beta">베타</span>'
+  p.setAttribute('aria-label', 'SIMMONS 인사이트 어시스턴트');
+  p.innerHTML = '<div class="ask-h"><span class="ask-logo" aria-hidden="true">AI</span>'
+    + '<div class="ask-h__t"><b>SIMMONS 인사이트 어시스턴트</b>'
+    + '<span class="ask-h__s"><i class="ask-dot" aria-hidden="true"></i>데이터 기준 <span id="askAsOf">확인 중</span></span></div>'
+    + '<span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
-    + '<div class="ask-scope">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div>'
-    + '<div class="ask-ex">' + ASK_EXAMPLES.map((q) => '<button type="button" class="ask-chip" data-askq="'
-      + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>'
+    + '<details class="ask-ex" id="askEx" open><summary>예시 질문 <span>대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다</span></summary>'
+    + ASK_GROUPS.map(([g, qs]) => '<div class="ask-ex__g"><em>' + escapeHtml(g) + '</em>' + qs.map((q) =>
+      '<button type="button" class="ask-chip" data-askq="' + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>').join('')
+    + '</details>'
     + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
     + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
     + '" placeholder="예: PPG 가격이 최근에 얼마나 올랐어?"></textarea>'
     + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
     + '<span class="ask-f__acts"><button type="button" class="ask-clear" data-askclear title="질문·답을 모두 지우고 새로 시작">지우기</button>'
     + '<button type="submit" class="ask-send">보내기</button></span></div></form>'
-    + '<div class="ask-warn">사내 기밀 정보는 입력하지 마세요. 입력한 내용은 외부 AI 서비스로 전송됩니다.</div>';
+    + '<div class="ask-warn">사내 기밀 정보는 입력하지 마세요. 입력한 내용은 외부 AI 서비스로 전송됩니다. · 대화는 이 브라우저에만 저장됩니다 · 단축키 / 또는 Ctrl+K</div>';
   document.body.appendChild(p);
   p.addEventListener('click', (e) => {
     if (e.target.closest('[data-askclose]')) { askToggle(false); return; }
-    /* 지우기 — 지금까지의 질문·답, 입력 중인 글, 이어 묻기 기억(_askPrev)을 모두 비운다 */
+    /* 지우기 — 질문·답, 입력 중인 글, 이어 묻기 기억, 브라우저 저장분을 모두 비운다 */
     if (e.target.closest('[data-askclear]')) {
       if (_askBusy) return;
       p.querySelector('#askLog').innerHTML = '';
-      _askPrev = [];
+      _askPrev = []; _askHist = [];
+      try { localStorage.removeItem(ASK_STORE); } catch (err) { /* 무시 */ }
+      p.querySelector('#askEx').open = true;
       const t = p.querySelector('#askQ');
       t.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
       t.focus();
+      return;
+    }
+    const cp = e.target.closest('[data-askcopy]');
+    if (cp) { askCopy(cp); return; }
+    const ci = e.target.closest('[data-askcite]');
+    if (ci) {   // 본문 [n] → 아래 출처 줄로 이동·잠깐 강조
+      e.preventDefault();
+      const row = ci.closest('.ask-a').querySelector('[data-asksrc="' + ci.getAttribute('data-askcite') + '"]');
+      if (row) {
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        row.classList.remove('is-hl'); void row.offsetWidth; row.classList.add('is-hl');
+      }
       return;
     }
     const c = e.target.closest('[data-askq]');
@@ -20385,6 +20413,16 @@ function askPanel() {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); askAsk(ta.value); }
   });
   p.querySelector('#askForm').addEventListener('submit', (e) => { e.preventDefault(); askAsk(ta.value); });
+  /* 지난 대화 되살리기 */
+  try {
+    const s = JSON.parse(localStorage.getItem(ASK_STORE) || 'null');
+    if (s && Array.isArray(s.h)) {
+      _askHist = s.h.slice(-ASK_KEEP);
+      _askPrev = Array.isArray(s.prev) ? s.prev : [];
+      _askHist.forEach((t) => askTurn(t.q, t.r));
+      if (_askHist.length) p.querySelector('#askEx').open = false;
+    }
+  } catch (e) { _askHist = []; }
   return p;
 }
 
@@ -20394,6 +20432,10 @@ function askToggle(open) {
   document.body.classList.toggle('ask-on', open);
   const b = document.getElementById('askOpen');
   if (b) b.setAttribute('aria-expanded', String(open));
+  const u = document.getElementById('dashUpdated');
+  if (open && u && u.textContent.trim() !== '—') p.querySelector('#askAsOf').textContent = u.textContent.trim();
+  /* 넓은 화면에서는 패널 폭만큼 본문이 줄어든다 — 그래프가 새 폭에 맞게 다시 그려지게 알린다 */
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 230);
   if (open) setTimeout(() => { const t = p.querySelector('#askQ'); if (t) t.focus(); }, 50);
 }
 
@@ -20419,19 +20461,24 @@ function askGo(view) {
   if (window.innerWidth <= 720) askToggle(false);
 }
 
+function askBarVal(ch, v) {
+  const u = ch.unit || '';
+  const signed = u === '%' && !!ch.signed;
+  return u === '%' ? ((signed && v >= 0) ? '+' : '') + v.toFixed(1) + '%'
+    : v.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + (u ? ' ' + u : '');
+}
+
 function askBars(ch) {
   const max = Math.max.apply(null, ch.rows.map((r) => Math.abs(r.v))) || 1;
   const u = ch.unit || '';
   /* 변화율(signed)만 오름 빨강·내림 파랑. 점유율·매출·건수는 한 색 */
   const signed = u === '%' && !!ch.signed;
   const tone = (v) => (signed ? (v >= 0 ? 'is-up' : 'is-down') : 'is-flat');
-  const val = (v) => (u === '%' ? ((signed && v >= 0) ? '+' : '') + v.toFixed(1) + '%'
-    : v.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + (u ? ' ' + u : ''));
   return '<div class="ask-bars"><div class="ask-bars__u">(단위: ' + escapeHtml(u || '—') + ')</div>' + ch.rows.map((r) =>
     '<div class="ask-bar"><span class="ask-bar__k">' + escapeHtml(r.name) + '</span>'
     + '<span class="ask-bar__t"><i class="' + tone(r.v) + '" style="width:'
     + Math.max(2, Math.abs(r.v) / max * 100).toFixed(1) + '%"></i></span>'
-    + '<b class="' + tone(r.v) + '">' + val(r.v) + '</b></div>').join('')
+    + '<b class="' + tone(r.v) + '">' + askBarVal(ch, r.v) + '</b></div>').join('')
     + '</div>';
 }
 
@@ -20451,8 +20498,22 @@ function askChart(ch) {
   }).join('');
 }
 
-function askAnswerHtml(r) {
-  const by = r.by === 'ai' ? 'AI가 정리한 내용입니다' : '계산 결과를 그대로 정리한 내용입니다';
+/** 핵심 숫자 카드 — 서버(코드)가 계산한 값만 보여 준다 */
+function askKpi(k) {
+  if (!k || !k.value) return '';
+  const arrow = k.dir === 'up' ? '▲ ' : k.dir === 'down' ? '▼ ' : '';
+  return '<div class="ask-kpi"><span class="ask-kpi__l">' + escapeHtml(k.label) + (k.date ? ' · ' + escapeHtml(k.date) : '') + '</span>'
+    + '<b class="ask-kpi__v">' + escapeHtml(k.value) + '</b>'
+    + (k.delta ? '<span class="ask-kpi__d is-' + escapeHtml(k.dir || 'flat') + '">' + arrow + escapeHtml(k.delta)
+      + ' <em>' + escapeHtml(k.deltaLabel || '') + '</em></span>'
+      : (k.deltaLabel ? '<span class="ask-kpi__d"><em>' + escapeHtml(k.deltaLabel) + '</em></span>' : ''))
+    + '</div>';
+}
+
+function askAnswerHtml(r, q) {
+  const srcs = r.sources || [];
+  const cites = srcs.map((s, i) => '<sup><a href="#" class="ask-cite" data-askcite="' + (i + 1) + '" title="'
+    + escapeHtml(s.card) + '">[' + (i + 1) + ']</a></sup>').join('');
   const ev = (r.events || []).length
     ? '<div class="ask-ev"><b>' + escapeHtml(r.linksTitle || '같은 시기 주요 이슈') + '</b>'
       + (r.linksTitle ? '' : ' (인과관계를 뜻하지 않습니다)') + '<ul>' + r.events.map((e) =>
@@ -20463,54 +20524,121 @@ function askAnswerHtml(r) {
   const facts = (r.facts || []).length
     ? '<details class="ask-facts"><summary>계산 근거 보기</summary><ul>'
       + r.facts.map((x) => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul></details>' : '';
-  const src = (r.sources || []).map((s) => '<div class="ask-src"><span>출처 ' + escapeHtml(s.card) + ' · 기준 '
-    + escapeHtml(s.asOf) + '</span><button type="button" class="ask-go" data-askgo="' + escapeHtml(s.view)
-    + '">해당 카드 보기 ›</button></div>').join('');
-  return '<div class="ask-a"><p>' + escapeHtml(r.text || '') + '</p>'
+  const src = srcs.length ? '<div class="ask-srcs"><b>출처</b>' + srcs.map((s, i) => '<div class="ask-src" data-asksrc="' + (i + 1)
+    + '"><span><i>[' + (i + 1) + ']</i> ' + escapeHtml(s.card) + ' · 기준 ' + escapeHtml(s.asOf || '') + '</span>'
+    + (s.view ? '<button type="button" class="ask-go" data-askgo="' + escapeHtml(s.view) + '">해당 카드 보기 ›</button>' : '')
+    + '</div>').join('') + '</div>' : '';
+  const badge = r.by === 'ai'
+    ? '<span class="ask-badge is-ok">✓ 숫자 검증 통과</span> 숫자는 코드가 계산, 문장은 AI가 작성'
+    : '<span class="ask-badge">계산 결과</span> 숫자·문장 모두 코드가 작성';
+  const fu = (r.follow || []).filter((x) => x !== q);
+  return '<div class="ask-a">' + askKpi(r.kpi)
+    + '<p>' + escapeHtml(r.text || '') + cites + '</p>'
     + askChart(r.chart) + ev + facts + src
-    + '<div class="ask-by">' + by + (r.note ? ' · ' + escapeHtml(r.note) : '') + '</div></div>';
+    + '<div class="ask-meta"><span class="ask-by">' + badge + (r.note ? ' · ' + escapeHtml(r.note) : '') + '</span>'
+    + '<button type="button" class="ask-copy" data-askcopy title="답·계산 근거·출처를 복사">복사</button></div>'
+    + (fu.length ? '<div class="ask-fu"><span>이어서 물어보기</span>' + fu.map((x) =>
+      '<button type="button" class="ask-chip" data-askq="' + escapeHtml(x) + '">' + escapeHtml(x) + ' →</button>').join('') + '</div>' : '')
+    + '</div>';
+}
+
+function askInfoHtml(r) {
+  return '<div class="ask-a is-info">' + escapeHtml(r.text || '답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
+}
+
+/** 복사 — 메일·보고서에 바로 붙일 수 있게 글 + 표(탭 구분) */
+function askCopy(btn) {
+  const t = btn.closest('.ask-turn');
+  const r = t && t._askR;
+  if (!r) return;
+  const L = ['Q. ' + t._askQ, '', r.text || ''];
+  if (r.kpi && r.kpi.value) L.push('', [r.kpi.label, r.kpi.value, r.kpi.date, r.kpi.delta ? r.kpi.delta + ' (' + r.kpi.deltaLabel + ')' : ''].filter(Boolean).join('\t'));
+  if (r.chart && r.chart.type === 'bar' && r.chart.rows) {
+    L.push('', '항목\t값(' + (r.chart.unit || '') + ')');
+    r.chart.rows.forEach((x) => L.push(x.name + '\t' + askBarVal(r.chart, x.v)));
+  }
+  if ((r.facts || []).length) L.push('', '[계산 근거]', ...r.facts);
+  if ((r.events || []).length) L.push('', '[' + (r.linksTitle || '같은 시기 주요 이슈') + ']', ...r.events.map((e) => [e.date, e.label, e.url].filter(Boolean).join(' · ')));
+  if ((r.sources || []).length) L.push('', '[출처]', ...r.sources.map((s, i) => '[' + (i + 1) + '] ' + s.card + ' · 기준 ' + (s.asOf || '')));
+  const txt = L.join('\n');
+  const done = () => { btn.textContent = '복사됨 ✓'; setTimeout(() => { btn.textContent = '복사'; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => askCopyOld(txt, done));
+  else askCopyOld(txt, done);
+}
+function askCopyOld(txt, done) {
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { /* 복사 불가 브라우저 */ }
+  ta.remove();
+}
+
+/** 질문 한 개(질문 말풍선 + 답)를 대화창에 붙인다. r 이 없으면 '기다리는 중' */
+function askTurn(q, r) {
+  const log = askPanel().querySelector('#askLog');
+  while (log.querySelectorAll('.ask-turn').length >= ASK_KEEP) log.removeChild(log.querySelector('.ask-turn'));
+  const turn = document.createElement('div');
+  turn.className = 'ask-turn';
+  turn._askQ = q;
+  turn.innerHTML = '<div class="ask-q">' + escapeHtml(q) + '</div>' + (r ? askResultHtml(turn, r)
+    : '<div class="ask-a is-wait"><ol class="ask-steps"><li class="is-on">데이터 찾는 중</li><li>숫자 계산 중</li><li>문장 작성·검증 중</li></ol></div>');
+  log.appendChild(turn);
+  return turn;
+}
+function askResultHtml(turn, r) {
+  if (r.ok && r.kind === 'answer') { turn._askR = r; return askAnswerHtml(r, turn._askQ); }
+  return askInfoHtml(r);
 }
 
 async function askAsk(raw) {
   const p = askPanel();
   const q = String(raw || '').trim();
   if (!q || _askBusy) return;
-  const log = p.querySelector('#askLog');
-  /* 이 창에서는 최근 3개 질문만 남긴다 */
-  while (log.querySelectorAll('.ask-turn').length >= 3) log.removeChild(log.querySelector('.ask-turn'));
-  const turn = document.createElement('div');
-  turn.className = 'ask-turn';
-  turn.innerHTML = '<div class="ask-q">' + escapeHtml(q) + '</div><div class="ask-a is-wait">답을 찾는 중…</div>';
-  log.appendChild(turn);
+  p.querySelector('#askEx').open = false;
+  const turn = askTurn(q, null);
+  turn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   const ta = p.querySelector('#askQ');
   ta.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
   _askBusy = true;
+  /* 단계 표시 — 서버는 찾기 → 계산 → 문장·검증 순서로 일한다(시간은 대략) */
+  const steps = turn.querySelectorAll('.ask-steps li');
+  const stepT = [700, 1600].map((ms, i) => setTimeout(() => {
+    steps[i].classList.remove('is-on'); steps[i].classList.add('is-done'); steps[i + 1].classList.add('is-on');
+  }, ms));
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 30000);
-  let html;
+  let r;
   try {
     const res = await fetch(API_BASE + '/api/ask', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
       body: JSON.stringify({ q: q.slice(0, ASK_Q_MAX), prev: _askPrev }),
     });
-    const r = await res.json().catch(() => ({}));
-    if (r.ok && r.kind === 'answer') { _askPrev = r.ids || []; html = askAnswerHtml(r); } else {
-      html = '<div class="ask-a is-info">' + escapeHtml(r.text || '답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
-    }
+    r = await res.json().catch(() => ({}));
+    if (r.ok && r.kind === 'answer') _askPrev = r.ids || [];
   } catch (e) {
-    html = '<div class="ask-a is-info">' + (e && e.name === 'AbortError'
-      ? '응답이 늦어지고 있습니다. 잠시 후 다시 시도해 주세요.' : '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.') + '</div>';
+    r = { ok: false, text: e && e.name === 'AbortError'
+      ? '응답이 늦어지고 있습니다. 잠시 후 다시 시도해 주세요.' : '연결에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
   } finally {
     clearTimeout(timer);
+    stepT.forEach(clearTimeout);
     _askBusy = false;
   }
-  turn.querySelector('.ask-a').outerHTML = html;
-  turn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  turn.querySelector('.ask-a').outerHTML = askResultHtml(turn, r);
+  if (r.ok) { _askHist = _askHist.concat([{ q, r }]).slice(-ASK_KEEP); askSave(); }
+  turn.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 (function askWire() {
   const b = document.getElementById('askOpen');
   if (!b) return;
-  b.addEventListener('click', () => askToggle(!(document.getElementById('askPanel') || {}).classList?.contains('is-open')));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const p = document.getElementById('askPanel'); if (p && p.classList.contains('is-open')) askToggle(false); } });
+  b.title = '단축키: / 또는 Ctrl+K';
+  const isOpen = () => { const p = document.getElementById('askPanel'); return !!(p && p.classList.contains('is-open')); };
+  b.addEventListener('click', () => askToggle(!isOpen()));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen()) { askToggle(false); return; }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); askToggle(!isOpen()); return; }
+    const t = e.target;
+    const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+    if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); askToggle(true); }
+  });
 })();

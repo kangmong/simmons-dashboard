@@ -270,6 +270,18 @@ def fact_lines(f, months):
     return L
 
 
+def kpi_of(f, label=None):
+    """답변 맨 위 '핵심 숫자' 카드 — facts_for 결과에서 최근값과 한 달(직전 달) 변화만 꺼낸다."""
+    u, v = f["unit"], f["last"][1]
+    k = {"label": label or f["name"], "value": ("%.1f%%" % v) if u == "%" else num(v, u), "date": f["last"][0]}
+    if "m1" in f:
+        d = (v - f["m1"][1]) if u == "%" else f["m1"][2]
+        k.update(delta=("%+.1f%%p" % d) if u == "%" else pct(d),
+                 deltaLabel=("직전 달(%s) 대비" if u == "%" else "한 달 전(%s) 대비") % f["m1"][0],
+                 dir="up" if d > 0 else "down" if d < 0 else "flat")
+    return k
+
+
 JUMP_PCT = 50   # 하루 사이 이만큼(%) 넘게 바뀐 값은 단위 변경·입력 오류일 수 있어 순위에서 뺀다
 
 
@@ -476,7 +488,8 @@ def _trend_answer(q, sers, months, role, extra_lines=None, links=None, links_tit
         sx = {"card": x["card"], "view": x["view"], "asOf": x["dates"][-1]}
         if sx not in srcs:
             srcs.append(sx)
-    return _write(q, lines, code_text, chart, srcs, links or [], [x["id"] for x in sers], links_title=links_title, role=role)
+    return _write(q, lines, code_text, chart, srcs, links or [], [x["id"] for x in sers], links_title=links_title, role=role,
+                  kpi=kpi_of(f0), follow=[f0["name"] + " 3년 추이 보여줘"] if months < 36 else [])
 
 
 def do_fx(q, p):
@@ -838,8 +851,14 @@ def do_kn(q, p):
             f0 = fs[0]
             code_text = "%s의 최근 정시성은 %.1f%%(%s)입니다." % (hit[0]["ko"], f0["last"][1], f0["last"][0])
         chart = {"type": "line", "series": [{"name": x["name"], "unit": "%", "dates": x["dates"], "values": x["values"]} for x in sers]}
+        s0 = sers[0]
+        if ym and ym in s0["dates"]:   # 물어본 달 기준으로 카드
+            i = s0["dates"].index(ym)
+            s0 = dict(s0, dates=s0["dates"][:i + 1], values=s0["values"][:i + 1])
+        kp = kpi_of(facts_for(s0, 12), hit[0]["ko"] + " 정시성") if not ym or ym in sers[0]["dates"] else None
         return _write(q, lines, code_text, chart, src, links, [x["id"] for x in sers],
-                      links_title="출처 보고서", role="해상 정시성", quote=False)
+                      links_title="출처 보고서", role="해상 정시성", quote=False, kpi=kp,
+                      follow=[hit[0]["ko"].replace(" ↔ ", " ") + " 정시성 추이", "정시성 가장 낮은 노선은?"])
     # 노선을 말하지 않으면 — 그 달(없으면 최신 달) 노선 순위
     mon = ym if ym in months else (months[-1] if months else None)
     rows = sorted([(l["values"][mon], l) for l in lanes if l["values"].get(mon) is not None],
@@ -853,8 +872,13 @@ def do_kn(q, p):
     code_text = "%s 정시성이 가장 %s 노선은 %s(%.1f%%)입니다." % (mon, "낮은" if re.search(r"낮|나쁜|최하|늦", q) else "높은",
                                                          rows[0][1]["ko"], rows[0][0])
     chart = {"type": "bar", "unit": "%", "rows": [{"name": l["ko"], "v": v} for v, l in rows[:10]]}
+    low = bool(re.search(r"낮|나쁜|최하|늦", q))
     return _write(q, lines, code_text, chart, src, links, [], must=rows[0][1]["ko"].split(" ↔ ")[0],
-                  links_title="출처 보고서", role="해상 정시성", quote=False)
+                  links_title="출처 보고서", role="해상 정시성", quote=False,
+                  kpi={"label": "1위 " + rows[0][1]["ko"], "value": "%.1f%%" % rows[0][0], "date": mon,
+                       "deltaLabel": "정시성 가장 %s 노선" % ("낮은" if low else "높은")},
+                  follow=[rows[0][1]["ko"].replace(" ↔ ", " ") + " 정시성 추이",
+                          "정시성 가장 %s 노선은?" % ("높은" if low else "낮은")])
 
 
 DOMAIN_FN = {"kn": do_kn, "fx": do_fx, "stock": do_stock, "fin": do_fin, "patent": do_patent, "exh": do_exh, "clock": do_clock, "news": do_news}
@@ -913,8 +937,13 @@ def answer(q, ip="", prev=None):
                 srcs.append(x)
         if skipped:
             lines.append("하루 새 %d%% 넘게 바뀐 값이 있어 순위에서 뺀 항목(단위 변경·입력 오류 가능성): %s" % (JUMP_PCT, ", ".join(skipped)))
+        top = rows[0][1]["name"]
         return 200, _write(q, lines, code_text, chart, srcs, [], [s["id"] for _, s, _ in rows],
-                           must=rows[0][1]["name"].split(" (")[0])
+                           must=top.split(" (")[0],
+                           kpi={"label": "1위 " + top, "value": pct(rows[0][0]), "date": rows[0][2]["last"][0],
+                                "deltaLabel": "한 달 전 대비 변화율"},
+                           follow=[top.split(" (")[0] + " 1년 추이 보여줘",
+                                   "이번 달 가장 많이 %s 원자재는?" % ("내린" if p["dir"] == "up" else "오른")])
 
     if not ids:
         return 200, {"ok": True, "kind": "nodata", "by": "code",
@@ -941,10 +970,13 @@ def answer(q, ip="", prev=None):
         x = _source(s)
         if x not in srcs:
             srcs.append(x)
-    return 200, _write(q, lines, code_text, chart, srcs, evs, [s["id"] for s in ser])
+    n0 = ser[0]["name"]
+    return 200, _write(q, lines, code_text, chart, srcs, evs, [s["id"] for s in ser], kpi=kpi_of(f0),
+                       follow=[n0 + " 3년 추이 보여줘", "같은 기간 무슨 일이 있었어?"])
 
 
-def _write(q, lines, code_text, chart, srcs, evs, ids, must=None, links_title=None, role="원자재", quote=True, rule=""):
+def _write(q, lines, code_text, chart, srcs, evs, ids, must=None, links_title=None, role="원자재", quote=True, rule="",
+           kpi=None, follow=None):
     """AI 가 문장으로 정리 → 검증 → 실패하면 코드 문장.
     quote=False 면 links 를 AI 에 넘기지 않는다(화면에 링크로만 보여 준다). rule 은 메뉴별 덧붙임 규칙."""
     ev_txt = "" if not quote else "\n".join("[e%d] %s %s — %s" % (i + 1, e.get("date", ""), e["label"], re.sub(r"<[^>]+>", "", e.get("detail", ""))[:200])
@@ -976,7 +1008,7 @@ def _write(q, lines, code_text, chart, srcs, evs, ids, must=None, links_title=No
         note = "AI 연결이 원활하지 않아 계산 결과만 보여 드립니다."
     return {"ok": True, "kind": "answer", "by": by, "text": text, "facts": lines, "chart": chart, "sources": srcs,
             "events": [{"date": e.get("date", ""), "label": e["label"], "source": e.get("source"), "url": e.get("url")} for e in evs],
-            "linksTitle": links_title, "ids": ids, "note": note}
+            "linksTitle": links_title, "ids": ids, "note": note, "kpi": kpi, "follow": follow or []}
 
 
 def _demo():
@@ -988,6 +1020,8 @@ def _demo():
     assert p["ids"] == ["icis:PPG"], p
     assert parse("이번 달 가장 많이 오른 원자재는?")["rank"]
     assert parse("국제유가 다음 달 전망은?")["forecast"]
+    k = kpi_of({"name": "x", "unit": "%", "last": ("2026-09", 46.5), "m1": ("2026-08", 50.9, 0)})
+    assert k["value"] == "46.5%" and k["delta"] == "-4.4%p" and k["dir"] == "down", k
     print("ok")
 
 
