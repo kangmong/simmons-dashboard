@@ -20363,7 +20363,7 @@ function askPanel() {
   p.setAttribute('aria-label', 'SIMMONS 인사이트 어시스턴트');
   p.innerHTML = '<div class="ask-h"><span class="ask-logo" aria-hidden="true">AI</span>'
     + '<div class="ask-h__t"><b>SIMMONS 인사이트 어시스턴트</b>'
-    + '<span class="ask-h__s"><i class="ask-dot" aria-hidden="true"></i>데이터 기준 <span id="askAsOf">확인 중</span></span></div>'
+    + '<span class="ask-h__s"><i class="ask-dot" aria-hidden="true"></i>데이터 기준 <span id="askAsOf">업데이트 전</span></span></div>'
     + '<span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
     + '<details class="ask-ex" id="askEx" open><summary>예시 질문 <span>대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다</span></summary>'
