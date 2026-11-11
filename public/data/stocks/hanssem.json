@@ -4,12 +4,11 @@
  "symbol": "009240.KS",
  "market": "KOSPI",
  "note": "종합 인테리어·가구",
- "generatedAt": "2026-11-11T00:31:52+09:00",
+ "generatedAt": "2026-11-12T00:06:23+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-10", 45450.0, 46100.0, 45100.0, 45800.0, 24516],
    ["2025-11-11", 45650.0, 47250.0, 45600.0, 46200.0, 42040],
    ["2025-11-12", 46150.0, 46750.0, 45900.0, 46700.0, 33905],
    ["2025-11-13", 46600.0, 47550.0, 46600.0, 47550.0, 69527],
@@ -252,10 +251,11 @@
    ["2026-11-04", 39900.0, 40550.0, 39800.0, 40400.0, 24045],
    ["2026-11-05", 40850.0, 41900.0, 40200.0, 41500.0, 48439],
    ["2026-11-06", 40800.0, 41100.0, 40000.0, 40600.0, 30866],
-   ["2026-11-09", 40000.0, 41100.0, 39800.0, 40050.0, 32075]
+   ["2026-11-09", 40000.0, 41100.0, 39800.0, 40050.0, 32075],
+   ["2026-11-10", 40050.0, 40850.0, 38700.0, 39900.0, 46510]
   ],
   "1wk": [
-   ["2021-11-07", 88100.0, 88200.0, 81000.0, 85900.0, 694339],
+   ["2021-11-07", 82100.0, 86500.0, 81000.0, 85900.0, 382868],
    ["2021-11-14", 86000.0, 92000.0, 83600.0, 85400.0, 597471],
    ["2021-11-21", 85400.0, 98000.0, 83800.0, 89000.0, 1266749],
    ["2021-11-28", 86100.0, 92000.0, 86000.0, 90400.0, 609138],
@@ -516,8 +516,8 @@
    ["2026-10-18", 39250.0, 39900.0, 37500.0, 38050.0, 188967],
    ["2026-10-25", 37900.0, 39950.0, 37300.0, 39800.0, 318141],
    ["2026-11-01", 39500.0, 41900.0, 39100.0, 40600.0, 161663],
-   ["2026-11-08", 40000.0, 41100.0, 39800.0, 40050.0, 32075],
-   ["2026-11-10", 40050.0, 40850.0, 38700.0, 39900.0, 46510]
+   ["2026-11-08", 40000.0, 41100.0, 38700.0, 39900.0, 78585],
+   ["2026-11-11", 39550.0, 39900.0, 37650.0, 38000.0, 41496]
   ],
   "1mo": [
    ["2016-11-30", 208000.0, 208500.0, 186000.0, 199000.0, 956253],
@@ -639,8 +639,8 @@
    ["2026-07-31", 38400.0, 42850.0, 37100.0, 39200.0, 1102584],
    ["2026-08-31", 38750.0, 41000.0, 36650.0, 39050.0, 526853],
    ["2026-09-30", 39500.0, 41350.0, 37300.0, 39800.0, 804360],
-   ["2026-10-31", 39500.0, 41900.0, 39100.0, 40600.0, 161663],
-   ["2026-11-10", 40050.0, 40850.0, 38700.0, 39900.0, 46510]
+   ["2026-10-31", 39500.0, 41900.0, 38700.0, 39900.0, 240248],
+   ["2026-11-11", 39550.0, 39900.0, 37650.0, 38000.0, 41496]
   ]
  },
  "candleFormat": [
@@ -681,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 39900.0,
-  "prev": 40050.1882,
-  "change": -150.1882,
-  "changePct": -0.375,
-  "changePctMeta": -0.375,
-  "changePctSeries": -0.3745,
-  "asOf": "2026-11-10 06:30"
+  "now": 38000.0,
+  "prev": 39900.0399,
+  "change": -1900.0399,
+  "changePct": -4.762,
+  "changePctMeta": -4.762,
+  "changePctSeries": -4.7619,
+  "asOf": "2026-11-11 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -706,28 +706,28 @@
    "ceo": "Eugene  Kim (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 38700.0,
-   "dayHigh": 40850.0,
+   "dayLow": 37650.0,
+   "dayHigh": 39900.0,
    "week52Low": 28300.0,
    "week52High": 54800.0,
-   "marketCap": 655410266112.0,
-   "volume": 46510,
-   "avgVolume": 40372,
-   "avgVolume10": 48446
+   "marketCap": 624200253440.0,
+   "volume": 41496,
+   "avgVolume": 40137,
+   "avgVolume10": 32594
   },
   "valuation": {
-   "forwardPE": 24.075668,
-   "psr": 0.395228,
-   "dividendYield": 0.1498,
+   "forwardPE": 22.929207,
+   "psr": 0.376408,
+   "dividendYield": 0.1504,
    "dividendRate": 6000.0,
    "payoutRatio": 2.0718,
    "beta": 0.79,
    "roe": 0.03008,
-   "operatingMargin": 0.02705,
+   "operatingMargin": 0.01919,
    "revenue": 1658307870720.0,
    "revenueGrowth": -0.092,
-   "change52w": -0.133117,
-   "ma50": 39381.0
+   "change52w": -0.14561,
+   "ma50": 39385.0
   },
   "holding": {
    "heldInstitutions": 0.15581,
@@ -735,6 +735,12 @@
   }
  },
  "news": [
+  {
+   "title": "LS증권 \"한샘 목표주가 하향, 주택 거래 둔화로 당분간 실적 회복 어려워\"",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE03ZmNfVE52VUpPdFRHNkF4V1VjWXozTDJ2clFhNU1lOEZnNGpTQ2EzMm9HYzk1QTFHQUc0V05iWi11MHN4VDNPdVVwLVVid0p0OXBVYjQ0MVhtWXdVa3k1SkgzcTVnR3RhNEhTZUJ3aHZRMGs?oc=5",
+   "media": "비즈니스포스트",
+   "published": "Tue, 10 Nov 2026 23:52:23 GMT"
+  },
   {
    "title": "증시 급락에 PEF 투자기업도 주가도 '뚝'…지분 가치 하락 부담",
    "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5Ub3FaUEJJN1dab210X25KREYtaS1POURfdVpLSUZMOWFjOUF2R09hXzA1SGtnWXFURUhhTEROWFRnSktEUGlBSWtBYjB3aGl3OXd6dmo3MXNJajDSAWBBVV95cUxNbTBPZkdRUGN2bTRDNGNickNNeHQ0bUNoel9JSmVWYlZFcGcweGtYeFpfck5id1cxLVl4QTNpRzZXS0k3c2Q2Wm9oeGhhZWoxZkdHSERlaVRKYi1TTTZkRS0?oc=5",
@@ -752,12 +758,6 @@
    "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5SZ2RBMU9USlpsX2tBRWVUNTgzTjMza2duXzZnU3hHcElRNDhIdWJNWkxHeU43QjdEVThUd2RPeWc5VVJJcFVSZEhDVnFpYmd6RnFxejd4U005UjR5aE52V2tvR0htMWNB0gFuQVVfeXFMTW9WdjM4eXc4aGVNYm5sRkFqUGp1eTQ4dE9CV3N3N2hWZ2VyME9YZndublRkTzFHWFpGX1FpU3BrNXc3cDVtVzJXVHd4MXBXM0VoTUFrRWRzOEhzLXJrSURpT24tU3BVWmItRFZWSlE?oc=5",
    "media": "머니투데이",
    "published": "Fri, 30 Oct 2026 07:00:00 GMT"
-  },
-  {
-   "title": "한샘 인수금융 연장 속도전…만기 1년반 줄이고 매각 추진 카드까지",
-   "link": "https://news.google.com/rss/articles/CBMigwFBVV95cUxPalpleUNyRzhQSENFM245bVp5YXJZb0p4TVF6czVsZmN1bE1hdXJkUG11ZWM4dHBGXzZUeDFzVHItN2MyaUp2eDBlYzA3M3llbXZKNFBkRVJJYzM0N3plektBZGlwb0FGcjFKZUI0OG95TUZJeTlOaU4zODdjQ3huWTNJbw?oc=5",
-   "media": "인베스트조선",
-   "published": "Mon, 07 Sep 2026 07:00:00 GMT"
   }
  ]
 }
