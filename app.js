@@ -17539,6 +17539,8 @@ function initUpdate() {
         + (source === 'static' ? ' (사전 수집)' : '') + updateStatusNote(data);
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
+      const askAsOf = document.getElementById('askAsOf');   // AI 어시스턴트 머리글 '데이터 기준'
+      if (askAsOf && data.updated_at) askAsOf.textContent = data.updated_at;
       applyFxUpdate(data);
       applyMaterialUpdate(data);
       applyKoimaUpdate(data);  // 순수 추가: KOIMA 부문별 지수(반드시 applyMaterialUpdate 뒤)
