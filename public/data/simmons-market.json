@@ -192,6 +192,176 @@
     "title": "국내 슬립테크 시장 주요 6개 기업",
     "companies": [
       {
+        "name": "세라젬 (CERAGEM)",
+        "color": "#F59E0B",
+        "founded": "1998년 (공식 회사소개 기준)",
+        "desc": "글로벌 홈 헬스케어 전문기업. 침대 프레임의 핵심인 '헤드보드'를 수면 환경 전체를 통제하는 컨트롤 타워로 활용하는 독자 콘셉트 구축. 비접촉 방식의 AI 수면분석 기술을 홈 메디케어 베드 제품군에 접목 중.",
+        "products": "홈 메디케어 베드 · 척추 케어 의료기기(마스터 V 시리즈) 등 · 슬립테크 헤드보드(보도 기준 구축·적용 중)",
+        "funding": "해당 없음 (비상장 · 공개된 투자 유치 정보를 찾지 못했습니다)",
+        "revenue": "연매출 비공개 (비상장). 공식 회사소개 기준 누적 수출 13억 달러",
+        "extra": "ZDNet Korea(2026.05) 보도 기준 — 헤드보드에 정밀 센서를 넣어 수면 중 생체 데이터를 실시간 수집하고, AI가 코골이를 감지하면 모션베드 각도를 자동 조절해 기도를 확보한다. 수면환경·체온 변화에 맞춘 온도 조절 기술도 포함.",
+        "sources": [
+          {
+            "label": "ZDNet Korea — \"거실을 넘어 침실로\"... 헬스케어 업계, 슬립테크로 영역 확대 (2026-05-06)",
+            "url": "https://zdnet.co.kr/view/?no=20260506155341"
+          },
+          {
+            "label": "세라젬 공식 회사소개 (설립연도·누적 수출)",
+            "url": "https://www.ceragem.co.kr/aboutus/introduce.asp"
+          }
+        ],
+        "product": {
+          "badge": "국내",
+          "name": "세라젬 슬립테크 헤드보드",
+          "desc": "수면환경 통합제어 (보도 기준 · 공식 제품 페이지 미확인)",
+          "icon": "headboard",
+          "image": "public/products/ceragem-bed.png",
+          "source": "출처: ZDNet Korea(2026.05) 보도",
+          "officialUrl": "https://www.ceragem.co.kr/",
+          "imageSource": "세라젬 공식 스토어 — 홈 메디케어 베드(V7) 제품 이미지",
+          "imageSourceUrl": "https://ceragemus.com/products/ceragem-v7"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "헤드보드 통합 센서로 수면환경 인식",
+            "비접촉 AI 파트너십 기반 수면상태 분석",
+            "헤드보드가 조명·온도·음향 자동 조절",
+            "수면환경 최적화"
+          ]
+        },
+        "updates": [
+          {
+            "date": "2026-11-10",
+            "kind": "수상",
+            "text": "세라젬은 'CES 2027'서 혁신상 9개를 수상하며 누적 수상 30개를 달성했다.",
+            "label": "세라젬, 'CES 2027'서 혁신상 9개 수상…누적 수상 30개 달성 - 연합뉴스",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6U9IBYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6Uw?oc=5"
+          },
+          {
+            "date": "2026-10-21",
+            "kind": "제휴",
+            "text": "세라젬이 데이터·AI 기업 데이터브릭스와 맞손을 잡았다.",
+            "label": "세라젬, 데이터·AI 기업 데이터브릭스와 맞손…'AI 웰니스 홈' 가속 - 지디넷코리아",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1YWTdMek95ZW5mUnljdW50aXlkNkwwWTUyRVFZeUN2Z09SM2dmbS1mdXpyOFlvUkVPSFNZc1VnMy1Ud1dfNUhieDRibHBvVTQ3Z0o3bjRn?oc=5"
+          },
+          {
+            "date": "2026-10-13",
+            "kind": "출시",
+            "text": "세라젬 '파우제 M4'가 리뉴얼 출시 후 판매량이 10배 증가했다.",
+            "label": "세라젬 '파우제 M4', 리뉴얼 출시 후 인기몰이…판매량 10배↑ - 위키리크스한국",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBvZ1g2aDNCdnFYVTZXSndvMHo2ZEhfRnpJS2hhcFpQSU1RWWhWcFQwSUNDMFV4UlI2X2J3WDZvcktCa2FhSjRFaVpJNkJSRlh4dy1QVExyU1RzQnpuRm5MeWJOcDFxcm1HU1NieDFzLUE?oc=5"
+          },
+          {
+            "date": "2026-09-21",
+            "kind": "출시",
+            "text": "세라젬이 혈액순환 개선 의료기기 '셀트론 순환 매트'를 출시했다.",
+            "label": "세라젬, 혈액순환 개선 의료기기 '셀트론 순환 매트' 출시 - 연합뉴스",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5CX0ZacjM5Q2tHakxLQXNaWWdxZlUtaDQtOEhzM1ppNE4zZXFLY2NrYzNfX2toWE5HZWZqOXJTaG9WOFdPakV2LXNDaVNwMmt3UnJBYVliY3VkVEnSAWBBVV95cUxQbTVlRHNDaFVLRDgzVE9tcUI3bXlLM0duTUpiRS1pZWptQXhocmRkbTBycHRBNkF2eVo0cXItMWJnYkctZ3ZuR3NEMGJDXy15QjNUVUNZdkcwUElZZjJvOUo?oc=5"
+          }
+        ]
+      },
+      {
+        "name": "웰트 (Welt)",
+        "color": "#0EA5E9",
+        "founded": "미확인",
+        "desc": "불면증 인지행동치료(CBT-I)를 앱으로 구현한 디지털 치료기기 기업. 대표는 강성지.",
+        "products": "슬립큐(SleepQ) — 불면증 디지털 치료기기 · 통합심사 1호 혁신의료기기 · 2023년 식약처 허가",
+        "funding": "2021년 한독이 30억원 투자, 지분 약 9% 확보(주요 주주). 이후 추가 라운드는 확인되지 않았습니다.",
+        "revenue": "비공개 (비상장)",
+        "extra": "2024년 4월 슬립큐 첫 처방 개시 · 2027년 코스닥 상장 목표로 IPO 준비 중",
+        "sources": [
+          {
+            "label": "팜이데일리 — 강성지 웰트 대표 인터뷰(한독 30억·지분 9%대 언급)",
+            "url": "https://pharm.edaily.co.kr/News/Read?newsId=01525206642334232"
+          },
+          {
+            "label": "EBN — 한독·웰트 '불면증 디지털 치료기기 슬립큐' 상용 시장 확대",
+            "url": "https://www.ebn.co.kr/news/articleView.html?idxno=1701983"
+          }
+        ],
+        "logo": "public/logos/welt-sleepq.svg",
+        "logoSource": "웰트 공식 제품 도메인 sleepq.ai 의 슬립큐 마크",
+        "product": {
+          "badge": "국내",
+          "name": "슬립큐(SleepQ)",
+          "desc": "불면증 디지털 치료기기",
+          "icon": "app",
+          "image": "public/products/welt-sleepq.png",
+          "source": "출처: 웰트 공식",
+          "officialUrl": "https://sleepq.ai/",
+          "imageSource": "sleepq.ai 공식 사이트 — 슬립큐 앱 화면",
+          "imageSourceUrl": "https://sleepq.ai/"
+        },
+        "mechanism": {
+          "title": "핵심 작동방식",
+          "steps": [
+            "수면일지·설문 입력",
+            "CBT-I(인지행동치료) 알고리즘 분석",
+            "맞춤 행동교정 처방",
+            "앱으로 코칭 제공"
+          ]
+        },
+        "updates": [
+          {
+            "date": "2026-07-15",
+            "kind": "제휴",
+            "text": "웰트가 한독의 영업망을 활용해 불면증 치료기기 슬립큐 공급에 나선다.",
+            "label": "한독 영업망 올라탄 웰트 ‘슬립큐’… 불면증 디지털 치료 기준 되나 - IT조선",
+            "source": "",
+            "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE93bmZnSkNXWTJHRzd6a215OG9mRkxuT0RQbXhkMHBwWVU3ekFlS3VmblYzWmRoblEzUGk5ZXktTFh6elJ2THdPZHJ1X2xBQ0FNOTBicW5XTVBmalhDWXBETk1CVXhId0NqYmhERGpmMVbSAXRBVV95cUxNcm16SElHRUlmUUQtaW1jak9yMVAtWGt6OEZUMm51TUJzZWxqc0hrbThzczlCS3pTMmk4RFNHZW9KMVZ3Rm5iRVlEOFNtNzB2UWRTX3pxRzFlMmtQeTNmNl80TzAzVlBhYnVncElNMzMxSldEMQ?oc=5"
+          }
+        ]
+      },
+      {
+        "name": "ANSSil",
+        "auto": true,
+        "desc": "소마네스트는 수면에 직접적인 영향을 미치는 주요 요소를 제어하는 스마트 매트리스이다.",
+        "products": "SomaNest Mattress",
+        "extra": "CES 혁신상 — 2026 SomaNest Mattress(Smart Home)",
+        "product": {
+          "badge": "국내",
+          "name": "SomaNest Mattress",
+          "desc": "CES 2026 혁신상 · Smart Home",
+          "image": "https://www.ces.tech/media/iphja4f0/v2_2026_somanestmattress-anssil_somanest_01.jpg?width=600&format=webp&quality=80",
+          "imageSource": "CES 혁신상 공식 페이지",
+          "imageSourceUrl": "https://www.ces.tech/ces-innovation-awards/2026/somanest-mattress/"
+        },
+        "sources": [
+          {
+            "label": "CES Innovation Awards 2026 — SomaNest Mattress",
+            "url": "https://www.ces.tech/ces-innovation-awards/2026/somanest-mattress/"
+          }
+        ],
+        "updates": []
+      },
+      {
+        "name": "NeuroTx",
+        "auto": true,
+        "desc": "윌슬립은 비침습적 신경 자극을 통해 수면의 질을 향상시키는 기기이다.",
+        "products": "WillSleep",
+        "extra": "CES 혁신상 — 2026 WillSleep(Digital Health)",
+        "product": {
+          "badge": "국내",
+          "name": "WillSleep",
+          "desc": "CES 2026 혁신상 · Digital Health",
+          "image": "https://www.ces.tech/media/5o1avvmi/v2_2026_willsleep-primary.png?width=600&format=webp&quality=80",
+          "imageSource": "CES 혁신상 공식 페이지",
+          "imageSourceUrl": "https://www.ces.tech/ces-innovation-awards/2026/willsleep/"
+        },
+        "sources": [
+          {
+            "label": "CES Innovation Awards 2026 — WillSleep",
+            "url": "https://www.ces.tech/ces-innovation-awards/2026/willsleep/"
+          }
+        ],
+        "updates": []
+      },
+      {
         "name": "에이슬립 (Asleep)",
         "founded": "2020년 6월",
         "desc": "KAIST 전기전자 연구진이 창업한 수면 AI 기업. 비접촉 방식으로 수면 중 호흡·움직임을 감지해 수면 단계를 분석한다.",
@@ -338,7 +508,162 @@
             "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBTRUk0RGNRWmxQRUZKWGJMQmxfeFBQVmt1UDNPeXpqdW5PYVFQUFdNT3Y0SHRZZ21JWHJWQzZqb240RloyNzZmOFMtZ1A5ZWhYMXBSZlgwUWJ6dGg5blNRTGZSZWdUUQ?oc=5"
           }
         ]
-      },
+      }
+    ],
+    "cesAwards": {
+      "heading": "기업별 누적 수상 건수",
+      "subject": "CES 혁신상",
+      "unit": "건",
+      "note": "국내 기업만 표시합니다. 2025~2027년은 CES 공식 수상자 목록에서 매주 자동으로 세고(부문 무관 전체 수상), 그 이전 연도는 공개 보도로 확인된 값입니다.",
+      "items": [
+        {
+          "name": "세라젬 (CERAGEM)",
+          "origin": "kr",
+          "total": 26,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2024",
+              "n": 3
+            },
+            {
+              "label": "2025",
+              "n": 2
+            },
+            {
+              "label": "2026",
+              "n": 12
+            },
+            {
+              "label": "2027",
+              "n": 9
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준) · 그 이전은 공개 보도로 확인한 값"
+        },
+        {
+          "name": "웰트 (Welt)",
+          "origin": "kr",
+          "total": 1,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2026",
+              "n": 1
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준)"
+        },
+        {
+          "name": "ANSSil",
+          "origin": "kr",
+          "total": 5,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2022",
+              "n": 1
+            },
+            {
+              "label": "2023",
+              "n": 1
+            },
+            {
+              "label": "2025",
+              "n": 2
+            },
+            {
+              "label": "2026",
+              "n": 1
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준) · 그 이전은 공개 보도로 확인한 값"
+        },
+        {
+          "name": "NeuroTx",
+          "origin": "kr",
+          "total": 1,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2026",
+              "n": 1
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준)"
+        },
+        {
+          "name": "에이슬립 (Asleep)",
+          "origin": "kr",
+          "total": 5,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2020~2023",
+              "n": 3
+            },
+            {
+              "label": "2025",
+              "n": 2
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준) · 그 이전은 공개 보도로 확인한 값"
+        },
+        {
+          "name": "텐마인즈 (10minds)",
+          "origin": "kr",
+          "total": 4,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2020",
+              "n": 1
+            },
+            {
+              "label": "2022",
+              "n": 1
+            },
+            {
+              "label": "2023",
+              "n": 1
+            },
+            {
+              "label": "2025",
+              "n": 1
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준) · 그 이전은 공개 보도로 확인한 값"
+        },
+        {
+          "name": "Wis Medical",
+          "origin": "kr",
+          "total": 1,
+          "conf": "exact",
+          "totalSuffix": "",
+          "segs": [
+            {
+              "label": "2026",
+              "n": 1
+            }
+          ],
+          "detail": "2025~2027년은 CES 공식 수상자 목록에서 자동 집계(수상 부문 수 기준)"
+        }
+      ],
+      "source": "출처: CES Innovation Awards 공식 수상자 목록 (ces.tech) · 확인 2026-11-12",
+      "confLabels": {
+        "exact": "연도 확인",
+        "partial": "일부만 확인",
+        "period": "기간만 확인",
+        "unknown": "연도 미확인"
+      }
+    },
+    "archived": [
       {
         "name": "텐마인즈 (10minds)",
         "founded": "2004년 11월",
@@ -416,80 +741,6 @@
         ]
       },
       {
-        "name": "세라젬 (CERAGEM)",
-        "color": "#F59E0B",
-        "founded": "1998년 (공식 회사소개 기준)",
-        "desc": "글로벌 홈 헬스케어 전문기업. 침대 프레임의 핵심인 '헤드보드'를 수면 환경 전체를 통제하는 컨트롤 타워로 활용하는 독자 콘셉트 구축. 비접촉 방식의 AI 수면분석 기술을 홈 메디케어 베드 제품군에 접목 중.",
-        "products": "홈 메디케어 베드 · 척추 케어 의료기기(마스터 V 시리즈) 등 · 슬립테크 헤드보드(보도 기준 구축·적용 중)",
-        "funding": "해당 없음 (비상장 · 공개된 투자 유치 정보를 찾지 못했습니다)",
-        "revenue": "연매출 비공개 (비상장). 공식 회사소개 기준 누적 수출 13억 달러",
-        "extra": "ZDNet Korea(2026.05) 보도 기준 — 헤드보드에 정밀 센서를 넣어 수면 중 생체 데이터를 실시간 수집하고, AI가 코골이를 감지하면 모션베드 각도를 자동 조절해 기도를 확보한다. 수면환경·체온 변화에 맞춘 온도 조절 기술도 포함.",
-        "sources": [
-          {
-            "label": "ZDNet Korea — \"거실을 넘어 침실로\"... 헬스케어 업계, 슬립테크로 영역 확대 (2026-05-06)",
-            "url": "https://zdnet.co.kr/view/?no=20260506155341"
-          },
-          {
-            "label": "세라젬 공식 회사소개 (설립연도·누적 수출)",
-            "url": "https://www.ceragem.co.kr/aboutus/introduce.asp"
-          }
-        ],
-        "product": {
-          "badge": "국내",
-          "name": "세라젬 슬립테크 헤드보드",
-          "desc": "수면환경 통합제어 (보도 기준 · 공식 제품 페이지 미확인)",
-          "icon": "headboard",
-          "image": "public/products/ceragem-bed.png",
-          "source": "출처: ZDNet Korea(2026.05) 보도",
-          "officialUrl": "https://www.ceragem.co.kr/",
-          "imageSource": "세라젬 공식 스토어 — 홈 메디케어 베드(V7) 제품 이미지",
-          "imageSourceUrl": "https://ceragemus.com/products/ceragem-v7"
-        },
-        "mechanism": {
-          "title": "핵심 작동방식",
-          "steps": [
-            "헤드보드 통합 센서로 수면환경 인식",
-            "비접촉 AI 파트너십 기반 수면상태 분석",
-            "헤드보드가 조명·온도·음향 자동 조절",
-            "수면환경 최적화"
-          ]
-        },
-        "updates": [
-          {
-            "date": "2026-11-10",
-            "kind": "수상",
-            "text": "세라젬은 'CES 2027'서 혁신상 9개를 수상하며 누적 수상 30개를 달성했다.",
-            "label": "세라젬, 'CES 2027'서 혁신상 9개 수상…누적 수상 30개 달성 - 연합뉴스",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6U9IBYEFVX3lxTE5rTjFkSU5YRnM5ZFpReVFfN2pRQWUzZXM2TjRUWTM2SmhnSzZuRlhINXU0T3N4S2hhUzBMd0lsRGpaNHRQZVVpMExOclZOcDAwUExUWk5ndlpTVzUzREF6Uw?oc=5"
-          },
-          {
-            "date": "2026-10-21",
-            "kind": "제휴",
-            "text": "세라젬이 데이터·AI 기업 데이터브릭스와 맞손을 잡았다.",
-            "label": "세라젬, 데이터·AI 기업 데이터브릭스와 맞손…'AI 웰니스 홈' 가속 - 지디넷코리아",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1YWTdMek95ZW5mUnljdW50aXlkNkwwWTUyRVFZeUN2Z09SM2dmbS1mdXpyOFlvUkVPSFNZc1VnMy1Ud1dfNUhieDRibHBvVTQ3Z0o3bjRn?oc=5"
-          },
-          {
-            "date": "2026-10-13",
-            "kind": "출시",
-            "text": "세라젬 '파우제 M4'가 리뉴얼 출시 후 판매량이 10배 증가했다.",
-            "label": "세라젬 '파우제 M4', 리뉴얼 출시 후 인기몰이…판매량 10배↑ - 위키리크스한국",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBvZ1g2aDNCdnFYVTZXSndvMHo2ZEhfRnpJS2hhcFpQSU1RWWhWcFQwSUNDMFV4UlI2X2J3WDZvcktCa2FhSjRFaVpJNkJSRlh4dy1QVExyU1RzQnpuRm5MeWJOcDFxcm1HU1NieDFzLUE?oc=5"
-          },
-          {
-            "date": "2026-09-21",
-            "kind": "출시",
-            "text": "세라젬이 혈액순환 개선 의료기기 '셀트론 순환 매트'를 출시했다.",
-            "label": "세라젬, 혈액순환 개선 의료기기 '셀트론 순환 매트' 출시 - 연합뉴스",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5CX0ZacjM5Q2tHakxLQXNaWWdxZlUtaDQtOEhzM1ppNE4zZXFLY2NrYzNfX2toWE5HZWZqOXJTaG9WOFdPakV2LXNDaVNwMmt3UnJBYVliY3VkVEnSAWBBVV95cUxQbTVlRHNDaFVLRDgzVE9tcUI3bXlLM0duTUpiRS1pZWptQXhocmRkbTBycHRBNkF2eVo0cXItMWJnYkctZ3ZuR3NEMGJDXy15QjNUVUNZdkcwUElZZjJvOUo?oc=5"
-          }
-        ]
-      },
-      {
         "name": "허니냅스 (HoneyNaps)",
         "color": "#EA580C",
         "founded": "2015년 7월",
@@ -548,184 +799,9 @@
             "url": "https://news.google.com/rss/articles/CBMib0FVX3lxTFBNd2NxMzIwWjA5aG9PR3gyM1ZTeVhBUUg0N3ExWFlsZ053SzRLeUc1N2V0SXY1YVBaWjYtLXJFcDVVeDJrN1RuWTdZRUZjZUxvbnBhRXZIQmVuMUlNd0stZkUtWXd5SzU1REtRbXM4Zw?oc=5"
           }
         ]
-      },
-      {
-        "name": "웰트 (Welt)",
-        "color": "#0EA5E9",
-        "founded": "미확인",
-        "desc": "불면증 인지행동치료(CBT-I)를 앱으로 구현한 디지털 치료기기 기업. 대표는 강성지.",
-        "products": "슬립큐(SleepQ) — 불면증 디지털 치료기기 · 통합심사 1호 혁신의료기기 · 2023년 식약처 허가",
-        "funding": "2021년 한독이 30억원 투자, 지분 약 9% 확보(주요 주주). 이후 추가 라운드는 확인되지 않았습니다.",
-        "revenue": "비공개 (비상장)",
-        "extra": "2024년 4월 슬립큐 첫 처방 개시 · 2027년 코스닥 상장 목표로 IPO 준비 중",
-        "sources": [
-          {
-            "label": "팜이데일리 — 강성지 웰트 대표 인터뷰(한독 30억·지분 9%대 언급)",
-            "url": "https://pharm.edaily.co.kr/News/Read?newsId=01525206642334232"
-          },
-          {
-            "label": "EBN — 한독·웰트 '불면증 디지털 치료기기 슬립큐' 상용 시장 확대",
-            "url": "https://www.ebn.co.kr/news/articleView.html?idxno=1701983"
-          }
-        ],
-        "logo": "public/logos/welt-sleepq.svg",
-        "logoSource": "웰트 공식 제품 도메인 sleepq.ai 의 슬립큐 마크",
-        "product": {
-          "badge": "국내",
-          "name": "슬립큐(SleepQ)",
-          "desc": "불면증 디지털 치료기기",
-          "icon": "app",
-          "image": "public/products/welt-sleepq.png",
-          "source": "출처: 웰트 공식",
-          "officialUrl": "https://sleepq.ai/",
-          "imageSource": "sleepq.ai 공식 사이트 — 슬립큐 앱 화면",
-          "imageSourceUrl": "https://sleepq.ai/"
-        },
-        "mechanism": {
-          "title": "핵심 작동방식",
-          "steps": [
-            "수면일지·설문 입력",
-            "CBT-I(인지행동치료) 알고리즘 분석",
-            "맞춤 행동교정 처방",
-            "앱으로 코칭 제공"
-          ]
-        },
-        "updates": [
-          {
-            "date": "2026-07-15",
-            "kind": "제휴",
-            "text": "웰트가 한독의 영업망을 활용해 불면증 치료기기 슬립큐 공급에 나선다.",
-            "label": "한독 영업망 올라탄 웰트 ‘슬립큐’… 불면증 디지털 치료 기준 되나 - IT조선",
-            "source": "",
-            "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE93bmZnSkNXWTJHRzd6a215OG9mRkxuT0RQbXhkMHBwWVU3ekFlS3VmblYzWmRoblEzUGk5ZXktTFh6elJ2THdPZHJ1X2xBQ0FNOTBicW5XTVBmalhDWXBETk1CVXhId0NqYmhERGpmMVbSAXRBVV95cUxNcm16SElHRUlmUUQtaW1jak9yMVAtWGt6OEZUMm51TUJzZWxqc0hrbThzczlCS3pTMmk4RFNHZW9KMVZ3Rm5iRVlEOFNtNzB2UWRTX3pxRzFlMmtQeTNmNl80TzAzVlBhYnVncElNMzMxSldEMQ?oc=5"
-          }
-        ]
       }
     ],
-    "cesAwards": {
-      "heading": "기업별 누적 수상 건수",
-      "subject": "CES 혁신상",
-      "unit": "건",
-      "note": "국내 기업만 표시합니다. 연도는 공개 보도로 확인된 만큼만 적었고, 확인되지 않은 연도는 추정하지 않았습니다.",
-      "items": [
-        {
-          "name": "세라젬 (CERAGEM)",
-          "origin": "kr",
-          "total": 21,
-          "conf": "exact",
-          "years": "2024년 3건 → 2025년 6건 → 2026년 12건",
-          "detail": "연도별 건수까지 확인",
-          "period": "2024~2026",
-          "segs": [
-            {
-              "label": "2024",
-              "n": 3
-            },
-            {
-              "label": "2025",
-              "n": 6
-            },
-            {
-              "label": "2026",
-              "n": 12
-            }
-          ]
-        },
-        {
-          "name": "ANSSil",
-          "origin": "kr",
-          "total": 8,
-          "conf": "partial",
-          "years": "2022년·2023년 수상 확인",
-          "detail": "2023년 수상이 '2022년에 이은 두 번째 수상'으로 명시됨 · 나머지 연도는 확인 안됨 (8건 중 일부만 연도 확인 가능)",
-          "segs": [
-            {
-              "label": "2022",
-              "n": 1
-            },
-            {
-              "label": "2023",
-              "n": 1
-            },
-            {
-              "label": "그 외 수상",
-              "n": 6
-            }
-          ]
-        },
-        {
-          "name": "텐마인즈 (10minds)",
-          "origin": "kr",
-          "total": 3,
-          "conf": "exact",
-          "years": "2020년 · 2022년 · 2023년",
-          "detail": "3회 모두 연도 확인",
-          "segs": [
-            {
-              "label": "2020",
-              "n": 1
-            },
-            {
-              "label": "2022",
-              "n": 1
-            },
-            {
-              "label": "2023",
-              "n": 1
-            }
-          ]
-        },
-        {
-          "name": "에이슬립 (Asleep)",
-          "origin": "kr",
-          "total": 3,
-          "conf": "period",
-          "years": "2020~2023년 사이 3회",
-          "detail": "기간은 확인, 개별 연도는 확인 안됨",
-          "segs": [
-            {
-              "label": "2020~2023",
-              "n": 3
-            }
-          ]
-        },
-        {
-          "name": "NeuroTx",
-          "origin": "kr",
-          "total": 1,
-          "conf": "unknown",
-          "years": "확인 안됨",
-          "detail": "디지털헬스 1건 · 수상 연도는 확인 안됨",
-          "segs": [
-            {
-              "label": "디지털헬스",
-              "n": 1
-            }
-          ]
-        },
-        {
-          "name": "Wis Medical",
-          "origin": "kr",
-          "total": 1,
-          "conf": "unknown",
-          "years": "확인 안됨",
-          "detail": "접근성·웰에이징 1건 · 수상 연도는 확인 안됨",
-          "segs": [
-            {
-              "label": "접근성·웰에이징",
-              "n": 1
-            }
-          ]
-        }
-      ],
-      "source": "출처: 헤럴드경제(2025.11.11), 아시아투데이(2025.11.10), 마이데일리(2024.11.15), 폴리뉴스(2026.02.27), 한국경제TV(2022.11.23, ANSSil), 스마트투데이(2024.01.06, 텐마인즈), CES Innovation Awards 공식 수상목록(2020~2026) 등",
-      "confLabels": {
-        "exact": "연도 확인",
-        "partial": "일부만 확인",
-        "period": "기간만 확인",
-        "unknown": "연도 미확인"
-      }
-    }
+    "rosterNote": "최근 2026·2027년 CES 혁신상에서 수면 관련 상을 받은 기업을 먼저 보여 주고, 나머지는 기존 정리 기업으로 채웁니다(매주 자동)."
   },
   "techMap": {
     "title": "슬립테크 기술 분야 및 주요 기업",

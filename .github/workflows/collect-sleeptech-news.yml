@@ -30,7 +30,15 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
+      # 명단·CES 수상 건수를 먼저 맞춘 뒤(새로 들어온 기업도) 최근 소식을 붙인다
+      - name: 슬립테크 기업 명단·CES 수상 갱신
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python sleeptech_roster.py
+
       - name: 최근 소식 수집
+        continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python sleeptech_news.py
@@ -38,7 +46,7 @@ jobs:
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
-          F="public/data/simmons-market.json public/data/global-sleeptech.json"
+          F="public/data/simmons-market.json public/data/global-sleeptech.json public/data/ces-honorees.json"
           if git diff --quiet -- $F; then
             echo "변경 없음 → 커밋 생략"
             exit 0

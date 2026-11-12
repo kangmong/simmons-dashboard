@@ -147,7 +147,12 @@ def si_detail(sess, item, verbose=True):
     url = glp[0] if glp[0].startswith("http") else SI_ROOT + glp[0]
     others = {e: len([h for h in hrefs if h.lower().split("?")[0].endswith(e)])
               for e in (".pdf", ".docx", ".doc")}
-    return {"xlsx": url, "date": date, "other_files": others}
+    out = {"xlsx": url, "date": date, "other_files": others}
+    # 보고서가 다루는 항로·선사 수 — 화면 설명 문구용("34 different trade lanes and 60+ carriers")
+    m = re.search(r"across (\d+) different trade lanes and (\d+\+?) carriers", re.sub(r"<[^>]+>", " ", html))
+    if m:
+        out["lanes"], out["carriers"] = int(m.group(1)), m.group(2)
+    return out
 
 
 def si_discover(sess=None, verbose=True):
@@ -378,6 +383,8 @@ def update_schedule_reliability_auto(verbose=True):
         "press_title": (found or {}).get("slug"),
         "press_url": (found or {}).get("url"),
         "press_date": (found or {}).get("date"),
+        "lanes": (found or {}).get("lanes"),
+        "carriers": (found or {}).get("carriers"),
         "xlsx_url": url,
         "latest_period": latest,
         "updatedAt": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

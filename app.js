@@ -2964,7 +2964,7 @@ function gtSubTitle() {
 
 function gtSubDesc() {
   return (_gsData && _gsData.status === 'ok')
-    ? GT_DESC_GMM + ' · 해외 슬립테크 시장 규모와 주요 기업은 수기 입력(출처는 각 카드에 표기), 최근 소식은 주 1회 뉴스 자동 수집'
+    ? GT_DESC_GMM + ' · 슬립테크 기기 시장 규모는 월 1회, 주요 기업·CES 수상은 CES 공식 수상자 목록으로 주 1회 자동 갱신, 최근 소식은 주 1회 뉴스 자동 수집'
     : GT_DESC_GMM;
 }
 
@@ -3646,6 +3646,10 @@ function applyMaterialUpdate(data) {
   const sr = data && data.sections && data.sections.schedule_reliability;
   if (sr && sr.status === 'ok' && sr.years && Object.keys(sr.years).length) {
     _srData = { months: (sr.months && sr.months.length) ? sr.months : SR_MONTHS, years: sr.years };
+    /* 출처 링크·항로/선사 수는 수집기가 읽은 최신 보도자료 기준으로 바꾼다(고정값이면 매달 낡는다) */
+    if (sr.press_url) SRC_LINKS.sea[0].url = sr.press_url;
+    if (sr.lanes && sr.carriers) SR_TERMS[0].desc = SR_TERMS[0].desc.replace(/\d+개 주요 항로, [\d+]+여? ?개 선사/,
+      sr.lanes + '개 주요 항로, ' + String(sr.carriers).replace('+', '') + '여 개 선사');
     // ICIS와 동일: 업데이트 직후엔 그래프를 띄우지 않고 연도 선택을 기다린다(_srYear=null → "연도를 선택하세요")
   } else {
     _srData = { error: (sr && sr.reason) || '데이터 없음' };
