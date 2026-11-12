@@ -295,7 +295,6 @@ body {
 }
 .uw-reset:hover { background: var(--nav-hover); color: var(--nav-ink); border-color: var(--nav-muted); }
 .uw-updated { font-size: 12px; color: var(--nav-muted); text-align: center; line-height: 1.5; word-break: keep-all; }
-.uw-note { font-size: 11px; color: var(--nav-muted); text-align: center; }
 
 /* ── 컨텐츠 ── */
 .content { flex: 1; padding: 12px 20px; min-width: 0; }
