@@ -374,13 +374,21 @@ body {
 /* ★ 공식몰 배너 원본은 2.2:1(5120×2304)이다. 칸 너비에 맞춰 키우고 위아래를 자르면
      침대 머리(위)나 글자(아래)가 잘렸다 → 칸 높이에 맞춰 원본 비율 그대로 줄여 사진 전체를 보여 준다.
      (칸 너비 = 높이 × 2.22. 다른 비율 배너가 와도 contain 이라 잘리지 않는다) */
-.hero--slides { padding-left: 64px; padding-right: 64px; min-height: 180px; align-items: center; }
+/* ★ 머리 배너 전체 배경 = 같은 사진을 흐리게 크게 깐 것(.hero-sl__bg). 선명한 원본(.hero-sl__pic)은
+     오른쪽에 원본 비율 그대로 — 넓게 키우면 위아래가 잘리기 때문에 원본은 자르지 않는다. */
+.hero--slides { padding-left: 64px; padding-right: 64px; min-height: 150px; align-items: center; background: #0f1426; }
 .hero--slides .hero__photo { display: none; }
-.hero__slides { position: absolute; top: 0; bottom: 0; right: 60px; aspect-ratio: 5120 / 2304; max-width: 62%; z-index: 0;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 94%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 14%, #000 94%, transparent 100%); }
-.hero-sl { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility .6s; }
+.hero__slides { position: absolute; inset: 0; z-index: 0; }
+.hero-sl { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility .6s; overflow: hidden; }
 .hero-sl.is-on { opacity: 1; visibility: visible; }
+.hero-sl__bg { position: absolute; inset: -24px; background: center / cover no-repeat;
+  filter: blur(28px) brightness(.55) saturate(1.15); }
+/* 왼쪽 제목 쪽만 어둡게 — 흰 글자가 밝은 사진(26FW 등) 위에서도 읽히게 */
+.hero-sl::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(10, 14, 30, .72) 0%, rgba(10, 14, 30, .45) 40%, rgba(10, 14, 30, 0) 62%); }
+.hero-sl__pic { position: absolute; top: 0; bottom: 0; right: 60px; aspect-ratio: 5120 / 2304; max-width: 60%; z-index: 1;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%); }
 .hero-sl img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
 .hero-sl__cap { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; padding: 4px 10px; border-radius: 999px;
   background: rgba(15, 23, 42, .62); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -397,7 +405,7 @@ body {
 .hero-nav--next { right: 14px; }
 @media (max-width: 720px) {
   .hero--slides { padding-left: 52px; padding-right: 52px; }
-  .hero__slides { right: 0; max-width: none; width: 100%; aspect-ratio: auto; opacity: .35; }
+  .hero-sl__pic { right: 0; opacity: .45; }
   .hero-sl__cap { display: none; }
 }
 .hero__eyebrow {

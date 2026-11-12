@@ -20820,10 +20820,13 @@ function askBubbleOff() {
       box.className = 'hero__slides';
       box.innerHTML = list.map((s, i) => '<a class="hero-sl' + (i ? '' : ' is-on') + '" href="' + escapeHtml(safeUrl(s.link))
         + '" target="_blank" rel="noopener noreferrer" aria-label="' + escapeHtml((s.title || '시몬스 공식몰 배너') + ' — 공식몰에서 보기')
-        + '"' + (i ? ' tabindex="-1" aria-hidden="true"' : '') + '><img src="' + escapeHtml(s.image) + '" alt="" loading="' + (i ? 'lazy' : 'eager')
+        + '"' + (i ? ' tabindex="-1" aria-hidden="true"' : '') + '>'
+        /* 배경: 같은 사진을 흐리게 크게 깔아 머리 배너 전체를 그 사진 색으로 채운다(사진은 자르지 않는다) */
+        + '<span class="hero-sl__bg" style="background-image:url(\'' + escapeHtml(s.image.replace(/'/g, '%27').replace(/ /g, '%20')) + '\')"></span>'
+        + '<span class="hero-sl__pic"><img src="' + escapeHtml(s.image) + '" alt="" loading="' + (i ? 'lazy' : 'eager')
         + '" onerror="this.closest(\'.hero-sl\').remove()">'
         + (s.title ? '<span class="hero-sl__cap">' + escapeHtml(s.title) + ' <i>공식몰 바로가기 ↗</i></span>' : '')
-        + '</a>').join('')
+        + '</span></a>').join('')
         + '<div class="hero-dots" role="tablist" aria-label="배너 선택">' + list.map((s, i) => '<button type="button" class="hero-dot'
           + (i ? '' : ' is-on') + '" data-herodot="' + i + '" aria-label="' + (i + 1) + '번째 배너"></button>').join('') + '</div>';
       host.insertBefore(box, host.firstChild);
