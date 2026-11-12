@@ -20542,6 +20542,7 @@ function askToggle(open) {
   document.body.classList.toggle('ask-on', open);
   const b = document.getElementById('askOpen');
   if (b) b.setAttribute('aria-expanded', String(open));
+  if (open) askBubbleOff();
   const u = document.getElementById('dashUpdated');
   if (open && u && u.textContent.trim() !== '—') p.querySelector('#askAsOf').textContent = u.textContent.trim();
   /* 넓은 화면에서는 패널 폭만큼 본문이 줄어든다 — 그래프가 새 폭에 맞게 다시 그려지게 알린다 */
@@ -20746,8 +20747,46 @@ async function askAsk(raw) {
   turn.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
+/* 화면 오른쪽 아래 떠 있는 로봇 버튼 + 인사 말풍선(예전 왼쪽 메뉴의 'AI에게 물어보기' 버튼 대체).
+   말풍선은 한 번 닫거나 비서를 열면 이 브라우저에서는 다시 띄우지 않는다. */
+const ASK_BUBBLE_KEY = 'askBubbleOff';
+function askFab() {
+  const b = document.createElement('button');
+  b.id = 'askOpen';
+  b.type = 'button';
+  b.className = 'ask-fab';
+  b.setAttribute('aria-expanded', 'false');
+  b.setAttribute('aria-controls', 'askPanel');
+  b.setAttribute('aria-label', 'AI 비서에게 물어보기');
+  b.innerHTML = '<svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true">'
+    + '<path d="M16 5.5v3.4" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="4.6" r="1.9" fill="#fff"/>'
+    + '<rect x="6.5" y="9" width="19" height="15" rx="5" fill="#fff"/>'
+    + '<rect x="3.4" y="13.4" width="2.6" height="6.2" rx="1.3" fill="#fff"/><rect x="26" y="13.4" width="2.6" height="6.2" rx="1.3" fill="#fff"/>'
+    + '<circle cx="12.4" cy="15.8" r="2" fill="#15803D"/><circle cx="19.6" cy="15.8" r="2" fill="#15803D"/>'
+    + '<path d="M13 20.2h6" stroke="#15803D" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  document.body.appendChild(b);
+  let off = false;
+  try { off = localStorage.getItem(ASK_BUBBLE_KEY) === '1'; } catch (e) { /* 저장 못 해도 동작 */ }
+  if (!off) {
+    const t = document.createElement('div');
+    t.className = 'ask-bubble';
+    t.id = 'askBubble';
+    t.innerHTML = '<button type="button" class="ask-bubble__go">안녕하세요, 시몬스 비서입니다.<br>버튼을 눌러 AI 비서에게 물어보세요.</button>'
+      + '<button type="button" class="ask-bubble__x" aria-label="안내 닫기">✕</button>';
+    document.body.appendChild(t);
+    t.querySelector('.ask-bubble__go').addEventListener('click', () => askToggle(true));
+    t.querySelector('.ask-bubble__x').addEventListener('click', () => askBubbleOff());
+  }
+  return b;
+}
+function askBubbleOff() {
+  const t = document.getElementById('askBubble');
+  if (t) t.remove();
+  try { localStorage.setItem(ASK_BUBBLE_KEY, '1'); } catch (e) { /* 무시 */ }
+}
+
 (function askWire() {
-  const b = document.getElementById('askOpen');
+  const b = document.getElementById('askOpen') || askFab();
   if (!b) return;
   b.title = '단축키: / 또는 Ctrl+K';
   const isOpen = () => { const p = document.getElementById('askPanel'); return !!(p && p.classList.contains('is-open')); };
