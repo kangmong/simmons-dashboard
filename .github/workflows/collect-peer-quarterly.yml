@@ -1,0 +1,53 @@
+name: 상장 경쟁사 분기 실적 수집 (DART · 주 1회)
+
+# 에이스침대·지누스·코웨이의 분기·반기·사업보고서에서 분기별 매출·영업이익을 받아
+# public/data/peer-quarterly.json 으로 커밋한다(dart_quarterly.py).
+# 분기 보고서 마감(5·8·11월 중순, 사업보고서 3월) 뒤 최대 1주 안에 반영된다.
+# ★ 실패하면 기존 JSON 을 그대로 둔다. 새 분기가 없으면 확인 날짜만 바뀐다.
+on:
+  schedule:
+    - cron: '30 0 * * 2'      # UTC 화 00:30 = KST 화 09:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-peer-quarterly
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 분기 실적 수집
+        continue-on-error: true
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python dart_quarterly.py
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          F="public/data/peer-quarterly.json"
+          if git diff --quiet -- $F; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $F
+          git commit -m "자동 수집: 상장 경쟁사 분기 실적 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push

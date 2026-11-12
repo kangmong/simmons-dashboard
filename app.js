@@ -2064,7 +2064,62 @@ async function fetchSimmonsFinancials() {
     _sfData = { status: 'error', reason: (e && e.message) || String(e) };
     console.warn('[simmons-financials] 로드 실패:', e);
   }
+  /* 상장 경쟁사 분기 실적(dart_quarterly.py 가 주 1회 갱신) — 없으면 그 칸만 안내문 */
+  try {
+    const r2 = await fetch(PQ_DATA_URL, { cache: 'no-store' });
+    _pqData = r2.ok ? await r2.json() : null;
+  } catch (e) { _pqData = null; }
   renderCompetitor();
+}
+
+const PQ_DATA_URL = 'public/data/peer-quarterly.json';
+let _pqData = null;
+
+/** 상장 경쟁사 분기 실적 표 — 최근 4개 분기 매출·영업이익 + 최근 분기의 전년 동기 대비.
+ *  ★ 4분기는 사업보고서 연간 − 1~3분기 합(공시 값끼리 뺄셈)이라 * 로 표시한다.
+ *  ★ 회사 규모가 수십 배 달라(코웨이 vs 지누스) 한 막대 축에 두지 않고 표로 보여 준다. */
+function pqPanel(title) {
+  const d = _pqData;
+  const cs = (d && Array.isArray(d.companies)) ? d.companies.filter((c) => c.quarters && Object.keys(c.quarters).length) : [];
+  if (!cs.length) return sfPanel(title, '억원', '<div class="exh-note">분기 실적 자료를 불러오지 못했습니다.</div>');
+  const keys = [...new Set([].concat(...cs.map((c) => Object.keys(c.quarters))))].sort().slice(-4);
+  const ql = (k) => k.slice(2, 4) + '년 ' + k.slice(5) + 'Q';
+  const pct = (a, b) => (a != null && b) ? (a / b - 1) * 100 : null;
+  const dl = (v, unit) => (v == null ? '' : '<span class="sm-delta ' + (v > 0 ? 'up' : v < 0 ? 'down' : 'flat') + '">'
+    + (v > 0 ? '▲' : v < 0 ? '▼' : '') + Math.abs(v).toFixed(1) + unit + '</span>');
+  let derived = false;
+  const rows = cs.map((c) => {
+    const cells = keys.map((k) => {
+      const q = c.quarters[k];
+      if (!q) return '<td class="pq-t__v">—</td>';
+      if (q.derived) derived = true;
+      const m = (q.op != null && q.rev) ? q.op / q.rev * 100 : null;
+      return '<td class="pq-t__v"><b>' + sfNum(q.rev) + (q.derived ? '*' : '') + '</b>'
+        + '<i>영업이익 ' + (q.op != null ? sfNum(q.op) : '—') + (m != null ? ' (' + m.toFixed(1) + '%)' : '') + '</i></td>';
+    }).join('');
+    const last = Object.keys(c.quarters).sort().pop();
+    const prev = (Number(last.slice(0, 4)) - 1) + last.slice(4);
+    const a = c.quarters[last], b = c.quarters[prev];
+    /* 영업이익은 증감률 대신 이익률 차이(%p) — 0.1억 → -51.8억 같은 흑자·적자 전환에서 증감률은 뜻이 없다 */
+    const mg = (q) => (q && q.op != null && q.rev) ? q.op / q.rev * 100 : null;
+    const dm = (mg(a) != null && mg(b) != null) ? mg(a) - mg(b) : null;
+    const yoy = b ? '<td class="pq-t__y">' + ql(last) + '<br>매출 ' + dl(pct(a.rev, b.rev), '%')
+      + '<br>영업이익률 ' + dl(dm, '%p') + '</td>' : '<td class="pq-t__y">—</td>';
+    return '<tr><th scope="row">' + escapeHtml(c.name) + '</th>' + cells + yoy + '</tr>';
+  }).join('');
+  const dart = cs.map((c) => {
+    const k = Object.keys(c.quarters).sort().pop(), no = c.quarters[k].rcept;
+    return no ? '<a href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=' + encodeURIComponent(no)
+      + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(c.name + ' ' + ql(k)) + ' ↗</a>' : escapeHtml(c.name);
+  }).join(' · ');
+  return sfPanel(title, sfSub('상장사 · ' + (d.basis || '별도 재무제표') + ' · 최근 4개 분기', '억원'),
+    '<div class="pq-wrap"><table class="pq-t"><thead><tr><th>회사</th>' + keys.map((k) => '<th>' + ql(k) + '</th>').join('')
+    + '<th>전년 동기 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div class="sf-pr__foot">시몬스·템퍼코리아·씰리코리아·금성침대는 비상장사라 분기 공시가 없습니다(연간 감사보고서만). '
+    + '코웨이는 매트리스만 따로 공시하지 않아 회사 전체 실적입니다.'
+    + (derived ? ' * 4분기 = 사업보고서 연간 값 − 1~3분기 합.' : '')
+    + ' DART 공시를 매주 자동 확인 · 최근 확인 ' + escapeHtml(d.checkedAt || '') + '</div>'
+    + '<div class="fri-src"><b>출처</b> 금융감독원 전자공시(DART) · ' + dart + '</div>');
 }
 
 /** 억원 표기 — 3,238.7 은 소수점을 버리고 3,239 로(카드가 좁다) */
@@ -2361,6 +2416,8 @@ function sfTreeDefs() {
           const rev = (a.revenue || {}).current, op = (a.operatingProfit || {}).current;
           return (rev && op != null) ? (op / rev * 100) : null;
         }, (v) => v.toFixed(1) + '%') },
+      { id: 'peer-q', label: '상장 경쟁사 분기 실적', sub: '에이스침대·지누스·코웨이', icon: 'line',
+        render: () => pqPanel('상장 경쟁사 분기 실적') },
     ] },
   ];
 }
@@ -3305,7 +3362,7 @@ function renderCompetitor() {
       data-side="${side}" aria-controls="compPanel-${side}">${hero}</button>`;
   el.innerHTML = `
     <div class="comp-tabs" role="tablist" aria-label="국내/국외 보기 전환">
-      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 실적은 DART 감사보고서 자동 갱신',
+      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 연간 실적은 DART 감사·사업보고서, 상장사 분기 실적은 DART 분기보고서로 자동 갱신',
         compGroupBadge('kr'), 'Korea', '', 'viz-hero--tab'))}
       ${tab('gl', vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
         compGroupBadge('gl'), 'Global', '', 'viz-hero--tab'))}

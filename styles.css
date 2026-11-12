@@ -5890,6 +5890,15 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
   font-variant-numeric: tabular-nums; text-align: right; }
 .sf-pr__g.is-me .sf-pr__v { font-weight: 800; color: var(--ink); }
 .sf-pr__foot { margin-top: 10px; font-size: 10px; color: var(--muted); line-height: 1.5; }
+/* 상장 경쟁사 분기 실적 표 */
+.pq-wrap { overflow-x: auto; }
+.pq-t { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pq-t th, .pq-t td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.pq-t thead th { font-size: 11px; color: var(--muted); font-weight: 700; }
+.pq-t th[scope="row"], .pq-t thead th:first-child { text-align: left; color: var(--ink); }
+.pq-t__v b { display: block; font-size: 13px; color: var(--ink); }
+.pq-t__v i { display: block; font-style: normal; font-size: 10.5px; color: var(--muted); }
+.pq-t__y { font-size: 11px; color: var(--slate); line-height: 1.6; }
 
 /* 예측 방법 설명 — 카드 아래, 경고문 위 */
 .icis-fc__how {
