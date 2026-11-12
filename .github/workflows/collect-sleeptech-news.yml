@@ -37,6 +37,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python sleeptech_roster.py
 
+      # 국내 수면시장 규모·매트리스 점유율 — 새 연도 값이 기사에 나오면 갱신
+      - name: 국내 수면시장 규모·점유율 갱신
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python kr_market_news.py
+
       - name: 최근 소식 수집
         continue-on-error: true
         env:
