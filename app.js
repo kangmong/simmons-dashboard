@@ -20760,3 +20760,61 @@ async function askAsk(raw) {
     if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); askToggle(true); }
   });
 })();
+
+
+/* ============================================================
+   대시보드 머리 배너 슬라이드 — 시몬스 공식몰(simmons.co.kr) 메인 배너
+   ★ 배너 목록은 scripts/simmons_banners.js 가 매일 공식몰 화면에서 읽어 둔 파일만 쓴다.
+   ★ 이미지는 공식몰 CDN 주소 그대로, 누르면 그 배너의 공식몰 페이지가 새 탭으로 열린다.
+   ★ 파일이 없거나 비면 예전 머리 배너(제품 사진) 그대로 둔다.
+   ============================================================ */
+(function heroSlides() {
+  const host = document.getElementById('dashHeader');
+  if (!host) return;
+  fetch('public/data/simmons-banners.json', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      const list = (d && Array.isArray(d.slides) ? d.slides : [])
+        .filter((s) => /^https:\/\//.test(s.image) && safeUrl(s.link));
+      if (!list.length) return;
+      const box = document.createElement('div');
+      box.className = 'hero__slides';
+      box.innerHTML = list.map((s, i) => '<a class="hero-sl' + (i ? '' : ' is-on') + '" href="' + escapeHtml(safeUrl(s.link))
+        + '" target="_blank" rel="noopener noreferrer" aria-label="' + escapeHtml((s.title || '시몬스 공식몰 배너') + ' — 공식몰에서 보기')
+        + '"' + (i ? ' tabindex="-1" aria-hidden="true"' : '') + '><img src="' + escapeHtml(s.image) + '" alt="" loading="' + (i ? 'lazy' : 'eager')
+        + '" onerror="this.closest(\'.hero-sl\').remove()">'
+        + (s.title ? '<span class="hero-sl__cap">' + escapeHtml(s.title) + ' <i>공식몰 바로가기 ↗</i></span>' : '')
+        + '</a>').join('')
+        + '<div class="hero-dots" role="tablist" aria-label="배너 선택">' + list.map((s, i) => '<button type="button" class="hero-dot'
+          + (i ? '' : ' is-on') + '" data-herodot="' + i + '" aria-label="' + (i + 1) + '번째 배너"></button>').join('') + '</div>';
+      host.insertBefore(box, host.firstChild);
+      host.insertAdjacentHTML('beforeend', '<button type="button" class="hero-nav hero-nav--prev" data-herostep="-1" aria-label="이전 배너">‹</button>'
+        + '<button type="button" class="hero-nav hero-nav--next" data-herostep="1" aria-label="다음 배너">›</button>');
+      host.classList.add('hero--slides');
+      let cur = 0, timer = null;
+      const show = (n) => {
+        const els = box.querySelectorAll('.hero-sl');
+        if (!els.length) return;
+        cur = (n + els.length) % els.length;
+        els.forEach((el, i) => {
+          el.classList.toggle('is-on', i === cur);
+          el.tabIndex = i === cur ? 0 : -1;
+          el.setAttribute('aria-hidden', String(i !== cur));
+        });
+        box.querySelectorAll('.hero-dot').forEach((b, i) => b.classList.toggle('is-on', i === cur));
+      };
+      /* 자동 넘김 — 6초. 마우스를 올리거나 '동작 줄이기' 설정이면 멈춘다 */
+      const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const play = () => { if (!still && list.length > 1) { clearInterval(timer); timer = setInterval(() => show(cur + 1), 6000); } };
+      host.addEventListener('click', (e) => {
+        const st = e.target.closest('[data-herostep]');
+        const dt = e.target.closest('[data-herodot]');
+        if (st) { show(cur + Number(st.getAttribute('data-herostep'))); play(); }
+        if (dt) { show(Number(dt.getAttribute('data-herodot'))); play(); }
+      });
+      host.addEventListener('mouseenter', () => clearInterval(timer));
+      host.addEventListener('mouseleave', play);
+      play();
+    })
+    .catch(() => { /* 배너가 없어도 머리 배너는 그대로 */ });
+})();

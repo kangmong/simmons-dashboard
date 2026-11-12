@@ -1,0 +1,52 @@
+name: 시몬스 공식몰 메인 배너 수집 (매일)
+
+# 대시보드 머리 배너 슬라이드용. 공식몰(simmons.co.kr) 홈페이지를 브라우저로 열어
+# 화면에 뜬 상단 배너 이미지·링크만 읽는다(scripts/simmons_banners.js).
+# ★ 실패하거나 0장이면 기존 public/data/simmons-banners.json 을 그대로 둔다.
+on:
+  schedule:
+    - cron: '0 23 * * *'      # UTC 23:00 = KST 08:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-simmons-banners
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 수집에만 쓰는 도구 — 사이트(app.js)에는 들어가지 않는다
+      - name: 브라우저 준비
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.47.2
+          npx playwright install --with-deps chromium
+
+      - name: 배너 읽기
+        continue-on-error: true
+        run: node scripts/simmons_banners.js
+
+      - name: 변경 있을 때만 커밋·푸시
+        if: always()
+        run: |
+          F="public/data/simmons-banners.json"
+          if git diff --quiet -- $F; then
+            echo "변경 없음 → 커밋 생략"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $F
+          git commit -m "자동 수집: 시몬스 공식몰 메인 배너 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git pull --rebase -q
+          git push

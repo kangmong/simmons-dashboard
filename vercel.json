@@ -109,6 +109,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/simmons-banners.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/peer-quarterly.json",
       "use": "@vercel/static"
     },
