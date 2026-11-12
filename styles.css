@@ -4810,6 +4810,9 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 .pt-chip:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .pt-chip.is-on { background: var(--navy); border-color: var(--navy); color: #fff; }
 .pt-chip.is-on b { color: #fff; }
+.pt-chip b small { font-size: .85em; font-weight: 600; opacity: .6; margin-left: 1px; }
+.pt-chip.is-zero { opacity: .5; }
+.pt-chips__n { font-size: 10.5px; color: var(--muted); margin: 0 0 6px; }
 
 /* 출원 상세 — 이미 받아 둔 데이터로 채우는 패널 */
 .ptd-back {

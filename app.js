@@ -17598,13 +17598,13 @@ function ptActiveFilters() {
   return out;
 }
 
-/** 걸린 필터를 모두 통과한 행만 남긴다. */
-function ptApplyFilters(rows) {
+/** 걸린 필터를 모두 통과한 행만 남긴다. skip='co' 면 출원인 필터만 빼고 거른다. */
+function ptApplyFilters(rows, skip) {
   return rows.filter((r) => {
     if (_ptYear && String(r.date || '').slice(0, 4) !== _ptYear) return false;
     if (_ptKind && (r.kind || '미표기') !== _ptKind) return false;
     if (_ptCat && (r.catLabel || '기타/미분류') !== _ptCat) return false;
-    if (_ptCo && (r.company || '미표기') !== _ptCo) return false;
+    if (_ptCo && skip !== 'co' && (r.company || '미표기') !== _ptCo) return false;
     if (_ptKw && (r.words || []).indexOf(_ptKw) < 0) return false;
     return true;
   });
@@ -18449,14 +18449,25 @@ function ptRecent(rows) {
   const cos = ptStackOrder(rows);
   const cnt = {};
   rows.forEach((r) => { const k = r.company || '미표기'; cnt[k] = (cnt[k] || 0) + 1; });
+  /* ★ 연도·유형·분야·키워드 조건이 걸리면 '조건에 맞는 건수 / 전체 건수'로 쓴다.
+     예전에는 전체(코웨이 48)만 써서, 2025년 코웨이 18건을 골라 놓고도
+     버튼에는 48이 떠 목록 18건과 헷갈렸다. 출원인 조건은 빼고 센다(버튼 자체가 출원인을 고른다). */
+  const narrowed = !!(_ptYear || _ptKind || _ptCat || _ptKw);
+  const sel = {};
+  if (narrowed) ptApplyFilters(rows, 'co').forEach((r) => { const k = r.company || '미표기'; sel[k] = (sel[k] || 0) + 1; });
   /* ★ '전체 N' 칩은 두지 않는다 — 합계는 카드 제목과 KPI 가 이미 말하고,
      해제는 필터가 걸릴 때만 나오는 [전체 보기] 버튼이 맡는다. */
   const chips = '<div class="pt-chips" role="group" aria-label="출원인 골라 보기">'
-    + cos.filter((c) => cnt[c.label]).map((c) => '<button class="pt-chip'
-      + (_ptCo === c.label ? ' is-on' : '') + '" type="button" data-ptco="'
-      + escapeHtml(c.label) + '"><i style="background:' + c.color + '"></i>'
-      + escapeHtml(c.label) + ' <b>' + cnt[c.label] + '</b></button>').join('')
-    + '</div>';
+    + cos.filter((c) => cnt[c.label]).map((c) => {
+      const s = sel[c.label] || 0;
+      return '<button class="pt-chip' + (_ptCo === c.label ? ' is-on' : '')
+        + (narrowed && !s ? ' is-zero' : '') + '" type="button" data-ptco="'
+        + escapeHtml(c.label) + '"' + (narrowed ? ' title="선택한 조건 ' + s + '건 / 전체 ' + cnt[c.label] + '건"' : '')
+        + '><i style="background:' + c.color + '"></i>'
+        + escapeHtml(c.label) + ' <b>' + (narrowed ? s + '<small>/' + cnt[c.label] + '</small>' : cnt[c.label]) + '</b></button>';
+    }).join('')
+    + '</div>'
+    + (narrowed ? '<div class="pt-chips__n">숫자 = 선택한 조건에 맞는 건수 / 전체 건수</div>' : '');
 
   const picked = ptApplyFilters(rows);
   const act = ptActiveFilters();
