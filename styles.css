@@ -384,23 +384,25 @@ body {
 
 /* 공식몰 배너 슬라이드(app.js heroSlides) — 오른쪽에 깔고 왼쪽 끝을 흐려 제목과 겹치지 않게.
    좌우 화살표 자리만큼 안쪽 여백을 늘린다. */
-.hero--slides { padding-left: 64px; padding-right: 64px; min-height: 132px; }
+/* ★ 공식몰 배너 원본은 2.2:1 이고 글자가 아래쪽(높이 72~82%)에 있다. 132px 높이에 cover 로
+     맞추면 가운데 1/3 만 보여 글자가 잘렸다 → 높이를 196px 로 늘리고 보이는 위치를 아래(78%)로 내린다. */
+.hero--slides { padding-left: 64px; padding-right: 64px; min-height: 196px; align-items: center; }
 .hero--slides .hero__photo { display: none; }
 .hero__slides { position: absolute; top: 0; right: 0; bottom: 0; width: 60%; z-index: 0;
   -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%); mask-image: linear-gradient(to right, transparent 0%, #000 30%); }
 .hero-sl { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility .6s; }
 .hero-sl.is-on { opacity: 1; visibility: visible; }
-.hero-sl img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
-.hero-sl__cap { position: absolute; left: 34%; bottom: 26px; padding: 4px 10px; border-radius: 999px;
+.hero-sl img { width: 100%; height: 100%; object-fit: cover; object-position: center 78%; display: block; }
+.hero-sl__cap { position: absolute; left: 34%; top: 12px; padding: 4px 10px; border-radius: 999px;
   background: rgba(15, 23, 42, .62); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .hero-sl__cap i { font-style: normal; font-weight: 600; opacity: .8; margin-left: 4px; }
 .hero-sl:hover .hero-sl__cap, .hero-sl:focus-visible .hero-sl__cap { background: rgba(15, 23, 42, .85); }
-.hero-dots { position: absolute; left: 34%; right: 0; bottom: 8px; display: flex; justify-content: center; gap: 6px; z-index: 2; }
+.hero-dots { position: absolute; right: 18px; bottom: 12px; display: flex; gap: 6px; z-index: 2; }
 .hero-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #fff; background: transparent; padding: 0; cursor: pointer; }
 .hero-dot.is-on { background: #fff; }
 .hero-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 36px; height: 36px; border-radius: 50%;
-  border: 0; background: rgba(255, 255, 255, .22); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
-.hero-nav:hover { background: rgba(255, 255, 255, .38); }
+  border: 1px solid rgba(255, 255, 255, .35); background: rgba(15, 23, 42, .5); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.hero-nav:hover { background: rgba(15, 23, 42, .75); }
 .hero-nav:focus-visible, .hero-dot:focus-visible, .hero-sl:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .hero-nav--prev { left: 14px; }
 .hero-nav--next { right: 14px; }
@@ -409,7 +411,6 @@ body {
   .hero--slides { padding-left: 52px; padding-right: 52px; }
   .hero__slides { width: 100%; opacity: .35; }
   .hero-sl__cap { display: none; }
-  .hero-dots { left: 0; }
 }
 .hero__eyebrow {
   margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .01em;
