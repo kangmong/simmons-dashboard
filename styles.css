@@ -4064,6 +4064,7 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
 .gsl-t tbody tr:hover { background: var(--row-hover); }
 .gsl-t__v { font-weight: 700; color: var(--ink); }
 .gsl-t__p { color: var(--muted); }
+.gsl-t__s { color: var(--muted); font-size: .9em; text-align: right; }
 
 /* -- 글로벌 매트리스 시장 규모 -------------------------------------------
    요약박스는 .sr-sum 을 재사용하고, 3분할 카드와 칩만 여기서 정의한다. */

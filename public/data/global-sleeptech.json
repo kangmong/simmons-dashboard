@@ -627,7 +627,9 @@
         "usdEok": 4110,
         "label": "4,110억 달러",
         "gdpPct": 2.28,
-        "dir": "b"
+        "dir": "b",
+        "year": 2016,
+        "src": "RAND Europe"
       },
       {
         "iso": "JPN",
@@ -635,7 +637,9 @@
         "usdEok": 1380,
         "label": "1,380억 달러",
         "gdpPct": 2.92,
-        "dir": "r"
+        "dir": "r",
+        "year": 2016,
+        "src": "RAND Europe"
       },
       {
         "iso": "DEU",
@@ -643,7 +647,9 @@
         "usdEok": 600,
         "label": "600억 달러",
         "gdpPct": 1.56,
-        "dir": "r"
+        "dir": "r",
+        "year": 2016,
+        "src": "RAND Europe"
       },
       {
         "iso": "GBR",
@@ -651,7 +657,9 @@
         "usdEok": 500,
         "label": "500억 달러",
         "gdpPct": 1.86,
-        "dir": "l"
+        "dir": "l",
+        "year": 2016,
+        "src": "RAND Europe"
       },
       {
         "iso": "CAN",
@@ -659,10 +667,13 @@
         "usdEok": 214,
         "label": "214억 달러",
         "gdpPct": 1.35,
-        "dir": "t"
+        "dir": "t",
+        "year": 2016,
+        "src": "RAND Europe"
       }
     ],
     "legendNote": "원의 크기는 손실 금액에 비례합니다(면적 기준).",
-    "source": "2016년 RAND Europe 연구 · 2026년 현재까지 갱신된 후속 연구 없음 (가장 최근까지 반복 인용되는 유일한 기준치)"
+    "source": "2016년 RAND Europe 연구 · 새 연구·통계 기사를 매월 자동 확인(2026-11-12)",
+    "checkedAt": "2026-11-12"
   }
 }

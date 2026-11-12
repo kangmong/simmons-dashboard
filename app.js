@@ -2866,9 +2866,18 @@ function gsSleepLoss(s) {
       + '</div>';
   }).join('');
   /* 지도에서 겹쳐 읽기 어려운 값은 아래 표가 그대로 받아 준다 */
-  const rows = items.map((x) => '<tr><th scope="row">' + escapeHtml(x.ko) + '</th>'
-    + '<td class="gsl-t__v">' + escapeHtml(x.label || '') + '</td>'
-    + '<td class="gsl-t__p">' + (x.gdpPct != null ? x.gdpPct + '%' : '—') + '</td></tr>').join('');
+  /* 나라마다 출처·연도가 다를 수 있다(sleep_loss.py 가 새 연구로 나라별 교체) — 표에 그대로 밝힌다 */
+  const hasSrc = items.some((x) => x.src);
+  const rows = items.map((x) => {
+    const u = safeUrl(x.url);
+    const s = (x.src || '') + (x.year ? ' ' + x.year : '');
+    return '<tr><th scope="row">' + escapeHtml(x.ko) + '</th>'
+      + '<td class="gsl-t__v">' + escapeHtml(x.label || '') + '</td>'
+      + '<td class="gsl-t__p">' + (x.gdpPct != null ? x.gdpPct + '%' : '—') + '</td>'
+      + (hasSrc ? '<td class="gsl-t__s">' + (u ? '<a class="src-link" href="' + escapeHtml(u)
+        + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(s) + '</a>' : escapeHtml(s)) + '</td>' : '')
+      + '</tr>';
+  }).join('');
   return '<div class="sm-card gs-card">'
     + '<div class="sm-h">' + escapeHtml(s.title || '수면 부족으로 인한 경제 손실')
     + ' <span class="sm-h__u">(단위: ' + escapeHtml(s.unit || '억 달러') + ')</span></div>'
@@ -2876,7 +2885,7 @@ function gsSleepLoss(s) {
     + '<div class="gsl-map"><img class="gsl-map__img" src="world-map.svg" alt=""'
     + ' aria-hidden="true"><div class="gsl-marks">' + dots + '</div></div>'
     + '<table class="gsl-t"><thead><tr><th>국가</th><th>손실 규모</th>'
-    + '<th>GDP 대비</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<th>GDP 대비</th>' + (hasSrc ? '<th>출처·연도</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table>'
     + (s.legendNote ? '<div class="sm-foot">' + escapeHtml(s.legendNote) + '</div>' : '')
     + (s.source ? '<div class="sm-foot">' + escapeHtml(s.source) + '</div>' : '')
     + '</div>';

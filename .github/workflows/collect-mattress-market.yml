@@ -40,6 +40,15 @@ jobs:
         continue-on-error: true
         run: python sleeptech_market.py
 
+      # 수면 부족 경제 손실 — 새 연구·통계 기사가 있으면 나라별 교체/추가
+      - name: 수면 부족 경제 손실 새 자료 확인
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          pip install -q -r requirements.txt
+          python sleep_loss.py
+
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
