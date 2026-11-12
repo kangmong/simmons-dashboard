@@ -300,9 +300,14 @@ body {
 .nav-item.is-active .nav-ico { opacity: 1; }
 
 /* ── 상시 데이터 업로드 위젯 (사이드바 하단) ── */
+/* ★ 스크롤을 따라 움직인다(sticky) — 메뉴가 길어 맨 아래에 있으면 화면 밖에 묻혔다.
+   메뉴 위에 겹쳐 떠 있으므로 배경을 깔아 뒤 글자가 비치지 않게 한다. */
 .upload-widget {
+  position: sticky; bottom: 0; z-index: 2;
   border-top: 1px solid var(--nav-line);
-  padding-top: 14px; margin-top: 6px;
+  padding: 14px 10px 12px; margin: 6px -10px -12px;
+  background: rgba(22, 9, 6, .92);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   display: flex; flex-direction: column; gap: 10px;
 }
 .uw-title { font-size: 13px; font-weight: 700; color: var(--nav-ink); }
@@ -4576,12 +4581,26 @@ a.kr-nw__t:hover { color: var(--accent); text-decoration: underline; }
 /* 비활성 — 물러나 있다 */
 .comp-tab[aria-selected="false"] .viz-hero { opacity: .5; }
 .comp-tab[aria-selected="false"]:hover .viz-hero { opacity: .72; }
-/* 활성 — 더 밝은 네이비 + 하단 강조선 */
-.comp-tab[aria-selected="true"] .viz-hero {
-  background: linear-gradient(135deg, var(--navy-2) 0%,
-    color-mix(in srgb, var(--blue) 52%, var(--navy-2)) 100%);
-  box-shadow: inset 0 -3px 0 var(--blue);
+/* 활성 — 하단 강조선 */
+.comp-tab[aria-selected="true"] .viz-hero { box-shadow: inset 0 -3px 0 var(--blue); }
+/* 국내(남산타워 야경)·국외(지구본) 배경 — 왼쪽은 색, 오른쪽으로 사진이 이어진다.
+   사진은 사용자가 준 이미지(public/banners/comp-*.jpg). 이름만 두고 가운데 정렬. */
+.viz-hero--kr, .viz-hero--gl { align-items: center; min-height: 96px; padding: 18px 22px; overflow: hidden; }
+.viz-hero--kr {
+  background:
+    linear-gradient(to right, #12357F 0%, #1A47A0 40%, rgba(26, 71, 160, 0) 64%),
+    url("public/banners/comp-korea.jpg") right 60% / max(60%, 190px) auto no-repeat, #1A47A0;
 }
+.viz-hero--gl {
+  color: #13306B;
+  background:
+    linear-gradient(to right, #EEF4FD 0%, #DCE8FA 40%, rgba(220, 232, 250, 0) 64%),
+    url("public/banners/comp-global.jpg") right 40% / max(60%, 190px) auto no-repeat, #DCE8FA;
+}
+.viz-hero--gl .viz-hero__ico { background: #2F4F98; color: #fff; }
+.viz-hero--gl .viz-hero__title i { color: #2F4F98; }
+.viz-hero--kr .viz-hero__title, .viz-hero--gl .viz-hero__title { font-size: 20px; }
+.viz-hero--kr .viz-hero__title i, .viz-hero--gl .viz-hero__title i { font-size: 15px; font-weight: 500; margin-left: 2px; }
 /* 탭으로 감춘 패널 — display 를 쓰는 요소도 확실히 접히게 !important 를 둔다.
    ★★ 이 !important 때문에 `.무엇.is-off` 로 더 좁게 써도 이 규칙이 이긴다.
       '흐리게'를 뜻하는 상태에는 절대 is-off 를 쓰지 말 것(is-dim 을 쓴다) —

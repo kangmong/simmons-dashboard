@@ -3020,18 +3020,10 @@ function gtGlobalHtml() {
 /* 국외 섹션 소제목 — 블록이 늘어난 만큼만 문구를 늘린다.
    ★ 해외 슬립테크 데이터가 없으면(로드 실패·구버전) 예전 문구를 그대로 돌려준다. */
 const GT_SUB_GMM = '글로벌 매트리스 시장 규모';
-const GT_DESC_GMM = '세계 매트리스 시장의 규모·성장률·지역·주요 기업 · '
-  + 'Global Market Insights 공개 요약을 월 1회 자동 수집(조사기관 추정치)';
 
 function gtSubTitle() {
   return (_gsData && _gsData.status === 'ok')
     ? GT_SUB_GMM + ' · 해외 슬립테크 시장' : GT_SUB_GMM;
-}
-
-function gtSubDesc() {
-  return (_gsData && _gsData.status === 'ok')
-    ? GT_DESC_GMM + ' · 슬립테크 기기 시장 규모는 월 1회, 주요 기업·CES 수상은 CES 공식 수상자 목록으로 주 1회 자동 갱신, 최근 소식은 주 1회 뉴스 자동 수집'
-    : GT_DESC_GMM;
 }
 
 /* ── 원화 병기 공용 헬퍼 (순수 추가) ─────────────────────────────────────
@@ -3309,23 +3301,6 @@ function wireBrandSide() {
   });
 }
 
-/** 국내/국외 배너 오른쪽 요약 배지. 숫자는 로드된 데이터에서 센다.
- *  ★ 세어질 게 없으면 빈 문자열 → vizHero 가 배지를 아예 그리지 않는다. */
-function compGroupBadge(side) {
-  const parts = [];
-  if (side === 'kr') {
-    const n = (_smData && _smData.status === 'ok' && _smData.sleepTech
-      && (_smData.sleepTech.companies || []).length) || 0;
-    if (n) parts.push('기업 ' + n + '곳');
-  } else {
-    const st = (_gsData && _gsData.status === 'ok') ? _gsData.sleepTech : null;
-    const n = (st && (st.companies || []).length) || 0;
-    if (n) parts.push('기업 ' + n + '곳');
-    if (st && st.cesAwards && (st.cesAwards.items || []).length) parts.push('CES 수상 확인');
-  }
-  return parts.join(' · ');
-}
-
 function renderCompetitor() {
   const el = document.getElementById('compRoot');
   if (!el) return;
@@ -3357,15 +3332,14 @@ function renderCompetitor() {
 
   /* 국내/국외 구분은 배너(.viz-hero)로 세운다 — 스크롤 중에도 '여기서부터
      구분이 바뀐다'가 한눈에 보이도록, 원자재 섹션 배너와 같은 컴포넌트를 쓴다.
-     ★ 요약 배지는 데이터에서 센다(기업 수를 코드에 적어 두면 카드가 늘 때 어긋난다). */
+     ★ 이름(국내 Korea / 국외 Global)만 둔다 — 설명 문장·기업 수 배지는 뺐다.
+       배경 사진(남산타워·지구본)은 CSS .viz-hero--kr / --gl 이 깐다. */
   const tab = (side, hero) => `<button class="comp-tab" type="button" role="tab"
       data-side="${side}" aria-controls="compPanel-${side}">${hero}</button>`;
   el.innerHTML = `
     <div class="comp-tabs" role="tablist" aria-label="국내/국외 보기 전환">
-      ${tab('kr', vizHero('pin', '국내', '시몬스·경쟁사 실적과 시장 점유율 · 단위 억원 · 연간 실적은 DART 감사·사업보고서, 상장사 분기 실적은 DART 분기보고서로 자동 갱신',
-        compGroupBadge('kr'), 'Korea', '', 'viz-hero--tab'))}
-      ${tab('gl', vizHero('globe', '국외', gTier ? gtSubDesc() : '매출·순이익 · 전년 동기 대비(YoY) 기준 · SEC EDGAR',
-        compGroupBadge('gl'), 'Global', '', 'viz-hero--tab'))}
+      ${tab('kr', vizHero('pin', '국내', '', null, 'Korea', '', 'viz-hero--tab viz-hero--kr'))}
+      ${tab('gl', vizHero('globe', '국외', '', null, 'Global', '', 'viz-hero--tab viz-hero--gl'))}
     </div>
     <div class="comp-panel comp-group" data-side="kr" id="compPanel-kr" role="tabpanel">
       ${koreaHtml}
