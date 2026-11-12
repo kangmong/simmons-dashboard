@@ -381,19 +381,18 @@ body {
 .hero__slides { position: absolute; inset: 0; z-index: 0; }
 .hero-sl { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility .6s; overflow: hidden; }
 .hero-sl.is-on { opacity: 1; visibility: visible; }
-.hero-sl__bg { position: absolute; inset: -24px; background: center / cover no-repeat;
-  filter: blur(28px) brightness(.55) saturate(1.15); }
-/* 왼쪽 제목 쪽만 어둡게 — 흰 글자가 밝은 사진(26FW 등) 위에서도 읽히게 */
-.hero-sl::after { content: ""; position: absolute; inset: 0;
-  background: linear-gradient(to right, rgba(10, 14, 30, .72) 0%, rgba(10, 14, 30, .45) 40%, rgba(10, 14, 30, 0) 62%); }
-.hero-sl__pic { position: absolute; top: 0; bottom: 0; right: 60px; aspect-ratio: 5120 / 2304; max-width: 60%; z-index: 1;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%); }
-.hero-sl img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
-.hero-sl__cap { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; padding: 4px 10px; border-radius: 999px;
-  background: rgba(15, 23, 42, .62); color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.hero-sl__cap i { font-style: normal; font-weight: 600; opacity: .8; margin-left: 4px; }
-.hero-sl:hover .hero-sl__cap, .hero-sl:focus-visible .hero-sl__cap { background: rgba(15, 23, 42, .85); }
+/* 배경 = 사진의 왼쪽 가장자리(커튼·벽 같은 바탕색)만 크게 펼쳐 흐린 것 — 가운데(침대)를 늘리면 탁해 보였다 */
+.hero-sl__bg { position: absolute; inset: -30px; background: left center / 420% auto no-repeat;
+  filter: blur(24px) brightness(.8) saturate(1.1); }
+/* 왼쪽 제목 쪽만 살짝 어둡게 — 흰 글자가 밝은 사진(26FW 등) 위에서도 읽히게 */
+.hero-sl::after { content: ""; position: absolute; inset: 0; z-index: 1;
+  background: linear-gradient(to right, rgba(10, 14, 30, .5) 0%, rgba(10, 14, 30, .25) 40%, rgba(10, 14, 30, 0) 58%); }
+/* 선명한 원본 — 오른쪽 끝까지 크게(높이의 1.6배 크기로 키워 위아래 19%씩만 넘침: 침대와 글자는 남는다).
+   왼쪽 끝은 배경 쪽으로 흐려 이어 붙인다. */
+.hero-sl__pic { position: absolute; top: 0; bottom: 0; right: 0; aspect-ratio: 3.556; max-width: 66%; z-index: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 34%); }
+.hero-sl img { width: 100%; height: 100%; object-fit: cover; object-position: center 72%; display: block; }
 .hero-dots { position: absolute; right: 22px; bottom: 10px; display: flex; gap: 6px; z-index: 2; }
 .hero-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #fff; background: transparent; padding: 0; cursor: pointer; }
 .hero-dot.is-on { background: #fff; }
@@ -406,7 +405,6 @@ body {
 @media (max-width: 720px) {
   .hero--slides { padding-left: 52px; padding-right: 52px; }
   .hero-sl__pic { right: 0; opacity: .45; }
-  .hero-sl__cap { display: none; }
 }
 .hero__eyebrow {
   margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .01em;
