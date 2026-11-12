@@ -20357,11 +20357,18 @@ const ASK_GROUPS = [
 
 function askHiHtml() {
   return '<div class="ask-hi"><div class="ask-hi__b"><span class="ask-hi__ico" aria-hidden="true">AI</span><div>'
-    + '<b>AI 비서가 무엇을 도와드릴까요?</b><span>원하시는 항목을 골라 물어보세요.</span></div></div>'
+    + '<b>안녕하세요, 시몬스 비서입니다. 무엇을 도와드릴까요?</b></div></div></div>';
+}
+
+/* '항목 보여줘'·'메뉴'·'뭘 물어볼 수 있어?' 같은 말 — 서버에 보내지 않고 바로 항목 카드로 답한다 */
+const ASK_MENU_RE = /^(항목|메뉴|목록|카테고리|분야|도움말|도움|help)\s*(좀\s*)?(보여\s*(줘|주세요|줄래)|알려\s*(줘|주세요)|뭐\s*있어)?\s*[?？.!~]*$|(뭘|뭐|무엇을|어떤\s*걸|어떤\s*것을?)\s*(물어|질문|할\s*수|도와)|어떤\s*(항목|질문|메뉴)/i;
+
+function askMenuHtml() {
+  return '<div class="ask-a ask-menu"><p>원하시는 항목을 골라 물어보세요.</p>'
     + '<div class="ask-cats" role="group" aria-label="질문 항목">' + ASK_GROUPS.map(([g, d], i) =>
       '<button type="button" class="ask-cat" data-askcat="' + i + '" aria-expanded="false"><b>' + escapeHtml(g)
       + '</b><span>' + escapeHtml(d) + '</span></button>').join('') + '</div>'
-    + '<div class="ask-catq" id="askCatQ" hidden></div>'
+    + '<div class="ask-catq" hidden></div>'
     + '<div class="ask-hi__s">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div></div>';
 }
 const ASK_Q_MAX = 200;
@@ -20390,7 +20397,7 @@ function askPanel() {
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
     + '<div class="ask-log" id="askLog" aria-live="polite">' + askHiHtml() + '</div>'
     + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
-    + '" placeholder="예: PPG 가격이 최근에 얼마나 올랐어?"></textarea>'
+    + '" placeholder="질문을 입력하세요 · 예: 항목 보여줘 / PPG 가격 최근 변화는?"></textarea>'
     + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
     + '<span class="ask-f__acts"><button type="button" class="ask-clear" data-askclear title="질문·답을 모두 지우고 새로 시작">지우기</button>'
     + '<button type="submit" class="ask-send">보내기</button></span></div></form>'
@@ -20411,9 +20418,10 @@ function askPanel() {
     }
     const cat = e.target.closest('[data-askcat]');
     if (cat) {   // 항목을 누르면 그 항목의 예시 질문만 펼친다(다시 누르면 접는다)
-      const box = p.querySelector('#askCatQ');
+      const menu = cat.closest('.ask-menu');
+      const box = menu.querySelector('.ask-catq');
       const on = cat.getAttribute('aria-expanded') !== 'true';
-      p.querySelectorAll('[data-askcat]').forEach((b) => { b.setAttribute('aria-expanded', 'false'); b.classList.remove('is-on'); });
+      menu.querySelectorAll('[data-askcat]').forEach((b) => { b.setAttribute('aria-expanded', 'false'); b.classList.remove('is-on'); });
       box.hidden = !on;
       if (on) {
         const g = ASK_GROUPS[+cat.getAttribute('data-askcat')];
@@ -20618,6 +20626,7 @@ function askTurn(q, r) {
   return turn;
 }
 function askResultHtml(turn, r) {
+  if (r.ok && r.kind === 'menu') return askMenuHtml();
   if (r.ok && r.kind === 'answer') { turn._askR = r; return askAnswerHtml(r, turn._askQ); }
   return askInfoHtml(r);
 }
@@ -20626,6 +20635,14 @@ async function askAsk(raw) {
   const p = askPanel();
   const q = String(raw || '').trim();
   if (!q || _askBusy) return;
+  if (ASK_MENU_RE.test(q)) {   // 항목 안내는 화면에서 바로
+    const t = askTurn(q, { ok: true, kind: 'menu' });
+    const ta0 = p.querySelector('#askQ');
+    ta0.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
+    _askHist = _askHist.concat([{ q, r: { ok: true, kind: 'menu' } }]).slice(-ASK_KEEP); askSave();
+    t.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    return;
+  }
   const turn = askTurn(q, null);
   turn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   const ta = p.querySelector('#askQ');
