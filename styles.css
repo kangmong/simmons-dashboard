@@ -6667,6 +6667,25 @@ button.exh-li { width: 100%; font: inherit; text-align: left; border: 0; cursor:
 .ask-ex summary span { display: block; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 2px; }
 .ask-ex__g { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0; }
 .ask-ex__g em { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--muted); width: 54px; flex: none; }
+.ask-hi { display: flex; flex-direction: column; gap: 10px; }
+.ask-hi__b { display: flex; gap: 10px; align-items: flex-start; }
+.ask-hi__b > div { display: flex; flex-direction: column; gap: 2px; background: var(--field); border-radius: 2px 12px 12px 12px; padding: 10px 12px; }
+.ask-hi__b b { font-size: 14px; color: var(--ink); }
+.ask-hi__b span { font-size: 12.5px; color: var(--muted); }
+.ask-hi__ico { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--navy); color: #fff; font-size: 10.5px; font-weight: 800; }
+.ask-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-left: 38px; }
+.ask-cat { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); }
+.ask-cat b { font-size: 13px; }
+.ask-cat span { font-size: 11px; color: var(--muted); }
+.ask-cat:hover { border-color: var(--blue); }
+.ask-cat.is-on { border-color: var(--navy); background: var(--navy); color: #fff; }
+.ask-cat.is-on span { color: rgba(255,255,255,.75); }
+.ask-catq { display: flex; flex-wrap: wrap; gap: 6px; margin-left: 38px; }
+.ask-catq[hidden] { display: none; }
+.ask-catq em { width: 100%; font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--muted); }
+.ask-hi__s { font-size: 10.5px; color: var(--muted); margin-left: 38px; }
 .ask-chip { font: inherit; font-size: 11.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--field); color: var(--ink); cursor: pointer; }
 .ask-chip:hover { border-color: var(--blue); }

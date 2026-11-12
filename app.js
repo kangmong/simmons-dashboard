@@ -20347,12 +20347,23 @@ function renderExhExtra() {
    ★ 대화는 최근 3개만 이 브라우저(localStorage)에 남긴다. 서버에는 저장하지 않는다. '지우기'로 모두 지운다.
    ★ 핵심 숫자 카드(kpi)·후속 질문(follow)도 서버가 코드로 만든 값 그대로 보여 준다.
    ============================================================ */
+/* 첫 화면: 인사 → 항목 고르기 → 그 항목의 예시 질문 */
 const ASK_GROUPS = [
-  ['원자재', ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?']],
-  ['물류·환율', ['해상 정시성 가장 낮은 노선은?', '달러 환율 한 달 새 얼마나 변했어?']],
-  ['경쟁사', ['시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?', '최근 특허 출원 많은 회사는?']],
-  ['일정·뉴스', ['다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘']],
+  ['원자재', 'PPG·TDI·유가 등 원가', ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?', '이번 달 가장 많이 내린 원자재는?']],
+  ['물류·환율', '해상 운임·정시성·환율', ['해상 정시성 가장 낮은 노선은?', '아시아 북미 동안 정시성 추이', '달러 환율 한 달 새 얼마나 변했어?']],
+  ['경쟁사', '실적·주가·특허', ['시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?', '최근 특허 출원 많은 회사는?']],
+  ['일정·뉴스', '전시회·세계 시간·소식', ['다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘']],
 ];
+
+function askHiHtml() {
+  return '<div class="ask-hi"><div class="ask-hi__b"><span class="ask-hi__ico" aria-hidden="true">AI</span><div>'
+    + '<b>AI 비서가 무엇을 도와드릴까요?</b><span>원하시는 항목을 골라 물어보세요.</span></div></div>'
+    + '<div class="ask-cats" role="group" aria-label="질문 항목">' + ASK_GROUPS.map(([g, d], i) =>
+      '<button type="button" class="ask-cat" data-askcat="' + i + '" aria-expanded="false"><b>' + escapeHtml(g)
+      + '</b><span>' + escapeHtml(d) + '</span></button>').join('') + '</div>'
+    + '<div class="ask-catq" id="askCatQ" hidden></div>'
+    + '<div class="ask-hi__s">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div></div>';
+}
 const ASK_Q_MAX = 200;
 const ASK_KEEP = 3;          // 이 창에 남기는 질문 수
 const ASK_STORE = 'askHist'; // 이 브라우저에만 저장(서버에는 저장하지 않는다)
@@ -20377,11 +20388,7 @@ function askPanel() {
     + '<span class="ask-h__s"><i class="ask-dot" aria-hidden="true"></i>데이터 기준 <span id="askAsOf">업데이트 전</span></span></div>'
     + '<span class="ask-beta">베타</span>'
     + '<button type="button" class="ask-x" data-askclose aria-label="닫기">✕</button></div>'
-    + '<details class="ask-ex" id="askEx" open><summary>예시 질문 <span>대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다</span></summary>'
-    + ASK_GROUPS.map(([g, qs]) => '<div class="ask-ex__g"><em>' + escapeHtml(g) + '</em>' + qs.map((q) =>
-      '<button type="button" class="ask-chip" data-askq="' + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('') + '</div>').join('')
-    + '</details>'
-    + '<div class="ask-log" id="askLog" aria-live="polite"></div>'
+    + '<div class="ask-log" id="askLog" aria-live="polite">' + askHiHtml() + '</div>'
     + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
     + '" placeholder="예: PPG 가격이 최근에 얼마나 올랐어?"></textarea>'
     + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
@@ -20394,13 +20401,26 @@ function askPanel() {
     /* 지우기 — 질문·답, 입력 중인 글, 이어 묻기 기억, 브라우저 저장분을 모두 비운다 */
     if (e.target.closest('[data-askclear]')) {
       if (_askBusy) return;
-      p.querySelector('#askLog').innerHTML = '';
+      p.querySelector('#askLog').innerHTML = askHiHtml();
       _askPrev = []; _askHist = [];
       try { localStorage.removeItem(ASK_STORE); } catch (err) { /* 무시 */ }
-      p.querySelector('#askEx').open = true;
       const t = p.querySelector('#askQ');
       t.value = ''; p.querySelector('#askN').textContent = '0/' + ASK_Q_MAX;
       t.focus();
+      return;
+    }
+    const cat = e.target.closest('[data-askcat]');
+    if (cat) {   // 항목을 누르면 그 항목의 예시 질문만 펼친다(다시 누르면 접는다)
+      const box = p.querySelector('#askCatQ');
+      const on = cat.getAttribute('aria-expanded') !== 'true';
+      p.querySelectorAll('[data-askcat]').forEach((b) => { b.setAttribute('aria-expanded', 'false'); b.classList.remove('is-on'); });
+      box.hidden = !on;
+      if (on) {
+        const g = ASK_GROUPS[+cat.getAttribute('data-askcat')];
+        cat.setAttribute('aria-expanded', 'true'); cat.classList.add('is-on');
+        box.innerHTML = '<em>' + escapeHtml(g[0]) + ' 예시 질문</em>' + g[2].map((q) =>
+          '<button type="button" class="ask-chip" data-askq="' + escapeHtml(q) + '">' + escapeHtml(q) + '</button>').join('');
+      }
       return;
     }
     const cp = e.target.closest('[data-askcopy]');
@@ -20433,7 +20453,6 @@ function askPanel() {
       _askHist = s.h.slice(-ASK_KEEP);
       _askPrev = Array.isArray(s.prev) ? s.prev : [];
       _askHist.forEach((t) => askTurn(t.q, t.r));
-      if (_askHist.length) p.querySelector('#askEx').open = false;
     }
   } catch (e) { _askHist = []; }
   return p;
@@ -20607,7 +20626,6 @@ async function askAsk(raw) {
   const p = askPanel();
   const q = String(raw || '').trim();
   if (!q || _askBusy) return;
-  p.querySelector('#askEx').open = false;
   const turn = askTurn(q, null);
   turn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   const ta = p.querySelector('#askQ');
