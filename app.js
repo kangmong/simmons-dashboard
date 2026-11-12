@@ -20834,3 +20834,57 @@ function askBubbleOff() {
     })
     .catch(() => { /* 배너가 없어도 머리 배너는 그대로 */ });
 })();
+
+
+/* ============================================================
+   SIMMONS NEW — 시몬스 공식몰 메인 'NEW' 신제품(시몬스 코리아 소식 카드, IG 위)
+   ★ scripts/simmons_banners.js 가 매일 공식몰 화면에서 읽어 둔 public/data/simmons-new.json 만 쓴다.
+   ★ 2초마다 한 칸씩 옆으로 넘어가고(끝나면 처음으로), 마우스를 올리면 멈춘다. 누르면 상세 페이지(새 탭).
+   ============================================================ */
+(function simmonsNew() {
+  const body = document.getElementById('body-simmons_news');
+  const ig = body && body.querySelector('.ig-block');
+  if (!ig) return;
+  fetch('public/data/simmons-new.json', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      const list = (d && Array.isArray(d.items) ? d.items : [])
+        .filter((p) => p.name && /^https:\/\//.test(p.image) && safeUrl(p.link));
+      if (!list.length) return;
+      const card = (p) => '<a class="sn-card" href="' + escapeHtml(safeUrl(p.link)) + '" target="_blank" rel="noopener noreferrer"'
+        + ' title="' + escapeHtml(p.name + ' — 공식몰에서 보기') + '">'
+        + '<span class="sn-card__img"><img src="' + escapeHtml(p.image) + '" alt="' + escapeHtml(p.name) + '" loading="lazy"></span>'
+        + (p.isNew ? '<span class="sn-badge">NEW</span>' : '')
+        + '<b class="sn-card__nm">' + escapeHtml(p.name) + '</b>'
+        + (p.original ? '<s class="sn-card__org">' + escapeHtml(p.original) + '</s>' : '')
+        + '<span class="sn-card__pr">' + (p.discount ? '<em>' + escapeHtml(p.discount) + '</em> ' : '') + escapeHtml(p.price || '') + '</span>'
+        + '</a>';
+      const box = document.createElement('div');
+      box.className = 'sn-block';
+      /* 끝에서 처음으로 이어 보이게 앞쪽 3장을 뒤에 한 번 더 붙인다(넘김이 끊기지 않게) */
+      box.innerHTML = '<div class="sk-subhead"><span class="sn-sub"><img class="sn-wm" src="public/logos/simmons-wordmark.png" alt="SIMMONS">'
+        + '<span class="sn-new">NEW</span><span class="ig-sub__hint"><mark class="hl-em">공식몰 신제품</mark></span></span>'
+        + '<span class="comp-caption sk-src">출처: 시몬스 공식몰</span></div>'
+        + '<div class="sn-view"><div class="sn-track">' + list.concat(list.slice(0, 3)).map(card).join('') + '</div></div>';
+      ig.parentNode.insertBefore(box, ig);
+      const track = box.querySelector('.sn-track');
+      let i = 0, timer = null;
+      const step = () => {
+        const c = track.children[0];
+        const w = c.getBoundingClientRect().width + parseFloat(getComputedStyle(track).columnGap || '0');
+        if (!w) return;
+        i += 1;
+        track.style.transition = 'transform .5s ease';
+        track.style.transform = 'translateX(' + (-i * w) + 'px)';
+        if (i >= list.length) {          // 붙여 둔 복제본까지 왔으면 소리 없이 처음으로
+          setTimeout(() => { track.style.transition = 'none'; i = 0; track.style.transform = 'translateX(0)'; }, 520);
+        }
+      };
+      const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const play = () => { if (!still && list.length > 3) { clearInterval(timer); timer = setInterval(step, 2000); } };
+      box.addEventListener('mouseenter', () => clearInterval(timer));
+      box.addEventListener('mouseleave', play);
+      play();
+    })
+    .catch(() => { /* 없으면 이 칸만 안 보인다 */ });
+})();

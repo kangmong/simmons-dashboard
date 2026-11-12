@@ -1,0 +1,87 @@
+{
+ "source": "시몬스 공식몰 메인 NEW (simmons.co.kr)",
+ "checkedAt": "2026-11-12 15:25",
+ "items": [
+  {
+   "name": "루티안",
+   "original": "1,780,000원 부터",
+   "discount": "10%",
+   "price": "1,602,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260813/142632.762323349/%EB%A3%A8%ED%8B%B0%EC%95%88_02%20(1).png?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136452781"
+  },
+  {
+   "name": "키나",
+   "original": "3,850,000원 부터",
+   "discount": "10%",
+   "price": "3,465,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260814/105820.891297337/%ED%82%A4%EB%82%98_%EC%8B%9C%EB%AA%AC%EC%8A%A4.png?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136453212"
+  },
+  {
+   "name": "B1",
+   "original": "7,860,000원 부터",
+   "discount": "10%",
+   "price": "7,074,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260814/105424.432191029/B1_%EC%8B%9C%EB%AA%AC%EC%8A%A4.png?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136452905"
+  },
+  {
+   "name": "B3",
+   "original": "7,690,000원 부터",
+   "discount": "10%",
+   "price": "6,921,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260814/105612.341900465/B3_%EC%8B%9C%EB%AA%AC%EC%8A%A4.png?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136453083"
+  },
+  {
+   "name": "매트리스 퀼티드 커버",
+   "original": "230,000원 부터",
+   "discount": "10%",
+   "price": "207,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260914/104647.906165790/%EB%A7%A4%ED%8A%B8%EB%A6%AC%EC%8A%A4%20%ED%80%BC%ED%8B%B0%EB%93%9C%20(2).jpg?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136454026"
+  },
+  {
+   "name": "베이직 필로우 커버",
+   "original": "40,000원 부터",
+   "discount": "10%",
+   "price": "36,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260914/104659.446437913/%EB%B2%A0%EC%9D%B4%EC%A7%81%20%ED%95%84%EB%A1%9C%EC%9A%B0%20%EC%BB%A4%EB%B2%84%20(2).jpg?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136454014"
+  },
+  {
+   "name": "올시즌 팔레트 스프레드",
+   "original": "440,000원 부터",
+   "discount": "10%",
+   "price": "396,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260914/104713.674132907/%EC%98%AC%EC%8B%9C%EC%A6%8C%20%ED%8C%94%EB%A0%9B%ED%8A%B8_01%20(1).jpg?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136454000"
+  },
+  {
+   "name": "도셀",
+   "original": "350,000원 부터",
+   "discount": "10%",
+   "price": "315,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260914/105851.654766863/%EB%8F%84%EC%85%80%20(2).jpg?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136453894"
+  },
+  {
+   "name": "멘젤",
+   "original": "460,000원 부터",
+   "discount": "10%",
+   "price": "414,000원 부터",
+   "isNew": true,
+   "image": "https://shopby-images.cdn-nhncommerce.com/Mall-No-sJ2P/20260914/105900.630570442/%EB%A9%98%EC%A0%A4%20(2).jpg?500x500",
+   "link": "https://simmons.co.kr/product-detail?productNo=136453596"
+  }
+ ]
+}

@@ -1,7 +1,8 @@
-name: 시몬스 공식몰 메인 배너 수집 (매일)
+name: 시몬스 공식몰 메인 배너·NEW 수집 (매일)
 
-# 대시보드 머리 배너 슬라이드용. 공식몰(simmons.co.kr) 홈페이지를 브라우저로 열어
-# 화면에 뜬 상단 배너 이미지·링크만 읽는다(scripts/simmons_banners.js).
+# 대시보드 머리 배너 슬라이드 + '시몬스 코리아 소식'의 SIMMONS NEW 칸용.
+# 공식몰(simmons.co.kr) 홈페이지를 브라우저로 열어 화면에 뜬 상단 배너와
+# NEW 신제품(이름·가격·사진·링크)만 읽는다(scripts/simmons_banners.js).
 # ★ 실패하거나 0장이면 기존 public/data/simmons-banners.json 을 그대로 둔다.
 on:
   schedule:
@@ -39,7 +40,7 @@ jobs:
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
-          F="public/data/simmons-banners.json"
+          F="public/data/simmons-banners.json public/data/simmons-new.json"
           if git diff --quiet -- $F; then
             echo "변경 없음 → 커밋 생략"
             exit 0

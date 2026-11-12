@@ -110,6 +110,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "public/data/simmons-new.json",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/data/simmons-banners.json",
       "use": "@vercel/static"
     },

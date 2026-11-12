@@ -663,6 +663,23 @@ body {
    테두리·그림자가 이중으로 겹치지 않게 한다. 안쪽 카드는 뉴스 카드(.sk-card)와
    같은 문법(라운드 14px · 그림자 · hover)을 쓴다. */
 .ig-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* SIMMONS NEW — 공식몰 신제품 3장씩 보이고 2초마다 한 칸 넘어간다(app.js simmonsNew) */
+.sn-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sn-sub { display: inline-flex; align-items: center; gap: 7px; }
+.sn-wm { height: 22px; width: auto; display: block; }
+.sn-new { font-size: 14px; font-weight: 800; letter-spacing: .04em; color: var(--ink); }
+.sn-view { overflow: hidden; }
+.sn-track { display: flex; column-gap: 10px; will-change: transform; }
+.sn-card { flex: 0 0 calc((100% - 20px) / 3); min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  color: var(--ink); text-decoration: none; }
+.sn-card__img { display: block; aspect-ratio: 1.6; overflow: hidden; background: var(--field); margin-bottom: 5px; }
+.sn-card__img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
+.sn-card:hover .sn-card__img img { transform: scale(1.04); }
+.sn-badge { align-self: flex-start; font-size: 9.5px; font-weight: 600; color: #fff; background: #2B2420; padding: 2px 6px; }
+.sn-card__nm { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-card__org { font-size: 10.5px; color: var(--muted); }
+.sn-card__pr { font-size: 11.5px; color: var(--ink); }
+.sn-card__pr em { font-style: normal; color: #B5462B; font-weight: 700; }
 .ig-sub { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; color: var(--ink); }
 .ig-sub__hint { font-size: 12px; font-weight: 500; color: var(--muted); }
 .ig-badge {
