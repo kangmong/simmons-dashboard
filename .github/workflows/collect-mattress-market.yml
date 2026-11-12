@@ -35,17 +35,23 @@ jobs:
         continue-on-error: true
         run: python mattress_market.py
 
+      # 같은 기관(GMI)의 슬립테크 기기 시장 — global-sleeptech.json 의 deviceMarket 만 고친다
+      - name: 슬립테크 기기 시장 규모 수집
+        continue-on-error: true
+        run: python sleeptech_market.py
+
       - name: 변경 있을 때만 커밋·푸시
         if: always()
         run: |
-          if git diff --quiet -- public/data/global-mattress-market.json; then
+          F="public/data/global-mattress-market.json public/data/global-sleeptech.json"
+          if git diff --quiet -- $F; then
             echo "내용 변경 없음 → 커밋 생략"
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data/global-mattress-market.json
-          git commit -m "자동 수집: 글로벌 매트리스 시장 규모 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
+          git add $F
+          git commit -m "자동 수집: 글로벌 매트리스·슬립테크 시장 규모 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
           git push
 
       - name: 결과 요약

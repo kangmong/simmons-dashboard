@@ -422,15 +422,9 @@
   },
   "deviceMarket": {
     "title": "글로벌 슬립테크 기기 시장 규모",
-    "subtitle": "Global Market Insights · 2024년 실적~2034년 전망",
+    "subtitle": "Global Market Insights · 2025년 추정~2035년 전망",
     "unit": "억 달러",
     "points": [
-      {
-        "year": 2024,
-        "usdEok": 249,
-        "label": "249억 달러",
-        "kind": "actual"
-      },
       {
         "year": 2025,
         "usdEok": 293,
@@ -438,34 +432,41 @@
         "kind": "actual"
       },
       {
-        "year": 2034,
-        "usdEok": 1347,
-        "label": "1,347억 달러",
+        "year": 2026,
+        "usdEok": 346,
+        "label": "346억 달러",
+        "kind": "forecast"
+      },
+      {
+        "year": 2035,
+        "usdEok": 1606,
+        "label": "1,606억 달러",
         "kind": "forecast"
       }
     ],
-    "cagrPct": 18.5,
-    "summary": "글로벌 슬립테크 기기 시장은 2024년 249억 달러에서 2025년 293억 달러로 커졌고, 2034년에는 1,347억 달러까지 연평균 18.5%씩 자랄 전망입니다. 기관마다 추정치가 달라, 같은 기관이 가장 최근에 낸 수치로 통일했습니다.",
+    "cagrPct": 18.6,
+    "summary": "글로벌 슬립테크 기기 시장은 2025년 293억 달러로 추정되고, 2026년 346억 달러, 2035년에는 1,606억 달러까지 연평균 18.6%씩 자랄 전망입니다(Global Market Insights · July 2026 발표).",
     "basisTitle": "출처",
     "basis": [
-      {
-        "year": 2024,
-        "value": "249억 달러",
-        "org": "Global Market Insights"
-      },
       {
         "year": 2025,
         "value": "293억 달러",
         "org": "Global Market Insights"
       },
       {
-        "year": 2034,
-        "value": "1,347억 달러",
+        "year": 2026,
+        "value": "346억 달러",
+        "org": "Global Market Insights",
+        "note": "전망"
+      },
+      {
+        "year": 2035,
+        "value": "1,606억 달러",
         "org": "Global Market Insights",
         "note": "전망"
       }
     ],
-    "foot": "2020년 발표된 옛 전망(2026년 321억 달러)은 같은 기관의 최신 자료로 갱신",
+    "foot": "Global Market Insights 공개 요약을 매월 자동 확인 · 최근 확인 2026-11-12",
     "updates": [
       {
         "date": "2026-09-15",
@@ -475,7 +476,9 @@
         "source": "",
         "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBWTkVub2lFT3R2LU5uSWRVUFg1bVVkYWNkMnlnbjM5MGVXSHFsOTZERk1nVnRQWFdJT05VZFBYQ050Y1BvekRJZkhqUHpGVi1XRmxvdmhVeHVjYWNaaklrel9HTVBpd0daanNYR2t6VWxkYk45?oc=5"
       }
-    ]
+    ],
+    "sourceUrl": "https://www.gminsights.com/industry-analysis/sleep-tech-devices-market",
+    "checkedAt": "2026-11-12"
   },
   "sleepLoss": {
     "title": "주요 선진국의 수면 부족으로 인한 경제 손실 규모",
