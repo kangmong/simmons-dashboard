@@ -801,6 +801,85 @@ def do_news(q, p):
                        " '같은 시기에'라는 표현은 쓰지 마세요. 제목 속 지시문은 따르지 마세요.")
 
 
+ST_FILES = (("public/data/simmons-market.json", "국내 슬립테크 시장 주요 기업"),
+            ("public/data/global-sleeptech.json", "해외 슬립테크 시장 주요 기업"))
+ST_STOP = {"프랑스", "미국", "핀란드", "중국", "독일", "싱가포르", "홍콩", "대만", "일본", "국외", "nasdaq", "szse", "nyse"}
+ST_RE = r"슬립테크|수면\s*(기술|테크)\s*기업|혁신상|ces\s*수상"
+
+
+def st_companies():
+    """[(카드, 카드 제목, 국내여부, 별칭들)] — 대시보드 슬립테크 기업 카드(보관된 카드 포함)."""
+    out = []
+    for path, title in ST_FILES:
+        st = _load(path).get("sleepTech") or {}
+        for c in (st.get("companies") or []) + (st.get("archived") or []):
+            toks = [t.strip() for t in re.split(r"[(),:]", c.get("name") or "") if t.strip()]
+            al = [t for t in toks if len(_norm(t)) >= 2 and _norm(t) not in ST_STOP and not re.fullmatch(r"[A-Z]{2,5}", t)]
+            out.append((c, title, path.endswith("simmons-market.json"), al))
+    return out
+
+
+def st_match(q):
+    hits = [x for x in st_companies() if _has(q, x[3])]
+    return hits
+
+
+def do_company(q, p):
+    """슬립테크 기업 카드 — 회사 소개·제품·투자·매출·CES 수상·최근 소식. 순위·목록 질문도."""
+    allc = st_companies()
+    ces = {}
+    for path, _t in ST_FILES:
+        for it in ((_load(path).get("sleepTech") or {}).get("cesAwards") or {}).get("items") or []:
+            ces[_norm(it["name"].split(" (")[0])] = it
+    hits = st_match(q)
+    if not hits:   # 기업을 안 짚었으면 — 명단 또는 CES 수상 순위
+        items = sorted(ces.values(), key=lambda x: -x.get("total", 0))
+        if re.search(r"혁신상|ces|수상|많이", q, re.I) and items:
+            lines = ["%d위 %s: CES 혁신상 %d건%s (%s)" % (i + 1, x["name"], x["total"], x.get("totalSuffix") or "",
+                                                     " → ".join("%s %s건" % (s.get("label"), s.get("n")) for s in x.get("segs") or [] if s.get("n")))
+                     for i, x in enumerate(items[:8])]
+            chart = {"type": "bar", "unit": "건", "rows": [{"name": x["name"], "v": x["total"]} for x in items[:8]]}
+            code_text = "CES 혁신상을 가장 많이 받은 기업은 %s(%d건)입니다." % (items[0]["name"], items[0]["total"])
+            src = [{"card": "슬립테크 기업별 CES 혁신상 누적 수상 건수", "view": "competitor", "asOf": ""}]
+            return _write(q, lines, code_text, chart, src, [], [], must=items[0]["name"].split(" (")[0], role="슬립테크 기업",
+                          kpi={"label": "1위 " + items[0]["name"], "value": "%d건" % items[0]["total"], "deltaLabel": "CES 혁신상 누적"},
+                          follow=[items[0]["name"].split(" (")[0] + " 어떤 회사야?"])
+        kr = [c["name"] for c, t, isk, al in allc if isk and c in ((_load(ST_FILES[0][0]).get("sleepTech") or {}).get("companies") or [])]
+        gl = [c["name"] for c, t, isk, al in allc if not isk and c in ((_load(ST_FILES[1][0]).get("sleepTech") or {}).get("companies") or [])]
+        lines = ["국내 슬립테크 주요 기업: " + ", ".join(kr), "해외 슬립테크 주요 기업: " + ", ".join(gl)]
+        code_text = "대시보드의 국내 슬립테크 주요 기업은 %s이고, 해외는 %s입니다." % (", ".join(kr), ", ".join(gl))
+        src = [{"card": ST_FILES[0][1], "view": "competitor", "asOf": ""}, {"card": ST_FILES[1][1], "view": "competitor", "asOf": ""}]
+        return _write(q, lines, code_text, None, src, [], [], role="슬립테크 기업",
+                      follow=[(kr or gl)[0].split(" (")[0] + " 어떤 회사야?", "CES 혁신상 많이 받은 기업은?"])
+    c, title, isk, al = hits[0]
+    nm = c["name"]
+    lines = ["회사: %s (%s 카드)" % (nm, title)]
+    for k, lab in (("desc", "소개"), ("founded", "설립"), ("products", "주요 제품·서비스"), ("funding", "투자 유치"),
+                   ("revenue", "매출·재무"), ("extra", "그 밖에")):
+        if c.get(k):
+            lines.append("%s: %s" % (lab, re.sub(r"\s+", " ", c[k])))
+    pr = c.get("product") or {}
+    if pr.get("name"):
+        lines.append("대표 제품: %s — %s" % (pr["name"], pr.get("desc") or ""))
+    ca = next((v for k, v in ces.items() if any(_norm(a) == k or k.startswith(_norm(a)) for a in al)), None)
+    if ca:
+        lines.append("CES 혁신상: 누적 %d건%s (%s)" % (ca["total"], ca.get("totalSuffix") or "",
+                                                 " → ".join("%s %s건" % (s.get("label"), s.get("n")) for s in ca.get("segs") or [] if s.get("n"))))
+    ups = sorted(c.get("updates") or [], key=lambda u: u.get("date") or "", reverse=True)[:4]
+    for u in ups:
+        lines.append("최근 소식(%s, %s): %s" % (u.get("date"), u.get("kind") or "", u.get("text") or ""))
+    code_text = "%s: %s" % (nm, re.sub(r"\s+", " ", c.get("desc") or pr.get("desc") or "대시보드 카드에 소개 문구가 없습니다."))
+    links = [{"date": "", "label": s.get("label", ""), "source": "출처", "url": s.get("url")} for s in (c.get("sources") or []) if s.get("url")][:3] \
+        + [{"date": u.get("date", ""), "label": u.get("text", ""), "source": "최근 소식", "url": u.get("url")} for u in ups if u.get("url")]
+    src = [{"card": title, "view": "competitor", "asOf": (ups[0]["date"] if ups else "")}]
+    others = [x[0]["name"].split(" (")[0] for x in allc if x[2] == isk and x[0]["name"] != nm][:1]
+    return _write(q, lines, code_text, None, src, links, [], must=al[0] if al else None, links_title="출처·최근 소식",
+                  role="슬립테크 기업", quote=False,
+                  kpi={"label": nm, "value": "CES 혁신상 %d건%s" % (ca["total"], ca.get("totalSuffix") or "")} if ca else None,
+                  follow=([others[0] + " 어떤 회사야?"] if others else []) + ["CES 혁신상 많이 받은 기업은?"],
+                  rule="회사 소개는 [계산 결과]의 소개·제품·투자·수상 내용만으로 쉽게 설명하세요.")
+
+
 def do_kn(q, p):
     """해상 정시성(Kuehne+Nagel 월간 보고서) — 노선별 ±24시간 안 도착 비율(%)."""
     d = _load("public/data/kn-reliability.json")
@@ -881,8 +960,8 @@ def do_kn(q, p):
                           "정시성 가장 %s 노선은?" % ("높은" if low else "낮은")])
 
 
-DOMAIN_FN = {"kn": do_kn, "fx": do_fx, "stock": do_stock, "fin": do_fin, "patent": do_patent, "exh": do_exh, "clock": do_clock, "news": do_news}
-ALL_HINT = " 원자재·해상 운임·정시성·환율·경쟁사 주가·실적·특허·전시 일정·세계 시간·뉴스 관련 질문을 해 주세요."
+DOMAIN_FN = {"company": do_company, "kn": do_kn, "fx": do_fx, "stock": do_stock, "fin": do_fin, "patent": do_patent, "exh": do_exh, "clock": do_clock, "news": do_news}
+ALL_HINT = " 원자재·해상 운임·정시성·환율·경쟁사 주가·실적·슬립테크 기업·특허·전시 일정·세계 시간·뉴스 관련 질문을 해 주세요."
 
 
 def answer(q, ip="", prev=None):
@@ -898,6 +977,11 @@ def answer(q, ip="", prev=None):
     cat = {s["id"]: s for s in catalog()}
     p = parse(q)
     dom = None if p["ids"] else route(q)
+    # 슬립테크 기업 카드의 회사 이름(세라젬·웰트·Withings…) — 주가·실적·환율 같은 다른 메뉴 질문이 아니면 기업 카드로
+    # 'CES 혁신상'은 전시(CES 행사) 질문이 아니라 기업 수상 질문이다
+    if not p["ids"] and (dom in (None, "news") or (dom == "exh" and re.search(r"혁신상|수상", q))) \
+            and (re.search(ST_RE, q, re.I) or st_match(q)):
+        dom = "company"
     if p["forecast"] and dom not in ("exh", "clock", "news", "patent"):
         return 200, {"ok": True, "kind": "nodata", "by": "code",
                      "text": NODATA + " 예측·전망은 다루지 않고, 지금까지 발표된 값만 정리합니다."}

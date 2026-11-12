@@ -9,17 +9,14 @@
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
   <title>SIMMONS | 해외 매트리스 업계 동향</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css" />
-  <link rel="stylesheet" href="styles.css?v=20261112o" />
+  <link rel="stylesheet" href="styles.css?v=20261112p" />
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <!-- SIMMONS 통합 헤더 (기존 검은 상단 바 + 히어로 배너를 한 겹으로 합침) -->
   <header class="app-header" aria-label="SIMMONS Factorium">
     <div class="hdr-lockup">
-      <div class="hdr-logo">
-        <span class="hdr-mark">SIMMONS</span>
-        <span class="hdr-tagline">BETTER SLEEP, A BRIGHTER TOMORROW</span>
-      </div>
+      <div class="hdr-logo"><img class="hdr-logo__img" src="public/logos/simmons-since1870.png" alt="SIMMONS Since 1870" /></div>
     </div>
 
     <div class="header-right">
@@ -49,13 +46,6 @@
   <div class="layout">
     <!-- 좌측 네비게이션 + 상시 업로드 위젯 -->
     <nav class="tabs" id="tabs">
-      <!-- 브랜드 락업 — 로고 PNG 두 장 모두 배경이 불투명 흰색이라, 네이비 위에
-           흰 사각형으로 뜨지 않도록 흰 플레이트에 얹고 mix-blend-mode:multiply 로
-           흰 바탕만 지운다(파일은 손대지 않는다). -->
-      <div class="sb-brand">
-        <img class="sb-brand__logo" src="public/logos/simmons-logo.png" alt="SIMMONS" />
-        <img class="sb-brand__wm" src="public/logos/simmons-wordmark.png" alt="" />
-      </div>
 
       <button class="nav-item is-active" data-view="dashboard">
         <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg></span>대시보드
@@ -246,6 +236,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=20261112o"></script>
+  <script src="app.js?v=20261112p"></script>
 </body>
 </html>

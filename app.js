@@ -20395,7 +20395,7 @@ function renderExhExtra() {
 const ASK_GROUPS = [
   ['원자재', 'PPG·TDI·유가 등 원가', ['PPG 가격이 최근에 얼마나 올랐어?', '이번 달 가장 많이 오른 원자재는?', '이번 달 가장 많이 내린 원자재는?']],
   ['물류·환율', '해상 운임·정시성·환율', ['해상 정시성 가장 낮은 노선은?', '아시아 북미 동안 정시성 추이', '달러 환율 한 달 새 얼마나 변했어?']],
-  ['경쟁사', '실적·주가·특허', ['시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?', '최근 특허 출원 많은 회사는?']],
+  ['경쟁사', '실적·주가·슬립테크·특허', ['시몬스 영업이익률은 경쟁사 중 몇 위야?', '에이스침대 주가 최근 변화는?', '세라젬 어떤 회사야?', 'CES 혁신상 많이 받은 기업은?', '최근 특허 출원 많은 회사는?']],
   ['일정·뉴스', '전시회·세계 시간·소식', ['다가오는 전시회 알려줘', '지금 뉴욕은 몇 시야?', '최근 시몬스 소식 알려줘']],
 ];
 
@@ -20413,7 +20413,7 @@ function askMenuHtml() {
       '<button type="button" class="ask-cat" data-askcat="' + i + '" aria-expanded="false"><b>' + escapeHtml(g)
       + '</b><span>' + escapeHtml(d) + '</span></button>').join('') + '</div>'
     + '<div class="ask-catq" hidden></div>'
-    + '<div class="ask-hi__s">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div></div>';
+    + '<div class="ask-hi__s">대시보드 데이터(원자재·해상 운임·정시성·환율·주가·경쟁사 실적·슬립테크 기업·특허·전시 일정·세계 시간·뉴스)로만 답합니다.</div></div>';
 }
 const ASK_Q_MAX = 200;
 const ASK_KEEP = 3;          // 이 창에 남기는 질문 수
@@ -20819,9 +20819,9 @@ function askBubbleOff() {
         });
         box.querySelectorAll('.hero-dot').forEach((b, i) => b.classList.toggle('is-on', i === cur));
       };
-      /* 자동 넘김 — 6초. 마우스를 올리거나 '동작 줄이기' 설정이면 멈춘다 */
+      /* 자동 넘김 — 2초(사용자 요청). 마우스를 올리거나 '동작 줄이기' 설정이면 멈춘다 */
       const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const play = () => { if (!still && list.length > 1) { clearInterval(timer); timer = setInterval(() => show(cur + 1), 6000); } };
+      const play = () => { if (!still && list.length > 1) { clearInterval(timer); timer = setInterval(() => show(cur + 1), 2000); } };
       host.addEventListener('click', (e) => {
         const st = e.target.closest('[data-herostep]');
         const dt = e.target.closest('[data-herodot]');

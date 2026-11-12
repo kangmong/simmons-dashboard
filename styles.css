@@ -112,19 +112,8 @@ body {
   text-align: center;
   gap: 5px;
 }
-/* ★ 두 줄 모두 margin-right 로 letter-spacing 만큼 되돌린다 —
-   letter-spacing 은 마지막 글자 뒤에도 붙어서, 그대로 두면 가운데 정렬이
-   그 폭만큼 왼쪽으로 밀려 두 줄의 중심이 어긋난다. */
-.hdr-mark {
-  font-size: 30px; font-weight: 800; letter-spacing: .2em;
-  margin-right: -.2em;
-  color: #FFFFFF; line-height: 1;
-}
-.hdr-tagline {
-  font-size: 9px; font-weight: 600; letter-spacing: .12em;
-  margin-right: -.12em;
-  color: #8FA0C2; line-height: 1.2; white-space: nowrap;
-}
+/* 시몬스 로고(Since 1870) — 그림 바탕이 밝은 회색이라 같은 색 둥근 판에 얹어 남색 위에 띄운다 */
+.hdr-logo__img { display: block; height: 76px; width: auto; border-radius: 10px; background: #F7F7F7; padding: 3px 6px; }
 
 /* 공장 사진 — 헤더 바 오른쪽 끝을 와이드로 채운다.
    ★ 버튼과 겹치지 않는 근거는 이 요소가 아니라 .app-header 의 padding-right 다.
@@ -253,22 +242,7 @@ body {
 }
 .sidebar-fill { flex: 1 1 auto; min-height: 16px; }
 
-/* 브랜드 락업 — 로고 PNG 두 장 모두 배경이 불투명 흰색(#F8F9FA / #FFFFFF)이라
-   네이비에 직접 얹으면 흰 사각형이 된다. 흰 플레이트 위에 놓고
-   mix-blend-mode:multiply 로 흰 바탕만 지운다(원본 파일은 건드리지 않는다).
-   ★ isolation:isolate 가 없으면 블렌딩이 플레이트를 넘어 네이비 배경까지
-     섞여 로고가 새까맣게 뭉갠다. 반드시 함께 둔다. */
-.sb-brand {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  background: #FFFFFF;
-  border-radius: 12px;
-  padding: 11px 12px;
-  margin: 2px 2px 14px;
-  isolation: isolate;
-}
-.sb-brand__logo, .sb-brand__wm { display: block; height: auto; mix-blend-mode: multiply; }
-.sb-brand__logo { width: 52px; }
-.sb-brand__wm { width: 88px; }
+
 
 .nav-item {
   display: flex;
@@ -2932,8 +2906,7 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
      사진을 빼면 오른쪽에 비워 둔 자리도 함께 돌려준다. */
   .app-header { padding: 12px 16px; min-height: 0; }
   .hdr-photo { display: none; }
-  .hdr-mark { font-size: 23px; letter-spacing: .16em; margin-right: -.16em; }
-  .hdr-tagline { font-size: 7.5px; letter-spacing: .08em; margin-right: -.08em; }
+  .hdr-logo__img { height: 56px; }
   .header-right { gap: 10px; }
   .hdr-search { flex-basis: 100%; max-width: none; }
   .hdr-search__in { height: 34px; font-size: 12px; }
@@ -2947,9 +2920,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
   .sidebar-fill { display: none; }
   .nav-item { padding: 9px 12px; }
   .upload-widget { margin-top: 4px; }
-  /* 가로로 눕는 좁은 화면에서는 브랜드 플레이트를 한 줄로 줄이고,
-     최하단 제품 사진은 뺀다 — 메뉴 위에 사진이 끼면 읽는 흐름이 끊긴다. */
-  .sb-brand { margin: 0 0 8px; padding: 9px 12px; }
 
   .content { padding: 20px 16px; }
 
@@ -3005,9 +2975,6 @@ a.ii-ev__t:hover { color: var(--accent); text-decoration: underline; }
     padding: 0 0 8px; background: var(--card) !important;
     border-bottom: 2px solid var(--accent);
   }
-  .hdr-mark { color: var(--accent) !important; }
-  /* 슬로건은 종이에서도 부제로 읽히게 — 제목과 같은 크림슨으로 칠하지 않는다 */
-  .hdr-tagline { color: var(--muted) !important; }
 
   /* 히어로 — 잉크를 아끼기 위해 사진·네이비 면을 빼고 글자만 남긴다 */
   .hero {
