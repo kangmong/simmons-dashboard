@@ -1,6 +1,6 @@
 {
  "status": "ok",
- "generatedAt": "2026-11-13T00:56:21+09:00",
+ "generatedAt": "2026-11-14T00:18:56+09:00",
  "items": [
   {
    "key": "simmons",
@@ -26,15 +26,14 @@
    "longName": "Ace Bed Company Limited",
    "week52High": 39850.0,
    "week52Low": 29050.0,
-   "now": 31550.0,
-   "prev": 31399.9084,
-   "change": 150.0916,
-   "changePct": 0.478,
-   "changePctMeta": 0.478,
-   "changePctSeries": 0.4777,
-   "asOf": "2026-11-12 06:30",
+   "now": 31800.0,
+   "prev": 31550.123,
+   "change": 249.877,
+   "changePct": 0.792,
+   "changePctMeta": 0.792,
+   "changePctSeries": 0.7924,
+   "asOf": "2026-11-13 06:14",
    "spark": [
-    33200.0,
     33200.0,
     33200.0,
     33250.0,
@@ -96,7 +95,8 @@
     30700.0,
     31200.0,
     31700.0,
-    31400.0
+    31400.0,
+    31550.0
    ]
   },
   {
@@ -113,15 +113,14 @@
    "longName": "COWAY Co., Ltd.",
    "week52High": 111800.0,
    "week52Low": 68800.0,
-   "now": 101700.0,
-   "prev": 101399.8564,
-   "change": 300.1436,
-   "changePct": 0.296,
-   "changePctMeta": 0.296,
-   "changePctSeries": 0.2959,
-   "asOf": "2026-11-12 06:30",
+   "now": 102500.0,
+   "prev": 101699.624,
+   "change": 800.376,
+   "changePct": 0.787,
+   "changePctMeta": 0.787,
+   "changePctSeries": 0.7866,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    94300.0,
     97600.0,
     95800.0,
     97200.0,
@@ -183,7 +182,8 @@
     107600.0,
     99400.0,
     99600.0,
-    101400.0
+    101400.0,
+    101700.0
    ]
   },
   {
@@ -200,15 +200,14 @@
    "longName": "Fursys Inc.",
    "week52High": 50800.0,
    "week52Low": 22350.0,
-   "now": 23750.0,
-   "prev": 23900.0926,
-   "change": -150.0926,
-   "changePct": -0.628,
-   "changePctMeta": -0.628,
-   "changePctSeries": -0.6276,
-   "asOf": "2026-11-12 06:30",
+   "now": 24200.0,
+   "prev": 23749.9387,
+   "change": 450.0613,
+   "changePct": 1.895,
+   "changePctMeta": 1.895,
+   "changePctSeries": 1.8947,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    26800.0,
     27200.0,
     27100.0,
     27000.0,
@@ -270,7 +269,8 @@
     24250.0,
     24050.0,
     24800.0,
-    23900.0
+    23900.0,
+    23750.0
    ]
   },
   {
@@ -287,15 +287,14 @@
    "longName": "Zinus, Inc",
    "week52High": 13480.0,
    "week52Low": 5740.0,
-   "now": 6240.0,
-   "prev": 6389.9727,
-   "change": -149.9727,
-   "changePct": -2.347,
-   "changePctMeta": -2.347,
-   "changePctSeries": -2.3474,
-   "asOf": "2026-11-12 06:30",
+   "now": 6290.0,
+   "prev": 6240.0175,
+   "change": 49.9825,
+   "changePct": 0.801,
+   "changePctMeta": 0.801,
+   "changePctSeries": 0.8013,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    8000.0,
     8060.0,
     8040.0,
     8050.0,
@@ -357,7 +356,8 @@
     6550.0,
     6540.0,
     6400.0,
-    6390.0
+    6390.0,
+    6240.0
    ]
   },
   {
@@ -374,15 +374,14 @@
    "longName": "Hanssem Co., Ltd.",
    "week52High": 54800.0,
    "week52Low": 28300.0,
-   "now": 38700.0,
-   "prev": 38000.0393,
-   "change": 699.9607,
-   "changePct": 1.842,
-   "changePctMeta": 1.842,
-   "changePctSeries": 1.8421,
-   "asOf": "2026-11-12 06:32",
+   "now": 36650.0,
+   "prev": 38699.9356,
+   "change": -2049.9356,
+   "changePct": -5.297,
+   "changePctMeta": -5.297,
+   "changePctSeries": -5.2972,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    41200.0,
     42300.0,
     39950.0,
     38050.0,
@@ -444,7 +443,8 @@
     40600.0,
     40050.0,
     39900.0,
-    38000.0
+    38000.0,
+    38700.0
    ]
   },
   {
@@ -461,15 +461,14 @@
    "longName": "Hyundai Livart Furniture Company Limited",
    "week52High": 9300.0,
    "week52Low": 4900.0,
-   "now": 5000.0,
-   "prev": 5070.0169,
-   "change": -70.0169,
-   "changePct": -1.381,
-   "changePctMeta": -1.381,
-   "changePctSeries": -1.3807,
-   "asOf": "2026-11-12 06:30",
+   "now": 5020.0,
+   "prev": 5000.0,
+   "change": 20.0,
+   "changePct": 0.4,
+   "changePctMeta": 0.4,
+   "changePctSeries": 0.4,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    5910.0,
     5970.0,
     5980.0,
     5910.0,
@@ -531,7 +530,8 @@
     5030.0,
     5010.0,
     5080.0,
-    5070.0
+    5070.0,
+    5000.0
    ]
   },
   {
@@ -548,15 +548,14 @@
    "longName": "ENEX Co., LTD.",
    "week52High": 4170.0,
    "week52Low": 908.0,
-   "now": 1575.0,
-   "prev": 1610.0014,
-   "change": -35.0014,
-   "changePct": -2.174,
-   "changePctMeta": -2.174,
-   "changePctSeries": -2.1739,
-   "asOf": "2026-11-12 06:30",
+   "now": 1798.0,
+   "prev": 1574.9963,
+   "change": 223.0037,
+   "changePct": 14.159,
+   "changePctMeta": 14.159,
+   "changePctSeries": 14.1587,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    1605.0,
     1710.0,
     1753.0,
     1750.0,
@@ -618,7 +617,8 @@
     1615.0,
     1619.0,
     1619.0,
-    1610.0
+    1610.0,
+    1575.0
    ]
   },
   {
@@ -635,15 +635,14 @@
    "longName": "Kiswire Ltd.",
    "week52High": 28300.0,
    "week52Low": 13910.0,
-   "now": 14890.0,
-   "prev": 14949.9493,
-   "change": -59.9493,
-   "changePct": -0.401,
-   "changePctMeta": -0.401,
-   "changePctSeries": -0.4013,
-   "asOf": "2026-11-12 06:30",
+   "now": 14820.0,
+   "prev": 14889.9829,
+   "change": -69.9829,
+   "changePct": -0.47,
+   "changePctMeta": -0.47,
+   "changePctSeries": -0.4701,
+   "asOf": "2026-11-13 06:30",
    "spark": [
-    17460.0,
     17340.0,
     17240.0,
     17350.0,
@@ -705,7 +704,8 @@
     14210.0,
     14780.0,
     15110.0,
-    14950.0
+    14950.0,
+    14890.0
    ]
   },
   {
@@ -723,15 +723,14 @@
    "longName": "Somnigroup International Inc.",
    "week52High": 98.56,
    "week52Low": 60.08,
-   "now": 61.4,
-   "prev": 62.4898,
-   "change": -1.0898,
-   "changePct": -1.744,
-   "changePctMeta": -1.744,
-   "changePctSeries": -1.7443,
-   "asOf": "2026-11-12 15:56",
+   "now": 60.98,
+   "prev": 60.6199,
+   "change": 0.3601,
+   "changePct": 0.594,
+   "changePctMeta": 0.594,
+   "changePctSeries": 0.5939,
+   "asOf": "2026-11-13 15:19",
    "spark": [
-    65.01,
     63.89,
     66.02,
     64.26,
@@ -793,7 +792,8 @@
     66.27,
     62.78,
     62.49,
-    61.4
+    60.62,
+    60.98
    ]
   }
  ],
