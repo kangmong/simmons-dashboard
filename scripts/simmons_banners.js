@@ -70,5 +70,7 @@ async function readNew(pg) {
   news.forEach((p) => console.log('[new]', p.name, p.price, '→', p.link));
   save(OUT, 'slides', slides, '시몬스 공식몰 메인 배너 (simmons.co.kr)');
   save(OUT_NEW, 'items', news, '시몬스 공식몰 메인 NEW (simmons.co.kr)');
-  if (!slides.length && !news.length) process.exit(1);
+  /* 한쪽이라도 0건이면 실패로 끝낸다 — 공식몰 화면 구조가 바뀐 신호(워크플로가 이걸 보고 실행을 '실패'로 표시한다).
+     읽은 쪽은 위에서 이미 저장했고, 못 읽은 쪽은 기존 파일이 그대로다. */
+  if (!slides.length || !news.length) process.exit(1);
 })();

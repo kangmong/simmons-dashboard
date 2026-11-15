@@ -34,6 +34,7 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: 배너 읽기
+        id: read
         continue-on-error: true
         run: node scripts/simmons_banners.js
 
@@ -51,3 +52,11 @@ jobs:
           git commit -m "자동 수집: 시몬스 공식몰 메인 배너 갱신 ($(TZ=Asia/Seoul date '+%Y-%m-%d'))"
           git pull --rebase -q
           git push
+
+      # 읽기에 실패했으면(공식몰 화면 구조가 바뀐 경우 등) 실행을 '실패'로 끝낸다 —
+      # GitHub 가 실패 알림을 보내고, Actions 목록에 빨간 표시가 뜬다. 대시보드 데이터는 위에서 이미 안전하게 처리됐다.
+      - name: 읽기 실패 알림
+        if: steps.read.outcome == 'failure'
+        run: |
+          echo "::error::시몬스 공식몰 배너 또는 NEW 신제품을 읽지 못했습니다. 기존 데이터는 그대로 유지됩니다. 공식몰 화면 구조가 바뀌었는지 확인하세요."
+          exit 1
