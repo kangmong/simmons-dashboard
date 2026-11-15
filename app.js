@@ -558,6 +558,7 @@ function applySimmonsNewsUpdate(data) {
   _simmonsNews = sn;
   if (sn.status && sn.status !== 'ok') console.warn('[update] simmons_news:', sn.reason || sn.status);
   renderSimmonsNews();
+  renderSimmonsNew();   // SIMMONS NEW(공식몰 신제품) — 업데이트를 눌러야 나온다
 }
 
 /** 시몬스 코리아 소식 — 썸네일 카드 그리드 (제목 클릭 → 원문 새 탭) */
@@ -17383,6 +17384,7 @@ function resetDashboard() {
   // 업데이트/기본값으로 채워졌던 모든 섹션 데이터 제거 → 각 섹션 "준비중" 빈 상태
   Object.keys(STORE).forEach((k) => delete STORE[k]);
   _simmonsNews = null;  // 시몬스 코리아 소식 비우기
+  clearSimmonsNew();    // SIMMONS NEW(공식몰 신제품) 비우기 + 2초 넘김 멈춤
   _igData = null;       // SIMMONS IG 비우기
   _matReady = false; _matYear = null; _matUsdKrw = null; // 원자재: 업데이트 전 초기 상태
   _mtTree = { open: null, pick: null }; mtTreeSave();   // 원자재 가지치기: 뿌리만
@@ -20840,8 +20842,16 @@ function askBubbleOff() {
    SIMMONS NEW — 시몬스 공식몰 메인 'NEW' 신제품(시몬스 코리아 소식 카드, IG 위)
    ★ scripts/simmons_banners.js 가 매일 공식몰 화면에서 읽어 둔 public/data/simmons-new.json 만 쓴다.
    ★ 2초마다 한 칸씩 옆으로 넘어가고(끝나면 처음으로), 마우스를 올리면 멈춘다. 누르면 상세 페이지(새 탭).
+   ★ 다른 카드와 같이 '업데이트'를 눌러야 나온다(applySimmonsNewsUpdate 가 부른다). '초기화'는 지운다.
    ============================================================ */
-(function simmonsNew() {
+let _snTimer = null;
+function clearSimmonsNew() {
+  clearInterval(_snTimer);
+  const old = document.querySelector('#body-simmons_news .sn-block');
+  if (old) old.remove();
+}
+function renderSimmonsNew() {
+  clearSimmonsNew();
   const body = document.getElementById('body-simmons_news');
   const ig = body && body.querySelector('.ig-block');
   if (!ig) return;
@@ -20868,7 +20878,7 @@ function askBubbleOff() {
         + '<div class="sn-view"><div class="sn-track">' + list.concat(list.slice(0, 3)).map(card).join('') + '</div></div>';
       ig.parentNode.insertBefore(box, ig);
       const track = box.querySelector('.sn-track');
-      let i = 0, timer = null;
+      let i = 0;
       const step = () => {
         const c = track.children[0];
         const w = c.getBoundingClientRect().width + parseFloat(getComputedStyle(track).columnGap || '0');
@@ -20881,10 +20891,10 @@ function askBubbleOff() {
         }
       };
       const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const play = () => { if (!still && list.length > 3) { clearInterval(timer); timer = setInterval(step, 2000); } };
-      box.addEventListener('mouseenter', () => clearInterval(timer));
+      const play = () => { if (!still && list.length > 3) { clearInterval(_snTimer); _snTimer = setInterval(step, 2000); } };
+      box.addEventListener('mouseenter', () => clearInterval(_snTimer));
       box.addEventListener('mouseleave', play);
       play();
     })
     .catch(() => { /* 없으면 이 칸만 안 보인다 */ });
-})();
+}
