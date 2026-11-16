@@ -1238,6 +1238,7 @@ _NEWS_EXCLUDE = (
     # 인수합병·조직
     "acquire", "acquisition", "merger", "buyout", "stake", "ipo",
     "employee count", "headcount", "layoff", "layoffs",
+    "acquired by", "to buy", "closure", "closes", "lays off", "closing",
     "ceo", "appoints", "names new ceo", "steps down",
     "인수", "합병", "지분", "상장", "인사", "임명", "구조조정",
     # 실측 누락 보완: "템퍼코리아, 박성희 신임 대표 선임" 이 '인사/임명' 에
