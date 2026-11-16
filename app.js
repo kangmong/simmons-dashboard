@@ -14009,7 +14009,7 @@ function domCrumb(rk) {
   const m = st.sub ? domSubMeta(st.sub) : null;
   if (m) path.push(m.sub.label);
   const crumbs = path.map((t, i) => (i === path.length - 1
-    ? '<b>' + escapeHtml(t) + '</b>' : escapeHtml(t))).join('<i class="dom-crumb__sep">›</i>');
+    ? '<b>' + escapeHtml(t) + '</b>' : escapeHtml(t))).join('<i class="dom-crumb__sep" aria-label="다음 단계"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg></i>');
   return '<div class="dom-nav"><div class="dom-crumb">' + crumbs + '</div>'
     + '<button type="button" class="dom-back" data-rk="' + escapeHtml(rk) + '">‹ 이전</button></div>';
 }
