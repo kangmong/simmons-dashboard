@@ -17582,7 +17582,7 @@ function initUpdate() {
       // 순수 추가: 데이터 출처(사전 수집/실시간) + 캐시로 '건너뛴'·'실패한' 수집기를
       // 기존 라벨 뒤에 덧붙인다. (레이아웃은 그대로 — 문구만 늘린다)
       if (lbl && data.updated_at) lbl.textContent = '마지막 업데이트: ' + data.updated_at
-        + (source === 'static' ? ' (사전 수집)' : '') + updateStatusNote(data);
+        + updateStatusNote(data);
       const dashUpd = document.getElementById('dashUpdated');
       if (dashUpd && data.updated_at) dashUpd.textContent = data.updated_at;
       const askAsOf = document.getElementById('askAsOf');   // AI 어시스턴트 머리글 '데이터 기준'
