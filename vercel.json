@@ -45,7 +45,9 @@
           "public/data/stocks/*.json",
           "public/data/kipris-patents.json",
           "public/data/kn-reliability.json",
-          "public/data/global-sleeptech.json"
+          "public/data/global-sleeptech.json",
+          "public/data/simmons-banners.json",
+          "public/data/simmons-new.json"
         ]
       }
     },
