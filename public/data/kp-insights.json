@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-09",
+  "updated": "2026-11-16",
   "hero": {
     "title": "일일 국제원자재가격 (KOIMA)",
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
@@ -201,6 +201,17 @@
       "detail": "EU의 수입 규제로 인해 철강 가격이 상승하면서 SSAB의 이익이 시장 예상치를 상회했다.",
       "source": "뉴스 (뉴스 자동 수집)",
       "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxONy1peWliczZTb2I1SzRkWHpDZEpKTWFjcGN4V1YyRzl2Q205WTJVZ1BSdzN5VGtNVGo4NG5NZmoybjV2MDJkSndKR1pyVVl2eXk3a0JWRUVmaGlNSnFENFgwYUlIc3FVZVlPM3JoMkF5UUJ5WnhTeldJSWFIZGZkYjFCZnVLMmhrSkx0Vm1Sd000NnhnazI2dl9jcXNrekMtQzFaV1I0TkhZcGUtYVc2c09SZ0E5M3pxcFRFblVWNA?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-11-12",
+      "cats": [
+        "textile"
+      ],
+      "label": "USDA 2026-27년 면화 전망 하향",
+      "detail": "USDA가 2026-27년 면화 전망을 하향 조정함에 따라 세계 면화 가격이 약세를 보였다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMi0wFBVV95cUxOVktPMVZkdFBlbV84V2Zwb3BRWWdBMm5GN1hfTldsWUtOR2p5cUkxdS1kT3o3U1JLY1R0UEVMNnI2WW1uNWl6TXI5VXJ0UkVQTU9ySmtUMHpieURPS1dySTd0NXVxQUtIYU9MenFpUWpxdTBFTXB6blR4eG5OUjI3ajlQT3pGcjNBR0JIQlFZNXY5TUI3QWJCYVg4QlJoUXp1RFdjUVBjRVNWZkRTOHNFT3o0aUZ6Z1Z1WHlyeVk2RlFBQUtfaUV2NTVsY19SRzNIMzdN?oc=5",
       "auto": true
     }
   ],
