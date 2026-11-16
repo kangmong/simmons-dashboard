@@ -4,13 +4,11 @@
  "symbol": "011090.KS",
  "market": "KOSPI",
  "note": "주방·가구",
- "generatedAt": "2026-11-14T00:19:26+09:00",
+ "generatedAt": "2026-11-17T01:57:47+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-13", 2550.0, 2580.0, 2520.0, 2545.0, 11756],
-   ["2025-11-14", 2540.0, 2550.0, 2495.0, 2530.0, 72944],
    ["2025-11-17", 2525.0, 2525.0, 2485.0, 2520.0, 28329],
    ["2025-11-18", 2500.0, 2500.0, 2460.0, 2495.0, 30283],
    ["2025-11-19", 2475.0, 2495.0, 2445.0, 2475.0, 44393],
@@ -252,10 +250,11 @@
    ["2026-11-09", 1620.0, 1651.0, 1570.0, 1619.0, 114010],
    ["2026-11-10", 1571.0, 1634.0, 1571.0, 1619.0, 51052],
    ["2026-11-11", 1600.0, 1670.0, 1600.0, 1610.0, 22021],
-   ["2026-11-12", 1610.0, 1673.0, 1573.0, 1575.0, 68873]
+   ["2026-11-12", 1610.0, 1673.0, 1573.0, 1575.0, 68873],
+   ["2026-11-13", 1571.0, 1820.0, 1571.0, 1798.0, 441851]
   ],
   "1wk": [
-   ["2021-11-14", 14750.0, 15700.0, 14200.0, 14825.0, 3360053],
+   ["2021-11-14", 14375.0, 15700.0, 14200.0, 14825.0, 2962923],
    ["2021-11-21", 14375.0, 15100.0, 12700.0, 12775.0, 1552834],
    ["2021-11-28", 12100.0, 13125.0, 11525.0, 12625.0, 1080837],
    ["2021-12-05", 12400.0, 14325.0, 12400.0, 13550.0, 1809727],
@@ -515,8 +514,8 @@
    ["2026-10-18", 1900.0, 1900.0, 1609.0, 1812.0, 437783],
    ["2026-10-25", 1728.0, 1820.0, 1568.0, 1725.0, 371192],
    ["2026-11-01", 1720.0, 1770.0, 1497.0, 1615.0, 246135],
-   ["2026-11-08", 1620.0, 1673.0, 1570.0, 1575.0, 255956],
-   ["2026-11-13", 1571.0, 1815.0, 1571.0, 1798.0, 441851]
+   ["2026-11-08", 1620.0, 1820.0, 1570.0, 1798.0, 697807],
+   ["2026-11-16", 1798.0, 1800.0, 1670.0, 1748.0, 123599]
   ],
   "1mo": [
    ["2016-11-30", 11350.0, 11825.0, 10275.0, 11725.0, 846381],
@@ -638,8 +637,8 @@
    ["2026-07-31", 2515.0, 2515.0, 1446.0, 1500.0, 22042479],
    ["2026-08-31", 1500.0, 1944.0, 1117.0, 1425.0, 7842156],
    ["2026-09-30", 1420.0, 1990.0, 1255.0, 1725.0, 2576478],
-   ["2026-10-31", 1720.0, 1770.0, 1497.0, 1575.0, 502091],
-   ["2026-11-13", 1571.0, 1815.0, 1571.0, 1798.0, 441851]
+   ["2026-10-31", 1720.0, 1820.0, 1497.0, 1798.0, 943942],
+   ["2026-11-16", 1798.0, 1800.0, 1670.0, 1748.0, 123599]
   ]
  },
  "candleFormat": [
@@ -680,13 +679,13 @@
   }
  ],
  "quote": {
-  "now": 1798.0,
-  "prev": 1574.9963,
-  "change": 223.0037,
-  "changePct": 14.159,
-  "changePctMeta": 14.159,
-  "changePctSeries": 14.1587,
-  "asOf": "2026-11-13 06:30"
+  "now": 1748.0,
+  "prev": 1798.0024,
+  "change": -50.0024,
+  "changePct": -2.781,
+  "changePctMeta": -2.781,
+  "changePctSeries": -2.7809,
+  "asOf": "2026-11-16 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -705,17 +704,17 @@
    "ceo": "Mr. Jin-Gyu  Park (Chairman & CEO)"
   },
   "summaryBar": {
-   "dayLow": 1571.0,
-   "dayHigh": 1815.0,
+   "dayLow": 1670.0,
+   "dayHigh": 1800.0,
    "week52Low": 908.0,
    "week52High": 4170.0,
-   "marketCap": 21318983680.0,
-   "volume": 441851,
-   "avgVolume": 346979,
-   "avgVolume10": 64281
+   "marketCap": 20726130688.0,
+   "volume": 123599,
+   "avgVolume": 336227,
+   "avgVolume10": 94394
   },
   "valuation": {
-   "psr": 0.112625,
+   "psr": 0.109493,
    "dividendYield": 0.0,
    "payoutRatio": 0.0,
    "beta": 0.233,
@@ -723,8 +722,8 @@
    "operatingMargin": -0.0455,
    "revenue": 189292576768.0,
    "revenueGrowth": -0.225,
-   "change52w": -0.37747,
-   "ma50": 1606.42
+   "change52w": -0.286508,
+   "ma50": 1616.82
   },
   "holding": {
    "heldInstitutions": 0.00031,
@@ -745,15 +744,15 @@
    "published": "Tue, 14 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "[특징주] 에넥스, 시총 미달 관리종목 지정 우려에…25% 급락",
-   "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPaGFvMlV5anlOSXR6am54QmpUUUVINXhhZlhIVmRBU3lNSEJVQkRDNWtrY2Z1eGlpajh5Y2dpSWhMOFVYanpzZ0p4a0VDcUF0d2VSSlFMWEdfeldDUUM0SUo4dGxPS3NUaEVXWjdMTkRqNHZUVFJCYVdFZmUxcGREa3owS2RvNmNa0gGcAUFVX3lxTE5EeGJFdU5hdDh2WEd5N0R2T3NnYVdFSU9nOEs1Vld1OFVEUzRhdW51MnRLUXhnQ09NdWhOaFl0QUFlb19oeVVtamlqNW9QLXJmQjFwaWw4SnlLcFFSS3hrR0VZOFJPQnQ1UE9YbTZwbUxCbFBTSHFLSWFQcTEtbWt1MjFvaEQwaDV1MXNERV9DOGpiZkk5QTBwbDFYZg?oc=5",
-   "media": "Chosunbiz",
-   "published": "Mon, 31 Aug 2026 07:00:00 GMT"
-  },
-  {
    "title": "에넥스 주가 장중 24%대 내려, 매각 난항에 관리종목 지정 가능성 커져",
    "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE56dF9rUHBIcWR2VEFHS2Nha2o3cFhIQktjRXBkOEQ2QkhrRHVsVjlwU2pwdExlMVNzUDZaWkZSRm92RkhBbWNNTFBZQzNPUG95bUt2ZzMzbWluNFdmT1FjZTNuOXROTHZ4NVpOOV9kemZYVHM?oc=5",
    "media": "비즈니스포스트",
+   "published": "Mon, 31 Aug 2026 07:00:00 GMT"
+  },
+  {
+   "title": "[특징주] 에넥스, 시총 미달 관리종목 지정 우려에…25% 급락",
+   "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPaGFvMlV5anlOSXR6am54QmpUUUVINXhhZlhIVmRBU3lNSEJVQkRDNWtrY2Z1eGlpajh5Y2dpSWhMOFVYanpzZ0p4a0VDcUF0d2VSSlFMWEdfeldDUUM0SUo4dGxPS3NUaEVXWjdMTkRqNHZUVFJCYVdFZmUxcGREa3owS2RvNmNa0gGcAUFVX3lxTE5EeGJFdU5hdDh2WEd5N0R2T3NnYVdFSU9nOEs1Vld1OFVEUzRhdW51MnRLUXhnQ09NdWhOaFl0QUFlb19oeVVtamlqNW9QLXJmQjFwaWw4SnlLcFFSS3hrR0VZOFJPQnQ1UE9YbTZwbUxCbFBTSHFLSWFQcTEtbWt1MjFvaEQwaDV1MXNERV9DOGpiZkk5QTBwbDFYZg?oc=5",
+   "media": "Chosunbiz",
    "published": "Mon, 31 Aug 2026 07:00:00 GMT"
   }
  ]
