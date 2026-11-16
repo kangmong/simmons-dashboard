@@ -1088,7 +1088,10 @@ DOMESTIC_BRAND_QUERY = {
 #   (Sleep Number 는 이미 매트리스 쪽에 있어 중복으로 넣지 않는다).
 GLOBAL_MATTRESS_BRANDS = ["Sleep Number", "Tempur-Pedic", "Purple", "Serta"]
 GLOBAL_SLEEPTECH_BRANDS = ["Eight Sleep", "Oura", "ResMed", "Whoop", "Withings"]
-GLOBAL_BRANDS = GLOBAL_MATTRESS_BRANDS + GLOBAL_SLEEPTECH_BRANDS
+# 프레임(침대 틀·조절식 베이스) — 매트리스 브랜드 기사에는 프레임 기사가 거의 없어 '국외 > 매트리스 > 프레임'이 비어 있었다.
+#   2026-11 실측: 아래 세 곳은 최근 3년 프레임·베이스 기사가 꾸준히 나온다.
+GLOBAL_FRAME_BRANDS = ["Zinus", "Ergomotion", "Leggett & Platt"]
+GLOBAL_BRANDS = GLOBAL_MATTRESS_BRANDS + GLOBAL_SLEEPTECH_BRANDS + GLOBAL_FRAME_BRANDS
 
 # 이름이 일반 단어·타 고유명사와 충돌하는 브랜드는 정확 구문으로 좁힌다.
 # (기본 쿼리 '"브랜드" (new OR launch OR release OR mattress)' 는 OR 때문에
@@ -1106,6 +1109,9 @@ GLOBAL_BRAND_QUERY = {
     "Eight Sleep": '"Eight Sleep" (pod OR sleep OR mattress OR launch)',
     "ResMed": '"ResMed" (sleep OR apnea OR cpap OR launch)',
     "Withings": '"Withings" (sleep OR health OR launch)',
+    "Zinus": '"Zinus" ("bed frame" OR "platform bed" OR "bed base" OR "adjustable base" OR launch OR new)',
+    "Ergomotion": '"Ergomotion" ("adjustable base" OR "adjustable bed" OR "bed base" OR launch OR new)',
+    "Leggett & Platt": '"Leggett & Platt" ("adjustable base" OR "adjustable bed" OR "bed base" OR "bed frame" OR launch OR new)',
     # 유령 캐릭터 Casper 와 충돌
     "Casper": '"Casper mattress" OR "Casper Sleep" OR "Casper bed"',
     # 일반 명사(꿀·과즙)와 충돌
@@ -1816,7 +1822,7 @@ def _global_query(brand):
     return q if q else '"%s" (new OR launch OR release OR mattress)' % brand
 
 
-GLOBAL_ITEMS_MAX = 45       # 하단 목록 상한(브랜드 9곳 × 최대 5건). 국내와 같은 이유로 넉넉히
+GLOBAL_ITEMS_MAX = 60       # 하단 목록 상한(브랜드 9곳 × 최대 5건). 국내와 같은 이유로 넉넉히
 
 
 def update_global_brands():
