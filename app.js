@@ -20445,7 +20445,9 @@ function askPanel() {
     + '<form class="ask-f" id="askForm"><textarea id="askQ" rows="2" maxlength="' + ASK_Q_MAX
     + '" placeholder="질문을 입력하세요 · 예: 항목 보여줘 / PPG 가격 최근 변화는?"></textarea>'
     + '<div class="ask-f__b"><span class="ask-n" id="askN">0/' + ASK_Q_MAX + '</span>'
-    + '<span class="ask-f__acts"><button type="button" class="ask-clear" data-askclear title="질문·답을 모두 지우고 새로 시작">지우기</button>'
+    + '<span class="ask-f__acts"><button type="button" class="ask-mic" id="askMic" title="음성으로 질문 (누르고 말하세요)" aria-label="음성으로 질문" hidden>'
+    + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>'
+    + '<button type="button" class="ask-clear" data-askclear title="질문·답을 모두 지우고 새로 시작">지우기</button>'
     + '<button type="submit" class="ask-send">보내기</button></span></div></form>'
     + '<div class="ask-warn">사내 기밀 정보는 입력하지 마세요. 입력한 내용은 외부 AI 서비스로 전송됩니다. · 대화는 이 브라우저에만 저장됩니다 · 단축키 / 또는 Ctrl+K</div>';
   document.body.appendChild(p);
@@ -20500,6 +20502,38 @@ function askPanel() {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); askAsk(ta.value); }
   });
   p.querySelector('#askForm').addEventListener('submit', (e) => { e.preventDefault(); askAsk(ta.value); });
+  /* 음성 질문 — 브라우저 내장 음성 인식(Web Speech). 말이 끝나면 글로 채우고 그대로 질문을 보낸다.
+     지원하지 않는 브라우저(예: 일부 Firefox)에서는 버튼이 보이지 않는다. */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mic = p.querySelector('#askMic');
+  if (SR && mic) {
+    mic.hidden = false;
+    let rec = null;
+    const stop = () => { if (rec) { try { rec.stop(); } catch (e) { /* 이미 멈춤 */ } } };
+    mic.addEventListener('click', () => {
+      if (rec) { stop(); return; }
+      if (_askBusy) return;
+      rec = new SR();
+      rec.lang = 'ko-KR'; rec.interimResults = true; rec.continuous = false;
+      let text = '';
+      const base = ta.value ? ta.value.replace(/\s+$/, '') + ' ' : '';
+      rec.onstart = () => { mic.classList.add('is-rec'); ta.placeholder = '듣고 있어요… 말씀하세요'; };
+      rec.onresult = (e) => {
+        text = Array.from(e.results).map((r) => r[0].transcript).join('');
+        ta.value = (base + text).slice(0, ASK_Q_MAX);
+        p.querySelector('#askN').textContent = ta.value.length + '/' + ASK_Q_MAX;
+      };
+      rec.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') ta.placeholder = '마이크 사용이 차단됐어요. 주소창 왼쪽 자물쇠에서 허용해 주세요';
+        else if (e.error === 'no-speech') ta.placeholder = '말소리가 들리지 않았어요. 다시 눌러 주세요';
+      };
+      rec.onend = () => {
+        rec = null; mic.classList.remove('is-rec');
+        if (text.trim()) { ta.placeholder = '질문을 입력하세요 · 예: 항목 보여줘 / PPG 가격 최근 변화는?'; askAsk(ta.value); }
+      };
+      try { rec.start(); } catch (e) { rec = null; }
+    });
+  }
   /* 지난 대화 되살리기 */
   try {
     const s = JSON.parse(localStorage.getItem(ASK_STORE) || 'null');

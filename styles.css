@@ -6805,3 +6805,10 @@ body.ask-on .ask-fab, body.ask-on .ask-bubble { display: none; }
 .ask-clear { font: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink); background: var(--card);
   border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
 .ask-clear:hover { border-color: var(--slate); background: var(--field); }
+.ask-mic { display: inline-flex; align-items: center; justify-content: center; width: 34px; color: var(--navy); background: var(--card);
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.ask-mic[hidden] { display: none; }
+.ask-mic:hover { border-color: var(--slate); background: var(--field); }
+.ask-mic.is-rec { color: #fff; background: #d93025; border-color: #d93025; animation: askMicPulse 1.2s ease-in-out infinite; }
+@keyframes askMicPulse { 50% { box-shadow: 0 0 0 5px rgba(217, 48, 37, .22); } }
+@media (prefers-reduced-motion: reduce) { .ask-mic.is-rec { animation: none; } }
