@@ -649,6 +649,12 @@ def do_patent(q, p):
     rs = [r for r in rows if (r.get("date") or "")[:4] >= frm] if frm else rows
     span = ("최근 %s년(%s~)" % (n.group(1), frm)) if n else "%s~%s" % ((d.get("period") or {}).get("from", "")[:4],
                                                                      (d.get("period") or {}).get("to", "")[:4])
+    # 질문에 '2026년'처럼 연도가 있으면 그 해만 센다(없으면 전체 기간으로 답해 '있다'고 잘못 읽히던 문제)
+    ym = re.search(r"(20\d\d)\s*년(\s*(부터|이후|이래))?", q)
+    if ym and not n:
+        y = ym.group(1)
+        rs = [r for r in rows if ((r.get("date") or "")[:4] >= y if ym.group(2) else (r.get("date") or "")[:4] == y)]
+        span = "%s년%s" % (y, "부터" if ym.group(2) else "")
     src = [{"card": CARD2["patent"], "view": "patent", "asOf": d.get("lastUpdated", "")}]
     named = [c for c in comps if _has(q, [c["label"]])]
     if named:
@@ -664,9 +670,13 @@ def do_patent(q, p):
         recent = sorted(mine, key=lambda r: r.get("date") or "", reverse=True)[:3]
         links = [{"date": r.get("date", ""), "label": r.get("title", "")[:60], "source": r.get("kind")} for r in recent]
         code_text = "%s의 특허는 %s %d건입니다." % (c["label"], span, len(mine))
+        if not mine:
+            code_text = "%s의 특허는 %s 기준 대시보드에 0건입니다(데이터 기준 %s)." % (c["label"], span, d.get("lastUpdated", "")[:10])
         chart = {"type": "bar", "unit": "건", "rows": [{"name": k, "v": v} for k, v in sorted(cats.items(), key=lambda x: -x[1])]}
         return _write(q, lines, code_text, chart, src, links, [], links_title="최근 특허 제목(KIPRIS)", role="특허", quote=False)
     if re.search(r"연도|해마다|매년|추이", q):
+        if ym and not n:   # 연도별 추이는 그 해 '부터'로 본다
+            rs = [r for r in rows if (r.get("date") or "")[:4] >= ym.group(1)]
         by = {}
         for r in rs:
             y = (r.get("date") or "")[:4]
