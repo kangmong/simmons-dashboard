@@ -4,7 +4,7 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-11-17T01:57:17+09:00",
+ "generatedAt": "2026-11-18T01:50:35+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
@@ -251,10 +251,11 @@
    ["2026-11-10", 30900.0, 31750.0, 30900.0, 31700.0, 469],
    ["2026-11-11", 31200.0, 31700.0, 31150.0, 31400.0, 1412],
    ["2026-11-12", 31400.0, 31800.0, 31400.0, 31550.0, 644],
-   ["2026-11-13", 31500.0, 32000.0, 31450.0, 31800.0, 1798]
+   ["2026-11-13", 31500.0, 32000.0, 31450.0, 31800.0, 1798],
+   ["2026-11-16", 31350.0, 31400.0, 30450.0, 30700.0, 7827]
   ],
   "1wk": [
-   ["2021-11-14", 44000.0, 44400.0, 41850.0, 42050.0, 14505],
+   ["2021-11-14", 43500.0, 43750.0, 41850.0, 42050.0, 6749],
    ["2021-11-21", 42450.0, 42950.0, 40800.0, 42950.0, 6857],
    ["2021-11-28", 41900.0, 42950.0, 39750.0, 42500.0, 12998],
    ["2021-12-05", 42300.0, 42850.0, 41050.0, 41050.0, 5225],
@@ -515,7 +516,8 @@
    ["2026-10-25", 31750.0, 31850.0, 31250.0, 31500.0, 9142],
    ["2026-11-01", 31750.0, 32200.0, 30600.0, 30700.0, 14684],
    ["2026-11-08", 30650.0, 32000.0, 30650.0, 31800.0, 6347],
-   ["2026-11-16", 31350.0, 31400.0, 30450.0, 30700.0, 7827]
+   ["2026-11-15", 31350.0, 31400.0, 30450.0, 30700.0, 7827],
+   ["2026-11-17", 30600.0, 30700.0, 30100.0, 30550.0, 2422]
   ],
   "1mo": [
    ["2016-11-30", 31000.0, 31940.0, 30420.0, 31720.0, 17045],
@@ -638,7 +640,7 @@
    ["2026-08-31", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
    ["2026-09-30", 32400.0, 32600.0, 31000.0, 31500.0, 48206],
    ["2026-10-31", 31750.0, 32200.0, 30600.0, 31800.0, 21031],
-   ["2026-11-16", 31350.0, 31400.0, 30450.0, 30700.0, 7827]
+   ["2026-11-17", 30600.0, 30700.0, 30100.0, 30550.0, 2422]
   ]
  },
  "candleFormat": [
@@ -679,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 30700.0,
-  "prev": 31799.9606,
-  "change": -1099.9606,
-  "changePct": -3.459,
-  "changePctMeta": -3.459,
-  "changePctSeries": -3.4591,
-  "asOf": "2026-11-16 06:30"
+  "now": 30550.0,
+  "prev": 30700.1236,
+  "change": -150.1236,
+  "changePct": -0.489,
+  "changePctMeta": -0.489,
+  "changePctSeries": -0.4886,
+  "asOf": "2026-11-17 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -704,18 +706,18 @@
    "ceo": "Mr. Sung-Ho  Ahn (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 30450.0,
-   "dayHigh": 31400.0,
+   "dayLow": 30100.0,
+   "dayHigh": 30700.0,
    "week52Low": 29050.0,
    "week52High": 39850.0,
-   "marketCap": 324098195456.0,
-   "volume": 7827,
-   "avgVolume": 2076,
-   "avgVolume10": 2103
+   "marketCap": 322514681856.0,
+   "volume": 2422,
+   "avgVolume": 2171,
+   "avgVolume10": 2765
   },
   "valuation": {
-   "psr": 0.984422,
-   "dividendYield": 0.0723,
+   "psr": 0.979612,
+   "dividendYield": 0.0749,
    "dividendRate": 2300.0,
    "payoutRatio": 0.397,
    "beta": 0.351,
@@ -723,8 +725,8 @@
    "operatingMargin": 0.16557,
    "revenue": 329226911744.0,
    "revenueGrowth": 0.109,
-   "change52w": 0.06177,
-   "ma50": 32045.0
+   "change52w": 0.044218,
+   "ma50": 32002.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -745,16 +747,16 @@
    "published": "Wed, 25 Feb 2026 08:00:00 GMT"
   },
   {
+   "title": "에이스침대 최대주주 안성호, 에이스침대 주식등 882만2350주 보유…총 지분율 79.55%",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9NQ1dscXRjNVhMbEVJbHJ5c05VSlZkdlpNWDVKbnVLSG1wTzMzQzlkX1VMSklRMXR6b2lSYjF4YVZpb2dUR19OcmVuWHVaV0ZOTi1iUlBKSlVXNlFlNW56RC1oTXZKTUg2aDlLeU41RXVsNnM?oc=5",
+   "media": "디지털투데이",
+   "published": "Fri, 17 Apr 2026 07:00:00 GMT"
+  },
+  {
    "title": "에이스침대, 배당소득세 최고세율 목전까지 배당…증여세 대비 관측",
    "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
    "media": "뉴스핌",
    "published": "Wed, 04 Feb 2026 08:00:00 GMT"
-  },
-  {
-   "title": "사실상 지배주주 안진환, 에이스침대 주식 110만9000주 증가",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1DdnNiYWdzRk9pWjYzVkpEb2lmcHNWRWk4d2J5dnEtOXdCNDhjQmZSdmptUHU3TW8yUHY4WVJZeU5JNkZ2UU1jREN0d0FvdmNmamw5QkdHT0JhWUZlOFRhY0xEUHlLbHpCVXFaQ0dXaWd0d2M?oc=5",
-   "media": "디지털투데이",
-   "published": "Fri, 26 Dec 2025 08:00:00 GMT"
   }
  ]
 }
