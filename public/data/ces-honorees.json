@@ -10123,7 +10123,7 @@
     "best": false,
     "text": "Abbott’s Libre Duo systems Digital Health",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/abbott-s-libre-duo-systems/",
-    "image": "https://www.ces.tech/media/j3rhlnhv/v2_2027_abbott-slibreduosystems-libre-duo-systems_final.jpg"
+    "image": "https://www.ces.tech/media/1rvlun3v/v2_2027_abbott-slibreduosystems-c772d9bd-2b29-4625-89d7-9785ed969984.png"
    },
    {
     "company": "Surgical Science",
@@ -10247,6 +10247,17 @@
     "text": "AirRay-micro Imaging",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/airray-micro/",
     "image": "https://www.ces.tech/media/hr2oh1ly/v2_2027_airray-micro-1-main-image.jpg"
+   },
+   {
+    "company": "Smart Radar System, Inc.",
+    "product": "AirRing : 360° Airspace Security Radar—From Infrastructure to Homes",
+    "cats": [
+     "Products in Support of Human Security for All"
+    ],
+    "best": false,
+    "text": "AirRing : 360° Airspace Security Radar—From Infrastructure to Homes Products in Support of Human Security for All",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/airring-360-airspace-security-radar-from-infrastructure-to-homes/",
+    "image": "https://www.ces.tech/media/agij3yr4/v2_2027_airring-360-airspacesecurityradar-frominfrastructuretohomes-airring_img_01.jpg"
    },
    {
     "company": "Algocare",
@@ -10704,25 +10715,25 @@
    },
    {
     "company": "Kolmar Korea",
-    "product": "ChromaFlow™ – AI-Powered Beauty Intelligence System",
-    "cats": [
-     "Artificial Intelligence"
-    ],
-    "best": false,
-    "text": "ChromaFlow™ – AI-Powered Beauty Intelligence System Artificial Intelligence",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow-ai-powered-beauty-intelligence-system/",
-    "image": "https://www.ces.tech/media/o5mcigiz/v2_2027_chromaflow-ai-poweredbeautyintelligencesystem-chroma-flow_260814_1.jpg"
-   },
-   {
-    "company": "Kolmar Korea",
-    "product": "ChromaFlow™ AI-Guided Personalized Cosmetic Manufacturing Platform for Diverse Lip Profiles",
+    "product": "ChromaFlow™",
     "cats": [
      "Beauty Tech"
     ],
     "best": true,
-    "text": "ChromaFlow™ AI-Guided Personalized Cosmetic Manufacturing Platform for Diverse Lip Profiles Beauty Tech",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow-ai-guided-personalized-cosmetic-manufacturing-platform-for-diverse-lip-profiles/",
-    "image": "https://www.ces.tech/media/3vbfhdpa/v2_2027_chromaflow-ai-guidedpersonalizedcosmeticmanufacturingplatformfordiverselipprofiles-chroma-flow_260814_1.jpg"
+    "text": "ChromaFlow™ Beauty Tech",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow/",
+    "image": "https://www.ces.tech/media/ie3fspvr/v2_2027_chromaflow-chroma-flow_260814_1.jpg"
+   },
+   {
+    "company": "Kolmar Korea",
+    "product": "ChromaFlow™ (1)",
+    "cats": [
+     "Artificial Intelligence"
+    ],
+    "best": false,
+    "text": "ChromaFlow™ (1) Artificial Intelligence",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow-1/",
+    "image": "https://www.ces.tech/media/ie3fspvr/v2_2027_chromaflow-chroma-flow_260814_1.jpg"
    },
    {
     "company": "AIDICOME Inc.",
@@ -10865,7 +10876,7 @@
     "best": false,
     "text": "DIGICOS Form One Beauty Tech",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/digicos-form-one/",
-    "image": "https://www.ces.tech/media/xwolom2z/v2_2027_digicosformone-digicos-form-one.jpg"
+    "image": "https://www.ces.tech/media/xgyfoz53/v2_2027_digicosformone-σ-τëç.jpg"
    },
    {
     "company": "Agility",
@@ -10955,6 +10966,17 @@
     "text": "DX-M2: Big AI, inside the machine Artificial Intelligence",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/dx-m2-big-ai-inside-the-machine/",
     "image": "https://www.ces.tech/media/acgozhmq/v2_2027_dx-m2-bigai-insidethemachine-2026-0819-ces-2027-awards-main-banner-dx-m2.jpg"
+   },
+   {
+    "company": "Universpirit Innovation Limited",
+    "product": "DXpert Modular Air Platform",
+    "cats": [
+     "EdTech"
+    ],
+    "best": false,
+    "text": "DXpert Modular Air Platform EdTech",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/dxpert-modular-air-platform/",
+    "image": "https://www.ces.tech/media/p5xjkd5q/v2_2027_dxpertmodularairplatform-pic1.png"
    },
    {
     "company": "Dynamic Solution",
@@ -11069,7 +11091,7 @@
     "image": "https://www.ces.tech/media/1i1jnjr0/v2_2027_encaptainai-theonboardsecondofficerforsafervoyages-encaptainai_image1jpg.jpg"
    },
    {
-    "company": "ESR SnapMode Modular Productivity System for iPad Pro",
+    "company": "ESR Tech",
     "product": "ESR Cyclone 25W Magnetic Charging Pad with CryoBoost",
     "cats": [
      "Mobile Devices, Accessories & Apps"
@@ -11077,7 +11099,7 @@
     "best": false,
     "text": "ESR Cyclone 25W Magnetic Charging Pad with CryoBoost Mobile Devices, Accessories & Apps",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/esr-cyclone-25w-magnetic-charging-pad-with-cryoboost/",
-    "image": "https://www.ces.tech/media/wfapl11e/v2_2027_esrcyclone25wmagneticchargingpadwithcryoboost-esr-cyclone-25w-magnetic-charging-pad-with-cryoboost.png"
+    "image": "https://www.ces.tech/media/nwklke1h/v2_2027_esrcyclone25wmagneticchargingpadwithcryoboost-cyclone_beside-scenario_for-ces-innovation-award_1.jpg"
    },
    {
     "company": "Anker Innovations",
@@ -11320,19 +11342,19 @@
     "best": true,
     "text": "Glass Noise Cancellation (GNC) Module Travel & Tourism",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/glass-noise-cancellation-gnc-module/",
-    "image": "https://www.ces.tech/media/orrbvppb/v2_2027_glassnoisecancellation-gnc-module-integrated-glass-noise-cancellation-window.jpg"
+    "image": "https://www.ces.tech/media/ijwpmj0v/v2_2027_glassnoisecancellation-gnc-module-window-based-active-noise-cancellation-for-aircraft-cabins_v2.jpg"
    },
    {
     "company": "Glidance, Inc.",
-    "product": "Glide",
+    "product": "Glide: World's First Intelligent Guide for Blind & Low Vision Individuals",
     "cats": [
      "Accessibility & Longevity",
      "Vehicle Tech & Advanced Mobility"
     ],
     "best": false,
-    "text": "Glide Accessibility & Longevity Vehicle Tech & Advanced Mobility",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/glide/",
-    "image": "https://www.ces.tech/media/3zpcuxsv/v2_2027_glide-6a58fe38f91818bf0406b696_glidance-web-banner-copy.png"
+    "text": "Glide: World's First Intelligent Guide for Blind & Low Vision Individuals Accessibility & Longevity Vehicle Tech & Advanced Mobility",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/glide-worlds-first-intelligent-guide-for-blind-low-vision-individuals/",
+    "image": "https://www.ces.tech/media/ga3jvfcx/v2_2027_glide-worldsfirstintelligentguideforblindlowvisionindividuals-6a58fe38f91818bf0406b696_glidance-web-banner-copy.png"
    },
    {
     "company": "Ys HUB Inc.",
@@ -12435,7 +12457,7 @@
     "image": "https://www.ces.tech/media/tbah51dm/v2_2027_nordicsemiconductornrf54lm20b-nrf54lm20b_fccsp_soc_stacked-1.jpg"
    },
    {
-    "company": "Nuvell Technology (Chongqing) Co,.Ltd.",
+    "company": "Nuvell Technology (Chongqing) Co.,Ltd.",
     "product": "NUVELL Plantein",
     "cats": [
      "Food Tech"
@@ -12600,6 +12622,18 @@
     "text": "OmniHand 3 Ultra Artificial Intelligence Robotics",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/omnihand-3-ultra/",
     "image": "https://www.ces.tech/media/2dkpb3zs/v2_2027_omnihand3ultra-omnihand3ultraces.png"
+   },
+   {
+    "company": "OMOWAY",
+    "product": "OMO-X",
+    "cats": [
+     "Artificial Intelligence",
+     "Vehicle Tech & Advanced Mobility"
+    ],
+    "best": false,
+    "text": "OMO-X Artificial Intelligence Vehicle Tech & Advanced Mobility",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/omo-x/",
+    "image": "https://www.ces.tech/media/stfnrglf/v2_2027_omo-x-omo-x-s-self-balancing.jpg"
    },
    {
     "company": "NEOFORM/Hanseo University",
@@ -13082,17 +13116,6 @@
     "image": "https://www.ces.tech/media/dfwlvtcl/v2_2027_savvyspaceai-privacy-preservingsafetyforeveryspace-savvy-space-ai-safety-without-surveillance1.png"
    },
    {
-    "company": "DAMGARA Co., Ltd. and NEXTEP studio CO., Ltd., Gachon University",
-    "product": "SCAPESYNC: A Data-Responsive Interactive Media Facade",
-    "cats": [
-     "Art Tech"
-    ],
-    "best": false,
-    "text": "SCAPESYNC: A Data-Responsive Interactive Media Facade Art Tech",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/scapesync-a-data-responsive-interactive-media-facade/",
-    "image": "https://www.ces.tech/media/eptarpxy/v2_2027_scapesync-adata-responsiveinteractivemediafacade-1500-1000-spacesync.jpg"
-   },
-   {
     "company": "Samsung SDI",
     "product": "SDI U8A3-UPS",
     "cats": [
@@ -13182,7 +13205,7 @@
     "image": "https://www.ces.tech/media/tq1lldwh/v2_2027_skiinequine-frame-18587-resized.jpg"
    },
    {
-    "company": "Haute One Inc.",
+    "company": "Skipper Labs Korea Co., Ltd.",
     "product": "Skipper: AI for stock investors",
     "cats": [
      "FinTech"
@@ -13190,7 +13213,7 @@
     "best": false,
     "text": "Skipper: AI for stock investors FinTech",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/skipper-ai-for-stock-investors/",
-    "image": "https://www.ces.tech/media/x21hnwb2/v2_2027_skipper-aiforstockinvestors-skipper-img.jpg"
+    "image": "https://www.ces.tech/media/az5j0bgb/v2_2027_skipper-aiforstockinvestors-3b092625-19d9-4f39-9a49-42ddf8285a7a.png"
    },
    {
     "company": "AEROSPY/Hanseo University",
@@ -13303,6 +13326,17 @@
     "image": "https://www.ces.tech/media/s04p5n1t/v2_2027_soulartstation-soulart_station.jpg"
    },
    {
+    "company": "DAMGARA Co., Ltd. and NEXTEP studio CO., Ltd., Gachon University",
+    "product": "SPACESYNC: A Data-Responsive Interactive Media Facade",
+    "cats": [
+     "Art Tech"
+    ],
+    "best": false,
+    "text": "SPACESYNC: A Data-Responsive Interactive Media Facade Art Tech",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/spacesync-a-data-responsive-interactive-media-facade/",
+    "image": "https://www.ces.tech/media/hg1nu2yw/v2_2027_spacesync-adata-responsiveinteractivemediafacade-1500-1000-spacesync.jpg"
+   },
+   {
     "company": "Speedfloor",
     "product": "Speed Floor: Autonomous Logistic Solution",
     "cats": [
@@ -13323,18 +13357,6 @@
     "text": "StealCut Protect: Protect Your Face from Deepfake Abuse Cybersecurity",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/stealcut-protect-protect-your-face-from-deepfake-abuse/",
     "image": "https://www.ces.tech/media/mwdfsbwj/v2_2027_stealcutprotect-protectyourfacefromdeepfakeabuse-stealcut-protect-product-image_main.png"
-   },
-   {
-    "company": "Subtle Computing",
-    "product": "Subtle Voicebuds",
-    "cats": [
-     "Artificial Intelligence",
-     "Headphones & Personal Audio"
-    ],
-    "best": false,
-    "text": "Subtle Voicebuds Artificial Intelligence Headphones & Personal Audio",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/subtle-voicebuds/",
-    "image": "https://www.ces.tech/media/etch1dv4/v2_2027_subtlevoicebuds-voicebudswithapp3.jpg"
    },
    {
     "company": "KABlabs co., ltd.",
@@ -13612,7 +13634,7 @@
     "image": "https://www.ces.tech/media/vrxiclaw/v2_2027_vibebrux-ai-poweredbiofeedbackoralwearable-vibebrux-product-pic-10.jpg"
    },
    {
-    "company": "Safience",
+    "company": "SAFIENCE",
     "product": "VIORA: Standalone On-Device AI Glasses for Blind and Senior Safety",
     "cats": [
      "Artificial Intelligence",
@@ -13682,6 +13704,18 @@
     "image": "https://www.ces.tech/media/ec3dws45/v2_2027_vixawildfireai-detection-spreadpredictionandresponseplatform-wildfire-1.jpg"
    },
    {
+    "company": "Subtle Computing",
+    "product": "Voicebuds: Whisper-Level Dictation and Voice AI in Any Environment",
+    "cats": [
+     "Artificial Intelligence",
+     "Headphones & Personal Audio"
+    ],
+    "best": false,
+    "text": "Voicebuds: Whisper-Level Dictation and Voice AI in Any Environment Artificial Intelligence Headphones & Personal Audio",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/voicebuds-whisper-level-dictation-and-voice-ai-in-any-environment/",
+    "image": "https://www.ces.tech/media/cnmjfv5d/v2_2027_voicebuds-whisper-leveldictationandvoiceaiinanyenvironment-voicebudswithapp3.jpg"
+   },
+   {
     "company": "Metacrowd Corp.",
     "product": "VoiceShield: Dual Detection for Voice Phishing and DeepVoice",
     "cats": [
@@ -13702,6 +13736,17 @@
     "text": "vuvu Mobile Devices, Accessories & Apps",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/vuvu/",
     "image": "https://www.ces.tech/media/yrucvgn3/v2_2027_vuvu-around-tech_vuvu_1.jpg"
+   },
+   {
+    "company": "Vuzix corporation",
+    "product": "Vuzix Ultralite Color Smart Glasses",
+    "cats": [
+     "Fashion Tech"
+    ],
+    "best": false,
+    "text": "Vuzix Ultralite Color Smart Glasses Fashion Tech",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/vuzix-ultralite-color-smart-glasses/",
+    "image": "https://www.ces.tech/media/4myft1v3/v2_2027_vuzixultralitecolorsmartglasses-vuzix-ultralitecolor-04-small.png"
    },
    {
     "company": "Solvable Labs, Inc.",
@@ -14234,5 +14279,5 @@
    "url": "https://www.ces.tech/ces-innovation-awards/2027/ses-sleep-environment-health-system-sleepoasis-m9/"
   }
  },
- "checkedAt": "2026-11-12"
+ "checkedAt": "2026-11-17"
 }
