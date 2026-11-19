@@ -4,12 +4,11 @@
  "symbol": "021240.KS",
  "market": "KOSPI",
  "note": "정수기·매트리스 렌털(비렉스)",
- "generatedAt": "2026-11-19T01:23:54+09:00",
+ "generatedAt": "2026-11-20T01:30:22+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-18", 87500.0, 89400.0, 86500.0, 86900.0, 187218],
    ["2025-11-19", 87200.0, 88600.0, 86500.0, 87600.0, 192686],
    ["2025-11-20", 88400.0, 88900.0, 86600.0, 87500.0, 207371],
    ["2025-11-21", 88300.0, 88500.0, 86800.0, 88200.0, 162103],
@@ -252,10 +251,11 @@
    ["2026-11-12", 101400.0, 101800.0, 98200.0, 101700.0, 168994],
    ["2026-11-13", 101100.0, 103300.0, 99900.0, 102500.0, 94375],
    ["2026-11-16", 101500.0, 105400.0, 101400.0, 105000.0, 125240],
-   ["2026-11-17", 105300.0, 106300.0, 103500.0, 105100.0, 116846]
+   ["2026-11-17", 105300.0, 106300.0, 103500.0, 105100.0, 116846],
+   ["2026-11-18", 103100.0, 106100.0, 102500.0, 103900.0, 180389]
   ],
   "1wk": [
-   ["2021-11-14", 76400.0, 76900.0, 74800.0, 76000.0, 259289],
+   ["2021-11-14", 75000.0, 76700.0, 74800.0, 76000.0, 130313],
    ["2021-11-21", 75200.0, 76400.0, 72600.0, 72700.0, 502230],
    ["2021-11-28", 72600.0, 74300.0, 67500.0, 73800.0, 1139307],
    ["2021-12-05", 74700.0, 79500.0, 72900.0, 76500.0, 895661],
@@ -516,8 +516,8 @@
    ["2026-10-25", 106000.0, 106000.0, 100200.0, 104000.0, 749835],
    ["2026-11-01", 104100.0, 110000.0, 101500.0, 107600.0, 853410],
    ["2026-11-08", 110000.0, 110000.0, 96100.0, 102500.0, 974594],
-   ["2026-11-15", 101500.0, 106300.0, 101400.0, 105100.0, 242086],
-   ["2026-11-18", 103100.0, 106100.0, 102500.0, 103900.0, 203087]
+   ["2026-11-15", 101500.0, 106300.0, 101400.0, 103900.0, 422475],
+   ["2026-11-19", 104600.0, 108000.0, 101500.0, 107300.0, 142055]
   ],
   "1mo": [
    ["2016-11-30", 85000.0, 92800.0, 84300.0, 88300.0, 2757380],
@@ -639,8 +639,8 @@
    ["2026-07-31", 89000.0, 101700.0, 88800.0, 96900.0, 3438719],
    ["2026-08-31", 96000.0, 109200.0, 93500.0, 99400.0, 4054815],
    ["2026-09-30", 99600.0, 111800.0, 98200.0, 104000.0, 3635124],
-   ["2026-10-31", 104100.0, 110000.0, 96100.0, 105100.0, 2070090],
-   ["2026-11-18", 103100.0, 106100.0, 102500.0, 103900.0, 203087]
+   ["2026-10-31", 104100.0, 110000.0, 96100.0, 103900.0, 2250479],
+   ["2026-11-19", 104600.0, 108000.0, 101500.0, 107300.0, 142055]
   ]
  },
  "candleFormat": [
@@ -681,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 103900.0,
-  "prev": 105100.2448,
-  "change": -1200.2448,
-  "changePct": -1.142,
-  "changePctMeta": -1.142,
-  "changePctSeries": -1.1418,
-  "asOf": "2026-11-18 06:30"
+  "now": 107300.0,
+  "prev": 103900.3796,
+  "change": 3399.6204,
+  "changePct": 3.272,
+  "changePctMeta": 3.272,
+  "changePctSeries": 3.2724,
+  "asOf": "2026-11-19 07:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -705,39 +705,40 @@
    "ceo": "Mr. Jang-Won  Seo (CEO, President & Director)"
   },
   "summaryBar": {
-   "dayLow": 102500.0,
-   "dayHigh": 106100.0,
+   "dayLow": 101500.0,
+   "dayHigh": 108000.0,
    "week52Low": 68800.0,
    "week52High": 111800.0,
-   "marketCap": 7286394191872.0,
-   "volume": 203087,
-   "avgVolume": 183377,
-   "avgVolume10": 180749
+   "marketCap": 7524832509952.0,
+   "volume": 142055,
+   "avgVolume": 184262,
+   "avgVolume10": 174922
   },
   "valuation": {
-   "forwardPE": 9.327485,
-   "psr": 1.331231,
-   "dividendYield": 0.032,
+   "forwardPE": 9.632715,
+   "psr": 1.374794,
+   "dividendYield": 0.0323,
    "dividendRate": 3357.0,
    "payoutRatio": 0.3819,
+   "beta": 0.578,
    "roe": 0.17364,
    "operatingMargin": 0.17295,
    "revenue": 5473425686528.0,
    "revenueGrowth": 0.137,
-   "change52w": 0.199772,
-   "ma50": 102486.0
+   "change52w": 0.187429,
+   "ma50": 102610.0
   },
   "holding": {
-   "heldInstitutions": 0.50599,
+   "heldInstitutions": 0.50589,
    "heldInsiders": 0.27681
   }
  },
  "news": [
   {
-   "title": "코웨이 주가 하락 중",
-   "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE5feDN0Ym5nQ29pdkxHMmNabE9hYmFfdDYzWlhROUprNnpFQThCa2FOaVFsODk1MFpOWGVkbFVxRS0tN0R0ZHQ0RGdCS2ViY1N3YTctTGRRMlBRSkM1V05JMFNTaW5KZWQ0d01TS1VMelgwd0FU?oc=5",
+   "title": "코웨이 주가 3,400원 상승 후 장마감",
+   "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE5OY0sxSVN2OGx3dnYteEJKQVQ3OXRxVkEwU2hHYXV6QTExTm5iYUxMWFhzVHZlamZmb0xacURzUlIwUU1CS3JtYmFuTDNoYm01OW9YRk9KSTdIMkRjRmQ1UDVrdVp1WE1DelFjOTh3aGMyeElj?oc=5",
    "media": "아시아뉴스통신",
-   "published": "Wed, 18 Nov 2026 00:40:20 GMT"
+   "published": "Thu, 19 Nov 2026 07:44:28 GMT"
   },
   {
    "title": "[금융트렌드] 코웨이 주가는 견고한 우상향? 주가 흐름·변동 요인 분석",
@@ -746,10 +747,10 @@
    "published": "Thu, 12 Nov 2026 08:00:00 GMT"
   },
   {
-   "title": "코웨이 주가 상승이 부담…넷마블 지배력 비용도 뛴다",
-   "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE54ZU1oMTVWb29pTll5cEpOYjQ2SnJQOG9RMVhXNEx6bDVDY2tLRzdUYTdYZ2pNaEFUWVFQOUpYRXRacGFuVHpUZnlTUVJvTDR5MkNfOGtFNmhhY3VhdXhva0ZMSzRXNnpsTFJadmNEVlA?oc=5",
-   "media": "연합인포맥스",
-   "published": "Thu, 20 Aug 2026 07:00:00 GMT"
+   "title": "영업익 역대 최대에도 순익 37% 급감…코웨이 주가, 코스피 6% 폭락 장서 2%만 빠져",
+   "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE9WdW5ZbVppQmtzT19PMzdRMHg1NlRrV2JEaHk4bXNuWmN0UldRX2w3SjVOZURLNHc0SU1WVkxuQWhOcFNJVy1kSmd0aVVMOHlkZThFTDlLMWlUNXJ6cXQzSkhZNkZkR2RPUmc?oc=5",
+   "media": "콕스뉴스",
+   "published": "Fri, 06 Nov 2026 08:00:00 GMT"
   },
   {
    "title": "코웨이 주가 뛰자 넷마블 '지분 확대 셈법' 꼬였다",
