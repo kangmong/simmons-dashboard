@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-16",
+  "updated": "2026-11-23",
   "hero": {
     "title": "일일 국제원자재가격 (KOIMA)",
     "subtitle": "주요 글로벌 {item} 가격의 최근 흐름과 변동 요인을 분석하여, 향후 방향성과 구매 의사결정에 필요한 인사이트를 제공합니다.",
@@ -212,6 +212,28 @@
       "detail": "USDA가 2026-27년 면화 전망을 하향 조정함에 따라 세계 면화 가격이 약세를 보였다.",
       "source": "뉴스 (뉴스 자동 수집)",
       "url": "https://news.google.com/rss/articles/CBMi0wFBVV95cUxOVktPMVZkdFBlbV84V2Zwb3BRWWdBMm5GN1hfTldsWUtOR2p5cUkxdS1kT3o3U1JLY1R0UEVMNnI2WW1uNWl6TXI5VXJ0UkVQTU9ySmtUMHpieURPS1dySTd0NXVxQUtIYU9MenFpUWpxdTBFTXB6blR4eG5OUjI3ajlQT3pGcjNBR0JIQlFZNXY5TUI3QWJCYVg4QlJoUXp1RFdjUVBjRVNWZkRTOHNFT3o0aUZ6Z1Z1WHlyeVk2RlFBQUtfaUV2NTVsY19SRzNIMzdN?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-11-17",
+      "cats": [
+        "petchem"
+      ],
+      "label": "산업부 원유·나프타 수요 확보 발표",
+      "detail": "산업통상자원부가 내년 1월 원유 50% 이상을 확보하고 나프타는 12월분까지 수요 100%를 채웠다고 발표했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE1vZkh6dEFlYWd5bzMtMjJ0Q0Z3NGRMdUFLYjlKUTFJRGprSS1oaThYSWNtTVVkRU9NM0paRTN5cDlScGhSNmpwcnRMX1FueE1qSGI3Q25hc1h3N0JZbFVLZlg1TEh0VW5GR0NNRVlR?oc=5",
+      "auto": true
+    },
+    {
+      "date": "2026-11-03",
+      "cats": [
+        "rare"
+      ],
+      "label": "글렌코어 코발트 생산량 52% 급감",
+      "detail": "글렌코어의 1~9월 코발트 생산량이 콩고민주공화국 수출 쿼터 영향으로 52% 급감했다.",
+      "source": "뉴스 (뉴스 자동 수집)",
+      "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE5WNy1IbFdOX1ZhcGxzaFR3ZFpvVEhqdVc1NkFpbUJsMWNfRXpjTWlyZGJkVUZxU0pkem9OUk9OR1N4MFJhbTBmaDJaNENBYVhyaTZwUU5TcHJ3QnprdEtOa3BpT01OMVV6YXhHOEx0d1UzRjhMbExN?oc=5",
       "auto": true
     }
   ],
