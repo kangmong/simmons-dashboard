@@ -10715,24 +10715,14 @@
    },
    {
     "company": "Kolmar Korea",
-    "product": "ChromaFlow™",
+    "product": "ChromaFlow™ (2)",
     "cats": [
-     "Beauty Tech"
-    ],
-    "best": true,
-    "text": "ChromaFlow™ Beauty Tech",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow/",
-    "image": "https://www.ces.tech/media/ie3fspvr/v2_2027_chromaflow-chroma-flow_260814_1.jpg"
-   },
-   {
-    "company": "Kolmar Korea",
-    "product": "ChromaFlow™ (1)",
-    "cats": [
+     "Beauty Tech",
      "Artificial Intelligence"
     ],
-    "best": false,
-    "text": "ChromaFlow™ (1) Artificial Intelligence",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow-1/",
+    "best": true,
+    "text": "ChromaFlow™ (2) Beauty Tech Artificial Intelligence",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/chromaflow-2/",
     "image": "https://www.ces.tech/media/ie3fspvr/v2_2027_chromaflow-chroma-flow_260814_1.jpg"
    },
    {
@@ -10843,7 +10833,7 @@
     "best": false,
     "text": "DDR5 RDIMM 512GB (32Gb) Computer Hardware & Components",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/ddr5-rdimm-512gb-32gb/",
-    "image": "https://www.ces.tech/media/eofps3se/v2_2027_ddr5rdimm512gb-32gb-d1b-32gb-512gb_1.jpg"
+    "image": "https://www.ces.tech/media/1zzfr4yi/v2_2027_ddr5rdimm512gb-32gb-20d85fe9-e4b9-4d85-b331-fbc8c9db573c.png"
    },
    {
     "company": "TP-Link Systems Inc.",
@@ -10899,7 +10889,7 @@
     "best": false,
     "text": "DIVE 4-WAY PRO — AI Skin and Scalp Care System Beauty Tech",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/dive-4-way-pro-ai-skin-and-scalp-care-system/",
-    "image": "https://www.ces.tech/media/1dhmzjxf/v2_2027_dive4-waypro-aiskinandscalpcaresystem-1b_primary_head_lineup.jpg"
+    "image": "https://www.ces.tech/media/op4mo51x/v2_2027_dive4-waypro-aiskinandscalpcaresystem-dive-4-way-pro-updated-image.png"
    },
    {
     "company": "Dnsys Innovation",
@@ -11233,6 +11223,17 @@
     "text": "Fly Buoys – Underwater Acoustic Detection Drones Drones",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/fly-buoys-underwater-acoustic-detection-drones/",
     "image": "https://www.ces.tech/media/krrn44wy/v2_2027_flybuoys-underwateracousticdetectiondrones-fly-bouys-image-1.jpg"
+   },
+   {
+    "company": "ENTROPIX PTE. LTD.",
+    "product": "Flyer O1",
+    "cats": [
+     "Smart Home"
+    ],
+    "best": false,
+    "text": "Flyer O1 Smart Home",
+    "url": "https://www.ces.tech/ces-innovation-awards/2027/flyer-o1/",
+    "image": "https://www.ces.tech/media/f2mkqlhp/v2_2027_flyero1-untitled110-1.png"
    },
    {
     "company": "Freequency bv.",
@@ -11855,7 +11856,7 @@
     "best": false,
     "text": "Lexar MUSE Ultra-Slim Portable SSD Mobile Devices, Accessories & Apps",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/lexar-muse-ultra-slim-portable-ssd/",
-    "image": "https://www.ces.tech/media/jidjkmwz/v2_2027_lexarmuseultra-slimportablessd-li_pssd_muse_1500x1000_piu_01.jpg"
+    "image": "https://www.ces.tech/media/4ywjqvp4/v2_2027_lexarmuseultra-slimportablessd-image_1.jpg"
    },
    {
     "company": "LG Electronics",
@@ -11878,17 +11879,6 @@
     "text": "LG Hair Dryer Home Appliances",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/lg-hair-dryer/",
     "image": "https://www.ces.tech/media/z5gh0ayi/v2_2027_lghairdryer-lg-hair-dryer-1.jpg"
-   },
-   {
-    "company": "LG Electronics",
-    "product": "LG OLED evo 97\" Wallpaper",
-    "cats": [
-     "Video Displays"
-    ],
-    "best": false,
-    "text": "LG OLED evo 97\" Wallpaper Video Displays",
-    "url": "https://www.ces.tech/ces-innovation-awards/2027/lg-oled-evo-97-wallpaper/",
-    "image": "https://www.ces.tech/media/zq2fsf5o/v2_2027_lgoledevo97-wallpaper-03-97w7_01.jpg"
    },
    {
     "company": "LG Electronics",
@@ -12020,7 +12010,7 @@
     "best": false,
     "text": "LPDDR5X SOCAMM2 Computer Hardware & Components",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/lpddr5x-socamm2/",
-    "image": "https://www.ces.tech/media/whuopnuk/v2_2027_lpddr5xsocamm2-lpddr5x-socamm2_primary-image1-final.jpg"
+    "image": "https://www.ces.tech/media/wy0po0gj/v2_2027_lpddr5xsocamm2-b348c26a-96c2-45e3-9d24-9cab0c29450f.png"
    },
    {
     "company": "SafeEVAC, Inc.",
@@ -13367,7 +13357,7 @@
     "best": false,
     "text": "T flow: AI-Verified Trade Settlement FinTech",
     "url": "https://www.ces.tech/ces-innovation-awards/2027/t-flow-ai-verified-trade-settlement/",
-    "image": "https://www.ces.tech/media/zlcngg0y/v2_2027_tflow-ai-verifiedtradesettlement-ai-powered-letter-of-credit-verification-from-credit-terms-to-document-compliance.png"
+    "image": "https://www.ces.tech/media/1b5ddqqk/v2_2027_tflow-ai-verifiedtradesettlement-ai-verified.png"
    },
    {
     "company": "TCL Mobile",
@@ -14279,5 +14269,5 @@
    "url": "https://www.ces.tech/ces-innovation-awards/2027/ses-sleep-environment-health-system-sleepoasis-m9/"
   }
  },
- "checkedAt": "2026-11-17"
+ "checkedAt": "2026-11-24"
 }
