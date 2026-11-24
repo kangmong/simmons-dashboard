@@ -4,7 +4,7 @@
  "symbol": "011090.KS",
  "market": "KOSPI",
  "note": "주방·가구",
- "generatedAt": "2026-11-24T04:11:51+09:00",
+ "generatedAt": "2026-11-25T03:51:28+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
@@ -251,10 +251,11 @@
    ["2026-11-17", 1731.0, 1792.0, 1679.0, 1749.0, 82902],
    ["2026-11-18", 1749.0, 1750.0, 1576.0, 1687.0, 83817],
    ["2026-11-19", 1685.0, 1692.0, 1598.0, 1649.0, 79293],
-   ["2026-11-20", 1648.0, 1743.0, 1609.0, 1616.0, 30047]
+   ["2026-11-20", 1648.0, 1743.0, 1609.0, 1616.0, 30047],
+   ["2026-11-23", 1616.0, 1695.0, 1520.0, 1609.0, 52515]
   ],
   "1wk": [
-   ["2021-11-21", 13800.0, 14175.0, 12700.0, 12775.0, 1048059],
+   ["2021-11-21", 13200.0, 13900.0, 12700.0, 12775.0, 691235],
    ["2021-11-28", 12100.0, 13125.0, 11525.0, 12625.0, 1080837],
    ["2021-12-05", 12400.0, 14325.0, 12400.0, 13550.0, 1809727],
    ["2021-12-12", 13725.0, 14125.0, 12600.0, 13000.0, 959251],
@@ -515,7 +516,8 @@
    ["2026-11-01", 1720.0, 1770.0, 1497.0, 1615.0, 246135],
    ["2026-11-08", 1620.0, 1820.0, 1570.0, 1798.0, 697807],
    ["2026-11-15", 1798.0, 1800.0, 1576.0, 1616.0, 398614],
-   ["2026-11-23", 0.0, 0.0, 0.0, 1609.0, 0]
+   ["2026-11-22", 1616.0, 1695.0, 1520.0, 1609.0, 52515],
+   ["2026-11-24", 0.0, 0.0, 0.0, 1574.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 11350.0, 11825.0, 10275.0, 11725.0, 846381],
@@ -638,7 +640,7 @@
    ["2026-08-31", 1500.0, 1944.0, 1117.0, 1425.0, 7842156],
    ["2026-09-30", 1420.0, 1990.0, 1255.0, 1725.0, 2576478],
    ["2026-10-31", 1720.0, 1820.0, 1497.0, 1616.0, 1342556],
-   ["2026-11-23", 0.0, 0.0, 0.0, 1609.0, 0]
+   ["2026-11-24", 0.0, 0.0, 0.0, 1574.0, 0]
   ]
  },
  "candleFormat": [
@@ -679,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 1609.0,
-  "prev": 1615.9973,
-  "change": -6.9973,
-  "changePct": -0.433,
-  "changePctMeta": -0.433,
-  "changePctSeries": -0.4332,
-  "asOf": "2026-11-23 06:30"
+  "now": 1574.0,
+  "prev": 1608.9957,
+  "change": -34.9957,
+  "changePct": -2.175,
+  "changePctMeta": -2.175,
+  "changePctSeries": -2.1753,
+  "asOf": "2026-11-24 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -707,13 +709,13 @@
    "dayHigh": 0.0,
    "week52Low": 0.0,
    "week52High": 4170.0,
-   "marketCap": 19078000640.0,
+   "marketCap": 18663002112.0,
    "volume": 0,
-   "avgVolume": 271816,
-   "avgVolume10": 109642
+   "avgVolume": 257586,
+   "avgVolume10": 103492
   },
   "valuation": {
-   "psr": 0.104347,
+   "psr": 0.102077,
    "dividendYield": 0.0,
    "payoutRatio": 0.0,
    "beta": 0.233,
@@ -721,8 +723,8 @@
    "operatingMargin": -0.05504,
    "revenue": 182832300032.0,
    "revenueGrowth": -0.124,
-   "change52w": -0.339059,
-   "ma50": 1651.66
+   "change52w": -0.340574,
+   "ma50": 1649.92
   },
   "holding": {
    "heldInstitutions": 0.00031,
@@ -743,15 +745,15 @@
    "published": "Tue, 14 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "에넥스 주가 장중 24%대 내려, 매각 난항에 관리종목 지정 가능성 커져",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE56dF9rUHBIcWR2VEFHS2Nha2o3cFhIQktjRXBkOEQ2QkhrRHVsVjlwU2pwdExlMVNzUDZaWkZSRm92RkhBbWNNTFBZQzNPUG95bUt2ZzMzbWluNFdmT1FjZTNuOXROTHZ4NVpOOV9kemZYVHM?oc=5",
-   "media": "비즈니스포스트",
-   "published": "Mon, 31 Aug 2026 07:00:00 GMT"
-  },
-  {
    "title": "[특징주] 에넥스, 시총 미달 관리종목 지정 우려에…25% 급락",
    "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPaGFvMlV5anlOSXR6am54QmpUUUVINXhhZlhIVmRBU3lNSEJVQkRDNWtrY2Z1eGlpajh5Y2dpSWhMOFVYanpzZ0p4a0VDcUF0d2VSSlFMWEdfeldDUUM0SUo4dGxPS3NUaEVXWjdMTkRqNHZUVFJCYVdFZmUxcGREa3owS2RvNmNa0gGcAUFVX3lxTE5EeGJFdU5hdDh2WEd5N0R2T3NnYVdFSU9nOEs1Vld1OFVEUzRhdW51MnRLUXhnQ09NdWhOaFl0QUFlb19oeVVtamlqNW9QLXJmQjFwaWw4SnlLcFFSS3hrR0VZOFJPQnQ1UE9YbTZwbUxCbFBTSHFLSWFQcTEtbWt1MjFvaEQwaDV1MXNERV9DOGpiZkk5QTBwbDFYZg?oc=5",
    "media": "Chosunbiz",
+   "published": "Mon, 31 Aug 2026 07:00:00 GMT"
+  },
+  {
+   "title": "에넥스 주가 장중 24%대 내려, 매각 난항에 관리종목 지정 가능성 커져",
+   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE56dF9rUHBIcWR2VEFHS2Nha2o3cFhIQktjRXBkOEQ2QkhrRHVsVjlwU2pwdExlMVNzUDZaWkZSRm92RkhBbWNNTFBZQzNPUG95bUt2ZzMzbWluNFdmT1FjZTNuOXROTHZ4NVpOOV9kemZYVHM?oc=5",
+   "media": "비즈니스포스트",
    "published": "Mon, 31 Aug 2026 07:00:00 GMT"
   }
  ]

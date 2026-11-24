@@ -4,7 +4,7 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-11-24T04:12:00+09:00",
+ "generatedAt": "2026-11-25T03:51:39+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
@@ -259,10 +259,11 @@
    ["2026-11-18", 57.9, 62.48, 57.78, 62.45, 5436700],
    ["2026-11-19", 62.14, 62.45, 59.17, 59.44, 4762200],
    ["2026-11-20", 59.67, 60.84, 57.5, 57.82, 3477600],
-   ["2026-11-23", 59.33, 61.56, 58.92, 60.44, 1058191]
+   ["2026-11-23", 59.33, 61.56, 58.92, 60.58, 2387700],
+   ["2026-11-24", 60.16, 61.82, 59.49, 61.575, 915699]
   ],
   "1wk": [
-   ["2021-11-22", 43.89, 44.22, 41.76, 42.23, 4066100],
+   ["2021-11-22", 43.39, 44.18, 41.76, 42.23, 2782300],
    ["2021-11-29", 42.8, 45.3, 41.58, 43.67, 12751100],
    ["2021-12-06", 43.7, 46.7, 43.38, 44.83, 8653800],
    ["2021-12-13", 45.26, 47.53, 44.28, 45.66, 14778900],
@@ -523,7 +524,8 @@
    ["2026-11-02", 64.51, 70.62, 63.98, 64.17, 21968900],
    ["2026-11-09", 62.95, 67.89, 60.4, 60.76, 20594600],
    ["2026-11-16", 60.93, 62.48, 57.5, 57.82, 20965200],
-   ["2026-11-23", 59.33, 61.56, 58.92, 60.44, 1058191]
+   ["2026-11-23", 59.33, 61.56, 58.92, 60.58, 2387700],
+   ["2026-11-24", 60.16, 61.82, 59.49, 61.575, 915799]
   ],
   "1mo": [
    ["2016-12-01", 15.845, 17.39, 15.23, 17.07, 63276400],
@@ -646,7 +648,7 @@
    ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
    ["2026-10-01", 62.0, 66.2, 60.08, 63.56, 55222700],
    ["2026-11-01", 64.51, 70.62, 57.5, 57.82, 63528700],
-   ["2026-11-23", 59.33, 61.56, 58.92, 60.44, 1058192]
+   ["2026-11-24", 60.16, 61.82, 59.49, 61.575, 915800]
   ]
  },
  "candleFormat": [
@@ -687,17 +689,16 @@
   }
  ],
  "quote": {
-  "now": 60.44,
-  "prev": 57.6509,
-  "change": 2.7891,
-  "changePct": 4.838,
-  "changePctMeta": 4.838,
-  "changePctSeries": 4.5313,
-  "asOf": "2026-11-23 19:11"
+  "now": 61.575,
+  "prev": 60.5803,
+  "change": 0.9947,
+  "changePct": 1.642,
+  "changePctMeta": 1.642,
+  "changePctSeries": 1.6425,
+  "asOf": "2026-11-24 18:51"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
- "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta +4.84% vs 시계열 +4.53%)",
  "profile": {
   "identity": {
    "longName": "Somnigroup International Inc.",
@@ -714,23 +715,23 @@
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 58.92,
-   "dayHigh": 61.56,
+   "dayLow": 59.49,
+   "dayHigh": 61.82,
    "week52Low": 57.5,
    "week52High": 98.56,
-   "marketCap": 13916305408.0,
-   "volume": 1058243,
-   "avgVolume": 3404762,
-   "avgVolume10": 4155980
+   "marketCap": 14177640448.0,
+   "volume": 915800,
+   "avgVolume": 3410178,
+   "avgVolume10": 3665180
   },
   "valuation": {
-   "trailingPE": 24.872427,
-   "forwardPE": 17.171381,
-   "pbr": 3.003081,
+   "trailingPE": 25.339506,
+   "forwardPE": 17.493843,
+   "pbr": 3.059475,
    "eps": 2.43,
    "bps": 20.126,
-   "psr": 1.774089,
-   "dividendYield": 0.0118,
+   "psr": 1.807404,
+   "dividendYield": 0.0112,
    "dividendRate": 0.68,
    "payoutRatio": 0.2716,
    "beta": 1.292,
@@ -738,11 +739,11 @@
    "operatingMargin": 0.13907,
    "revenue": 7844199936.0,
    "revenueGrowth": 0.108,
-   "change52w": -0.341908,
-   "ma50": 63.235
+   "change52w": -0.321309,
+   "ma50": 63.0842
   },
   "holding": {
-   "heldInstitutions": 1.07892,
+   "heldInstitutions": 1.07898,
    "heldInsiders": 0.03097
   }
  },
@@ -754,10 +755,10 @@
    "published": "Mon, 16 Nov 2026 18:20:00 GMT"
   },
   {
-   "title": "Somnigroup, 연간 이익 전망 하향…개장 전 주가 8% 하락 By Investing.com",
+   "title": "Somnigroup, 연간 이익 전망 하향…개장 전 주가 8% 하락",
    "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFBJTkxiWXZ5VjFzWUxTZ0NYYTZiUDQwdlpRdEJXTmtnUGRXMlUzTVlEQ2o0Z1RLQkxJUGxqQWxVTGw5WF9qbm5wSThlUU5YSUpMdU5sOWszbzBQanEwdmRSdzRTMHNuYzNCWjJZ?oc=5",
    "media": "Investing.com 한국어",
-   "published": "Mon, 09 Nov 2026 11:49:00 GMT"
+   "published": "Mon, 09 Nov 2026 08:00:00 GMT"
   },
   {
    "title": "Somnigroup International xStock: 투자 유치, 투자자, 팀 및 주요 이벤트",
