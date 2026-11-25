@@ -4,12 +4,11 @@
  "symbol": "009240.KS",
  "market": "KOSPI",
  "note": "종합 인테리어·가구",
- "generatedAt": "2026-11-25T03:51:17+09:00",
+ "generatedAt": "2026-11-26T02:56:08+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-24", 45400.0, 45700.0, 45150.0, 45200.0, 22070],
    ["2025-11-25", 45750.0, 45950.0, 45200.0, 45550.0, 15232],
    ["2025-11-26", 45900.0, 46100.0, 45100.0, 45900.0, 32526],
    ["2025-11-27", 45600.0, 45650.0, 44650.0, 44750.0, 52738],
@@ -252,10 +251,11 @@
    ["2026-11-18", 34550.0, 35200.0, 33600.0, 34100.0, 25360],
    ["2026-11-19", 34350.0, 34700.0, 32750.0, 33050.0, 42483],
    ["2026-11-20", 33100.0, 33100.0, 30750.0, 31450.0, 39969],
-   ["2026-11-23", 31200.0, 31400.0, 29300.0, 30000.0, 20078]
+   ["2026-11-23", 31200.0, 31400.0, 29300.0, 30000.0, 20078],
+   ["2026-11-24", 29850.0, 30750.0, 29650.0, 29900.0, 24324]
   ],
   "1wk": [
-   ["2021-11-21", 96200.0, 98000.0, 88000.0, 89000.0, 645112],
+   ["2021-11-21", 92700.0, 92800.0, 88000.0, 89000.0, 245068],
    ["2021-11-28", 86100.0, 92000.0, 86000.0, 90400.0, 609138],
    ["2021-12-05", 90300.0, 96200.0, 90000.0, 93600.0, 606261],
    ["2021-12-12", 94000.0, 106000.0, 89800.0, 103000.0, 1123407],
@@ -516,8 +516,8 @@
    ["2026-11-01", 39500.0, 41900.0, 39100.0, 40600.0, 161663],
    ["2026-11-08", 40000.0, 41100.0, 36400.0, 36650.0, 216733],
    ["2026-11-15", 36500.0, 38500.0, 30750.0, 31450.0, 165892],
-   ["2026-11-22", 31200.0, 31400.0, 29300.0, 30000.0, 20078],
-   ["2026-11-24", 0.0, 0.0, 0.0, 29900.0, 0]
+   ["2026-11-22", 31200.0, 31400.0, 29300.0, 29900.0, 44402],
+   ["2026-11-25", 0.0, 0.0, 0.0, 30550.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 208000.0, 208500.0, 186000.0, 199000.0, 956253],
@@ -639,8 +639,8 @@
    ["2026-07-31", 38400.0, 42850.0, 37100.0, 39200.0, 1102584],
    ["2026-08-31", 38750.0, 41000.0, 36650.0, 39050.0, 526853],
    ["2026-09-30", 39500.0, 41350.0, 37300.0, 39800.0, 804360],
-   ["2026-10-31", 39500.0, 41900.0, 30750.0, 31450.0, 544288],
-   ["2026-11-24", 0.0, 0.0, 0.0, 29900.0, 0]
+   ["2026-10-31", 39500.0, 41900.0, 29300.0, 29900.0, 588690],
+   ["2026-11-25", 0.0, 0.0, 0.0, 30550.0, 0]
   ]
  },
  "candleFormat": [
@@ -681,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 29900.0,
-  "prev": 29999.8997,
-  "change": -99.8997,
-  "changePct": -0.333,
-  "changePctMeta": -0.333,
-  "changePctSeries": -0.3333,
-  "asOf": "2026-11-24 06:30"
+  "now": 30550.0,
+  "prev": 29899.9746,
+  "change": 650.0254,
+  "changePct": 2.174,
+  "changePctMeta": 2.174,
+  "changePctSeries": 2.1739,
+  "asOf": "2026-11-25 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -709,15 +709,15 @@
    "dayHigh": 0.0,
    "week52Low": 0.0,
    "week52High": 54800.0,
-   "marketCap": 491147034624.0,
+   "marketCap": 501824126976.0,
    "volume": 0,
-   "avgVolume": 37497,
-   "avgVolume10": 37062
+   "avgVolume": 37446,
+   "avgVolume10": 34844
   },
   "valuation": {
-   "forwardPE": 19.72766,
-   "psr": 0.311933,
-   "dividendYield": 0.2,
+   "forwardPE": 20.15652,
+   "psr": 0.318714,
+   "dividendYield": 0.2007,
    "dividendRate": 6000.0,
    "payoutRatio": 1.5544,
    "beta": 0.79,
@@ -725,8 +725,8 @@
    "operatingMargin": 0.01689,
    "revenue": 1574527434752.0,
    "revenueGrowth": -0.19,
-   "change52w": -0.341383,
-   "ma50": 38783.0
+   "change52w": -0.348584,
+   "ma50": 38594.0
   },
   "holding": {
    "heldInstitutions": 0.15575,
@@ -735,10 +735,16 @@
  },
  "news": [
   {
-   "title": "한샘 주가 5분의 1 토막…국민연금은 출자자·주주로 '엇박자' - 머니투데이",
-   "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5SZ2RBMU9USlpsX2tBRWVUNTgzTjMza2duXzZnU3hHcElRNDhIdWJNWkxHeU43QjdEVThUd2RPeWc5VVJJcFVSZEhDVnFpYmd6RnFxejd4U005UjR5aE52V2tvR0htMWNB0gFuQVVfeXFMTW9WdjM4eXc4aGVNYm5sRkFqUGp1eTQ4dE9CV3N3N2hWZ2VyME9YZndublRkTzFHWFpGX1FpU3BrNXc3cDVtVzJXVHd4MXBXM0VoTUFrRWRzOEhzLXJrSURpT24tU3BVWmItRFZWSlE?oc=5",
-   "media": "머니투데이",
-   "published": "Fri, 30 Oct 2026 07:00:00 GMT"
+   "title": "김유진 한샘 대표, 수익성 개선에도 주가 반토막…기업가치 회복 과제",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE9adUZZYnRDd0dkUWVZOGxLNVpKVmdMU3d0QVZQMzQxMHUxbEtJSFBwQnhGYng1QnlaOHpHb3l0alpNTGtWQlZZS2hmV3lBQWhqTng0LUI2akFBYXFi?oc=5",
+   "media": "뉴스핌",
+   "published": "Wed, 25 Nov 2026 06:38:00 GMT"
+  },
+  {
+   "title": "한샘, 2년 연속 '지속가능성보고서상' 수상…ESG 경영 성과 입증",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBHODhmWFJNQXAwRzNhQ1Ryai1ibFYwQ2w4SG5iLXNPZUVRdi1nSDFTSG90Qk54cE5SVlJTTmd5TDIwVF9pSUJIcFhMSHpHRkl2bHZrQlh1OWJBRzZy?oc=5",
+   "media": "뉴스핌",
+   "published": "Wed, 25 Nov 2026 04:43:00 GMT"
   },
   {
    "title": "[애널리스트 뷰] 한샘 주가에 얽힌 자사주 셈법",
@@ -747,16 +753,10 @@
    "published": "Tue, 18 Aug 2026 07:00:00 GMT"
   },
   {
-   "title": "LS증권 \"한샘 목표주가 하향, 주택 거래 둔화로 당분간 실적 회복 어려워\"",
-   "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE03ZmNfVE52VUpPdFRHNkF4V1VjWXozTDJ2clFhNU1lOEZnNGpTQ2EzMm9HYzk1QTFHQUc0V05iWi11MHN4VDNPdVVwLVVid0p0OXBVYjQ0MVhtWXdVa3k1SkgzcTVnR3RhNEhTZUJ3aHZRMGs?oc=5",
-   "media": "비즈니스포스트",
-   "published": "Wed, 11 Nov 2026 08:00:00 GMT"
-  },
-  {
-   "title": "증시 급락에 PEF 투자기업도 주가도 '뚝'…지분 가치 하락 부담",
-   "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBhQUNUUHZmTC13Ym9mNjMwUzVqRTA2a2RFampGdmY0RkNOanZ5ZGFiTm5wM3E3SzMybFlwekFKNlctZGswNGZOb2lKRmlibkhJV1E?oc=5",
-   "media": "매일경제 마켓",
-   "published": "Sun, 08 Nov 2026 08:00:00 GMT"
+   "title": "한샘 주가 5분의 1 토막…국민연금은 출자자·주주로 '엇박자' - 머니투데이",
+   "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5SZ2RBMU9USlpsX2tBRWVUNTgzTjMza2duXzZnU3hHcElRNDhIdWJNWkxHeU43QjdEVThUd2RPeWc5VVJJcFVSZEhDVnFpYmd6RnFxejd4U005UjR5aE52V2tvR0htMWNB0gFuQVVfeXFMTW9WdjM4eXc4aGVNYm5sRkFqUGp1eTQ4dE9CV3N3N2hWZ2VyME9YZndublRkTzFHWFpGX1FpU3BrNXc3cDVtVzJXVHd4MXBXM0VoTUFrRWRzOEhzLXJrSURpT24tU3BVWmItRFZWSlE?oc=5",
+   "media": "머니투데이",
+   "published": "Fri, 30 Oct 2026 07:00:00 GMT"
   }
  ]
 }

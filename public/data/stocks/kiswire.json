@@ -4,12 +4,11 @@
  "symbol": "002240.KS",
  "market": "KOSPI",
  "note": "경강선(Hard Drawn Steel Wire) 생산 — 침대 스프링용 강선 포함",
- "generatedAt": "2026-11-25T03:51:35+09:00",
+ "generatedAt": "2026-11-26T02:56:22+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-24", 18410.0, 18730.0, 18330.0, 18580.0, 52983],
    ["2025-11-25", 18590.0, 18670.0, 18160.0, 18200.0, 20469],
    ["2025-11-26", 18200.0, 18560.0, 17930.0, 18260.0, 61882],
    ["2025-11-27", 18260.0, 18390.0, 18100.0, 18290.0, 11739],
@@ -252,10 +251,11 @@
    ["2026-11-18", 14200.0, 14340.0, 14060.0, 14220.0, 13791],
    ["2026-11-19", 14250.0, 14480.0, 14220.0, 14280.0, 7454],
    ["2026-11-20", 14590.0, 14590.0, 13940.0, 13940.0, 11403],
-   ["2026-11-23", 13930.0, 14000.0, 13340.0, 13340.0, 22329]
+   ["2026-11-23", 13930.0, 14000.0, 13340.0, 13340.0, 22329],
+   ["2026-11-24", 13480.0, 13700.0, 13340.0, 13570.0, 18206]
   ],
   "1wk": [
-   ["2021-11-21", 17334.0859, 17461.8555, 16610.0586, 16993.3672, 189692],
+   ["2021-11-21", 17163.7266, 17334.0859, 16610.0586, 16993.3672, 122820],
    ["2021-11-28", 16439.6992, 16993.3672, 15417.541, 16780.418, 370897],
    ["2021-12-05", 16780.418, 18058.1133, 16354.5186, 17674.8047, 336976],
    ["2021-12-12", 17802.5742, 17845.1641, 17121.1367, 17376.6758, 185519],
@@ -516,8 +516,8 @@
    ["2026-11-01", 14210.0, 15080.0, 13910.0, 14210.0, 130945],
    ["2026-11-08", 14460.0, 15350.0, 14410.0, 14820.0, 97989],
    ["2026-11-15", 14860.0, 14860.0, 13940.0, 13940.0, 66006],
-   ["2026-11-22", 13930.0, 14000.0, 13340.0, 13340.0, 22329],
-   ["2026-11-24", 0.0, 0.0, 0.0, 13570.0, 0]
+   ["2026-11-22", 13930.0, 14000.0, 13340.0, 13570.0, 40535],
+   ["2026-11-25", 0.0, 0.0, 0.0, 13200.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 27896.5879, 30062.9883, 26463.4297, 26763.3926, 323631],
@@ -639,8 +639,8 @@
    ["2026-07-31", 16650.0, 18000.0, 16290.0, 17270.0, 412640],
    ["2026-08-31", 17510.0, 17720.0, 16490.0, 16550.0, 463322],
    ["2026-09-30", 19170.0, 19380.0, 14180.0, 14310.0, 956094],
-   ["2026-10-31", 14210.0, 15350.0, 13910.0, 13940.0, 294940],
-   ["2026-11-24", 0.0, 0.0, 0.0, 13570.0, 0]
+   ["2026-10-31", 14210.0, 15350.0, 13340.0, 13570.0, 335475],
+   ["2026-11-25", 0.0, 0.0, 0.0, 13200.0, 0]
   ]
  },
  "candleFormat": [
@@ -681,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 13570.0,
-  "prev": 13340.0181,
-  "change": 229.9819,
-  "changePct": 1.724,
-  "changePctMeta": 1.724,
-  "changePctSeries": 1.7241,
-  "asOf": "2026-11-24 06:30"
+  "now": 13200.0,
+  "prev": 13570.0554,
+  "change": -370.0554,
+  "changePct": -2.727,
+  "changePctMeta": -2.727,
+  "changePctSeries": -2.7266,
+  "asOf": "2026-11-25 06:30"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -708,14 +708,14 @@
    "dayHigh": 0.0,
    "week52Low": 0.0,
    "week52High": 28300.0,
-   "marketCap": 366171652096.0,
+   "marketCap": 356187602944.0,
    "volume": 0,
-   "avgVolume": 29928,
-   "avgVolume10": 15092
+   "avgVolume": 29898,
+   "avgVolume10": 14906
   },
   "valuation": {
-   "psr": 0.200415,
-   "dividendYield": 0.0262,
+   "psr": 0.194951,
+   "dividendYield": 0.0258,
    "dividendRate": 350.0,
    "payoutRatio": 4.4872,
    "beta": 0.882,
@@ -723,8 +723,8 @@
    "operatingMargin": 0.00507,
    "revenue": 1827066740736.0,
    "revenueGrowth": 0.046,
-   "change52w": -0.267033,
-   "ma50": 15671.2
+   "change52w": -0.256846,
+   "ma50": 15598.0
   },
   "holding": {
    "heldInstitutions": 0.00878,
@@ -739,22 +739,22 @@
    "published": "Fri, 20 Nov 2026 05:47:24 GMT"
   },
   {
+   "title": "고려제강, 주당 0.1111774주 무상증자 결정",
+   "link": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE5scWJuSjVpQkczUEhRLXhMVzZkV3VRTFAzWFUtQ3dyQnNXb3RXLUtTQ3k1TUF5S1AyRm9IOTNtN0hQYy1VNUhiUjRtVmJPM0pVTnNn0gFYQVVfeXFMUE95Z2dhbzhMcWttaEdMWGJFQjBfNk9ZV2xRWWxDcVh4RHp4d1YwWGRtWHRZc2RyNmRjYTZ6eEZPQXk2dEJfUUM4blFMb0pRempZVlZXRlJLeA?oc=5",
+   "media": "SBS Biz",
+   "published": "Fri, 06 Nov 2026 08:00:00 GMT"
+  },
+  {
    "title": "[단독 심층진단] ‘자산주’의 늪에 빠진 고려제강, ‘초전도체’가 구원투수 될까",
    "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1LNTBZN09xZ19uZW0wNnJOUWt1ZWVsaVNRejN1U2IxZnUxQWl4bnpKQ0QxaDNpNFZqWmpSZmg0alBnQnJqMWRtaUxhN2ZtdDVSVnI5cEZjUEFPYzBDUFhoT2ZLLTd0NnVXQ1E?oc=5",
    "media": "뉴스밸류",
    "published": "Wed, 28 Jan 2026 08:00:00 GMT"
   },
   {
-   "title": "고려제강 지분 사들인 홍영철… 키스트론 순환출자 정리 스타트",
-   "link": "https://news.google.com/rss/articles/CBMihwFBVV95cUxOWXhJejJFMXJnYkRyN1ZXbUdCWmJfSHFJaFFMOW95MUdoUWV2Tm5JNEZQX2JzbG9faU1GTlUyalhYb05sSlVXOThoN1I3VVlsaGQ1b1JkaGhKZ29qMms4V1FTLWRrTWNkVlJ6d2dNd3VUY1FXcDR6bjN0WmtqNnFLdGZxLUt4UGPSAZsBQVVfeXFMUFRaRWFxdkx5TmxuZTNTLTViUkhfaWRBVXZWcjVSNWJST3ZNeUotZjF1ZXlleXJzanViTnNaSG1ENXdzajJqMTMwVF9HT3ZXMHB3OHNOdm1vOWpIdXJqZWlIVVQyTFdkN1A0SjRPRGhNbXdpa3RlYkFnTkp2M21GREx2bXFXTURaaldtWWRpemVnSWhEY0pzdlZTck0?oc=5",
-   "media": "Chosunbiz",
-   "published": "Tue, 19 May 2026 07:00:00 GMT"
-  },
-  {
-   "title": "고려제강그룹 지배구조 개편 속도…키스트론, 홍희연 대표 품으로",
-   "link": "https://news.google.com/rss/articles/CBMiS0FVX3lxTE45VXYzNzdKU0YwYl9mRXc0b1VPQ0dDRHMyc24xZUpiYWFmQTNwVGlnLWdWNzg0X3ZEdHJobUN0UHViODZFTzZydks5TQ?oc=5",
-   "media": "Daum",
-   "published": "Fri, 14 Aug 2026 07:00:00 GMT"
+   "title": "[실적속보]고려제강, 3년 중 최고 매출 달성, 영업이익은 전년동기 대비 -74%↓ (연결)",
+   "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE8ydFVmRXVsU2hGSkF0RERkRmhsYkw5OHpIWkR5amU4UUw5MURmU0VFdmFTeXVQdFRONnpmajR0Z3BLMVptWkdZc0VVOVJ1X0JaYjRySHh3X1FhQ01nMG93T2FveExIa2xf?oc=5",
+   "media": "ThinkPool",
+   "published": "Sun, 20 Sep 2026 23:02:37 GMT"
   }
  ]
 }

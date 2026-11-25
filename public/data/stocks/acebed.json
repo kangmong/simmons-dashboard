@@ -4,12 +4,11 @@
  "symbol": "003800.KQ",
  "market": "KOSDAQ",
  "note": "침대 전문. 국내 매트리스 상장사 중 비교 기준",
- "generatedAt": "2026-11-25T03:50:58+09:00",
+ "generatedAt": "2026-11-26T02:55:48+09:00",
  "currency": "KRW",
  "exchange": "KOE",
  "candles": {
   "1d": [
-   ["2025-11-24", 30450.0, 30450.0, 29350.0, 29450.0, 5507],
    ["2025-11-25", 29500.0, 29900.0, 29500.0, 29900.0, 6408],
    ["2025-11-26", 29900.0, 31050.0, 29700.0, 31000.0, 16269],
    ["2025-11-27", 30800.0, 31000.0, 30400.0, 30800.0, 7437],
@@ -252,10 +251,11 @@
    ["2026-11-18", 30800.0, 30800.0, 30150.0, 30550.0, 1510],
    ["2026-11-19", 30700.0, 30700.0, 30150.0, 30300.0, 2070],
    ["2026-11-20", 30650.0, 30650.0, 29500.0, 29600.0, 6224],
-   ["2026-11-23", 29700.0, 31000.0, 28850.0, 29150.0, 6184]
+   ["2026-11-23", 29700.0, 31000.0, 28850.0, 29150.0, 6184],
+   ["2026-11-24", 29850.0, 29850.0, 29050.0, 29500.0, 3492]
   ],
   "1wk": [
-   ["2021-11-21", 41500.0, 42950.0, 41000.0, 42950.0, 2858],
+   ["2021-11-21", 42000.0, 42950.0, 41600.0, 42950.0, 2158],
    ["2021-11-28", 41900.0, 42950.0, 39750.0, 42500.0, 12998],
    ["2021-12-05", 42300.0, 42850.0, 41050.0, 41050.0, 5225],
    ["2021-12-12", 41200.0, 42450.0, 40550.0, 42350.0, 5914],
@@ -516,8 +516,8 @@
    ["2026-11-01", 31750.0, 32200.0, 30600.0, 30700.0, 14684],
    ["2026-11-08", 30650.0, 32000.0, 30650.0, 31800.0, 6347],
    ["2026-11-15", 31350.0, 31400.0, 29500.0, 29600.0, 20053],
-   ["2026-11-22", 29700.0, 31000.0, 28850.0, 29150.0, 6184],
-   ["2026-11-24", 0.0, 0.0, 0.0, 29500.0, 0]
+   ["2026-11-22", 29700.0, 31000.0, 28850.0, 29500.0, 9676],
+   ["2026-11-25", 0.0, 0.0, 0.0, 29350.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 31000.0, 31940.0, 30420.0, 31720.0, 17045],
@@ -639,8 +639,8 @@
    ["2026-07-31", 32200.0, 33850.0, 30900.0, 33050.0, 50609],
    ["2026-08-31", 33050.0, 33350.0, 31900.0, 32400.0, 32388],
    ["2026-09-30", 32400.0, 32600.0, 31000.0, 31500.0, 48206],
-   ["2026-10-31", 31750.0, 32200.0, 29500.0, 29600.0, 41084],
-   ["2026-11-24", 0.0, 0.0, 0.0, 29500.0, 0]
+   ["2026-10-31", 31750.0, 32200.0, 28850.0, 29500.0, 50760],
+   ["2026-11-25", 0.0, 0.0, 0.0, 29350.0, 0]
   ]
  },
  "candleFormat": [
@@ -681,13 +681,13 @@
   }
  ],
  "quote": {
-  "now": 29500.0,
-  "prev": 29149.9096,
-  "change": 350.0904,
-  "changePct": 1.201,
-  "changePctMeta": 1.201,
-  "changePctSeries": 1.2007,
-  "asOf": "2026-11-24 06:30"
+  "now": 29350.0,
+  "prev": 29499.8593,
+  "change": -149.8593,
+  "changePct": -0.508,
+  "changePctMeta": -0.508,
+  "changePctSeries": -0.5085,
+  "asOf": "2026-11-25 06:18"
  },
  "source": "Yahoo Finance",
  "profile": {
@@ -709,14 +709,14 @@
    "dayHigh": 0.0,
    "week52Low": 0.0,
    "week52High": 39850.0,
-   "marketCap": 311429890048.0,
+   "marketCap": 309846343680.0,
    "volume": 0,
-   "avgVolume": 2263,
-   "avgVolume10": 3056
+   "avgVolume": 2284,
+   "avgVolume10": 3358
   },
   "valuation": {
-   "psr": 0.94883,
-   "dividendYield": 0.0789,
+   "psr": 0.944005,
+   "dividendYield": 0.078,
    "dividendRate": 2300.0,
    "payoutRatio": 0.4646,
    "beta": 0.351,
@@ -724,8 +724,8 @@
    "operatingMargin": 0.15856,
    "revenue": 328225292288.0,
    "revenueGrowth": -0.013,
-   "change52w": -0.025084,
-   "ma50": 31725.0
+   "change52w": -0.048387,
+   "ma50": 31661.0
   },
   "holding": {
    "heldInstitutions": 0.00105,
@@ -740,12 +740,6 @@
    "published": "Fri, 10 Jul 2026 07:00:00 GMT"
   },
   {
-   "title": "배당 늘린 에이스침대…지분 증여와 맞물린 '승계 시계'",
-   "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBreFNGVXd2ajRRVm9ldkdqenJrSFR4RmYyZTdRSkcwUG5NSW8zeFNIdnk1THFFM1NaRHpKVGJiTVp2UlA1MXNsQ01veXIwaHM?oc=5",
-   "media": "딜사이트",
-   "published": "Wed, 25 Feb 2026 08:00:00 GMT"
-  },
-  {
    "title": "에이스침대 최대주주 안성호, 에이스침대 주식등 882만2350주 보유…총 지분율 79.55%",
    "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9NQ1dscXRjNVhMbEVJbHJ5c05VSlZkdlpNWDVKbnVLSG1wTzMzQzlkX1VMSklRMXR6b2lSYjF4YVZpb2dUR19OcmVuWHVaV0ZOTi1iUlBKSlVXNlFlNW56RC1oTXZKTUg2aDlLeU41RXVsNnM?oc=5",
    "media": "디지털투데이",
@@ -756,6 +750,12 @@
    "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE4tcGdsNkprLVV6cjVHdWJhUTBsYmtLaXVLTzYtU3ZCM045d0xxai03X0x0bVZUNlJaenZYek8yTnhaRWlmRURxMUkydkhuZEFXOWo3SVlQYVZlR1ZY?oc=5",
    "media": "뉴스핌",
    "published": "Wed, 04 Feb 2026 08:00:00 GMT"
+  },
+  {
+   "title": "에이스침대, 일반 주주에 2300원 차등배당…7%대 시가배당률",
+   "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1iYWRpd0Z4YmFFNFlYQWFtTFo5TlpmcFpFQ3FVaHJXSjBhaTFtUHYzNU1KUXhoamEtZFRsYTk1SGdZNFJQU1lnX0VsQjN2RC13dEp4UzR5MHhRNWhGMHg1R0RFdlZqaXl0?oc=5",
+   "media": "주주경제신문",
+   "published": "Mon, 02 Feb 2026 08:00:00 GMT"
   }
  ]
 }
