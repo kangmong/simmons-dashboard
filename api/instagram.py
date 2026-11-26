@@ -21,7 +21,9 @@ import datetime
 import io
 import json
 import os
+import re
 import sys
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler
 
@@ -146,7 +148,9 @@ def fetch_posts(limit=POST_LIMIT, verbose=False):
         res.raise_for_status()
         raw = res.json()
     except Exception as e:  # noqa: BLE001 — 실패를 그대로 알린다
-        return {"status": "error", "items": [], "username": user, "reason": str(e)[:200]}
+        # ★ 오류 문구에는 주소(?token=…)가 들어 있다 — 화면·파일로 나가기 전에 토큰을 가린다
+        return {"status": "error", "items": [], "username": user,
+                "reason": re.sub(r"token=[^&\s'\"]+", "token=***", str(e))[:200]}
 
     if not isinstance(raw, list):
         return {"status": "error", "items": [], "username": user,
@@ -177,6 +181,17 @@ def load_cache(path=None):
         return None
 
 
+def _img_expiring(payload, within=2 * 86400):
+    """사진 주소(인스타 CDN)는 서명에 만료 시각(oe=16진수 초)이 있어 약 일주일 뒤 403 이 된다.
+    하나라도 만료됐거나 within 초 안에 만료되면 True — 게시물이 그대로여도 새 주소로 다시 써야 한다."""
+    now = time.time()
+    for it in (payload or {}).get("items") or []:
+        m = re.search(r"[?&]oe=([0-9A-Fa-f]+)", it.get("image") or "")
+        if m and int(m.group(1), 16) < now + within:
+            return True
+    return False
+
+
 def _first_id(payload):
     items = (payload or {}).get("items") or []
     return items[0].get("id") if items else None
@@ -200,7 +215,7 @@ def refresh_cache(path=None, limit=POST_LIMIT, verbose=True):
         out["last_error"] = fresh.get("reason") or fresh.get("status")
         return out
 
-    if old and _first_id(old) and _first_id(old) == _first_id(fresh):
+    if old and _first_id(old) and _first_id(old) == _first_id(fresh) and not _img_expiring(old):
         if verbose:
             print("[instagram] 최신 게시물 id 동일(%s) → 캐시 유지, 재작성 생략"
                   % _first_id(fresh), file=sys.stderr)
@@ -258,4 +273,8 @@ if __name__ == "__main__":
     print("[instagram] status=%s changed=%s 게시물=%d"
           % (r.get("status"), r.get("changed"), len(r.get("items") or [])))
     # 수집에 실패했고 쓸 캐시도 없으면 0이 아닌 코드로 끝낸다(워크플로가 알아채게).
+    # 새로 받지 못했는데 사진 주소가 만료됐거나 곧 만료되면(=화면에 사진이 안 뜬다) 실패로 알린다.
+    if r.get("last_error") and _img_expiring(r, within=0):
+        print("[instagram] ✗ 새 게시물을 받지 못했고 저장된 사진 주소가 만료됐습니다: %s" % r.get("last_error"), file=sys.stderr)
+        sys.exit(1)
     sys.exit(0 if (r.get("items") or r.get("status") == "no_key") else 1)
