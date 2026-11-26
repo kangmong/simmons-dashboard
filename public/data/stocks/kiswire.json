@@ -4,12 +4,11 @@
  "symbol": "002240.KS",
  "market": "KOSPI",
  "note": "경강선(Hard Drawn Steel Wire) 생산 — 침대 스프링용 강선 포함",
- "generatedAt": "2026-11-26T02:56:22+09:00",
+ "generatedAt": "2026-11-27T02:41:15+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-25", 18590.0, 18670.0, 18160.0, 18200.0, 20469],
    ["2025-11-26", 18200.0, 18560.0, 17930.0, 18260.0, 61882],
    ["2025-11-27", 18260.0, 18390.0, 18100.0, 18290.0, 11739],
    ["2025-11-28", 18310.0, 18530.0, 18240.0, 18500.0, 11355],
@@ -252,10 +251,11 @@
    ["2026-11-19", 14250.0, 14480.0, 14220.0, 14280.0, 7454],
    ["2026-11-20", 14590.0, 14590.0, 13940.0, 13940.0, 11403],
    ["2026-11-23", 13930.0, 14000.0, 13340.0, 13340.0, 22329],
-   ["2026-11-24", 13480.0, 13700.0, 13340.0, 13570.0, 18206]
+   ["2026-11-24", 13480.0, 13700.0, 13340.0, 13570.0, 18206],
+   ["2026-11-25", 13430.0, 13550.0, 13100.0, 13200.0, 14042]
   ],
   "1wk": [
-   ["2021-11-21", 17163.7266, 17334.0859, 16610.0586, 16993.3672, 122820],
+   ["2021-11-21", 17035.957, 17334.0859, 16610.0586, 16993.3672, 87742],
    ["2021-11-28", 16439.6992, 16993.3672, 15417.541, 16780.418, 370897],
    ["2021-12-05", 16780.418, 18058.1133, 16354.5186, 17674.8047, 336976],
    ["2021-12-12", 17802.5742, 17845.1641, 17121.1367, 17376.6758, 185519],
@@ -516,8 +516,8 @@
    ["2026-11-01", 14210.0, 15080.0, 13910.0, 14210.0, 130945],
    ["2026-11-08", 14460.0, 15350.0, 14410.0, 14820.0, 97989],
    ["2026-11-15", 14860.0, 14860.0, 13940.0, 13940.0, 66006],
-   ["2026-11-22", 13930.0, 14000.0, 13340.0, 13570.0, 40535],
-   ["2026-11-25", 0.0, 0.0, 0.0, 13200.0, 0]
+   ["2026-11-22", 13930.0, 14000.0, 13100.0, 13200.0, 54577],
+   ["2026-11-26", 0.0, 0.0, 0.0, 13200.0, 0]
   ],
   "1mo": [
    ["2016-11-30", 27896.5879, 30062.9883, 26463.4297, 26763.3926, 323631],
@@ -639,8 +639,8 @@
    ["2026-07-31", 16650.0, 18000.0, 16290.0, 17270.0, 412640],
    ["2026-08-31", 17510.0, 17720.0, 16490.0, 16550.0, 463322],
    ["2026-09-30", 19170.0, 19380.0, 14180.0, 14310.0, 956094],
-   ["2026-10-31", 14210.0, 15350.0, 13340.0, 13570.0, 335475],
-   ["2026-11-25", 0.0, 0.0, 0.0, 13200.0, 0]
+   ["2026-10-31", 14210.0, 15350.0, 13100.0, 13200.0, 349517],
+   ["2026-11-26", 0.0, 0.0, 0.0, 13200.0, 0]
   ]
  },
  "candleFormat": [
@@ -682,14 +682,15 @@
  ],
  "quote": {
   "now": 13200.0,
-  "prev": 13570.0554,
-  "change": -370.0554,
-  "changePct": -2.727,
-  "changePctMeta": -2.727,
+  "prev": 13570.0,
+  "change": -370.0,
+  "changePct": 0.0,
+  "changePctMeta": 0.0,
   "changePctSeries": -2.7266,
-  "asOf": "2026-11-25 06:30"
+  "asOf": "2026-11-26 06:30"
  },
  "source": "Yahoo Finance",
+ "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta +0.00% vs 시계열 -2.73%)",
  "profile": {
   "identity": {
    "longName": "Kiswire Ltd.",
@@ -710,12 +711,12 @@
    "week52High": 28300.0,
    "marketCap": 356187602944.0,
    "volume": 0,
-   "avgVolume": 29898,
-   "avgVolume10": 14906
+   "avgVolume": 29782,
+   "avgVolume10": 14113
   },
   "valuation": {
    "psr": 0.194951,
-   "dividendYield": 0.0258,
+   "dividendYield": 0.0265,
    "dividendRate": 350.0,
    "payoutRatio": 4.4872,
    "beta": 0.882,
@@ -723,8 +724,8 @@
    "operatingMargin": 0.00507,
    "revenue": 1827066740736.0,
    "revenueGrowth": 0.046,
-   "change52w": -0.256846,
-   "ma50": 15598.0
+   "change52w": -0.278294,
+   "ma50": 15524.0
   },
   "holding": {
    "heldInstitutions": 0.00878,
@@ -739,16 +740,16 @@
    "published": "Fri, 20 Nov 2026 05:47:24 GMT"
   },
   {
-   "title": "고려제강, 주당 0.1111774주 무상증자 결정",
-   "link": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE5scWJuSjVpQkczUEhRLXhMVzZkV3VRTFAzWFUtQ3dyQnNXb3RXLUtTQ3k1TUF5S1AyRm9IOTNtN0hQYy1VNUhiUjRtVmJPM0pVTnNn0gFYQVVfeXFMUE95Z2dhbzhMcWttaEdMWGJFQjBfNk9ZV2xRWWxDcVh4RHp4d1YwWGRtWHRZc2RyNmRjYTZ6eEZPQXk2dEJfUUM4blFMb0pRempZVlZXRlJLeA?oc=5",
-   "media": "SBS Biz",
-   "published": "Fri, 06 Nov 2026 08:00:00 GMT"
-  },
-  {
    "title": "[단독 심층진단] ‘자산주’의 늪에 빠진 고려제강, ‘초전도체’가 구원투수 될까",
    "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1LNTBZN09xZ19uZW0wNnJOUWt1ZWVsaVNRejN1U2IxZnUxQWl4bnpKQ0QxaDNpNFZqWmpSZmg0alBnQnJqMWRtaUxhN2ZtdDVSVnI5cEZjUEFPYzBDUFhoT2ZLLTd0NnVXQ1E?oc=5",
    "media": "뉴스밸류",
    "published": "Wed, 28 Jan 2026 08:00:00 GMT"
+  },
+  {
+   "title": "고려제강, 주당 0.1111774주 무상증자 결정",
+   "link": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE5scWJuSjVpQkczUEhRLXhMVzZkV3VRTFAzWFUtQ3dyQnNXb3RXLUtTQ3k1TUF5S1AyRm9IOTNtN0hQYy1VNUhiUjRtVmJPM0pVTnNn0gFYQVVfeXFMUE95Z2dhbzhMcWttaEdMWGJFQjBfNk9ZV2xRWWxDcVh4RHp4d1YwWGRtWHRZc2RyNmRjYTZ6eEZPQXk2dEJfUUM4blFMb0pRempZVlZXRlJLeA?oc=5",
+   "media": "SBS Biz",
+   "published": "Fri, 06 Nov 2026 08:00:00 GMT"
   },
   {
    "title": "[실적속보]고려제강, 3년 중 최고 매출 달성, 영업이익은 전년동기 대비 -74%↓ (연결)",
