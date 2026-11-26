@@ -715,6 +715,11 @@ body {
 .ig-card__date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ig-card__link { font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: none; white-space: nowrap; }
 .ig-card__link:hover { text-decoration: underline; }
+/* 사진이 없을 때 — 링크가 버튼처럼 보이고 카드가 납작해진다 */
+.ig-card--noimg .ig-card__body { justify-content: space-between; padding: 16px 16px 14px; }
+.ig-card--noimg .ig-card__cap { -webkit-line-clamp: 4; line-clamp: 4; }
+.ig-card--noimg .ig-card__link { font-size: 13px; color: #fff; background: var(--accent); padding: 8px 14px; border-radius: 8px; text-decoration: none; }
+.ig-card--noimg .ig-card__link:hover { text-decoration: none; filter: brightness(1.08); }
 @media (max-width: 640px) { .ig-grid { grid-template-columns: 1fr; } }
 
 /* 차트 위젯 */

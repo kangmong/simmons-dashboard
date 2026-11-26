@@ -650,10 +650,10 @@ function renderInstagram() {
     const thumb = img
       ? `<div class="ig-card__thumb"><img src="${escapeHtml(img)}" alt="${escapeHtml(it.caption || 'Instagram 게시물')}"
            loading="lazy" referrerpolicy="no-referrer"
-           onerror="this.parentNode.classList.add('ig-card__thumb--ph');this.remove()"><span class="ig-card__alt">이미지를 불러올 수 없습니다</span></div>`
-      : `<div class="ig-card__thumb ig-card__thumb--ph"><span class="ig-card__alt">이미지 없음</span></div>`;
+           onerror="this.closest('.ig-card').classList.add('ig-card--noimg');this.parentNode.remove()"></div>`
+      : '';   // 사진이 없거나 못 불러오면 사진 칸을 없애고 글·링크 버튼만 보인다(만료된 인스타 사진 주소가 흔하다)
     const cap = String(it.caption || '').trim();
-    return `<div class="ig-card">
+    return `<div class="ig-card${img ? '' : ' ig-card--noimg'}">
       ${thumb}
       <div class="ig-card__body">
         <p class="ig-card__cap">${cap ? escapeHtml(cap) : '<span class="ig-card__nocap">캡션 없음</span>'}</p>
