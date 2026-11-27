@@ -1,7 +1,7 @@
 {
   "status": "ok",
   "reason": null,
-  "lastUpdated": "2026-11-26",
+  "lastUpdated": "2026-11-27",
   "source": "KIPRIS (특허정보검색서비스)",
   "techNote": "기술분야 분류와 키워드 추출은 제목·초록의 자동 키워드 매칭 기준이며, 완전히 정확하지 않을 수 있습니다.",
   "keyParamUsed": "ServiceKey",
@@ -34,16 +34,16 @@
   },
   "truncated": false,
   "period": {
-    "from": "2006-11-26",
-    "to": "2026-11-26"
+    "from": "2006-11-27",
+    "to": "2026-11-27"
   },
   "prevPeriod": {
-    "from": "2005-11-26",
-    "to": "2025-11-26"
+    "from": "2005-11-27",
+    "to": "2025-11-27"
   },
   "fetchPeriod": {
-    "from": "2005-11-26",
-    "to": "2026-11-26"
+    "from": "2005-11-27",
+    "to": "2026-11-27"
   },
   "ipcFilter": {
     "enabled": true,
@@ -1052,7 +1052,7 @@
       "isOurs": false,
       "scope": "kr",
       "country": "KR",
-      "kind": "공개",
+      "kind": "취하",
       "ipc": "A47C 20/04|A47C 31/12|A47C 7/48|A47C 20/02|A47C 16/00",
       "catKey": "structure",
       "catLabel": "매트리스 구조/스프링",
