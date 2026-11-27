@@ -4,12 +4,11 @@
  "symbol": "SGI",
  "market": "NYSE",
  "note": "Tempur·Sealy·Mattress Firm 보유",
- "generatedAt": "2026-11-27T02:41:19+09:00",
+ "generatedAt": "2026-11-28T02:25:57+09:00",
  "currency": "USD",
  "exchange": "NYQ",
  "candles": {
   "1d": [
-   ["2025-11-26", 89.2, 91.7, 89.2, 90.7, 1803800],
    ["2025-11-28", 91.23, 91.91, 90.44, 91.52, 633900],
    ["2025-12-01", 88.7, 93.23, 88.27, 93.19, 2239000],
    ["2025-12-02", 93.43, 94.42, 92.31, 92.67, 1839000],
@@ -259,10 +258,10 @@
    ["2026-11-20", 59.67, 60.84, 57.5, 57.82, 3477600],
    ["2026-11-23", 59.33, 61.56, 58.92, 60.58, 2387700],
    ["2026-11-24", 60.16, 61.86, 59.49, 61.78, 2474800],
-   ["2026-11-25", 61.22, 64.16, 60.32, 63.56, 2662200]
+   ["2026-11-25", 61.22, 64.16, 60.32, 63.56, 2662200],
+   ["2026-11-27", 64.0, 65.21, 63.9, 64.96, 1136682]
   ],
   "1wk": [
-   ["2021-11-22", 42.33, 42.88, 41.76, 42.23, 1587700],
    ["2021-11-29", 42.8, 45.3, 41.58, 43.67, 12751100],
    ["2021-12-06", 43.7, 46.7, 43.38, 44.83, 8653800],
    ["2021-12-13", 45.26, 47.53, 44.28, 45.66, 14778900],
@@ -524,7 +523,7 @@
    ["2026-11-09", 62.95, 67.89, 60.4, 60.76, 20594600],
    ["2026-11-16", 60.93, 62.48, 57.5, 57.82, 20965200],
    ["2026-11-23", 59.33, 64.16, 58.92, 63.56, 7524700],
-   ["2026-11-25", 61.22, 64.16, 60.38, 63.56, 2662164]
+   ["2026-11-27", 64.0, 65.21, 63.9, 64.96, 1136682]
   ],
   "1mo": [
    ["2016-12-01", 15.845, 17.39, 15.23, 17.07, 63276400],
@@ -647,7 +646,7 @@
    ["2026-09-01", 63.88, 70.94, 60.99, 62.11, 71152000],
    ["2026-10-01", 62.0, 66.2, 60.08, 63.56, 55222700],
    ["2026-11-01", 64.51, 70.62, 57.5, 63.56, 71053400],
-   ["2026-11-25", 61.22, 64.16, 60.38, 63.56, 2662164]
+   ["2026-11-27", 64.0, 65.21, 63.9, 64.96, 1136682]
   ]
  },
  "candleFormat": [
@@ -688,13 +687,13 @@
   }
  ],
  "quote": {
-  "now": 63.56,
-  "prev": 61.7801,
-  "change": 1.7799,
-  "changePct": 2.881,
-  "changePctMeta": 2.881,
-  "changePctSeries": 2.8812,
-  "asOf": "2026-11-25 21:00"
+  "now": 64.96,
+  "prev": 63.5598,
+  "change": 1.4002,
+  "changePct": 2.203,
+  "changePctMeta": 2.203,
+  "changePctSeries": 2.2026,
+  "asOf": "2026-11-27 17:25"
  },
  "source": "Yahoo Finance",
  "aka": "구 Tempur Sealy International (티커 TPX → 2025-02-18 SGI 로 변경)",
@@ -714,22 +713,22 @@
    "ceo": "Mr. Scott L. Thompson (Chairman of the Board, CEO & President), Mr. H. Clifford Buster III (Chief Executive Officer of Tempur Sealy North America)"
   },
   "summaryBar": {
-   "dayLow": 60.38,
-   "dayHigh": 64.16,
+   "dayLow": 63.9,
+   "dayHigh": 65.21,
    "week52Low": 57.5,
    "week52High": 98.56,
-   "marketCap": 14634686464.0,
-   "volume": 2662164,
-   "avgVolume": 3381796,
+   "marketCap": 14957035520.0,
+   "volume": 1136682,
+   "avgVolume": 3338715,
    "avgVolume10": 3427440
   },
   "valuation": {
-   "trailingPE": 26.156378,
-   "forwardPE": 18.057793,
-   "pbr": 3.158104,
+   "trailingPE": 26.73251,
+   "forwardPE": 18.455542,
+   "pbr": 3.227666,
    "eps": 2.43,
    "bps": 20.126,
-   "psr": 1.86567,
+   "psr": 1.906764,
    "dividendYield": 0.0107,
    "dividendRate": 0.68,
    "payoutRatio": 0.2716,
@@ -748,6 +747,12 @@
  },
  "news": [
   {
+   "title": "Somnigroup International Inc 주가, 52주 최저치 60.07달러 기록",
+   "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5tUGR0WXhKMFVhemxqUEFyVnY3X28yWmR0cXpJeTR0ZUdyNnVCODU1YWhXSWM5cHhpNzNRa0tuN3JzNTVoU29VWTUtU1dlaE0yMnlzdTQ0VlllMENLczJ5OUFTcG0ydFlXS0NNQjlSeDU?oc=5",
+   "media": "Investing.com 한국어",
+   "published": "Mon, 16 Nov 2026 18:20:00 GMT"
+  },
+  {
    "title": "Somnigroup, 연간 이익 전망 하향…개장 전 주가 8% 하락",
    "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFBJTkxiWXZ5VjFzWUxTZ0NYYTZiUDQwdlpRdEJXTmtnUGRXMlUzTVlEQ2o0Z1RLQkxJUGxqQWxVTGw5WF9qbm5wSThlUU5YSUpMdU5sOWszbzBQanEwdmRSdzRTMHNuYzNCWjJZ?oc=5",
    "media": "Investing.com 한국어",
@@ -764,12 +769,6 @@
    "link": "https://news.google.com/rss/articles/CBMid0FVX3lxTE1lZkJQUVBVVWQtWm9Rbjl5SmlxRG1VcHltcnA5M3BPVlFKVTNHSkxWa3l0V2hGZWJJdXBGS3lqQlhlOGlpWlJZX1JPZnNTV29DUkExRTQ5N09mZXZ6TWNsb0dua3BvcEVYMTd0WmlpVms2d3V2d2Q4?oc=5",
    "media": "TIKR.com",
    "published": "Fri, 20 Nov 2026 06:18:06 GMT"
-  },
-  {
-   "title": "Somnigroup International EVP, 2백6만 달러 규모 주식 매각",
-   "link": "https://news.google.com/rss/articles/CBMie0FVX3lxTFBGOTVLNHBjNEU1UFRBajAxUF9SSWg4R3pMa2JWYk82VWZJN1ZMcTAxZ1dCa2xzUEoweWZybEwtejBLRmhUcDYzbHlVN21TVWlIcTNxeTRwMGYtSVBWYTgwTDdzODNLbjVZWm9HSThDY2hNdW9PalhfcHBUOA?oc=5",
-   "media": "Investing.com 한국어",
-   "published": "Wed, 05 Mar 2025 08:00:00 GMT"
   }
  ]
 }

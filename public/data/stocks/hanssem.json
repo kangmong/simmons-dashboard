@@ -4,12 +4,11 @@
  "symbol": "009240.KS",
  "market": "KOSPI",
  "note": "종합 인테리어·가구",
- "generatedAt": "2026-11-27T02:41:01+09:00",
+ "generatedAt": "2026-11-28T02:25:39+09:00",
  "currency": "KRW",
  "exchange": "KSC",
  "candles": {
   "1d": [
-   ["2025-11-26", 45900.0, 46100.0, 45100.0, 45900.0, 32526],
    ["2025-11-27", 45600.0, 45650.0, 44650.0, 44750.0, 52738],
    ["2025-11-28", 45000.0, 46150.0, 44750.0, 45450.0, 89571],
    ["2025-12-01", 46050.0, 46700.0, 45650.0, 46050.0, 37460],
@@ -252,10 +251,10 @@
    ["2026-11-20", 33100.0, 33100.0, 30750.0, 31450.0, 39969],
    ["2026-11-23", 31200.0, 31400.0, 29300.0, 30000.0, 20078],
    ["2026-11-24", 29850.0, 30750.0, 29650.0, 29900.0, 24324],
-   ["2026-11-25", 29800.0, 30600.0, 29450.0, 30550.0, 22410]
+   ["2026-11-25", 29800.0, 30600.0, 29450.0, 30550.0, 22410],
+   ["2026-11-26", 30200.0, 32000.0, 29800.0, 30400.0, 15668]
   ],
   "1wk": [
-   ["2021-11-21", 91000.0, 92300.0, 88000.0, 89000.0, 124922],
    ["2021-11-28", 86100.0, 92000.0, 86000.0, 90400.0, 609138],
    ["2021-12-05", 90300.0, 96200.0, 90000.0, 93600.0, 606261],
    ["2021-12-12", 94000.0, 106000.0, 89800.0, 103000.0, 1123407],
@@ -516,8 +515,8 @@
    ["2026-11-01", 39500.0, 41900.0, 39100.0, 40600.0, 161663],
    ["2026-11-08", 40000.0, 41100.0, 36400.0, 36650.0, 216733],
    ["2026-11-15", 36500.0, 38500.0, 30750.0, 31450.0, 165892],
-   ["2026-11-22", 31200.0, 31400.0, 29300.0, 30550.0, 66812],
-   ["2026-11-26", 0.0, 0.0, 0.0, 30400.0, 0]
+   ["2026-11-22", 31200.0, 32000.0, 29300.0, 30400.0, 82480],
+   ["2026-11-27", 29900.0, 31000.0, 29900.0, 30400.0, 20741]
   ],
   "1mo": [
    ["2016-11-30", 208000.0, 208500.0, 186000.0, 199000.0, 956253],
@@ -639,8 +638,8 @@
    ["2026-07-31", 38400.0, 42850.0, 37100.0, 39200.0, 1102584],
    ["2026-08-31", 38750.0, 41000.0, 36650.0, 39050.0, 526853],
    ["2026-09-30", 39500.0, 41350.0, 37300.0, 39800.0, 804360],
-   ["2026-10-31", 39500.0, 41900.0, 29300.0, 30550.0, 611100],
-   ["2026-11-26", 0.0, 0.0, 0.0, 30400.0, 0]
+   ["2026-10-31", 39500.0, 41900.0, 29300.0, 30400.0, 626768],
+   ["2026-11-27", 29900.0, 31000.0, 29900.0, 30400.0, 20741]
   ]
  },
  "candleFormat": [
@@ -682,14 +681,15 @@
  ],
  "quote": {
   "now": 30400.0,
-  "prev": 30550.0005,
-  "change": -150.0005,
-  "changePct": -0.491,
-  "changePctMeta": -0.491,
+  "prev": 30550.0,
+  "change": -150.0,
+  "changePct": 0.0,
+  "changePctMeta": 0.0,
   "changePctSeries": -0.491,
-  "asOf": "2026-11-26 06:30"
+  "asOf": "2026-11-27 06:30"
  },
  "source": "Yahoo Finance",
+ "quoteWarning": "전일대비가 두 방식에서 다릅니다 (meta +0.00% vs 시계열 -0.49%)",
  "profile": {
   "identity": {
    "longName": "Hanssem Co., Ltd.",
@@ -705,19 +705,19 @@
    "ceo": "Eugene  Kim (Chief Executive Officer)"
   },
   "summaryBar": {
-   "dayLow": 0.0,
-   "dayHigh": 0.0,
-   "week52Low": 0.0,
+   "dayLow": 29900.0,
+   "dayHigh": 31000.0,
+   "week52Low": 28300.0,
    "week52High": 54800.0,
    "marketCap": 499360202752.0,
-   "volume": 0,
-   "avgVolume": 37271,
-   "avgVolume10": 33054
+   "volume": 20741,
+   "avgVolume": 36976,
+   "avgVolume10": 29033
   },
   "valuation": {
    "forwardPE": 20.057552,
    "psr": 0.317149,
-   "dividendYield": 0.1964,
+   "dividendYield": 0.1974,
    "dividendRate": 6000.0,
    "payoutRatio": 1.5544,
    "beta": 0.79,
@@ -725,8 +725,8 @@
    "operatingMargin": 0.01689,
    "revenue": 1574527434752.0,
    "revenueGrowth": -0.19,
-   "change52w": -0.317318,
-   "ma50": 38414.0
+   "change52w": -0.331133,
+   "ma50": 38242.0
   },
   "holding": {
    "heldInstitutions": 0.15602,
@@ -735,28 +735,28 @@
  },
  "news": [
   {
-   "title": "김유진 한샘 대표, 수익성 개선에도 주가 반토막…기업가치 회복 과제",
-   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE9adUZZYnRDd0dkUWVZOGxLNVpKVmdMU3d0QVZQMzQxMHUxbEtJSFBwQnhGYng1QnlaOHpHb3l0alpNTGtWQlZZS2hmV3lBQWhqTng0LUI2akFBYXFi?oc=5",
+   "title": "한샘, '공간개선 1000호' 영상으로 CSR 필름 페스티벌 산업통상부장관상",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE5MUVF6SG1zdHlNSThhMGFjYUxMaWJpNWU3RFRuZWxuOVcydzl1TkNqYzl3MmN5OHE1S2JSY0RCMFBGMko2RWlSZFppU0ZiVEphUU41bjhQazE2SUI5?oc=5",
    "media": "뉴스핌",
-   "published": "Wed, 25 Nov 2026 06:38:00 GMT"
+   "published": "Fri, 27 Nov 2026 04:59:00 GMT"
+  },
+  {
+   "title": "[M&A추적] '사모펀드 IMM의 무덤' 되어가는 한샘....제2의 홈플러스?",
+   "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTFAzTWNUcWJtZGlFSjJlMzFLU1FsZURXUi12b2pHb1E5eHRpQkppWkhjOUxVSElXM0RiOXJybTRRRXh3LUZMd2FlZ2ozWjBkU20xN0ZNbDRGbmkzbDlfM0FZSWRiSjNKVnZuT3c?oc=5",
+   "media": "https://www.moneystorm.kr/",
+   "published": "Thu, 26 Nov 2026 00:41:23 GMT"
   },
   {
    "title": "인테리어 선두주자 한샘, '제2 홈플러스' 비운 맞을 수도",
-   "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1mSWhhXzRaLWhaUk1zWk55RG5sY3lhQ05qNnZHaEZZdVpDUkRWeGE0bVBvOEttNnV3YURqWEN0Z1FiOWxwNDZYSTVZNUJYSm1SV3h1Z1hrUGNhZFFqWHpWS0lxRWwxaXpr0gFrQVVfeXFMTzkxcWpoUG9KUDdxOENzOGt1X2xBTDFTS0NidnhJMm82QUdXSE1zWTd0UGJBWl9ySXdtYWkySUdub3A1c3BjTDNKMk8tYjQ4eHo0QlNUajR5Q21wOXNvajZLSE04Q25ydzJzdDA?oc=5",
+   "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE8yOThwVEh1T1hBZTNWUG04SUtMcmhqeWR5VUhMYVZJTkV2NjVXNVE5MFh4UjFXS3JqZ3d5aVhwRHFUc1BFV0p2Rzg4aHIzck8zdENoYkdyaUZMNEpZZ3hmNk5NMUdLUjTSAWtBVV95cUxPOTFxamhQb0pQN3E4Q3M4a3VfbEFMMVNLQ2J2eEkybzZBR1dITXNZN3RQYkFaX3JJd21haTJJR25vcDVzcGNMM0oyTy1iNDh4ejRCU1RqNHlDbXA5c29qNktITThDbnJ3MnN0MA?oc=5",
    "media": "논객닷컴",
    "published": "Thu, 26 Nov 2026 07:47:35 GMT"
   },
   {
-   "title": "한샘, 성장기 맞춤 설계 '포시즌 주니어 매트리스' 2종 출시",
-   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE9ZbmNraDNRaHFuRnVaekdOellKNVhKLXRJRWhxYTRERnA2RTR2X2pSaDdJRWJaVzRVWV9OVEg3QVRueTU4ZXQ0bGQycFJpUTJTSUZyTnhnalk4RXBK?oc=5",
+   "title": "김유진 한샘 대표, 수익성 개선에도 주가 반토막…기업가치 회복 과제",
+   "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE9adUZZYnRDd0dkUWVZOGxLNVpKVmdMU3d0QVZQMzQxMHUxbEtJSFBwQnhGYng1QnlaOHpHb3l0alpNTGtWQlZZS2hmV3lBQWhqTng0LUI2akFBYXFi?oc=5",
    "media": "뉴스핌",
-   "published": "Thu, 26 Nov 2026 02:34:00 GMT"
-  },
-  {
-   "title": "[애널리스트 뷰] 한샘 주가에 얽힌 자사주 셈법",
-   "link": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE1peVBwbEpaYzJ3ZUZEZTBtdmcySVNFSzZqTTBLSHVpQzFPdjhVOHhMeHZySlhHRmpqYWtvSnFDa2Uwc29pU1lLanZWMFVuY2dtRU05Mnk2X25aMFFsZFEw?oc=5",
-   "media": "스마트투데이",
-   "published": "Tue, 18 Aug 2026 07:00:00 GMT"
+   "published": "Wed, 25 Nov 2026 06:38:00 GMT"
   }
  ]
 }
